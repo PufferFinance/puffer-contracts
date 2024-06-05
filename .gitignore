@@ -1,0 +1,14 @@
+.idea/
+**/.env
+**/.terraform
+**/node_modules/
+**/temp/
+**/coverage/
+**/build/
+**/dist/
+**/*.log
+
+mainnet-contracts/out/*
+mainnet-contracts/cache/*
+
+.DS_Store
