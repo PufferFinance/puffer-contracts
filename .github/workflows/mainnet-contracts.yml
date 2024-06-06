@@ -2,12 +2,17 @@ name: Mainnet contracts
 
 on:
   push:
-    branches: [master]
-    paths:
-      - "mainnet-contracts/**"
-  pull_request:
-    paths:
-      - "mainnet-contracts/**"
+    branches:
+      - master
+
+# on:
+#   push:
+#     branches: [master]
+#     paths:
+#       - "mainnet-contracts/**"
+#   pull_request:
+#     paths:
+#       - "mainnet-contracts/**"
 
 jobs:
   unit-tests:
@@ -20,7 +25,6 @@ jobs:
 
       - name: Run codespell
         uses: codespell-project/actions-codespell@v2.0
-        working-directory: mainnet-contracts
         with:
           check_hidden: true
           check_filenames: true
