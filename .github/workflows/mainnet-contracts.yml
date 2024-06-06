@@ -29,7 +29,7 @@ jobs:
           check_hidden: true
           check_filenames: true
           ignore_words_list: amountIn
-          skip: package-lock.json,*.pdf,./.git,.yarn.lock
+          skip: package-lock.json,*.pdf,./.git,yarn.lock
 
       - name: Install yarn
         uses: borales/actions-yarn@v4
