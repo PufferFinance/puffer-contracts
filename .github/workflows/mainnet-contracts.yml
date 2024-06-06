@@ -10,13 +10,22 @@ on:
       - "mainnet-contracts/**"
 
 jobs:
-  tests:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20
+
+      - name: Run codespell
+        working-directory: mainnet-contracts
+        uses: codespell-project/actions-codespell@v2.0
+        with:
+          check_hidden: true
+          check_filenames: true
+          ignore_words_list: amountIn
+          skip: package-lock.json,*.pdf,./.git
 
       - name: Install yarn
         uses: borales/actions-yarn@v4
@@ -31,3 +40,7 @@ jobs:
       - name: Run tests
         working-directory: mainnet-contracts
         run: forge test -vvv --match-path './test/unit/*'
+
+      - name: Run Slither
+        working-directory: mainnet-contracts
+        uses: crytic/slither-action@v0.4.0
