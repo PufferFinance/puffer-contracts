@@ -16,7 +16,7 @@
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
 
-## Overview
+## Overview 
 Stakers can deposit ETH and mint the [pufETH nLRT](https://docs.puffer.fi/protocol/nlrt#pufeth) via the PufferVault contract, which serves as a redeemable receipt for their restaked ETH. If sufficient exit liquidity is available, stakers can reclaim their ETH from the PufferVault. Over time, the redeemable amount is expected to increase from [validator tickets](https://docs.puffer.fi/protocol/validator-tickets) and restaking rewards.
 
 In [contrast with conventional liquid staking tokens (LSTs)](https://docs.puffer.fi/protocol/nlrt#what-is-an-lst), pufETH can provide strictly more rewards for its holders. Not only does pufETH encompass PoS rewards and restaking rewards, but its value can accelerate quickly due to validator ticket sales. Furthermore, the PoS rewards for stakers are decoupled from the protocol validators' performance.
