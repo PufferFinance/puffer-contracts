@@ -46,5 +46,6 @@ jobs:
         run: forge test -vvv --match-path './test/unit/*'
 
       - name: Run Slither
-        working-directory: mainnet-contracts
         uses: crytic/slither-action@v0.4.0
+        with:
+          target: 'mainnet-contracts/'
