@@ -37,4 +37,6 @@ contract MockPufferOracle is IPufferOracleV2 {
     function getLockedEthAmount() external view returns (uint256 lockedEthAmount) { }
 
     function isOverBurstThreshold() external view returns (bool) { }
+
+    function getNumberOfActiveValidators() external view returns (uint256) { }
 }

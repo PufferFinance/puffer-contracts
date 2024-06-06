@@ -43,7 +43,7 @@ contract PufferVaultV2ForkTest is TestHelper {
     }
 
     // Sanity check
-    function test_sanity() public {
+    function test_sanity() public view {
         assertEq(pufferVault.name(), "pufETH", "name");
         assertEq(pufferVault.symbol(), "pufETH", "symbol");
         assertEq(pufferVault.decimals(), 18, "decimals");

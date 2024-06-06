@@ -41,7 +41,7 @@ contract PufferVaultV2SandwichTest is TestHelper {
         vm.deal(address(pufferVault), 130 ether);
 
         // deposit 100 ETH
-        uint256 pufETHReceived = pufferVault.depositETH{ value: 100 ether }(address(this));
+        pufferVault.depositETH{ value: 100 ether }(address(this));
 
         // Rebase lido is +30.7 ETH for the Vault
         _rebaseLido();
@@ -72,7 +72,7 @@ contract PufferVaultV2SandwichTest is TestHelper {
         vm.deal(address(pufferVault), 130 ether);
 
         // deposit 100 ETH
-        uint256 pufETHReceived = pufferVault.depositETH{ value: 99 ether }(address(this));
+        pufferVault.depositETH{ value: 99 ether }(address(this));
 
         // Rebase lido is +30.7 ETH for the Vault
         _rebaseLido();

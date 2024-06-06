@@ -5,7 +5,16 @@ gas_reports=[
     "PufferVault",
     "PufferVaultV2",
     "PufferDepositorV2",
+    "PufferProtocol",
+    "GuardianModule",
+    "RestakingOperator",
+    "EnclaveVerifier",
+    "PufferModuleManager",
+    "PufferModule",
+    "ValidatorTicket"
 ]
+allow_paths = ["../node_modules", "./node_modules"]
+block_number = 0 # Our RAVE evidence is generated for blockhash(0) which is bytes32(0)
 fs_permissions = [{ access = "read-write", path = "./"}]
 src = "src"
 out = "out"
@@ -32,3 +41,8 @@ bracket_spacing = true
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
 holesky="${HOLESKY_RPC_URL}"
+
+[invariant]
+fail_on_revert=false
+depth = 110
+runs = 50

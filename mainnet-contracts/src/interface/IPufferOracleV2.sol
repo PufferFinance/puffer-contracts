@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferOracle } from "./IPufferOracle.sol";
+import { IPufferOracle } from "../interface/IPufferOracle.sol";
 
 /**
  * @title IPufferOracle
@@ -30,6 +30,11 @@ interface IPufferOracleV2 is IPufferOracle {
      * @notice Returns the total number of active validators on Ethereum
      */
     function getTotalNumberOfValidators() external view returns (uint256);
+
+    /**
+     * @notice Returns the number of active puffer validators on Ethereum
+     */
+    function getNumberOfActiveValidators() external view returns (uint256);
 
     /**
      * @notice Exits `validatorNumber` validators, decreasing the `lockedETHAmount` by validatorNumber * 32 ETH.

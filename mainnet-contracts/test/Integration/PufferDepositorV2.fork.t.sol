@@ -120,7 +120,7 @@ contract PufferDepositorV2ForkTest is TestHelper {
         assertEq(0, pufferVault.balanceOf(alice), "alice got 0");
     }
 
-    function test_stETH_share_conversion() public {
+    function test_stETH_share_conversion() public view {
         uint256 stETHAmount = 100 ether;
         uint256 stETHSharesAmount = _ST_ETH.getSharesByPooledEth(stETHAmount);
         uint256 stETHAmountFromShares = _ST_ETH.getPooledEthByShares(stETHSharesAmount);

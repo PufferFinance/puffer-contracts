@@ -9,12 +9,15 @@
   "dependencies": {
     "@openzeppelin/contracts": "5.0.1",
     "@openzeppelin/contracts-upgradeable": "5.0.1",
-    "git": "^0.1.5"
+    "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#1bf4c12",
+    "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
+    "murky": "https://github.com/dmfxyz/murky.git",
+    "rave": "https://github.com/PufferFinance/rave.git#691419d"
   },
   "devDependencies": {
-    "erc4626-tests": "https://github.com/a16z/erc4626-tests#8b1d7c2",
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
+    "erc4626-tests": "https://github.com/a16z/erc4626-tests#8b1d7c2",
     "forge-std": "github:foundry-rs/forge-std#v1.8.2",
     "solarray": "github:evmcheb/solarray#a547630",
     "solhint": "^5.0.1"
