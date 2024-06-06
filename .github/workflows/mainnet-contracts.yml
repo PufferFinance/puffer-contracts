@@ -1,0 +1,33 @@
+name: Mainnet contracts
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "mainnet-contracts/**"
+  pull_request:
+    paths:
+      - "mainnet-contracts/**"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install yarn
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install # will run `yarn install` command
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        # with: 
+        #   version: nightly-de33b6af53005037b463318d2628b5cfcaf39916
+
+      - name: Run tests
+        working-directory: mainnet-contracts
+        run: forge test -vvv --match-path './test/unit/*'
