@@ -19,8 +19,8 @@ jobs:
           node-version: 20
 
       - name: Run codespell
-        working-directory: mainnet-contracts
         uses: codespell-project/actions-codespell@v2.0
+        working-directory: mainnet-contracts
         with:
           check_hidden: true
           check_filenames: true
