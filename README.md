@@ -14,3 +14,9 @@
 [gha-badge]: https://github.com/PufferFinance/PufferPool/actions/workflows/ci.yml/badge.svg
 [foundry]: https://getfoundry.sh
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
+
+# How to run unit tests
+
+1. Clone this repository
+2. `yarn install`
+3. `cd mainnet-contracts/ && yarn test:unit`
