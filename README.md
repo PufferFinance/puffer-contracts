@@ -1,4 +1,4 @@
-# <h1 align="center"> Puffer Contracts </h1>
+# <h1 align="center">Puffer Contracts</h1>
 [![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
   [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
