@@ -76,7 +76,7 @@ contract PufferModuleManagerTest is TestHelper {
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
     }
 
-    // Reverts for everybody else   
+    // Reverts for everybody else
     function tes_postRewardsRootReverts(bytes32 moduleName, address sender, bytes32 merkleRoot, uint256 blockNumber)
         public
     {
@@ -88,7 +88,8 @@ contract PufferModuleManagerTest is TestHelper {
         PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));
     }
 
-    function test_donation(bytes32 moduleName) public {
+    function test_donation(bytes32 moduleName) public 
+    {
         address module = _createPufferModule(moduleName);
         (bool s,) = address(module).call{ value: 5 ether }("");
         assertTrue(s);
@@ -109,7 +110,8 @@ contract PufferModuleManagerTest is TestHelper {
 
     // Collecting the rewards as a node operator
     function test_collect_rewards(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) 
+        == address(0));
         address module = _createPufferModule(moduleName);
 
         // 3 validators got the rewards
