@@ -12,3 +12,4 @@ mainnet-contracts/out/*
 mainnet-contracts/cache/*
 
 .DS_Store
+mainnet-contracts/output/puffer.json
