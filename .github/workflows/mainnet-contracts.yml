@@ -52,5 +52,6 @@ jobs:
 
       - name: Forge fmt
         uses: stefanzweifel/git-auto-commit-action@v5
+        repository: mainnet-contracts
         with:
           commit_message: "forge fmt"
