@@ -50,8 +50,11 @@ jobs:
         working-directory: mainnet-contracts
         run: forge test -vvv --match-path './test/unit/*'
 
-      - name: Forge fmt
+      - name: forge fmt
+        working-directory: mainnet-contracts
+        run: forge fmt
+
+      - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          repository: ./mainnet-contracts
           commit_message: "forge fmt"

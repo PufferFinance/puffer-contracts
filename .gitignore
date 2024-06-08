@@ -8,8 +8,8 @@
 **/dist/
 **/*.log
 
+mainnet-contracts/output/puffer.json
 mainnet-contracts/out/*
 mainnet-contracts/cache/*
 
 .DS_Store
-mainnet-contracts/output/puffer.json
