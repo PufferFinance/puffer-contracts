@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
 
-contract operationsCoordinatorTest is TestHelper {
+contract operationsCoordinatorTest is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 

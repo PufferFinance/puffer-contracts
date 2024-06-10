@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
@@ -26,7 +26,7 @@ contract PufferModuleUpgrade {
     }
 }
 
-contract PufferModuleManagerTest is TestHelper {
+contract PufferModuleManagerTest is UnitTestHelper {
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 

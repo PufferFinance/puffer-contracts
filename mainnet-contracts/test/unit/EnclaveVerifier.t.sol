@@ -6,12 +6,12 @@ import { EnclaveVerifier } from "../../src/EnclaveVerifier.sol";
 import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
 import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { MockEvidence } from "rave-test/mocks/MockEvidence.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import {
     Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence
 } from "../helpers/GuardiansRaveEvidence.sol";
 
-contract EnclaveVerifierTest is TestHelper {
+contract EnclaveVerifierTest is UnitTestHelper {
     // DER encoded bytes of the signed Intel Leaf Signing x509 Certificate (including the header and signature)
     // Copied from "lib/rave/test/X509Verifier.t.sol"
     bytes public validLeafX509Certificate =

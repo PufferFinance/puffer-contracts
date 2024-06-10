@@ -14,7 +14,7 @@ import { stETHMock } from "../mocks/stETHMock.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { Status } from "../../src/struct/Status.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
@@ -27,7 +27,6 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
-import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 
 struct ProvisionedValidator {
     bytes32 moduleName;
@@ -46,7 +45,7 @@ contract PufferProtocolHandler is Test {
     uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
     address guardian2Enclave = vm.addr(guardian2SKEnclave);
     uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
-    TestHelper testhelper;
+    UnitTestHelper testhelper;
 
     address[] public actors;
 
@@ -114,7 +113,7 @@ contract PufferProtocolHandler is Test {
     bool public printError;
 
     constructor(
-        TestHelper helper,
+        UnitTestHelper helper,
         PufferVaultV2 vault,
         address steth,
         PufferProtocol protocol,
@@ -524,8 +523,6 @@ contract PufferProtocolHandler is Test {
         console.log("registerValidatorKey", calls["registerValidatorKey"]);
         console.log("createPufferModule", calls["createPufferModule"]);
         console.log("provisionNode", calls["provisionNode"]);
-        console.log("proofOfReserve", calls["proofOfReserve"]);
-        console.log("stopRegistration", calls["stopRegistration"]);
         console.log("postFullWithdrawalsProof", calls["postFullWithdrawalsProof"]);
         console.log("-------------------");
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IPufferOracle } from "../../src/interface/IPufferOracle.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
@@ -12,7 +12,7 @@ import { ROLE_ID_DAO } from "../../script/Roles.sol";
 /**
  * @dev Test for the simple PufferOracle smart contract
  */
-contract PufferOracleTest is TestHelper {
+contract PufferOracleTest is UnitTestHelper {
     using Address for address;
     using Address for address payable;
 

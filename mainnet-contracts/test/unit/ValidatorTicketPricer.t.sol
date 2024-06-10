@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
@@ -16,7 +16,7 @@ import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_VT_P
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
-contract ValidatorTicketPricerTest is TestHelper {
+contract ValidatorTicketPricerTest is UnitTestHelper {
     function setUp() public override {
         // Just call the parent setUp()
         super.setUp();

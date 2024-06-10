@@ -142,13 +142,16 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     function test_register_operator_eigen_da_holesky() public {
         vm.createSelectFork(vm.rpcUrl("holesky"), 1401731); // (Apr-20-2024 04:50:24 AM +UTC)
 
-        IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(vm.envUint("OPERATOR_BLS_SK"));
+        // not important key, only used in tests
+        uint256 BLS_SK = 990752502457672953874018146088155028776815267780829407860243712322774887125;
+
+        IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(BLS_SK);
 
         // He signs with his BLS private key his pubkey to prove the BLS key ownership
         BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
             .pubkeyRegistrationMessageHash(RESTAKING_OPERATOR_CONTRACT);
 
-        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, vm.envUint("OPERATOR_BLS_SK"));
+        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, BLS_SK);
 
         // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
         (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =

@@ -23,7 +23,7 @@ import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 
-contract TestHelper is Test {
+contract MainnetForkTestHelper is Test {
     /**
      * @dev Ethereum Mainnet addresses
      */
@@ -177,13 +177,14 @@ contract TestHelper is Test {
         vm.startPrank(COMMUNITY_MULTISIG);
 
         //Upgrade PufferVault
-
-        //@todo To go this way, we need to setTargetRole for upgradeToAndCall to `0` (admin role of AccessManager)
-        // timelock.executeTransaction(
-        //     address(pufferVault),
-        //     abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))),
-        //     1
-        // );
+        timelock.executeTransaction(
+            address(pufferVault),
+            abi.encodeCall(
+                UUPSUpgradeable.upgradeToAndCall,
+                (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))
+            ),
+            1
+        );
 
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));

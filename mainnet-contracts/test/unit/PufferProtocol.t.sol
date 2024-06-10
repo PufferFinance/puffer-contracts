@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
@@ -19,7 +19,7 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 
-contract PufferProtocolTest is TestHelper {
+contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
 
     event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed, bool);

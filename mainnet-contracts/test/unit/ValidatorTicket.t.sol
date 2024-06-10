@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
@@ -12,7 +12,7 @@ import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
-contract ValidatorTicketTest is TestHelper {
+contract ValidatorTicketTest is UnitTestHelper {
     using ECDSA for bytes32;
     using Address for address;
     using Address for address payable;

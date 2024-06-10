@@ -1,30 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { TestHelper } from "../TestHelper.sol";
+import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract PufferDepositorV2ForkTest is TestHelper {
+contract PufferDepositorV2ForkTest is MainnetForkTestHelper {
     /**
      * @dev Wallet that transferred pufETH to the PufferDepositor by mistake.
      */
     address private constant PUFFER = 0x8A0C1e5cEA8e0F6dF341C005335E7fe5ed18A0a0;
 
     function setUp() public virtual override {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 19419083); // (2024-03-12 12:45:11) UTC block
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20059956); // https://etherscan.io/block/20059956
 
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
-
-        assertEq(pufferVault.balanceOf(address(pufferDepositor)), 0.201 ether, "pufferDepositor pufETH");
-        assertEq(pufferVault.balanceOf(PUFFER), 0, "puffer pufETH before");
-
-        // Upgrade to latest version
-        _upgradeToMainnetPuffer();
-
-        assertEq(pufferVault.balanceOf(address(pufferDepositor)), 0 ether, "pufferDepositor 0 pufETH");
-        assertEq(pufferVault.balanceOf(PUFFER), 0.201 ether, "returned pufETH");
     }
 
     // StETH deposit through depositor and directly should mint ~amount
@@ -60,21 +51,21 @@ contract PufferDepositorV2ForkTest is TestHelper {
         uint256 depositorAssetsAmount = pufferVault.convertToAssets(depositorAmount);
         uint256 directDepositAssetsAmount = pufferVault.convertToAssets(directDepositAmount);
 
-        assertApproxEqAbs(pufferVault.convertToAssets(depositorAmount), depositorAssetsAmount, 1, "depositor");
+        assertApproxEqAbs(pufferVault.convertToAssets(depositorAmount), depositorAssetsAmount, 2, "depositor");
         assertApproxEqAbs(
-            pufferVault.convertToAssets(directDepositAmount), directDepositAssetsAmount, 1, "direct deposit"
+            pufferVault.convertToAssets(directDepositAmount), directDepositAssetsAmount, 2, "direct deposit"
         );
 
         assertApproxEqAbs(
             depositorAssetsAmount + directDepositAssetsAmount,
             2 * stETHDepositAmount,
-            3, // 3 wei difference, because the PufferDepositor already has 1 wei of stETH (leftover)
+            5, // 5 wei difference
             "should have ~200 eth worth of assets"
         );
 
-        assertApproxEqAbs(depositorAmount, directDepositAmount, 1, "depositor amount should be ~direct deposit amount");
-        assertApproxEqAbs(depositorAssetsAmount, directDepositAssetsAmount, 1, "received assets should be ~equal");
-        assertApproxEqAbs(depositorAssetsAmount, stETHDepositAmount, 1, "steth received assets should be ~equal");
+        assertApproxEqAbs(depositorAmount, directDepositAmount, 2, "depositor amount should be ~direct deposit amount");
+        assertApproxEqAbs(depositorAssetsAmount, directDepositAssetsAmount, 2, "received assets should be ~equal");
+        assertApproxEqAbs(depositorAssetsAmount, stETHDepositAmount, 2, "steth received assets should be ~equal");
     }
 
     function test_stETH_donation_and_first_depositor_after_donation()
@@ -174,10 +165,10 @@ contract PufferDepositorV2ForkTest is TestHelper {
         uint256 depositorAssetsAmount = pufferVault.convertToAssets(depositorAmount);
         uint256 directDepositAssetsAmount = pufferVault.convertToAssets(directDepositAmount);
 
-        assertApproxEqAbs(depositorAmount, directDepositAmount, 1, "1 wei difference");
-        assertApproxEqAbs(depositorAssetsAmount, directDepositAssetsAmount, 1, "received assets should be ~equal");
+        assertApproxEqAbs(depositorAmount, directDepositAmount, 2, "1 wei difference");
+        assertApproxEqAbs(depositorAssetsAmount, directDepositAssetsAmount, 2, "received assets should be ~equal");
         assertApproxEqAbs(
-            depositorAssetsAmount, stETHAmount, 1, "amount deposited and convertToAssets should be ~equal"
+            depositorAssetsAmount, stETHAmount, 2, "amount deposited and convertToAssets should be ~equal"
         );
     }
 

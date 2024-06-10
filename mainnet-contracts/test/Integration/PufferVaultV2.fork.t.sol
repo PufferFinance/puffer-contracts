@@ -2,13 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
-import { TestHelper } from "../TestHelper.sol";
+import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract PufferVaultV2ForkTest is TestHelper {
+contract PufferVaultV2ForkTest is MainnetForkTestHelper {
     // Puffers that send pufETH by mistake
     address private constant WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
     address private constant PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;

@@ -2,9 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocolHandler } from "../handlers/PufferProtocolHandler.sol";
-import { TestHelper } from "../helpers/TestHelper.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 
-contract PufferProtocolInvariants is TestHelper {
+contract PufferProtocolInvariants is UnitTestHelper {
     PufferProtocolHandler handler;
 
     function setUp() public override {

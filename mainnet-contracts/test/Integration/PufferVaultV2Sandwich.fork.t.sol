@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { TestHelper } from "../TestHelper.sol";
+import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 
-contract PufferVaultV2SandwichTest is TestHelper {
+contract PufferVaultV2SandwichTest is MainnetForkTestHelper {
     address pufferWhale = 0xd164B614FdE7939078c7558F9680FA32f01aed77;
 
     function setUp() public virtual override {
