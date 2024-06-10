@@ -2,17 +2,12 @@ name: Mainnet contracts
 
 on:
   push:
-    branches:
-      - master
-
-# on:
-#   push:
-#     branches: [master]
-#     paths:
-#       - "mainnet-contracts/**"
-#   pull_request:
-#     paths:
-#       - "mainnet-contracts/**"
+    branches: [master]
+    paths:
+      - "mainnet-contracts/**"
+  pull_request:
+    paths:
+      - "mainnet-contracts/**"
 
 jobs:
   unit-tests:
