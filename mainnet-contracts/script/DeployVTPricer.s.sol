@@ -2,11 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import {
