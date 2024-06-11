@@ -21,11 +21,11 @@ import {
  * // Check that the simulation
  * add --slow if deploying to a mainnet fork like tenderly (its buggy sometimes)
  *
- *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer --broadcast
+ *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer 
  *
  *       forge cache clean
- *
- *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer
+ * 
+ *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployVTPricer is Script {
     ValidatorTicketPricer validatorTicketPricer;
@@ -46,7 +46,7 @@ contract DeployVTPricer is Script {
     }
 
     function _generateAccessManagerCallData() internal view {
-        bytes[] memory calldatas = new bytes[](5);
+        bytes[] memory calldatas = new bytes[](6);
 
         bytes4[] memory operationsSelectors = new bytes4[](2);
         operationsSelectors[0] = ValidatorTicketPricer.setDailyMevPayoutsChangeToleranceBps.selector;
@@ -91,7 +91,7 @@ contract DeployVTPricer is Script {
             AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, address(validatorTicketPricer), 0
         );
 
-        calldatas[4] = abi.encodeWithSelector(
+        calldatas[5] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_VT_PRICER, VT_PRICER, 0
         );
 
