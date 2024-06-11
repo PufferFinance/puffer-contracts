@@ -33,7 +33,7 @@ contract xPufETHTest is Test {
         timelock = Timelock(payable(deployment.timelock));
 
         // Deploy implementation
-        xPufETH newImplementation = new xPufETH();
+        xPufETH newImplementation = new xPufETH(address(0), address(0));
 
         // Deploy proxy
         vm.expectEmit(true, true, true, true);

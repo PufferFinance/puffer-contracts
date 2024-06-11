@@ -55,7 +55,7 @@ contract DeployL2XPufETH is BaseScript {
 
         console.log("Timelock", address(timelock));
 
-        xPufETH newImplementation = new xPufETH();
+        xPufETH newImplementation = new xPufETH(address(0), address(0));
         console.log("XERC20PufferVaultImplementation", address(newImplementation));
 
         bytes32 xPufETHSalt = bytes32("xPufETH");
