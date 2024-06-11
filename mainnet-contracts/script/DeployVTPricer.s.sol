@@ -21,10 +21,10 @@ import {
  * // Check that the simulation
  * add --slow if deploying to a mainnet fork like tenderly (its buggy sometimes)
  *
- *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer 
+ *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer
  *
  *       forge cache clean
- * 
+ *
  *       forge script script/DeployVTPricer.s.sol:DeployVTPricer --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployVTPricer is Script {
@@ -91,9 +91,7 @@ contract DeployVTPricer is Script {
             AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, address(validatorTicketPricer), 0
         );
 
-        calldatas[5] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_VT_PRICER, VT_PRICER, 0
-        );
+        calldatas[5] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_VT_PRICER, VT_PRICER, 0);
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
 
