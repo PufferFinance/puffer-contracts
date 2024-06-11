@@ -36,10 +36,10 @@ contract xPufETH is
     address public immutable remoteToken;
     address public immutable bridge;
 
-    constructor(address _remoteToken, address _bridge) {
+    constructor(address opRemoteToken, address opBridge) {
         _disableInitializers();
-        remoteToken = _remoteToken;
-        bridge = _bridge;
+        remoteToken = opRemoteToken;
+        bridge = opBridge;
     }
 
     function initialize(address accessManager) public initializer {
