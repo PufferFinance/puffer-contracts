@@ -32,6 +32,7 @@ contract DeployVTPricer is Script {
 
     address ACCCESS_MANAGER = 0x8c1686069474410E6243425f4a10177a94EBEE11;
     address ORACLE = 0x0BE2aE0edbeBb517541DF217EF0074FC9a9e994f;
+    address VT_PRICER = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // Puffer Backend
 
     function run() public {
         vm.startBroadcast();
@@ -88,6 +89,10 @@ contract DeployVTPricer is Script {
         // to this newly deployed contract
         calldatas[4] = abi.encodeWithSelector(
             AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_COORDINATOR, address(validatorTicketPricer), 0
+        );
+
+        calldatas[4] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_VT_PRICER, VT_PRICER, 0
         );
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
