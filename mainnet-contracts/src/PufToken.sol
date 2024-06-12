@@ -8,8 +8,7 @@ contract puffStakingContract is ERC20, ERC20Permit {
     constructor(address token, string memory tokenName, string memory tokenSymbol)
         ERC20(tokenName, tokenSymbol)
         ERC20Permit(tokenName)
-    { 
-    }
+    { }
 
     function deposit(address to, uint256 amount) external {
         // safe transfer from msg.sender()
@@ -19,7 +18,7 @@ contract puffStakingContract is ERC20, ERC20Permit {
     function withdraw(uint256 amount) external {
         _burn(msg.sender, amount);
     }
-    
+
     /**
      * @notice Migrates the tokens using the allowlisted migrator contract
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
