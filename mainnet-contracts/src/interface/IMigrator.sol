@@ -7,6 +7,5 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 interface IMigrator {
-    function migrate(address depositor, address token, address destination, uint256 amount)
-        external;
+    function migrate(address depositor, address token, address destination, uint256 amount) external;
 }

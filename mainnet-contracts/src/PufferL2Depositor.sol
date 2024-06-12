@@ -19,7 +19,7 @@ import { Permit } from "./structs/Permit.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferL2Depositor is AccessManaged {
-    constructor(address accessManager) AccessManaged(accessManager) {}
+    constructor(address accessManager) AccessManaged(accessManager) { }
 
     // restricted to PUffer Dao
     function addNewToken(address token) external restricted {
@@ -33,4 +33,3 @@ contract PufferL2Depositor is AccessManaged {
         // token.deposit(msg.sender, ..)
     }
 }
-
