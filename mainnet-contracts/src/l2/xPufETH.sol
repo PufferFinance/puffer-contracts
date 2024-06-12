@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.4 <0.9.0;
 
 import { IXERC20 } from "../interface/IXERC20.sol";
-import { IOptimismMintableERC20 } from "../interface/IOptimismMintableERC20.sol";
+import { IOptimismMintableERC20 } from "../interface/Other/IOptimismMintableERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
