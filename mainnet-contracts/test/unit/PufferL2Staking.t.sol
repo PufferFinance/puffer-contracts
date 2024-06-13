@@ -317,8 +317,8 @@ contract PufferL2Staking is UnitTestHelper {
     //     assertEq(dai.balanceOf(mockMigrator), amount, "migrator took the tokens");
     // }
 
-    // deposit unsuported token
-    function testRevert_unsuported_token(uint256 amount) public {
+    // deposit unsupported token
+    function testRevert_unsupported_token(uint256 amount) public {
         vm.deal(bob, 1 ether);
 
         // WETH Doesn't have permit

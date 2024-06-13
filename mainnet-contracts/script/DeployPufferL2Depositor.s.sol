@@ -31,7 +31,7 @@ contract DeployPufferL2Depositor is Script {
             accessManager = AccessManager(0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e);
             weth = 0x35B1167b4D37931540F4e5189004d1756d1381B0;
         } else {
-            revert("unsuported chain");
+            revert("unsupported chain");
         }
 
         vm.startBroadcast();
