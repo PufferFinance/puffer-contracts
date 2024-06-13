@@ -36,9 +36,7 @@ contract PufToken is ERC20, ERC20Permit {
             revert DepositAmountMustBeGreaterThanZero();
         }
 
-        if (!IERC20(originalToken).transferFrom(user, address(this), amount)) {
-            revert TransferFailed();
-        }
+        IERC20(originalToken).transferFrom(user, address(this), amount);
 
         _mint(user, amount);
     }
@@ -50,9 +48,7 @@ contract PufToken is ERC20, ERC20Permit {
 
         _burn(user, amount);
 
-        if (!IERC20(originalToken).transfer(user, amount)) {
-            revert TransferFailed();
-        }
+        IERC20(originalToken).transfer(user, amount);
     }
 
     function migrateFor(address user, address migrator, address destination, uint256 amount) external onlyDepositor {
@@ -62,9 +58,7 @@ contract PufToken is ERC20, ERC20Permit {
 
         _burn(user, amount);
 
-        if (!IERC20(originalToken).approve(migrator, amount)) {
-            revert ApprovalFailed();
-        }
+        IERC20(originalToken).approve(migrator, amount);
 
         IMigrator(migrator).migrate(user, originalToken, destination, amount);
     }
@@ -74,9 +68,7 @@ contract PufToken is ERC20, ERC20Permit {
             revert DepositAmountMustBeGreaterThanZero();
         }
 
-        if (!IERC20(originalToken).transferFrom(msg.sender, address(this), amount)) {
-            revert TransferFailed();
-        }
+        IERC20(originalToken).transferFrom(msg.sender, address(this), amount);
 
         _mint(msg.sender, amount);
     }
@@ -88,9 +80,7 @@ contract PufToken is ERC20, ERC20Permit {
 
         _burn(msg.sender, amount);
 
-        if (!IERC20(originalToken).transfer(msg.sender, amount)) {
-            revert TransferFailed();
-        }
+        IERC20(originalToken).transfer(msg.sender, amount);
     }
 }
 
