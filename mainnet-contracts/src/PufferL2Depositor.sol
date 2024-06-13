@@ -2,34 +2,126 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { PufToken } from "./PufToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import { IWETH } from "./interface/IWETH.sol";
-import { IMigrator } from "./interface/IMigrator.sol";
 import { Permit } from "./structs/Permit.sol";
+import { IWETH } from "./interface/IWETH.sol";
+import { IPufferL2Depositor } from "./interface/IPufferL2Depositor.sol";
 
 /**
- * @title Puffer L2 Staking Pool
+ * @title Puffer L2 Depositor contract
  * @author Puffer Finance
- * @notice PufferL2StakingPool
+ * @notice PufferL2Depositor
+ * It has dual purpose:
+ * - Factory contract for creating new staking contracts
+ * - Helper so that the users can use Permit to deposit the tokens
  * @custom:security-contact security@puffer.fi
  */
-contract PufferL2Depositor is AccessManaged {
-    constructor(address accessManager) AccessManaged(accessManager) { }
+contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
+    using SafeERC20 for IERC20;
 
-    // restricted to PUffer Dao
-    function addNewToken(address token) external restricted {
-        // string memory tokenName = strings.contact("puf..");
-        // new pufETHPermit(token);
+    address public immutable WETH;
+
+    mapping(address token => address pufToken) public tokens;
+    mapping(address migrator => bool isAllowed) public isAllowedMigrator;
+
+    constructor(address accessManager, address weth) AccessManaged(accessManager) {
+        WETH = weth;
+        _addNewToken(weth);
     }
 
-    function deposit(address token) external {
-        // if (!allowedTokens[token]) revert
-        // safeTransferFrom(token, msg.sender, amount)
-        // token.deposit(msg.sender, ..)
+    modifier onlySupportedTokens(address token) {
+        if (tokens[token] == address(0)) {
+            revert InvalidToken();
+        }
+        _;
+    }
+
+    /**
+     * @inheritdoc IPufferL2Depositor
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function deposit(address token, address account, Permit calldata permitData)
+        external
+        onlySupportedTokens(token)
+        restricted
+    {
+        // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
+        try ERC20Permit(token).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
+
+        IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
+
+        _deposit({ token: token, account: account, amount: permitData.amount });
+    }
+
+    /**
+     * @inheritdoc IPufferL2Depositor
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function depositETH(address account) external payable onlySupportedTokens(WETH) restricted {
+        IWETH(WETH).deposit{ value: msg.value }();
+
+        emit DepositedToken(WETH, msg.sender, account, msg.value);
+
+        _deposit({ token: WETH, account: account, amount: msg.value });
+    }
+
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function addNewToken(address token) external restricted {
+        _addNewToken(token);
+    }
+
+    /**
+     * @notice Changes the status of `migrator` to `allowed`
+     * @dev Restricted to Puffer DAO
+     */
+    function setMigrator(address migrator, bool allowed) external restricted {
+        require(migrator != address(0));
+        isAllowedMigrator[migrator] = allowed;
+        emit SetIsMigratorAllowed(migrator, allowed);
+    }
+
+    /**
+     * @notice Called by the Token contracts to check if the system is paused
+     * @dev `restricted` will revert if the system is paused
+     */
+    function revertIfPaused() external restricted { }
+
+    function _deposit(address token, address account, uint256 amount) internal {
+        PufToken pufToken = PufToken(tokens[token]);
+        IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
+        pufToken.deposit(account, amount);
+
+        emit DepositedToken(token, msg.sender, account, amount);
+    }
+
+    function _addNewToken(address token) internal {
+        if (tokens[token] != address(0)) {
+            revert InvalidToken();
+        }
+
+        string memory symbol = string(abi.encodePacked("puf ", ERC20(token).symbol()));
+        string memory name = string(abi.encodePacked("puf", ERC20(token).name()));
+
+        // Reverts on duplicate token
+        address pufToken = address(new PufToken{ salt: keccak256(abi.encodePacked(token)) }(token, name, symbol));
+
+        tokens[token] = pufToken;
+
+        emit TokenAdded(token, pufToken);
     }
 }
