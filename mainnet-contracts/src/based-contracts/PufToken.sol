@@ -80,6 +80,18 @@ contract PufToken is ERC20, ERC20Permit {
 
         _mint(msg.sender, amount);
     }
+
+    function withdraw(uint256 amount) external onlyDepositor {
+        if (balanceOf(msg.sender) < amount) {
+            revert InsufficientBalance();
+        }
+
+        _burn(msg.sender, amount);
+
+        if (!IERC20(originalToken).transfer(msg.sender, amount)) {
+            revert TransferFailed();
+        }
+    }
 }
 
 interface IMigrator {
