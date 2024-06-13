@@ -74,7 +74,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     /**
-     * @dev Baisc validaton of the account and amount
+     * @dev Basic validation of the account and amount
      */
     modifier validateAddressAndAmount(address account, uint256 amount) {
         if (amount == 0) {
