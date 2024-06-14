@@ -10,11 +10,12 @@ import { ROLE_ID_OPERATIONS_MULTISIG, PUBLIC_ROLE } from "../../script/Roles.sol
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { ERC20Mock } from "../mocks/ERC20Mock.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 
-contract PufferL2Staking is UnitTestHelper {
+contract PufLockerTest is UnitTestHelper {
     PufLocker public pufLocker;
     ERC20Mock public mockToken;
     address bob = makeAddr("bob");
@@ -24,8 +25,10 @@ contract PufferL2Staking is UnitTestHelper {
 
         mockToken = new ERC20Mock("DAI", "DAI");
 
-        pufLocker = new PufLocker();
-        pufLocker.initialize(address(accessManager));
+        address pufLockerImpl = address(new PufLocker());
+        pufLocker = PufLocker(
+            address(new ERC1967Proxy(pufLockerImpl, abi.encodeCall(PufLocker.initialize, (address(accessManager)))))
+        );
 
         // Access setup
 
@@ -40,7 +43,7 @@ contract PufferL2Staking is UnitTestHelper {
         );
 
         bytes4[] memory multisigSelectors = new bytes4[](2);
-        multisigSelectors[0] = PufLocker.setAllowedToken.selector;
+        multisigSelectors[0] = PufLocker.setIsAllowedToken.selector;
         multisigSelectors[1] = PufLocker.setLockPeriods.selector;
 
         calldatas[1] = abi.encodeWithSelector(
@@ -56,15 +59,15 @@ contract PufferL2Staking is UnitTestHelper {
 
         // Set the lock periods
         vm.startPrank(OPERATIONS_MULTISIG);
-        pufLocker.setLockPeriods(60, 86400); // Min 1 minute, Max 1 day
-        pufLocker.setAllowedToken(address(mockToken), true);
+        pufLocker.setLockPeriods(1 minutes, 1 days);
+        pufLocker.setIsAllowedToken(address(mockToken), true);
 
         mockToken.mint(bob, 1000e18);
     }
 
     function test_SetAllowedToken_Success() public {
         vm.startPrank(OPERATIONS_MULTISIG);
-        pufLocker.setAllowedToken(address(mockToken), true);
+        pufLocker.setIsAllowedToken(address(mockToken), true);
 
         vm.startPrank(bob);
         uint256 amount = 10e18;
@@ -77,13 +80,13 @@ contract PufferL2Staking is UnitTestHelper {
     function testRevert_SetAllowedToken_Unauthorized() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
-        pufLocker.setAllowedToken(address(mockToken), true);
+        pufLocker.setIsAllowedToken(address(mockToken), true);
     }
 
     function test_SetLockPeriods_Success() public {
         vm.startPrank(OPERATIONS_MULTISIG);
         pufLocker.setLockPeriods(120, 172800); // Min 2 minutes, Max 2 days
-        (uint40 minLock, uint40 maxLock) = pufLocker.getLockPeriods();
+        (uint128 minLock, uint128 maxLock) = pufLocker.getLockPeriods();
         assertEq(minLock, 120, "Min lock period should be 120");
         assertEq(maxLock, 172800, "Max lock period should be 172800");
     }

@@ -21,7 +21,13 @@ interface IPufStakingPool {
         address indexed depositor, address indexed destination, address indexed migratorContract, uint256 amount
     );
 
-    function deposit(address account, uint256 amount) external;
+    /**
+     * @notice Function used to deposit the undelrying token
+     * @param depositor is the msg.sender or a parameter passed from the PufferL2Depositor
+     * @param account is the recipient of the deposit
+     * @param amount is the deposit amount
+     */
+    function deposit(address depositor, address account, uint256 amount) external;
 
     function withdraw(address recipient, uint256 amount) external;
 

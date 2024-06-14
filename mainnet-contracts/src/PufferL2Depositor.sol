@@ -60,17 +60,19 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
             r: permitData.r
         }) { } catch { }
 
-        _deposit({ token: token, sender: msg.sender, account: account, amount: permitData.amount });
+        IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
+
+        _deposit({ token: token, depositor: msg.sender, account: account, amount: permitData.amount });
     }
 
     /**
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account) external payable onlySupportedTokens(WETH) restricted {
+    function depositETH(address account) external payable restricted {
         IWETH(WETH).deposit{ value: msg.value }();
 
-        _deposit({ token: WETH, sender: address(this), account: account, amount: msg.value });
+        _deposit({ token: WETH, depositor: msg.sender, account: account, amount: msg.value });
     }
 
     /**
@@ -93,12 +95,14 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
         emit SetIsMigratorAllowed(migrator, allowed);
     }
 
+    /**
+     * @notice Changes the status of `migrator` to `allowed`
+     * @dev Restricted to Puffer DAO
+     */
     function setDepositCap(address token, uint256 newDepositCap) external onlySupportedTokens(token) restricted {
         PufToken pufToken = PufToken(tokens[token]);
-        uint256 oldDepositCap = pufToken.totalDepositCap();
+        emit DepositCapUpdated(token, pufToken.totalDepositCap(), newDepositCap);
         pufToken.setDepositCap(newDepositCap);
-
-        emit DepositCapUpdated(token, oldDepositCap, newDepositCap);
     }
 
     /**
@@ -107,13 +111,12 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      */
     function revertIfPaused() external restricted { }
 
-    function _deposit(address token, address sender, address account, uint256 amount) internal {
+    function _deposit(address token, address depositor, address account, uint256 amount) internal {
         PufToken pufToken = PufToken(tokens[token]);
-        if (sender == address(this)) {
-            IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
-        }
 
-        pufToken.depositFrom(sender, account, amount);
+        IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
+
+        pufToken.deposit(depositor, account, amount);
 
         emit DepositedToken(token, msg.sender, account, amount);
     }

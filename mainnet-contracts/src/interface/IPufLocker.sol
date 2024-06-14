@@ -5,7 +5,6 @@ import { Permit } from "../structs/Permit.sol";
 
 interface IPufLocker {
     // Custom error messages
-    error NotAdmin();
     error TokenNotAllowed();
     error InvalidAmount();
     error InvalidLockPeriod();
@@ -15,16 +14,17 @@ interface IPufLocker {
     error InvalidRecipientAddress();
 
     // Events
-    event TokenAllowanceChanged(address indexed token, bool allowed);
-    event Deposited(address indexed user, address indexed token, uint128 amount, uint40 releaseTime);
+    event SetTokenIsAllowed(address indexed token, bool allowed);
+    event Deposited(address indexed user, address indexed token, uint128 amount, uint128 releaseTime);
     event Withdrawn(address indexed user, address indexed token, uint128 amount, address recipient);
+    event LockPeriodsChanged(uint128 previousMinLock, uint128 newMinLock, uint128 previousMaxLock, uint128 newMaxLock);
 
     // Functions
-    function setAllowedToken(address token, bool allowed) external;
+    function setIsAllowedToken(address token, bool allowed) external;
 
-    function setLockPeriods(uint40 minLockPeriod, uint40 maxLockPeriod) external;
+    function setLockPeriods(uint128 minLockPeriod, uint128 maxLockPeriod) external;
 
-    function deposit(address token, uint40 lockPeriod, Permit calldata permitData) external;
+    function deposit(address token, uint128 lockPeriod, Permit calldata permitData) external;
 
     function withdraw(address token, uint256[] calldata depositIndexes, address recipient) external;
 
@@ -32,10 +32,10 @@ interface IPufLocker {
         external
         view
         returns (Deposit[] memory);
-    function getLockPeriods() external view returns (uint40, uint40);
+    function getLockPeriods() external view returns (uint128, uint128);
 
     struct Deposit {
         uint128 amount;
-        uint40 releaseTime;
+        uint128 releaseTime;
     }
 }

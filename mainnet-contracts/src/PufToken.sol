@@ -8,7 +8,6 @@ import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/Sig
 import { PufferL2Depositor } from "./PufferL2Depositor.sol";
 import { IMigrator } from "./interface/IMigrator.sol";
 import { IPufStakingPool } from "./interface/IPufStakingPool.sol";
-import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title Puf token
@@ -46,6 +45,10 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
      */
     ERC20 public immutable TOKEN;
 
+    /**
+     * @notice The maximum deposit amount.
+     * @dev Deposit cap is in wei
+     */
     uint256 public totalDepositCap;
 
     constructor(address token, string memory tokenName, string memory tokenSymbol, uint256 depositCap)
@@ -97,24 +100,15 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         _;
     }
 
-    function depositFrom(address sender, address account, uint256 amount)
-        external
-        whenNotPaused
-        validateAddressAndAmount(account, amount)
-        onlyPufferFactory
-    {
-        _deposit(sender, account, amount);
-    }
-
     /**
      * @notice Deposits the underlying token to receive pufToken to the `account`
      */
-    function deposit(address account, uint256 amount)
+    function deposit(address from, address account, uint256 amount)
         external
         whenNotPaused
         validateAddressAndAmount(account, amount)
     {
-        _deposit(msg.sender, account, amount);
+        _deposit(from, account, amount);
     }
 
     /**
@@ -189,21 +183,25 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         totalDepositCap = newDepositCap;
     }
 
-    function _deposit(address sender, address account, uint256 amount) internal {
-        TOKEN.safeTransferFrom(sender, address(this), amount);
-        uint256 deNormalizedTotalSupply = _denormalizeAmount(totalSupply());
-
-        if (deNormalizedTotalSupply + amount > totalDepositCap) {
-            revert TotalDepositCapReached();
-        }
+    function _deposit(address depositor, address account, uint256 amount) internal {
+        TOKEN.safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 normalizedAmount = _normalizeAmount(amount);
+
+        if (totalSupply() + normalizedAmount > totalDepositCap) {
+            revert TotalDepositCapReached();
+        }
 
         // Mint puffToken to the account
         _mint(account, normalizedAmount);
 
-        // Using the original deposit amount in the event
-        emit Deposited(sender, account, amount);
+        // If the user is deposiing using the factory, we emit the `depositor` from the parameters
+        if (msg.sender == address(PUFFER_FACTORY)) {
+            emit Deposited(depositor, account, amount);
+        } else {
+            // If it is a direct deposit not comming from the depositor, we use msg.sender
+            emit Deposited(msg.sender, account, amount);
+        }
     }
 
     /**
