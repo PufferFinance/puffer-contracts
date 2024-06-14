@@ -8,6 +8,7 @@ import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/Sig
 import { PufferL2Depositor } from "./PufferL2Depositor.sol";
 import { IMigrator } from "./interface/IMigrator.sol";
 import { IPufStakingPool } from "./interface/IPufStakingPool.sol";
+import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title Puf token
@@ -45,7 +46,9 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
      */
     ERC20 public immutable TOKEN;
 
-    constructor(address token, string memory tokenName, string memory tokenSymbol)
+    uint256 public totalDepositCap;
+
+    constructor(address token, string memory tokenName, string memory tokenSymbol, uint256 depositCap)
         ERC20(tokenName, tokenSymbol)
         ERC20Permit(tokenName)
     {
@@ -53,6 +56,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         PUFFER_FACTORY = PufferL2Depositor(msg.sender);
         TOKEN = ERC20(token);
         _TOKEN_DECIMALS = uint256(TOKEN.decimals());
+        totalDepositCap = depositCap;
     }
 
     /**
@@ -73,6 +77,13 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         _;
     }
 
+    modifier onlyPufferFactory() {
+        if (msg.sender != address(PUFFER_FACTORY)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     /**
      * @dev Basic validation of the account and amount
      */
@@ -86,6 +97,15 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         _;
     }
 
+    function depositFrom(address sender, address account, uint256 amount)
+        external
+        whenNotPaused
+        validateAddressAndAmount(account, amount)
+        onlyPufferFactory
+    {
+        _deposit(sender, account, amount);
+    }
+
     /**
      * @notice Deposits the underlying token to receive pufToken to the `account`
      */
@@ -94,15 +114,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         whenNotPaused
         validateAddressAndAmount(account, amount)
     {
-        TOKEN.safeTransferFrom(msg.sender, address(this), amount);
-
-        uint256 normalizedAmount = _normalizeAmount(amount);
-
-        // Mint puffToken to the account
-        _mint(account, normalizedAmount);
-
-        // Using the original deposit amount in the event
-        emit Deposited(msg.sender, account, amount);
+        _deposit(msg.sender, account, amount);
     }
 
     /**
@@ -165,6 +177,33 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         }
 
         _migrate({ depositor: depositor, amount: amount, destination: destination, migratorContract: migratorContract });
+    }
+
+    function setDepositCap(uint256 newDepositCap) external onlyPufferFactory {
+        uint256 deNormalizedTotalSupply = _denormalizeAmount(totalSupply());
+
+        if (newDepositCap < deNormalizedTotalSupply) {
+            revert InvalidAmount();
+        }
+
+        totalDepositCap = newDepositCap;
+    }
+
+    function _deposit(address sender, address account, uint256 amount) internal {
+        TOKEN.safeTransferFrom(sender, address(this), amount);
+        uint256 deNormalizedTotalSupply = _denormalizeAmount(totalSupply());
+
+        if (deNormalizedTotalSupply + amount > totalDepositCap) {
+            revert TotalDepositCapReached();
+        }
+
+        uint256 normalizedAmount = _normalizeAmount(amount);
+
+        // Mint puffToken to the account
+        _mint(account, normalizedAmount);
+
+        // Using the original deposit amount in the event
+        emit Deposited(sender, account, amount);
     }
 
     /**

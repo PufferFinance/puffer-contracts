@@ -12,6 +12,8 @@ interface IPufStakingPool {
     error ExpiredSignature();
     error InvalidSignature();
     error MigratorContractNotAllowed(address migrator);
+    error Unauthorized();
+    error TotalDepositCapReached();
 
     event Deposited(address indexed from, address indexed to, uint256 amount);
     event Withdrawn(address indexed from, address indexed to, uint256 amount);
@@ -33,4 +35,6 @@ interface IPufStakingPool {
         uint256 signatureExpiry,
         bytes memory stakerSignature
     ) external;
+
+    function setDepositCap(uint256 newDepositCap) external;
 }
