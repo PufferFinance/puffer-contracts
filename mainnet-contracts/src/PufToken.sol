@@ -199,7 +199,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         if (msg.sender == address(PUFFER_FACTORY)) {
             emit Deposited(depositor, account, amount);
         } else {
-            // If it is a direct deposit not comming from the depositor, we use msg.sender
+            // If it is a direct deposit not coming from the depositor, we use msg.sender
             emit Deposited(msg.sender, account, amount);
         }
     }
