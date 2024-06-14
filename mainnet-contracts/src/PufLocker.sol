@@ -8,10 +8,23 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { PufLockerStorage } from "./PufLockerStorage.sol";
 import { IPufLocker } from "./interface/IPufLocker.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Permit } from "./structs/Permit.sol";
 
+/**
+ * @title PufLocker
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
 contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
+    using SafeERC20 for IERC20;
+
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address accessManager) external initializer {
+        require(accessManager != address(0));
         __AccessManaged_init(accessManager);
     }
 
@@ -23,31 +36,39 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
         _;
     }
 
-    function setAllowedToken(address token, bool allowed) external restricted {
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function setIsAllowedToken(address token, bool allowed) external restricted {
         PufLockerData storage $ = _getPufLockerStorage();
         $.allowedTokens[token] = allowed;
-        emit TokenAllowanceChanged(token, allowed);
+        emit SetTokenIsAllowed(token, allowed);
     }
 
-    function setLockPeriods(uint40 minLock, uint40 maxLock) external restricted {
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function setLockPeriods(uint128 minLock, uint128 maxLock) external restricted {
         if (minLock > maxLock) {
             revert InvalidLockPeriod();
         }
         PufLockerData storage $ = _getPufLockerStorage();
+        emit LockPeriodsChanged($.minLockPeriod, minLock, $.maxLockPeriod, maxLock);
         $.minLockPeriod = minLock;
         $.maxLockPeriod = maxLock;
     }
 
-    function deposit(address token, uint40 lockPeriod, Permit calldata permitData) external isAllowedToken(token) {
+    function deposit(address token, uint128 lockPeriod, Permit calldata permitData) external isAllowedToken(token) {
         if (permitData.amount == 0) {
             revert InvalidAmount();
         }
         PufLockerData storage $ = _getPufLockerStorage();
+
         if (lockPeriod < $.minLockPeriod || lockPeriod > $.maxLockPeriod) {
             revert InvalidLockPeriod();
         }
-
-        uint40 releaseTime = uint40(block.timestamp) + lockPeriod;
 
         // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
         try ERC20Permit(token).permit({
@@ -60,7 +81,10 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
             r: permitData.r
         }) { } catch { }
 
-        IERC20(token).transferFrom(msg.sender, address(this), permitData.amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
+
+        uint128 releaseTime = uint128(block.timestamp) + lockPeriod;
+
         $.deposits[msg.sender][token].push(Deposit(uint128(permitData.amount), releaseTime));
 
         emit Deposited(msg.sender, token, uint128(permitData.amount), releaseTime);
@@ -82,7 +106,7 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
             }
 
             Deposit storage userDeposit = userDeposits[index];
-            if (userDeposit.releaseTime > uint40(block.timestamp)) {
+            if (userDeposit.releaseTime > uint128(block.timestamp)) {
                 revert DepositStillLocked();
             }
 
@@ -124,7 +148,10 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
         return depositPage;
     }
 
-    function getLockPeriods() external view returns (uint40, uint40) {
+    /**
+     * @inheritdoc IPufLocker
+     */
+    function getLockPeriods() external view returns (uint128, uint128) {
         PufLockerData storage $ = _getPufLockerStorage();
         return ($.minLockPeriod, $.maxLockPeriod);
     }

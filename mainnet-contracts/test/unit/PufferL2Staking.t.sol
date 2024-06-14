@@ -133,7 +133,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.startPrank(bob);
 
-        dai.approve(depositor.tokens(address(dai)), amount);
+        dai.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount);
@@ -154,7 +154,7 @@ contract PufferL2Staking is UnitTestHelper {
         sixDecimal.mint(bob, amount);
 
         vm.startPrank(bob);
-        sixDecimal.approve(depositor.tokens(address(sixDecimal)), amount);
+        sixDecimal.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(sixDecimal), bob, bob, amount);
@@ -181,7 +181,7 @@ contract PufferL2Staking is UnitTestHelper {
         twentyTwoDecimal.mint(bob, amount);
 
         vm.startPrank(bob);
-        twentyTwoDecimal.approve(depositor.tokens(address(twentyTwoDecimal)), amount);
+        twentyTwoDecimal.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount);
@@ -231,7 +231,7 @@ contract PufferL2Staking is UnitTestHelper {
         vm.startPrank(bob);
         weth.deposit{ value: amount }();
 
-        weth.approve(depositor.tokens(address(weth)), amount);
+        weth.approve(address(depositor), amount);
 
         // weth.permit triggers weth.fallback() and it doesn't revert
         vm.expectEmit(true, true, true, true);
@@ -249,7 +249,6 @@ contract PufferL2Staking is UnitTestHelper {
         vm.deal(bob, amount);
 
         vm.startPrank(bob);
-        dai.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount);
@@ -262,8 +261,8 @@ contract PufferL2Staking is UnitTestHelper {
         emit IPufStakingPool.Withdrawn(bob, bob, amount);
         pufToken.withdraw(bob, amount);
     }
-    // direct deposit to the token contract, without using the depositor
 
+    // direct deposit to the token contract, without using the depositor
     function test_direct_deposit_dai(uint256 amount) public {
         vm.assume(amount > 0);
         dai.mint(bob, amount);
@@ -276,7 +275,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufStakingPool.Deposited(bob, bob, amount);
-        pufToken.deposit(bob, amount);
+        pufToken.deposit(bob, bob, amount);
     }
 
     // Allow migrator
@@ -357,6 +356,14 @@ contract PufferL2Staking is UnitTestHelper {
         pufToken.migrate(500, address(0), bob);
     }
 
+    // 0 ETH deposit
+    function testRevert_zero_eth_deposit() public {
+        vm.startPrank(bob);
+
+        vm.expectRevert(IPufStakingPool.InvalidAmount.selector);
+        depositor.depositETH{ value: 0 }(bob);
+    }
+
     // Mock address 123 is not allowed to be migrator
     function testRevert_migrate_with_contract_that_is_not_allowed() public {
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
@@ -404,6 +411,36 @@ contract PufferL2Staking is UnitTestHelper {
         assertEq(pufToken.totalDepositCap(), newDepositCap, "Supply cap should be updated");
     }
 
+    function test_depositCap_changes_with_withdrawal() public {
+        // sets cap to 500000 ether
+        test_SetDepositCap();
+
+        dai.mint(bob, 5000000 ether);
+
+        PufToken pufToken = PufToken(depositor.tokens(address(dai)));
+
+        vm.startPrank(bob);
+
+        dai.approve(address(pufToken), type(uint256).max);
+
+        // deposit max amount
+        vm.expectEmit(true, true, true, true);
+        emit IPufStakingPool.Deposited(bob, bob, pufToken.totalDepositCap());
+        pufToken.deposit(bob, bob, pufToken.totalDepositCap());
+
+        // deposit reverts
+        vm.expectRevert(IPufStakingPool.TotalDepositCapReached.selector);
+        pufToken.deposit(bob, bob, 1 ether);
+
+        // withdraw some tokens
+        pufToken.withdraw(bob, 10 ether);
+
+        // now the deposit is available again
+        vm.expectEmit(true, true, true, true);
+        emit IPufStakingPool.Deposited(bob, bob, 7 ether);
+        pufToken.deposit(bob, bob, 7 ether);
+    }
+
     function testRevert_SetDepositCap_Unauthorized() public {
         // Try setting the supply cap from an unauthorized address
         vm.startPrank(bob);
@@ -426,7 +463,7 @@ contract PufferL2Staking is UnitTestHelper {
         dai.mint(bob, amount);
         PufToken pufToken = PufToken(depositor.tokens(address(dai)));
         dai.approve(address(pufToken), amount);
-        pufToken.deposit(bob, amount);
+        pufToken.deposit(bob, bob, amount);
 
         // Try setting the supply cap below the current total supply
         vm.startPrank(OPERATIONS_MULTISIG);
