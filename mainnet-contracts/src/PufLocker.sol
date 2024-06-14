@@ -118,7 +118,7 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
             revert NoWithdrawableAmount();
         }
 
-        IERC20(token).transfer(recipient, totalAmount);
+        IERC20(token).safeTransfer(recipient, totalAmount);
 
         emit Withdrawn(msg.sender, token, totalAmount, recipient);
     }
