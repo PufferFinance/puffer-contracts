@@ -60,9 +60,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
             r: permitData.r
         }) { } catch { }
 
-        IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
-
-        _deposit({ token: token, account: account, amount: permitData.amount });
+        _deposit({ token: token, sender: msg.sender, account: account, amount: permitData.amount });
     }
 
     /**
@@ -72,9 +70,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
     function depositETH(address account) external payable onlySupportedTokens(WETH) restricted {
         IWETH(WETH).deposit{ value: msg.value }();
 
-        emit DepositedToken(WETH, msg.sender, account, msg.value);
-
-        _deposit({ token: WETH, account: account, amount: msg.value });
+        _deposit({ token: WETH, sender: address(this), account: account, amount: msg.value });
     }
 
     /**
@@ -90,9 +86,19 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @dev Restricted to Puffer DAO
      */
     function setMigrator(address migrator, bool allowed) external restricted {
-        require(migrator != address(0));
+        if (migrator == address(0)) {
+            revert InvalidAccount();
+        }
         isAllowedMigrator[migrator] = allowed;
         emit SetIsMigratorAllowed(migrator, allowed);
+    }
+
+    function setDepositCap(address token, uint256 newDepositCap) external onlySupportedTokens(token) restricted {
+        PufToken pufToken = PufToken(tokens[token]);
+        uint256 oldDepositCap = pufToken.totalDepositCap();
+        pufToken.setDepositCap(newDepositCap);
+
+        emit DepositCapUpdated(token, oldDepositCap, newDepositCap);
     }
 
     /**
@@ -101,10 +107,13 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      */
     function revertIfPaused() external restricted { }
 
-    function _deposit(address token, address account, uint256 amount) internal {
+    function _deposit(address token, address sender, address account, uint256 amount) internal {
         PufToken pufToken = PufToken(tokens[token]);
-        IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
-        pufToken.deposit(account, amount);
+        if (sender == address(this)) {
+            IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
+        }
+
+        pufToken.depositFrom(sender, account, amount);
 
         emit DepositedToken(token, msg.sender, account, amount);
     }
@@ -118,7 +127,8 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
         string memory name = string(abi.encodePacked("puf", ERC20(token).name()));
 
         // Reverts on duplicate token
-        address pufToken = address(new PufToken{ salt: keccak256(abi.encodePacked(token)) }(token, name, symbol));
+        address pufToken =
+            address(new PufToken{ salt: keccak256(abi.encodePacked(token)) }(token, name, symbol, type(uint256).max));
 
         tokens[token] = pufToken;
 

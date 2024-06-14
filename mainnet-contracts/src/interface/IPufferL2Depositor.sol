@@ -14,6 +14,7 @@ interface IPufferL2Depositor {
      * @dev Signature "0xc1ab6dc1"
      */
     error InvalidToken();
+    error InvalidAccount();
 
     /**
      * @notice Emitted migrator contract is allowed/disallowed
@@ -41,6 +42,8 @@ interface IPufferL2Depositor {
         address indexed token, address indexed depositor, address indexed account, uint256 tokenAmount
     );
 
+    event DepositCapUpdated(address indexed token, uint256 oldDepositCap, uint256 newDepositCap);
+
     /**
      * @notice Deposits `permitData.amount` amount of `token` tokens for the `account`
      * @dev If you are using token.approve() instead of Permit, only populate permitData.amount
@@ -61,4 +64,6 @@ interface IPufferL2Depositor {
      * @dev `restricted` will revert if the system is paused
      */
     function revertIfPaused() external;
+
+    function setDepositCap(address token, uint256 newDepositCap) external;
 }

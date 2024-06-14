@@ -14,6 +14,7 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 contract MockToken is ERC20, ERC20Permit {
     uint8 _dec; // decimals
@@ -78,9 +79,10 @@ contract PufferL2Staking is UnitTestHelper {
             AccessManager.setTargetFunctionRole.selector, address(depositor), publicSelectors, PUBLIC_ROLE
         );
 
-        bytes4[] memory multisigSelectors = new bytes4[](2);
+        bytes4[] memory multisigSelectors = new bytes4[](3);
         multisigSelectors[0] = PufferL2Depositor.setMigrator.selector;
         multisigSelectors[1] = PufferL2Depositor.addNewToken.selector;
+        multisigSelectors[2] = PufferL2Depositor.setDepositCap.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -130,7 +132,8 @@ contract PufferL2Staking is UnitTestHelper {
         dai.mint(bob, amount);
 
         vm.startPrank(bob);
-        dai.approve(address(depositor), amount);
+
+        dai.approve(depositor.tokens(address(dai)), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount);
@@ -151,7 +154,7 @@ contract PufferL2Staking is UnitTestHelper {
         sixDecimal.mint(bob, amount);
 
         vm.startPrank(bob);
-        sixDecimal.approve(address(depositor), amount);
+        sixDecimal.approve(depositor.tokens(address(sixDecimal)), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(sixDecimal), bob, bob, amount);
@@ -178,7 +181,7 @@ contract PufferL2Staking is UnitTestHelper {
         twentyTwoDecimal.mint(bob, amount);
 
         vm.startPrank(bob);
-        twentyTwoDecimal.approve(address(depositor), amount);
+        twentyTwoDecimal.approve(depositor.tokens(address(twentyTwoDecimal)), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount);
@@ -205,7 +208,7 @@ contract PufferL2Staking is UnitTestHelper {
         dai.mint(bob, amount);
 
         vm.startPrank(bob);
-        dai.approve(address(depositor), amount);
+        dai.approve(depositor.tokens(address(dai)), amount);
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount);
@@ -221,14 +224,14 @@ contract PufferL2Staking is UnitTestHelper {
 
         // WETH Doesn't have permit
         Permit memory permit =
-            _signPermit(_testTemps("bob", address(depositor), amount, block.timestamp), "dummy permit");
+            _signPermit(_testTemps("bob", depositor.tokens(address(weth)), amount, block.timestamp), "dummy permit");
 
         vm.deal(bob, amount);
 
         vm.startPrank(bob);
         weth.deposit{ value: amount }();
 
-        weth.approve(address(depositor), amount);
+        weth.approve(depositor.tokens(address(weth)), amount);
 
         // weth.permit triggers weth.fallback() and it doesn't revert
         vm.expectEmit(true, true, true, true);
@@ -389,5 +392,45 @@ contract PufferL2Staking is UnitTestHelper {
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
         vm.expectRevert();
         pufToken.withdraw(address(weth), 0);
+    }
+
+    function test_SetDepositCap() public {
+        vm.startPrank(OPERATIONS_MULTISIG);
+        uint256 newDepositCap = 500000 ether;
+        depositor.setDepositCap(address(dai), newDepositCap);
+        PufToken pufToken = PufToken(depositor.tokens(address(dai)));
+
+        // Verify the supply cap is updated
+        assertEq(pufToken.totalDepositCap(), newDepositCap, "Supply cap should be updated");
+    }
+
+    function testRevert_SetDepositCap_Unauthorized() public {
+        // Try setting the supply cap from an unauthorized address
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
+        depositor.setDepositCap(address(dai), 500000 ether);
+    }
+
+    function testRevert_SetDepositCap_InvalidToken() public {
+        // Try setting the supply cap for a token not in the allowlist
+        vm.startPrank(OPERATIONS_MULTISIG);
+        address invalidToken = address(0xabc);
+        vm.expectRevert(IPufferL2Depositor.InvalidToken.selector);
+        depositor.setDepositCap(invalidToken, 500000 ether);
+    }
+
+    function testRevert_SetDepositCap_BelowCurrentSupply(uint256 amount) public {
+        vm.assume(amount > 0);
+        // Mint some tokens to user and deposit to reach near supply cap
+        vm.startPrank(bob);
+        dai.mint(bob, amount);
+        PufToken pufToken = PufToken(depositor.tokens(address(dai)));
+        dai.approve(address(pufToken), amount);
+        pufToken.deposit(bob, amount);
+
+        // Try setting the supply cap below the current total supply
+        vm.startPrank(OPERATIONS_MULTISIG);
+        vm.expectRevert(IPufStakingPool.InvalidAmount.selector);
+        depositor.setDepositCap(address(dai), amount - 1);
     }
 }
