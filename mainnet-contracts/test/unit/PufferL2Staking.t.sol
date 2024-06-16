@@ -55,6 +55,8 @@ contract PufferL2Staking is UnitTestHelper {
 
     address bob = makeAddr("bob");
 
+    uint64 referralCode = 0;
+
     function setUp() public override {
         super.setUp();
 
@@ -122,7 +124,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // Bad permit signature + approve
-    function test_depositFor_dai_approve(uint32 amount) public {
+    function test_depositFor_dai_approve(uint32 amount, uint64 refCode) public {
         vm.assume(amount > 0);
 
         // This is a bad permit signature
@@ -136,8 +138,8 @@ contract PufferL2Staking is UnitTestHelper {
         dai.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount);
-        depositor.deposit(address(dai), bob, permit);
+        emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount, refCode);
+        depositor.deposit(address(dai), bob, permit, refCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(dai)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -157,8 +159,8 @@ contract PufferL2Staking is UnitTestHelper {
         sixDecimal.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(sixDecimal), bob, bob, amount);
-        depositor.deposit(address(sixDecimal), bob, permit);
+        emit IPufferL2Depositor.DepositedToken(address(sixDecimal), bob, bob, amount, referralCode);
+        depositor.deposit(address(sixDecimal), bob, permit, referralCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(sixDecimal)));
 
@@ -184,8 +186,8 @@ contract PufferL2Staking is UnitTestHelper {
         twentyTwoDecimal.approve(address(depositor), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount);
-        depositor.deposit(address(twentyTwoDecimal), bob, permit);
+        emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount, referralCode);
+        depositor.deposit(address(twentyTwoDecimal), bob, permit, referralCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(twentyTwoDecimal)));
 
@@ -198,7 +200,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // Good Permit signature signature
-    function test_depositFor_dai_permit(uint32 amount) public {
+    function test_depositFor_dai_permit(uint32 amount, uint64 refCode) public {
         vm.assume(amount > 0);
 
         // Good permit signature
@@ -211,15 +213,15 @@ contract PufferL2Staking is UnitTestHelper {
         dai.approve(depositor.tokens(address(dai)), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount);
-        depositor.deposit(address(dai), bob, permit);
+        emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount, refCode);
+        depositor.deposit(address(dai), bob, permit, refCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(dai)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
     }
 
     // Weth doesn't have `permit` at all
-    function test_deposiFor_WETH(uint32 amount) public {
+    function test_deposiFor_WETH(uint32 amount, uint64 refCode) public {
         vm.assume(amount > 0);
 
         // WETH Doesn't have permit
@@ -235,15 +237,15 @@ contract PufferL2Staking is UnitTestHelper {
 
         // weth.permit triggers weth.fallback() and it doesn't revert
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount);
-        depositor.deposit(address(weth), bob, permit);
+        emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount, refCode);
+        depositor.deposit(address(weth), bob, permit, refCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
     }
 
     // ETH deposit & weth withdrawal
-    function test_depositFor_ETH_withdraw_weth(uint16 amount) public {
+    function test_depositFor_ETH_withdraw_weth(uint16 amount, uint64 refCode) public {
         vm.assume(amount > 0);
 
         vm.deal(bob, amount);
@@ -251,8 +253,8 @@ contract PufferL2Staking is UnitTestHelper {
         vm.startPrank(bob);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount);
-        depositor.depositETH{ value: amount }(bob);
+        emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount, refCode);
+        depositor.depositETH{ value: amount }(bob, refCode);
 
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -329,7 +331,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.deposit(address(notSupportedToken), bob, permit);
+        depositor.deposit(address(notSupportedToken), bob, permit, referralCode);
     }
 
     // zero address token reverts
@@ -361,7 +363,7 @@ contract PufferL2Staking is UnitTestHelper {
         vm.startPrank(bob);
 
         vm.expectRevert(IPufStakingPool.InvalidAmount.selector);
-        depositor.depositETH{ value: 0 }(bob);
+        depositor.depositETH{ value: 0 }(bob, referralCode);
     }
 
     // Mock address 123 is not allowed to be migrator
@@ -377,14 +379,14 @@ contract PufferL2Staking is UnitTestHelper {
         vm.deal(bob, 1 ether);
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.depositETH{ value: 1 ether }(address(0));
+        depositor.depositETH{ value: 1 ether }(address(0), referralCode);
     }
 
     // 0 deposit eth reverts
     function testRevert_zero_deposit_ETH() public {
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.depositETH{ value: 0 }(bob);
+        depositor.depositETH{ value: 0 }(bob, referralCode);
     }
 
     // No deposit reverts
