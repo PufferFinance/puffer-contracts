@@ -44,7 +44,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, address account, Permit calldata permitData)
+    function deposit(address token, address account, Permit calldata permitData, uint64 referralCode)
         external
         onlySupportedTokens(token)
         restricted
@@ -62,17 +62,23 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
 
-        _deposit({ token: token, depositor: msg.sender, account: account, amount: permitData.amount });
+        _deposit({
+            token: token,
+            depositor: msg.sender,
+            account: account,
+            amount: permitData.amount,
+            referralCode: referralCode
+        });
     }
 
     /**
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account) external payable restricted {
+    function depositETH(address account, uint64 referralCode) external payable restricted {
         IWETH(WETH).deposit{ value: msg.value }();
 
-        _deposit({ token: WETH, depositor: msg.sender, account: account, amount: msg.value });
+        _deposit({ token: WETH, depositor: msg.sender, account: account, amount: msg.value, referralCode: referralCode });
     }
 
     /**
@@ -111,14 +117,16 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      */
     function revertIfPaused() external restricted { }
 
-    function _deposit(address token, address depositor, address account, uint256 amount) internal {
+    function _deposit(address token, address depositor, address account, uint256 amount, uint64 referralCode)
+        internal
+    {
         PufToken pufToken = PufToken(tokens[token]);
 
         IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
 
         pufToken.deposit(depositor, account, amount);
 
-        emit DepositedToken(token, msg.sender, account, amount);
+        emit DepositedToken(token, msg.sender, account, amount, referralCode);
     }
 
     function _addNewToken(address token) internal {
