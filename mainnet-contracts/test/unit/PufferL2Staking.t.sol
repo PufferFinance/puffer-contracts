@@ -63,7 +63,7 @@ contract PufferL2Staking is UnitTestHelper {
 
     address bob = makeAddr("bob");
 
-    uint64 referralCode = 0;
+    uint256 referralCode = 0;
 
     function setUp() public override {
         super.setUp();
@@ -132,7 +132,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // Bad permit signature + approve
-    function test_depositFor_dai_approve(uint32 amount, uint64 refCode) public {
+    function test_depositFor_dai_approve(uint32 amount, uint256 refCode) public {
         vm.assume(amount > 0);
 
         // This is a bad permit signature
@@ -208,7 +208,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // Good Permit signature signature
-    function test_depositFor_dai_permit(uint32 amount, uint64 refCode) public {
+    function test_depositFor_dai_permit(uint32 amount, uint256 refCode) public {
         vm.assume(amount > 0);
 
         // Good permit signature
@@ -229,7 +229,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // Weth doesn't have `permit` at all
-    function test_deposiFor_WETH(uint32 amount, uint64 refCode) public {
+    function test_deposiFor_WETH(uint32 amount, uint256 refCode) public {
         vm.assume(amount > 0);
 
         // WETH Doesn't have permit
@@ -253,7 +253,7 @@ contract PufferL2Staking is UnitTestHelper {
     }
 
     // ETH deposit & weth withdrawal
-    function test_depositFor_ETH_withdraw_weth(uint16 amount, uint64 refCode) public {
+    function test_depositFor_ETH_withdraw_weth(uint16 amount, uint256 refCode) public {
         vm.assume(amount > 0);
 
         vm.deal(bob, amount);

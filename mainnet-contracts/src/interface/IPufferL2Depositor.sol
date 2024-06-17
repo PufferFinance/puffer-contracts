@@ -43,7 +43,7 @@ interface IPufferL2Depositor {
         address indexed depositor,
         address indexed account,
         uint256 tokenAmount,
-        uint64 referralCode
+        uint256 referralCode
     );
 
     event DepositCapUpdated(address indexed token, uint256 oldDepositCap, uint256 newDepositCap);
@@ -54,14 +54,14 @@ interface IPufferL2Depositor {
      *
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, address account, Permit calldata permitData, uint64 referralCode) external;
+    function deposit(address token, address account, Permit calldata permitData, uint256 referralCode) external;
 
     /**
      * @notice Deposits naative ETH by wrapping it into WETH and then depositing to corresponding token contract
      *
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account, uint64 referralCode) external payable;
+    function depositETH(address account, uint256 referralCode) external payable;
 
     /**
      * @notice Called by the Token contracts to check if the system is paused
