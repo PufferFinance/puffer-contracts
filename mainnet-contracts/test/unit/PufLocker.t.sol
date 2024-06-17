@@ -14,6 +14,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { ERC20Mock } from "../mocks/ERC20Mock.sol";
 import { Permit } from "../../src/structs/Permit.sol";
+import { InvalidAmount } from "../../src/Errors.sol";
 
 contract PufLockerTest is UnitTestHelper {
     PufLocker public pufLocker;
@@ -116,7 +117,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 0;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        vm.expectRevert(abi.encodeWithSelector(IPufLocker.InvalidAmount.selector));
+        vm.expectRevert(abi.encodeWithSelector(InvalidAmount.selector));
         pufLocker.deposit(address(mockToken), 3600, permit); // Lock for 1 hour with 0 amount
         vm.stopPrank();
     }
@@ -158,7 +159,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
 
-        vm.expectRevert(abi.encodeWithSelector(IPufLocker.DepositStillLocked.selector));
+        vm.expectRevert(abi.encodeWithSelector(IPufLocker.DepositLocked.selector));
         pufLocker.withdraw(address(mockToken), indexes, bob); // Attempt to withdraw before lock period ends
         vm.stopPrank();
     }
@@ -228,6 +229,10 @@ contract PufLockerTest is UnitTestHelper {
         PufLocker.Deposit[] memory depositsPage2 = pufLocker.getDeposits(bob, address(mockToken), 2, 1);
         assertEq(depositsPage2.length, 1, "Should return 1 deposit");
         assertEq(depositsPage2[0].amount, amount3, "Amount of the last deposit should be 50");
+
+        // Get all deposits
+        PufLocker.Deposit[] memory allDeposits = pufLocker.getAllDeposits(bob, address(mockToken));
+        assertEq(allDeposits.length, 3, "Should return 3 deposits");
         vm.stopPrank();
     }
 }

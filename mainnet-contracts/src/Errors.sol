@@ -12,3 +12,9 @@ error Unauthorized();
  * @dev Signature "0xe6c4247b"
  */
 error InvalidAddress();
+
+/**
+ * @notice Thrown when amount is not valid
+ * @dev Signature "0x2c5211c6"
+ */
+error InvalidAmount();
