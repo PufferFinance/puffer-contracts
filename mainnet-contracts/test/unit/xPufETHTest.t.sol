@@ -11,7 +11,7 @@ import { stETHMock } from "test/mocks/stETHMock.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
 import { DeployPufETH } from "script/DeployPufETH.s.sol";
-import { ROLE_ID_DAO, ROLE_ID_LOCKBOX } from "script/Roles.sol";
+import { ROLE_ID_DAO } from "script/Roles.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -63,7 +63,6 @@ contract xPufETHTest is Test {
         vm.startPrank(address(timelock));
         accessManager.setTargetFunctionRole(address(xPufETHProxy), lockBoxSelectors, accessManager.PUBLIC_ROLE());
         accessManager.setTargetFunctionRole(address(xPufETHProxy), daoSelectors, ROLE_ID_DAO);
-        accessManager.grantRole(ROLE_ID_LOCKBOX, address(xERC20Lockbox), 0);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0); // this contract is the dao for simplicity
         vm.stopPrank();
 
