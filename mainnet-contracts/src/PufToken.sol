@@ -8,6 +8,7 @@ import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/Sig
 import { PufferL2Depositor } from "./PufferL2Depositor.sol";
 import { IMigrator } from "./interface/IMigrator.sol";
 import { IPufStakingPool } from "./interface/IPufStakingPool.sol";
+import { Unauthorized, InvalidAmount } from "./Errors.sol";
 
 /**
  * @title Puf token
@@ -101,7 +102,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     /**
-     * @notice Deposits the underlying token to receive pufToken to the `account`
+     * @inheritdoc IPufStakingPool
      */
     function deposit(address from, address account, uint256 amount)
         external
@@ -112,14 +113,13 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     /**
-     * @notice Deposits the underlying token to receive pufToken to the `account`
+     * @inheritdoc IPufStakingPool
      */
     function withdraw(address recipient, uint256 amount) external validateAddressAndAmount(recipient, amount) {
         _burn(msg.sender, amount);
 
         uint256 deNormalizedAmount = _denormalizeAmount(amount);
 
-        // Send him the token
         TOKEN.safeTransfer(recipient, deNormalizedAmount);
 
         // Using the original deposit amount in the event (in this case it is denormalized amount)
@@ -127,7 +127,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     /**
-     * @notice Migrates the `amount` of tokens using the allowlsited `migratorContract` to the `destination` address
+     * @inheritdoc IPufStakingPool
      */
     function migrate(uint256 amount, address migratorContract, address destination)
         external
@@ -139,7 +139,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     /**
-     * @notice Migrates the tokens using the allowlisted migrator contract using the EIP712 signature from the depositor
+     * @inheritdoc IPufStakingPool
      */
     function migrateWithSignature(
         address depositor,
@@ -173,13 +173,15 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         _migrate({ depositor: depositor, amount: amount, destination: destination, migratorContract: migratorContract });
     }
 
+    /**
+     * @notice Sets the underlying token deposit cap
+     */
     function setDepositCap(uint256 newDepositCap) external onlyPufferFactory {
-        uint256 deNormalizedTotalSupply = _denormalizeAmount(totalSupply());
-
-        if (newDepositCap < deNormalizedTotalSupply) {
+        if (newDepositCap < totalSupply()) {
             revert InvalidAmount();
         }
 
+        emit DepositCapChanged(totalDepositCap, newDepositCap);
         totalDepositCap = newDepositCap;
     }
 

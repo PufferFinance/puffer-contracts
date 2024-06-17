@@ -15,6 +15,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { InvalidAmount } from "../../src/Errors.sol";
 
 contract MockToken is ERC20, ERC20Permit {
     uint8 _dec; // decimals
@@ -45,6 +46,13 @@ contract MockMigrator is IMigrator {
 }
 
 contract PufferL2Staking is UnitTestHelper {
+    /**
+     * @notice EIP-712 type hash
+     */
+    bytes32 internal constant _MIGRATE_TYPEHASH = keccak256(
+        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce)"
+    );
+
     PufferL2Depositor depositor;
     MockToken dai;
     MockToken sixDecimal;
@@ -305,21 +313,65 @@ contract PufferL2Staking is UnitTestHelper {
         assertEq(dai.balanceOf(mockMigrator), amount, "migrator took the tokens");
     }
 
-    // function test_migrate_with_signature() public {
-    //     test_allow_migrator();
+    function test_migrate_with_signature() public {
+        test_allow_migrator();
 
-    //     uint256 amount = 1 ether;
-    //     // has vm.startPrank inside of it
-    //     test_direct_deposit_dai(amount);
+        uint256 amount = 1 ether;
+        // has vm.startPrank inside of it
+        test_direct_deposit_dai(amount);
 
-    //     PufToken pufToken = PufToken(depositor.tokens(address(dai)));
-    //     assertEq(pufToken.balanceOf(bob), amount, "bob got pufTokens");
+        PufToken pufToken = PufToken(depositor.tokens(address(dai)));
+        assertEq(pufToken.balanceOf(bob), amount, "bob got pufTokens");
 
-    //     pufToken.migrate(amount, mockMigrator, bob);
+        bytes memory signature;
+        uint256 signatureExpiry = block.timestamp + 1 days;
 
-    //     assertEq(pufToken.balanceOf(bob), 0, "bob got 0 pufTokens");
-    //     assertEq(dai.balanceOf(mockMigrator), amount, "migrator took the tokens");
-    // }
+        // Bad signature
+        vm.expectRevert(IPufStakingPool.InvalidSignature.selector);
+        pufToken.migrateWithSignature({
+            depositor: bob,
+            migratorContract: mockMigrator,
+            destination: bob,
+            amount: amount,
+            signatureExpiry: signatureExpiry,
+            stakerSignature: signature
+        });
+
+        // Expired signature
+        vm.expectRevert(IPufStakingPool.ExpiredSignature.selector);
+        pufToken.migrateWithSignature({
+            depositor: bob,
+            migratorContract: mockMigrator,
+            destination: bob,
+            amount: amount,
+            signatureExpiry: block.timestamp - 1,
+            stakerSignature: signature
+        });
+
+        // get bobs SK
+        (, uint256 bobSK) = makeAddrAndKey("bob");
+
+        bytes32 innerHash =
+            keccak256(abi.encode(_MIGRATE_TYPEHASH, bob, mockMigrator, bob, address(dai), amount, signatureExpiry, 0)); // nonce is 0
+        bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", pufToken.DOMAIN_SEPARATOR(), innerHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, outerHash);
+
+        signature = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        vm.startPrank(makeAddr("bot"));
+        // Automated bot can use signature from the Bob to do the migration
+        pufToken.migrateWithSignature({
+            depositor: bob,
+            migratorContract: mockMigrator,
+            destination: bob,
+            amount: amount,
+            signatureExpiry: signatureExpiry,
+            stakerSignature: signature
+        });
+
+        assertEq(pufToken.balanceOf(bob), 0, "bob got 0 pufTokens");
+        assertEq(dai.balanceOf(mockMigrator), amount, "migrator took the tokens");
+    }
 
     // deposit unsupported token
     function testRevert_unsupported_token(uint256 amount) public {
@@ -362,7 +414,7 @@ contract PufferL2Staking is UnitTestHelper {
     function testRevert_zero_eth_deposit() public {
         vm.startPrank(bob);
 
-        vm.expectRevert(IPufStakingPool.InvalidAmount.selector);
+        vm.expectRevert(InvalidAmount.selector);
         depositor.depositETH{ value: 0 }(bob, referralCode);
     }
 
@@ -469,7 +521,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         // Try setting the supply cap below the current total supply
         vm.startPrank(OPERATIONS_MULTISIG);
-        vm.expectRevert(IPufStakingPool.InvalidAmount.selector);
+        vm.expectRevert(InvalidAmount.selector);
         depositor.setDepositCap(address(dai), amount - 1);
     }
 }

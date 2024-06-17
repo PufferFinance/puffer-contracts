@@ -19,7 +19,7 @@ abstract contract PufLockerStorage {
     /// @custom:storage-location erc7201:PufLocker.storage
     struct PufLockerData {
         mapping(address token => bool isAllowed) allowedTokens;
-        mapping(address token => mapping(address depositor => IPufLocker.Deposit[])) deposits;
+        mapping(address depositor => mapping(address token => IPufLocker.Deposit[])) deposits;
         uint128 minLockPeriod;
         uint128 maxLockPeriod;
     }

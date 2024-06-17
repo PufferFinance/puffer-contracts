@@ -10,6 +10,7 @@ import { IPufLocker } from "./interface/IPufLocker.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Permit } from "./structs/Permit.sol";
+import { InvalidAmount } from "./Errors.sol";
 
 /**
  * @title PufLocker
@@ -37,29 +38,8 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
     }
 
     /**
-     * @notice Creates a new staking token contract
-     * @dev Restricted to Puffer DAO
+     * @inheritdoc IPufLocker
      */
-    function setIsAllowedToken(address token, bool allowed) external restricted {
-        PufLockerData storage $ = _getPufLockerStorage();
-        $.allowedTokens[token] = allowed;
-        emit SetTokenIsAllowed(token, allowed);
-    }
-
-    /**
-     * @notice Creates a new staking token contract
-     * @dev Restricted to Puffer DAO
-     */
-    function setLockPeriods(uint128 minLock, uint128 maxLock) external restricted {
-        if (minLock > maxLock) {
-            revert InvalidLockPeriod();
-        }
-        PufLockerData storage $ = _getPufLockerStorage();
-        emit LockPeriodsChanged($.minLockPeriod, minLock, $.maxLockPeriod, maxLock);
-        $.minLockPeriod = minLock;
-        $.maxLockPeriod = maxLock;
-    }
-
     function deposit(address token, uint128 lockPeriod, Permit calldata permitData) external isAllowedToken(token) {
         if (permitData.amount == 0) {
             revert InvalidAmount();
@@ -90,16 +70,20 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
         emit Deposited(msg.sender, token, uint128(permitData.amount), releaseTime);
     }
 
+    /**
+     * @inheritdoc IPufLocker
+     */
     function withdraw(address token, uint256[] calldata depositIndexes, address recipient) external {
         if (recipient == address(0)) {
             revert InvalidRecipientAddress();
         }
 
         PufLockerData storage $ = _getPufLockerStorage();
+
         uint128 totalAmount = 0;
         Deposit[] storage userDeposits = $.deposits[msg.sender][token];
 
-        for (uint256 i = 0; i < depositIndexes.length; i++) {
+        for (uint256 i = 0; i < depositIndexes.length; ++i) {
             uint256 index = depositIndexes[i];
             if (index >= userDeposits.length) {
                 revert InvalidDepositIndex();
@@ -107,7 +91,7 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
 
             Deposit storage userDeposit = userDeposits[index];
             if (userDeposit.releaseTime > uint128(block.timestamp)) {
-                revert DepositStillLocked();
+                revert DepositLocked();
             }
 
             totalAmount += userDeposit.amount;
@@ -120,9 +104,36 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
 
         IERC20(token).safeTransfer(recipient, totalAmount);
 
-        emit Withdrawn(msg.sender, token, totalAmount, recipient);
+        emit Withdrawn({ user: msg.sender, token: token, amount: totalAmount, recipient: recipient });
     }
 
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function setIsAllowedToken(address token, bool allowed) external restricted {
+        PufLockerData storage $ = _getPufLockerStorage();
+        $.allowedTokens[token] = allowed;
+        emit SetTokenIsAllowed(token, allowed);
+    }
+
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function setLockPeriods(uint128 minLock, uint128 maxLock) external restricted {
+        if (minLock > maxLock) {
+            revert InvalidLockPeriod();
+        }
+        PufLockerData storage $ = _getPufLockerStorage();
+        emit LockPeriodsChanged($.minLockPeriod, minLock, $.maxLockPeriod, maxLock);
+        $.minLockPeriod = minLock;
+        $.maxLockPeriod = maxLock;
+    }
+
+    /**
+     * @inheritdoc IPufLocker
+     */
     function getDeposits(address user, address token, uint256 start, uint256 limit)
         external
         view
@@ -141,11 +152,19 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
         uint256 count = end - start;
 
         depositPage = new Deposit[](count);
-        for (uint256 i = 0; i < count; i++) {
+        for (uint256 i = 0; i < count; ++i) {
             depositPage[i] = userDeposits[start + i];
         }
 
         return depositPage;
+    }
+
+    /**
+     * @inheritdoc IPufLocker
+     */
+    function getAllDeposits(address token, address depositor) external view returns (Deposit[] memory) {
+        PufLockerData storage $ = _getPufLockerStorage();
+        return $.deposits[token][depositor];
     }
 
     /**
