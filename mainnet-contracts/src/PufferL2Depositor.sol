@@ -44,7 +44,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, address account, Permit calldata permitData, uint64 referralCode)
+    function deposit(address token, address account, Permit calldata permitData, uint256 referralCode)
         external
         onlySupportedTokens(token)
         restricted
@@ -75,7 +75,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account, uint64 referralCode) external payable restricted {
+    function depositETH(address account, uint256 referralCode) external payable restricted {
         IWETH(WETH).deposit{ value: msg.value }();
 
         _deposit({ token: WETH, depositor: msg.sender, account: account, amount: msg.value, referralCode: referralCode });
@@ -117,7 +117,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      */
     function revertIfPaused() external restricted { }
 
-    function _deposit(address token, address depositor, address account, uint256 amount, uint64 referralCode)
+    function _deposit(address token, address depositor, address account, uint256 amount, uint256 referralCode)
         internal
     {
         PufToken pufToken = PufToken(tokens[token]);
