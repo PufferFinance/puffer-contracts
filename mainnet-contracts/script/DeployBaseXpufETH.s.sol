@@ -23,10 +23,11 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  *       forge script script/DeployBaseXpufETH.s.sol:DeployBaseXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployBaseXpufETH is BaseScript {
-    address OPERATIONS_MULTISIG = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // todo deploy multisig and change this
-    address COMMUNITY_MULTISIG = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // todo deploy multisig and change this
-    address PAUSER_MULTISIG = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6; // todo deploy multisig and change this
+    address OPERATIONS_MULTISIG = 0x37bEbCdB82E9428B89eEaB55288da70322079c46;
+    address COMMUNITY_MULTISIG = 0xd817733f3c5211e35Bc0df56c48118321b837dc1;
+    address PAUSER_MULTISIG = 0xB714703d3F1A974F83808A97ee255a1954ec1537;
 
+    // https://docs.connext.network/resources/deployments
     address CONNEXT_BRIDGE = 0xB8448C6f7f7887D36DcA487370778e419e9ebE3F;
 
     uint256 MINTING_LIMIT = 100 ether;
