@@ -290,7 +290,7 @@ contract Timelock {
     }
 
     function _setDelay(uint256 newDelay) internal {
-        if (newDelay <= MINIMUM_DELAY) {
+        if (newDelay < MINIMUM_DELAY) {
             revert InvalidDelay(newDelay);
         }
         emit DelayChanged(delay, newDelay);
