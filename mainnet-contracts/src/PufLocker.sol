@@ -39,8 +39,13 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
 
     /**
      * @inheritdoc IPufLocker
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, uint128 lockPeriod, Permit calldata permitData) external isAllowedToken(token) {
+    function deposit(address token, uint128 lockPeriod, Permit calldata permitData)
+        external
+        isAllowedToken(token)
+        restricted
+    {
         if (permitData.amount == 0) {
             revert InvalidAmount();
         }
