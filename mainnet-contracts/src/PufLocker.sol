@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -17,7 +18,7 @@ import { InvalidAmount } from "./Errors.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
+contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, PufLockerStorage {
     using SafeERC20 for IERC20;
 
     constructor() {
@@ -169,7 +170,7 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
      */
     function getAllDeposits(address token, address depositor) external view returns (Deposit[] memory) {
         PufLockerData storage $ = _getPufLockerStorage();
-        return $.deposits[token][depositor];
+        return $.deposits[depositor][token];
     }
 
     /**
@@ -179,4 +180,6 @@ contract PufLocker is AccessManagedUpgradeable, IPufLocker, PufLockerStorage {
         PufLockerData storage $ = _getPufLockerStorage();
         return ($.minLockPeriod, $.maxLockPeriod);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

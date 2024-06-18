@@ -4,8 +4,10 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { PufferL2Depositor } from "../src/PufferL2Depositor.sol";
-import { ROLE_ID_DAO, PUBLIC_ROLE } from "../script/Roles.sol";
+import { PufLocker } from "../src/PufLocker.sol";
+import { ROLE_ID_DAO, PUBLIC_ROLE, ROLE_ID_OPERATIONS_MULTISIG } from "../script/Roles.sol";
 
 /**
  * Check that the simulation
@@ -20,6 +22,7 @@ contract DeployPufferL2Depositor is Script {
     AccessManager accessManager;
 
     PufferL2Depositor depositor;
+    PufLocker pufLocker;
     address weth;
 
     function run() public {
@@ -38,18 +41,12 @@ contract DeployPufferL2Depositor is Script {
 
         depositor = new PufferL2Depositor(address(accessManager), weth);
 
-        bytes[] memory calldatas = _generateAccessManagerCallData();
+        address pufLockerImpl = address(new PufLocker());
+        pufLocker = PufLocker(
+            address(new ERC1967Proxy(pufLockerImpl, abi.encodeCall(PufLocker.initialize, (address(accessManager)))))
+        );
 
-        if (block.chainid == 1) {
-            bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
-            console.logBytes(multicallData);
-        } else if (block.chainid == 17000) {
-            accessManager.multicall(calldatas);
-        }
-    }
-
-    function _generateAccessManagerCallData() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory publicSelectors = new bytes4[](3);
         publicSelectors[0] = PufferL2Depositor.deposit.selector;
@@ -68,6 +65,26 @@ contract DeployPufferL2Depositor is Script {
             AccessManager.setTargetFunctionRole.selector, address(depositor), multisigSelectors, ROLE_ID_DAO
         );
 
-        return calldatas;
+        bytes4[] memory lockerPublicSelectors = new bytes4[](1);
+        lockerPublicSelectors[0] = PufLocker.deposit.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(pufLocker), lockerPublicSelectors, PUBLIC_ROLE
+        );
+
+        bytes4[] memory opsLockerSelectors = new bytes4[](2);
+        opsLockerSelectors[0] = PufLocker.setIsAllowedToken.selector;
+        opsLockerSelectors[1] = PufLocker.setLockPeriods.selector;
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(pufLocker),
+            opsLockerSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
+        );
+
+        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+
+        console.logBytes(multicallData);
     }
 }
