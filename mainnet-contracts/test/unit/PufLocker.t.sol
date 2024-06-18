@@ -201,7 +201,7 @@ contract PufLockerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function test_GetDeposits_Pagination() public {
+    function test_GetDeposits_Pagination_and_getAllDeposits() public {
         vm.startPrank(bob);
         uint256 amount = 2e18;
         Permit memory permit =
@@ -231,8 +231,11 @@ contract PufLockerTest is UnitTestHelper {
         assertEq(depositsPage2[0].amount, amount3, "Amount of the last deposit should be 50");
 
         // Get all deposits
-        PufLocker.Deposit[] memory allDeposits = pufLocker.getAllDeposits(bob, address(mockToken));
+        PufLocker.Deposit[] memory allDeposits = pufLocker.getAllDeposits(address(mockToken), bob);
         assertEq(allDeposits.length, 3, "Should return 3 deposits");
+        assertEq(allDeposits[0].amount, amount, "Amount");
+        assertEq(allDeposits[1].amount, amount2, "Amount 2");
+        assertEq(allDeposits[2].amount, amount3, "Amount 3");
         vm.stopPrank();
     }
 }
