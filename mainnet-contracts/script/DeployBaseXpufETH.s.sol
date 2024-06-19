@@ -16,7 +16,7 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  * // Check that the simulation
  * add --slow if deploying to a mainnet fork like tenderly (its buggy sometimes)
  *
- *       forge script script/DeployBaseXpufETH.s.sol:DeployBaseXpufETH --rpc-url https://holesky.gateway.tenderly.co/5ovlGAOeSvuI3UcQD2PoSD --account puffer
+ *       forge script script/DeployBaseXpufETH.s.sol:DeployBaseXpufETH --rpc-url $RPC_URL --account puffer
  *
  *       forge cache clean
  *
