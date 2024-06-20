@@ -9,6 +9,7 @@ import { RestakingOperator } from "../src/RestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * forge script script/DeployRestakingOperator.s.sol:DeployRestakingOperator --rpc-url=$RPC_URL --private-key $PK
@@ -25,7 +26,8 @@ contract DeployRestakingOperator is Script {
         RestakingOperator impl = new RestakingOperator({
             delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
             slasher: ISlasher(0xcAe751b75833ef09627549868A04E32679386e7C),
-            moduleManager: IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71)
+            moduleManager: IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(impl));

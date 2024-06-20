@@ -9,15 +9,14 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { RestakingOperator } from "../../src/RestakingOperator.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { IBLSApkRegistry, IRegistryCoordinator } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
+import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
@@ -73,7 +72,8 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
             eigenPodManager: EIGEN_POD_MANAGER,
             eigenWithdrawalRouter: IDelayedWithdrawalRouter(DELAYED_WITHDRAWAL_ROUTER),
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: pufferModuleManager
+            moduleManager: pufferModuleManager,
+            rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         // Execute Beacon upgrade

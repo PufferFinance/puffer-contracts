@@ -15,6 +15,7 @@ import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { GenerateAccessManagerCalldata1 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata1.s.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * forge script script/MainnetContractMigrations/UpgradeRestakingOperator.s.sol:UpgradeRestakingOperator --rpc-url=$RPC_URL --private-key $PK
@@ -45,7 +46,8 @@ contract UpgradeRestakingOperator is Script {
         RestakingOperator restakingOperatorImpl = new RestakingOperator({
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             slasher: ISlasher(EIGEN_SLASHER),
-            moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY)
+            moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         bytes memory accessCd =
