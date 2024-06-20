@@ -35,7 +35,7 @@ contract DeployPufferModuleImplementation is Script {
             eigenWithdrawalRouter: IDelayedWithdrawalRouter(0x642c646053eaf2254f088e9019ACD73d9AE0FA32),
             delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
             moduleManager: PufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
+            rewardsCoordinator: IRewardsCoordinator(0xAcc1fb458a1317E886dB376Fc8141540537E68fE)
         });
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(newImpl));

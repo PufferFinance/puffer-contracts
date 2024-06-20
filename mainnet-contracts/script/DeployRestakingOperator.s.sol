@@ -27,7 +27,7 @@ contract DeployRestakingOperator is Script {
             delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
             slasher: ISlasher(0xcAe751b75833ef09627549868A04E32679386e7C),
             moduleManager: IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
+            rewardsCoordinator: IRewardsCoordinator(0xAcc1fb458a1317E886dB376Fc8141540537E68fE)
         });
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(impl));
