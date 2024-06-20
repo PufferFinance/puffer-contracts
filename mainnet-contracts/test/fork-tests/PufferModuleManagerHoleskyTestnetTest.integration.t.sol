@@ -32,6 +32,7 @@ interface Weth {
     function approve(address spender, uint256 amount) external returns (bool);
 }
 
+// PufferTestnet V1 deployment
 contract PufferModuleManagerHoleskyTestnetTest is Test {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
