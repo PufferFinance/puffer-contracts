@@ -219,7 +219,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
             depositor: depositor,
             destination: destination,
             migratorContract: migratorContract,
-            amount: amount
+            amount: deNormalizedAmount
         });
 
         TOKEN.safeIncreaseAllowance(migratorContract, deNormalizedAmount);
