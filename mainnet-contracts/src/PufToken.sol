@@ -104,11 +104,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @inheritdoc IPufStakingPool
      */
-    function deposit(address from, address account, uint256 amount)
-        external
-        whenNotPaused
-        validateAddressAndAmount(account, amount)
-    {
+    function deposit(address from, address account, uint256 amount) external whenNotPaused {
         _deposit(from, account, amount);
     }
 
@@ -132,7 +128,6 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     function migrate(uint256 amount, address migratorContract, address destination)
         external
         onlyAllowedMigratorContract(migratorContract)
-        validateAddressAndAmount(destination, amount)
         whenNotPaused
     {
         _migrate({ depositor: msg.sender, amount: amount, destination: destination, migratorContract: migratorContract });
@@ -185,7 +180,10 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         totalDepositCap = newDepositCap;
     }
 
-    function _deposit(address depositor, address account, uint256 amount) internal {
+    function _deposit(address depositor, address account, uint256 amount)
+        internal
+        validateAddressAndAmount(account, amount)
+    {
         TOKEN.safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 normalizedAmount = _normalizeAmount(amount);
@@ -197,7 +195,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         // Mint puffToken to the account
         _mint(account, normalizedAmount);
 
-        // If the user is deposiing using the factory, we emit the `depositor` from the parameters
+        // If the user is depositng using the factory, we emit the `depositor` from the parameters
         if (msg.sender == address(PUFFER_FACTORY)) {
             emit Deposited(depositor, account, amount);
         } else {
@@ -209,7 +207,10 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @notice Transfers the Token from this contract using the migrator contract
      */
-    function _migrate(address depositor, uint256 amount, address destination, address migratorContract) internal {
+    function _migrate(address depositor, uint256 amount, address destination, address migratorContract)
+        internal
+        validateAddressAndAmount(destination, amount)
+    {
         _burn(depositor, amount);
 
         uint256 deNormalizedAmount = _denormalizeAmount(amount);
@@ -223,7 +224,11 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
 
         TOKEN.safeIncreaseAllowance(migratorContract, deNormalizedAmount);
 
-        IMigrator(migratorContract).migrate({ depositor: depositor, destination: destination, amount: amount });
+        IMigrator(migratorContract).migrate({
+            depositor: depositor,
+            destination: destination,
+            amount: deNormalizedAmount
+        });
     }
 
     function _normalizeAmount(uint256 amount) internal view returns (uint256 normalizedAmount) {
