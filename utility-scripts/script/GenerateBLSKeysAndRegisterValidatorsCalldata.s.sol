@@ -35,8 +35,10 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
     mapping(bytes32 keyHash => bool registered) internal pubKeys;
     bytes[] internal registeredPubKeys;
 
-    bytes32 private constant _PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    struct Tx {
+        address to;
+        bytes data;
+    }
 
     function setUp() public {
         if (block.chainid == 17000) {
@@ -89,14 +91,10 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         bytes memory approvePufETHCalldata =
             abi.encodeCall(ERC20.approve, (protocolAddress, 2 ether * numberOfValidators));
 
-        console.log("Approve VT calldata to address", Strings.toHexString(validatorTicketAddress));
-        console.logBytes(approveVTCalldata);
-        console.log("----------------------------------------------------------");
-        console.log("Approve pufETH calldata to address", Strings.toHexString(address(pufETH)));
-        console.logBytes(approvePufETHCalldata);
-        console.log("----------------------------------------------------------");
-
-        console.log("The rest of the calldatas go to address", Strings.toHexString(protocolAddress));
+        // 2 token approvals + validator registrations
+        Tx[] memory transactions = new Tx[](numberOfValidators + 2);
+        transactions[0] = Tx({ to: validatorTicketAddress, data: approveVTCalldata });
+        transactions[1] = Tx({ to: address(pufETH), data: approvePufETHCalldata });
 
         for (uint256 i = 0; i < numberOfValidators; ++i) {
             // Select the module to register to
@@ -134,19 +132,56 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
             bytes memory registerValidatorKeyCalldata =
                 abi.encodeCall(PufferProtocol.registerValidatorKey, (validatorData, moduleName, pufETHPermit, vtPermit));
 
-            console.log("RegisterValidatorKey", Strings.toString(i));
-            console.logBytes(registerValidatorKeyCalldata);
-            console.log(
-                "------------------------------------------------------------------------------------------------------------------------"
-            );
+            transactions[i + 2] = Tx({ to: protocolAddress, data: registerValidatorKeyCalldata });
 
             registeredPubKeys.push(validatorData.blsPubKey);
         }
+
+        // Create Safe TX JSON
+        _createSafeJson(safe, transactions);
 
         console.log("Validator PubKeys:");
         for (uint256 i = 0; i < registeredPubKeys.length; ++i) {
             console.logBytes(registeredPubKeys[i]);
         }
+    }
+
+    function _createSafeJson(address safe, Tx[] memory transactions) internal {
+        // First we need to craft the JSON file for the transactions batch
+        string memory root = "root";
+
+        vm.serializeString(root, "version", "\"1.0\"");
+        vm.serializeUint(root, "createdAt", block.timestamp * 1000);
+        vm.serializeString(root, "chainId", "\"1\"");
+
+        string memory meta = "meta";
+        vm.serializeString(meta, "name", "Transactions Batch");
+        vm.serializeString(meta, "txBuilderVersion", "\"1.16.5\"");
+        vm.serializeAddress(meta, "createdFromSafeAddress", safe);
+        vm.serializeString(meta, "createdFromOwnerAddress", "");
+        vm.serializeString(meta, "checksum", "");
+        string memory metaOutput = vm.serializeString(meta, "description", "");
+
+        string[] memory txs = new string[](transactions.length);
+
+        for (uint256 i = 0; i < transactions.length; ++i) {
+            string memory singleTx = "tx";
+
+            vm.serializeAddress(singleTx, "to", transactions[i].to);
+            vm.serializeString(singleTx, "value", "\"0\"");
+            txs[i] = vm.serializeBytes(singleTx, "data", transactions[i].data);
+        }
+
+        vm.serializeString(root, "transactions", txs);
+        string memory finalJson = vm.serializeString(root, "meta", metaOutput);
+        vm.writeJson(finalJson, "./safe-registration-file.json");
+
+        // Because foundry doesn't support creating JSON array of objects, we need to run NodeJS script to convert this to a valid JSON
+
+        string[] memory inputs = new string[](2);
+        inputs[0] = "node";
+        inputs[1] = "parse-foundry-json";
+        vm.ffi(inputs);
     }
 
     // Validates the pufETH and VT balances for the `safe` (node operator)
