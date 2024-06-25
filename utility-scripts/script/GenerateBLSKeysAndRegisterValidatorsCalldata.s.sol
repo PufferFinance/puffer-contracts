@@ -152,7 +152,8 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
 
         vm.serializeString(root, "version", "\"1.0\"");
         vm.serializeUint(root, "createdAt", block.timestamp * 1000);
-        vm.serializeString(root, "chainId", "\"1\"");
+        // Needs to be a string
+        vm.serializeString(root, "chainId", string.concat("\"", Strings.toString(block.chainid), "\""));
 
         string memory meta = "meta";
         vm.serializeString(meta, "name", "Transactions Batch");
