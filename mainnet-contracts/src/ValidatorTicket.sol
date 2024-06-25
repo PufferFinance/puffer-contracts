@@ -8,7 +8,7 @@ import { ERC20PermitUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { ValidatorTicketStorage } from "src/ValidatorTicketStorage.sol";
+import { ValidatorTicketStorage } from "./ValidatorTicketStorage.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
