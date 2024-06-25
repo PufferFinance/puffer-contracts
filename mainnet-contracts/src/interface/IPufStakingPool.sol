@@ -38,6 +38,12 @@ interface IPufStakingPool {
     error TotalDepositCapReached();
 
     /**
+     * @notice Thrown when the decimals of the token is not supported
+     * @dev Signature "0x686d3607"
+     */
+    error InvalidTokenDecimals();
+
+    /**
      * @notice Emitted when tokens are deposited into the staking pool
      * @param from The address from which the tokens are deposited
      * @param to The address to which the tokens are deposited

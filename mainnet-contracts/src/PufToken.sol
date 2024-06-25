@@ -60,6 +60,10 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         PUFFER_FACTORY = PufferL2Depositor(msg.sender);
         TOKEN = ERC20(token);
         _TOKEN_DECIMALS = uint256(TOKEN.decimals());
+        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
+            revert InvalidTokenDecimals();
+        }
+
         totalDepositCap = depositCap;
     }
 
@@ -232,18 +236,14 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     }
 
     function _normalizeAmount(uint256 amount) internal view returns (uint256 normalizedAmount) {
-        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
-            return amount / (10 ** (_TOKEN_DECIMALS - _STANDARD_TOKEN_DECIMALS));
-        } else if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
+        if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
             return amount * (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
         }
         return amount;
     }
 
     function _denormalizeAmount(uint256 amount) internal view returns (uint256 denormalizedAmount) {
-        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
-            return amount * (10 ** (_TOKEN_DECIMALS - _STANDARD_TOKEN_DECIMALS));
-        } else if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
+        if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
             return amount / (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
         }
         return amount;
