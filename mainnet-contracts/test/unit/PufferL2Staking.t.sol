@@ -116,6 +116,7 @@ contract PufferL2Staking is UnitTestHelper {
         assertTrue(depositor.tokens(address(weth)) != address(0), "bad weth address");
         assertTrue(depositor.tokens(address(dai)) != address(0), "bad dai address");
         assertTrue(depositor.tokens(address(sixDecimal)) != address(0), "bad sixDecimal address");
+        assertTrue(depositor.tokens(address(twentyTwoDecimal)) != address(0), "bad twentyTwoDecimal address");
     }
 
     function test_setMigrator(address migrator, bool allowed) public {
