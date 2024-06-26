@@ -27,11 +27,6 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     );
 
     /**
-     * @notice Standard Token Decimals
-     */
-    uint256 internal constant _STANDARD_TOKEN_DECIMALS = 18;
-
-    /**
      * @notice The underlying token decimals
      */
     uint256 internal immutable _TOKEN_DECIMALS;
@@ -60,10 +55,6 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         PUFFER_FACTORY = PufferL2Depositor(msg.sender);
         TOKEN = ERC20(token);
         _TOKEN_DECIMALS = uint256(TOKEN.decimals());
-        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
-            revert InvalidTokenDecimals();
-        }
-
         totalDepositCap = depositCap;
     }
 
@@ -118,12 +109,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     function withdraw(address recipient, uint256 amount) external validateAddressAndAmount(recipient, amount) {
         _burn(msg.sender, amount);
 
-        uint256 deNormalizedAmount = _denormalizeAmount(amount);
-
-        TOKEN.safeTransfer(recipient, deNormalizedAmount);
-
-        // Using the original deposit amount in the event (in this case it is denormalized amount)
-        emit Withdrawn(msg.sender, recipient, deNormalizedAmount);
+        emit Withdrawn(msg.sender, recipient, amount);
     }
 
     /**
@@ -190,14 +176,12 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     {
         TOKEN.safeTransferFrom(msg.sender, address(this), amount);
 
-        uint256 normalizedAmount = _normalizeAmount(amount);
-
-        if (totalSupply() + normalizedAmount > totalDepositCap) {
+        if (totalSupply() + amount > totalDepositCap) {
             revert TotalDepositCapReached();
         }
 
         // Mint puffToken to the account
-        _mint(account, normalizedAmount);
+        _mint(account, amount);
 
         // If the user is depositng using the factory, we emit the `depositor` from the parameters
         if (msg.sender == address(PUFFER_FACTORY)) {
@@ -217,35 +201,15 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     {
         _burn(depositor, amount);
 
-        uint256 deNormalizedAmount = _denormalizeAmount(amount);
-
         emit Migrated({
             depositor: depositor,
             destination: destination,
             migratorContract: migratorContract,
-            amount: deNormalizedAmount
+            amount: amount
         });
 
-        TOKEN.safeIncreaseAllowance(migratorContract, deNormalizedAmount);
+        TOKEN.safeIncreaseAllowance(migratorContract, amount);
 
-        IMigrator(migratorContract).migrate({
-            depositor: depositor,
-            destination: destination,
-            amount: deNormalizedAmount
-        });
-    }
-
-    function _normalizeAmount(uint256 amount) internal view returns (uint256 normalizedAmount) {
-        if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
-            return amount * (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
-        }
-        return amount;
-    }
-
-    function _denormalizeAmount(uint256 amount) internal view returns (uint256 denormalizedAmount) {
-        if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
-            return amount / (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
-        }
-        return amount;
+        IMigrator(migratorContract).migrate({ depositor: depositor, destination: destination, amount: amount });
     }
 }

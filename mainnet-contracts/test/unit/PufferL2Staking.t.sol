@@ -109,6 +109,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         depositor.addNewToken(address(dai));
         depositor.addNewToken(address(sixDecimal));
+        depositor.addNewToken(address(twentyTwoDecimal));
     }
 
     function test_setup() public view {
@@ -170,20 +171,39 @@ contract PufferL2Staking is UnitTestHelper {
 
         PufToken pufToken = PufToken(depositor.tokens(address(sixDecimal)));
 
-        assertEq(pufToken.balanceOf(bob), 1 ether, "bob got 1 eth pufToken");
+        assertEq(pufToken.balanceOf(bob), amount, "bob got same amount in pufToken");
         assertEq(sixDecimal.balanceOf(bob), 0, "0 token bob");
 
         vm.expectEmit(true, true, true, true);
         emit IPufStakingPool.Withdrawn(bob, bob, amount); // original deposit amount
-        pufToken.withdraw(bob, 1 ether);
+        pufToken.withdraw(bob, amount);
     }
 
-    // Revert when trying to add 22 decimal token
-    function testRevert_addNewToken_22Decimals() public {
-        vm.startPrank(OPERATIONS_MULTISIG);
+    // Deposit & withdraw 22 decimal token
+    function test_deposit_and_withdraw_twentyTwoDecimal_approve() public {
+        uint256 amount = 10 ** 22;
 
-        vm.expectRevert(IPufStakingPool.InvalidTokenDecimals.selector);
-        depositor.addNewToken(address(twentyTwoDecimal));
+        // This is a bad permit signature
+        Permit memory permit =
+            _signPermit(_testTemps("bob", address(depositor), amount, block.timestamp), "dummy domain separator");
+
+        twentyTwoDecimal.mint(bob, amount);
+
+        vm.startPrank(bob);
+        twentyTwoDecimal.approve(address(depositor), amount);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount, referralCode);
+        depositor.deposit(address(twentyTwoDecimal), bob, permit, referralCode);
+
+        PufToken pufToken = PufToken(depositor.tokens(address(twentyTwoDecimal)));
+
+        assertEq(pufToken.balanceOf(bob), amount, "bob got same amount in pufToken");
+        assertEq(twentyTwoDecimal.balanceOf(bob), 0, "0 token bob");
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufStakingPool.Withdrawn(bob, bob, amount); // original deposit amount
+        pufToken.withdraw(bob, amount);
     }
 
     // Good Permit signature signature
