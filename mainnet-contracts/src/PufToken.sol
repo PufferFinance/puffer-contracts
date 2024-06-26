@@ -109,6 +109,8 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     function withdraw(address recipient, uint256 amount) external validateAddressAndAmount(recipient, amount) {
         _burn(msg.sender, amount);
 
+        TOKEN.safeTransfer(recipient, amount);
+
         emit Withdrawn(msg.sender, recipient, amount);
     }
 

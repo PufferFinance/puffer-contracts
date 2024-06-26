@@ -178,6 +178,8 @@ contract PufferL2Staking is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufStakingPool.Withdrawn(bob, bob, amount); // original deposit amount
         pufToken.withdraw(bob, amount);
+
+        assertEq(sixDecimal.balanceOf(bob), amount, "bob got same amount");
     }
 
     // Deposit & withdraw 22 decimal token
@@ -205,6 +207,8 @@ contract PufferL2Staking is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufStakingPool.Withdrawn(bob, bob, amount); // original deposit amount
         pufToken.withdraw(bob, amount);
+
+        assertEq(twentyTwoDecimal.balanceOf(bob), amount, "bob got same amount");
     }
 
     // Good Permit signature signature
