@@ -102,7 +102,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
     }
 
     /**
-     * @notice Changes the status of `migrator` to `allowed`
+     * @notice Sets the deposit cap for the `token`
      * @dev Restricted to Puffer DAO
      */
     function setDepositCap(address token, uint256 newDepositCap) external onlySupportedTokens(token) restricted {
@@ -134,8 +134,8 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
             revert InvalidToken();
         }
 
-        string memory symbol = string(abi.encodePacked("puf ", ERC20(token).symbol()));
-        string memory name = string(abi.encodePacked("puf", ERC20(token).name()));
+        string memory symbol = string(abi.encodePacked("puf", ERC20(token).symbol()));
+        string memory name = string(abi.encodePacked("puf ", ERC20(token).name()));
 
         // Reverts on duplicate token
         address pufToken =
