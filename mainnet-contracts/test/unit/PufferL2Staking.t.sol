@@ -180,6 +180,7 @@ contract PufferL2Staking is UnitTestHelper {
         pufToken.withdraw(bob, amount);
 
         assertEq(sixDecimal.balanceOf(bob), amount, "bob got same amount");
+        assertEq(sixDecimal.decimals(), 6, "decimals matches orginal token");
     }
 
     // Deposit & withdraw 22 decimal token
@@ -209,6 +210,7 @@ contract PufferL2Staking is UnitTestHelper {
         pufToken.withdraw(bob, amount);
 
         assertEq(twentyTwoDecimal.balanceOf(bob), amount, "bob got same amount");
+        assertEq(twentyTwoDecimal.decimals(), 22, "decimals matches orginal token");
     }
 
     // Good Permit signature signature

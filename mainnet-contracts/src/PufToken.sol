@@ -29,7 +29,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @notice The underlying token decimals
      */
-    uint256 internal immutable _TOKEN_DECIMALS;
+    uint8 internal immutable _TOKEN_DECIMALS;
 
     /**
      * @notice Puffer Token factory
@@ -54,7 +54,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         // The Factory is the deployer of the contract
         PUFFER_FACTORY = PufferL2Depositor(msg.sender);
         TOKEN = ERC20(token);
-        _TOKEN_DECIMALS = uint256(TOKEN.decimals());
+        _TOKEN_DECIMALS = TOKEN.decimals();
         totalDepositCap = depositCap;
     }
 
@@ -213,5 +213,9 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         TOKEN.safeIncreaseAllowance(migratorContract, amount);
 
         IMigrator(migratorContract).migrate({ depositor: depositor, destination: destination, amount: amount });
+    }
+
+    function decimals() public view override returns (uint8 _decimals) {
+        return _TOKEN_DECIMALS;
     }
 }
