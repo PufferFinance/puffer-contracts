@@ -30,6 +30,7 @@ import { SetupAccess } from "script/SetupAccess.s.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * // Check that the simulation
@@ -147,13 +148,15 @@ contract DeployProtocolToMainnet is Script {
             eigenPodManager: EIGEN_POD_MANAGER,
             eigenWithdrawalRouter: IDelayedWithdrawalRouter(DELAYED_WITHDRAWAL_ROUTER),
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: PufferModuleManager(address(moduleManagerProxy))
+            moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             slasher: ISlasher(EIGEN_SLASHER),
-            moduleManager: PufferModuleManager(address(moduleManagerProxy))
+            moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));

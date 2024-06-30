@@ -274,6 +274,25 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
     }
 
+    // Sets the claimer for PufferModule & ReOp
+    function test_set_claimer_for_avs_rewards(address claimer, bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        vm.assume(claimer != address(0));
+
+        address createdModule = _createPufferModule(moduleName);
+
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet(address(createdModule), claimer);
+        pufferModuleManager.callSetClaimerFor(createdModule, claimer);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet(address(operator), claimer);
+        pufferModuleManager.callSetClaimerFor(address(operator), claimer);
+    }
+
     function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);

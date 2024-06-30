@@ -18,6 +18,8 @@ import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCallData.sol";
+import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
+
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
     ROLE_ID_OPERATIONS_PAYMASTER,
@@ -55,15 +57,22 @@ contract SetupAccess is BaseScript {
         require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
+        // PufferVaultV2 access setup
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCallData");
 
+        // AvsContractsRegistry setup
         cd = new GenerateAccessManagerCalldata1().run(deployment.moduleManager, deployment.aVSContractsRegistry, DAO);
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCalldata1");
+
+        // PufferModuleManager.setTargetFunctionRole.selector setup
+        cd = new GenerateAccessManagerCalldata2().run(deployment.moduleManager);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCalldata2");
     }
 
     function _generateAccessCalldata(

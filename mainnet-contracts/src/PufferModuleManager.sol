@@ -209,6 +209,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
+    function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
+        // We can cast `moduleOrReOp` to IPufferModule/IRestakingOperator, uses the same function signature.
+        IPufferModule(moduleOrReOp).callSetClaimerFor(claimer);
+        emit ClaimerSet({ rewardsReceiver: moduleOrReOp, claimer: claimer });
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function createNewRestakingOperator(
         string calldata metadataURI,
         address delegationApprover,
