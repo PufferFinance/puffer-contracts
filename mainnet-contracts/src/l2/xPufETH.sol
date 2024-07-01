@@ -32,6 +32,15 @@ contract xPufETH is xPufETHStorage, IXERC20, AccessManagedUpgradeable, ERC20Perm
     }
 
     /**
+     * @notice Returns the address of the lockbox
+     */
+    function lockbox() external view returns (address) {
+        xPufETH storage $ = _getXPufETHStorage();
+
+        return $.lockbox;
+    }
+
+    /**
      * @notice Mints tokens for a user
      * @dev Can only be called by a bridge
      * @param user The address of the user who needs tokens minted
