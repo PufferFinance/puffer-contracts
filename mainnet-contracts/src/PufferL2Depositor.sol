@@ -49,16 +49,19 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
         onlySupportedTokens(token)
         restricted
     {
-        // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
-        try ERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        // if the first 32 bytes of the signature is non-zero
+        if (permitData.r != 0) {
+            // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
+            try ERC20Permit(token).permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { } catch { }
+        }
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
 
