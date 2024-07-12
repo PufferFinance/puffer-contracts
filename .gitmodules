@@ -1,0 +1,3 @@
+[submodule "mainnet-contracts/lib/interfaces"]
+	path = mainnet-contracts/lib/interfaces
+	url = https://github.com/connext/interfaces
