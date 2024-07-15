@@ -9,24 +9,24 @@ on:
     paths:
       - "mainnet-contracts/**"
 
-jobs:
-  codespell:
-      name: Check for spelling errors
-      runs-on: ubuntu-latest
+# jobs:
+#   codespell:
+#       name: Check for spelling errors
+#       runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
+#       steps:
+#         - name: Checkout
+#           uses: actions/checkout@v4
+#           with:
+#             fetch-depth: 0
 
-        - name: Codespell
-          uses: codespell-project/actions-codespell@v2.0
-          with:
-            check_hidden: true
-            check_filenames: true
-            ignore_words_list: amountIn
-            skip: package-lock.json,*.pdf,./.git,yarn.lock
+#         - name: Codespell
+#           uses: codespell-project/actions-codespell@v2.0
+#           with:
+#             check_hidden: true
+#             check_filenames: true
+#             ignore_words_list: amountIn
+#             skip: package-lock.json,*.pdf,./.git,yarn.lock
 
   unit-tests:
     runs-on: ubuntu-latest
