@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
@@ -33,7 +33,7 @@ contract xPufETHTest is Test {
         timelock = Timelock(payable(deployment.timelock));
 
         // Deploy implementation
-        xPufETH newImplementation = new xPufETH();
+        xPufETH newImplementation = new xPufETH(address(0), address(0));
 
         // Deploy proxy
         vm.expectEmit(true, true, true, true);
