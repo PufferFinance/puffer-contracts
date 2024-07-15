@@ -17,6 +17,9 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
       
       - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
       - uses: actions/setup-node@v4
         with:
           cache: 'yarn'
