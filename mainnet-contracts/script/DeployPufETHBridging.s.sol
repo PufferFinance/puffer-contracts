@@ -26,8 +26,13 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
 
+import { xPufETH } from "src/l2/xPufETH.sol";
+import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { ConnextMock } from "../test/mocks/ConnextMock.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 /**
- * @title UpgradePufETH
+ * @title DeployPufETHBridging
  * @author Puffer Finance
  * @notice Upgrades PufETH
  * @dev
@@ -40,53 +45,35 @@ import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStruct
  *
  *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
  *
- *         PK=${deployer_pk} forge script script/UpgradePufETH.s.sol:UpgradePufETH --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
+ *         PK=${deployer_pk} forge script script/DeployPufETHBridging.s.sol:DeployPufETHBridging --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
  */
-contract UpgradePufETH is BaseScript {
-    /**
-     * @dev Ethereum Mainnet addresses
-     */
-    IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
-    IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
-    IDelegationManager internal constant _DELEGATION_MANAGER =
-        IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
-    IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
-    IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
-        ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
-
-    function run(PufferDeployment memory deployment, BridgingDeployment memory bridgingDeployment, address pufferOracle)
+contract DeployPufETHBridging is BaseScript {
+    function run(PufferDeployment memory deployment)
         public
         broadcast
+        returns (BridgingDeployment memory bridgingDeployment)
     {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
-            connext: bridgingDeployment.connext,
-            xToken: bridgingDeployment.xPufETH,
-            lockBox: bridgingDeployment.xPufETHLockBox,
-            destinationDomain: 0,
-            l2RewardManager: address(0)
+        xPufETH xpufETHImplementation = new xPufETH();
+
+        xPufETH xPufETHProxy = xPufETH(
+            address(
+                new ERC1967Proxy{ salt: bytes32("xPufETH") }(
+                    address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+                )
+            )
+        );
+
+        // Deploy the lockbox
+        XERC20Lockbox xERC20Lockbox =
+            new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
+
+        bridgingDeployment = BridgingDeployment({
+            connext: address(new ConnextMock()),
+            xPufETH: address(xPufETHProxy),
+            xPufETHLockBox: address(xERC20Lockbox)
         });
-
-        console.log("LOCKBOX", bridgingDeployment.xPufETHLockBox);
-
-        PufferVaultV3 newImplementation = new PufferVaultV3Tests(
-            IStETH(deployment.stETH),
-            IWETH(deployment.weth),
-            ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
-            IStrategy(deployment.stETHStrategyMock),
-            IEigenLayer(deployment.eigenStrategyManagerMock),
-            IPufferOracle(pufferOracle),
-            _DELEGATION_MANAGER,
-            bridgingParams
-        );
-
-        vm.expectEmit(true, true, true, true);
-        emit Initializable.Initialized(2);
-        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
-        );
     }
 }
