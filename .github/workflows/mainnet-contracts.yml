@@ -29,7 +29,7 @@ jobs:
       - name: Run codespell
         uses: codespell-project/actions-codespell@v2.0
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
           check_hidden: true
           check_filenames: true
           ignore_words_list: amountIn
