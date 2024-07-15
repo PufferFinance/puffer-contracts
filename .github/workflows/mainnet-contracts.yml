@@ -17,19 +17,19 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
       
       - uses: actions/checkout@v4
-        with:
-          submodules: 'true'
-
       - uses: actions/setup-node@v4
         with:
           cache: 'yarn'
           cache-dependency-path: yarn.lock
           node-version: 20
 
+      - name: Branch name
+        run: echo running on branch ${GITHUB_REF##*/}
+
       - name: Run codespell
-        - uses: actions/checkout@v4
-        - uses: codespell-project/actions-codespell@v2.0
+        uses: codespell-project/actions-codespell@v2.0
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           check_hidden: true
           check_filenames: true
           ignore_words_list: amountIn
