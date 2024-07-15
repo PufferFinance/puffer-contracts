@@ -24,12 +24,12 @@ jobs:
           node-version: 20
 
       - name: Branch name
-        run: echo running on branch ${github.ref_name}
+        run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
 
       - name: Run codespell
         uses: codespell-project/actions-codespell@v2.0
         with:
-          ref: ${ github.head_ref || github.ref_name }
+          ref: ${{ github.head_ref || github.ref_name }}
           check_hidden: true
           check_filenames: true
           ignore_words_list: amountIn
