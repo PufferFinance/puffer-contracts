@@ -16,10 +16,12 @@ jobs:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
       
+      - name: Checkout
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
 
+      - name: Setup Node
       - uses: actions/setup-node@v4
         with:
           cache: 'yarn'
