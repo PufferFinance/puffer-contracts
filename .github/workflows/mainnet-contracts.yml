@@ -27,9 +27,9 @@ jobs:
         run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
 
       - name: Run codespell
+        uses: actions/checkout@v4
         uses: codespell-project/actions-codespell@v2.0
         with:
-          ref: ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
           check_hidden: true
           check_filenames: true
           ignore_words_list: amountIn
