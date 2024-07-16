@@ -54,14 +54,20 @@ interface IPufferL2Depositor {
      *
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, address account, Permit calldata permitData, uint256 referralCode) external;
+    function deposit(
+        address token,
+        address account,
+        Permit calldata permitData,
+        uint256 referralCode,
+        uint128 lockPeriod
+    ) external;
 
     /**
      * @notice Deposits naative ETH by wrapping it into WETH and then depositing to corresponding token contract
      *
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account, uint256 referralCode) external payable;
+    function depositETH(address account, uint256 referralCode, uint128 lockPeriod) external payable;
 
     /**
      * @notice Called by the Token contracts to check if the system is paused

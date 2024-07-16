@@ -14,8 +14,12 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { InvalidAmount } from "../../src/Errors.sol";
+import { IPufLocker } from "../../src/interface/IPufLocker.sol";
+import { PufLocker } from "../../src/PufLocker.sol";
+import { IPufLocker } from "../../src/interface/IPufLocker.sol";
 
 contract MockToken is ERC20, ERC20Permit {
     uint8 _dec; // decimals
@@ -58,6 +62,7 @@ contract PufferL2Staking is UnitTestHelper {
     MockToken sixDecimal;
     MockToken twentyTwoDecimal;
     MockToken notSupportedToken;
+    PufLocker pufLocker;
 
     address mockMigrator;
 
@@ -74,7 +79,12 @@ contract PufferL2Staking is UnitTestHelper {
         twentyTwoDecimal = new MockToken("TwentyTwoDecimal", "TKN22", 22);
         notSupportedToken = new MockToken("NotSupported", "NOT", 18);
 
-        depositor = new PufferL2Depositor(address(accessManager), address(weth));
+        address pufLockerImpl = address(new PufLocker());
+        pufLocker = PufLocker(
+            address(new ERC1967Proxy(pufLockerImpl, abi.encodeCall(PufLocker.initialize, (address(accessManager)))))
+        );
+
+        depositor = new PufferL2Depositor(address(accessManager), address(weth), pufLocker);
 
         // Access setup
 
@@ -105,11 +115,44 @@ contract PufferL2Staking is UnitTestHelper {
         vm.prank(address(timelock));
         accessManager.multicall(calldatas);
 
+        // Access setup Locker
+
+        calldatas = new bytes[](2);
+
+        publicSelectors = new bytes4[](2);
+        publicSelectors[0] = PufLocker.deposit.selector;
+        publicSelectors[1] = PufLocker.withdraw.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(pufLocker), publicSelectors, PUBLIC_ROLE
+        );
+
+        multisigSelectors = new bytes4[](2);
+        multisigSelectors[0] = PufLocker.setIsAllowedToken.selector;
+        multisigSelectors[1] = PufLocker.setLockPeriods.selector;
+
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(pufLocker),
+            multisigSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
+        );
+
+        // bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+        vm.prank(address(timelock));
+        accessManager.multicall(calldatas);
+
         vm.startPrank(OPERATIONS_MULTISIG);
 
         depositor.addNewToken(address(dai));
         depositor.addNewToken(address(sixDecimal));
         depositor.addNewToken(address(twentyTwoDecimal));
+
+        pufLocker.setLockPeriods(0, 365 days);
+
+        pufLocker.setIsAllowedToken(depositor.tokens(address(dai)), true);
+        pufLocker.setIsAllowedToken(depositor.tokens(address(sixDecimal)), true);
+        pufLocker.setIsAllowedToken(depositor.tokens(address(twentyTwoDecimal)), true);
     }
 
     function test_setup() public view {
@@ -147,7 +190,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount, refCode);
-        depositor.deposit(address(dai), bob, permit, refCode);
+        depositor.deposit(address(dai), bob, permit, refCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(dai)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -168,7 +211,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(sixDecimal), bob, bob, amount, referralCode);
-        depositor.deposit(address(sixDecimal), bob, permit, referralCode);
+        depositor.deposit(address(sixDecimal), bob, permit, referralCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(sixDecimal)));
 
@@ -198,7 +241,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(twentyTwoDecimal), bob, bob, amount, referralCode);
-        depositor.deposit(address(twentyTwoDecimal), bob, permit, referralCode);
+        depositor.deposit(address(twentyTwoDecimal), bob, permit, referralCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(twentyTwoDecimal)));
 
@@ -228,7 +271,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount, refCode);
-        depositor.deposit(address(dai), bob, permit, refCode);
+        depositor.deposit(address(dai), bob, permit, refCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(dai)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -252,7 +295,7 @@ contract PufferL2Staking is UnitTestHelper {
         // weth.permit triggers weth.fallback() and it doesn't revert
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount, refCode);
-        depositor.deposit(address(weth), bob, permit, refCode);
+        depositor.deposit(address(weth), bob, permit, refCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -268,7 +311,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferL2Depositor.DepositedToken(address(weth), bob, bob, amount, refCode);
-        depositor.depositETH{ value: amount }(bob, refCode);
+        depositor.depositETH{ value: amount }(bob, refCode, 0);
 
         PufToken pufToken = PufToken(depositor.tokens(address(weth)));
         assertEq(pufToken.balanceOf(bob), amount, "bob got pufToken");
@@ -389,7 +432,7 @@ contract PufferL2Staking is UnitTestHelper {
 
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.deposit(address(notSupportedToken), bob, permit, referralCode);
+        depositor.deposit(address(notSupportedToken), bob, permit, referralCode, 0);
     }
 
     // zero address token reverts
@@ -421,7 +464,7 @@ contract PufferL2Staking is UnitTestHelper {
         vm.startPrank(bob);
 
         vm.expectRevert(InvalidAmount.selector);
-        depositor.depositETH{ value: 0 }(bob, referralCode);
+        depositor.depositETH{ value: 0 }(bob, referralCode, 0);
     }
 
     // Mock address 123 is not allowed to be migrator
@@ -437,14 +480,14 @@ contract PufferL2Staking is UnitTestHelper {
         vm.deal(bob, 1 ether);
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.depositETH{ value: 1 ether }(address(0), referralCode);
+        depositor.depositETH{ value: 1 ether }(address(0), referralCode, 0);
     }
 
     // 0 deposit eth reverts
     function testRevert_zero_deposit_ETH() public {
         vm.startPrank(bob);
         vm.expectRevert();
-        depositor.depositETH{ value: 0 }(bob, referralCode);
+        depositor.depositETH{ value: 0 }(bob, referralCode, 0);
     }
 
     // No deposit reverts
@@ -499,6 +542,32 @@ contract PufferL2Staking is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufStakingPool.Deposited(bob, bob, 7 ether);
         pufToken.deposit(bob, bob, 7 ether);
+    }
+
+    // Deposit and lock tokens in one tx
+    function test_deposit_and_lock(uint32 amount, uint256 refCode) public {
+        vm.assume(amount > 0);
+
+        // This is a bad permit signature
+        Permit memory permit =
+            _signPermit(_testTemps("bob", address(depositor), amount, block.timestamp), "dummy domain separator");
+
+        dai.mint(bob, amount);
+
+        vm.startPrank(bob);
+
+        dai.approve(address(depositor), amount);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferL2Depositor.DepositedToken(address(dai), bob, bob, amount, refCode);
+        depositor.deposit(address(dai), bob, permit, refCode, 15); // lock for 15 seconds
+
+        PufToken pufToken = PufToken(depositor.tokens(address(dai)));
+        assertEq(pufToken.balanceOf(bob), 0, "bob did not get pufToken");
+
+        (PufLocker.Deposit[] memory deposits) = pufLocker.getDeposits(bob, address(pufToken), 0, 1);
+        assertEq(deposits.length, 1, "Should have 1 deposit");
+        assertEq(deposits[0].amount, amount, "Deposit amount locked for Bob");
     }
 
     function testRevert_SetDepositCap_Unauthorized() public {

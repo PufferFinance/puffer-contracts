@@ -42,7 +42,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
      * @inheritdoc IPufLocker
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, uint128 lockPeriod, Permit calldata permitData)
+    function deposit(address token, address recipient, uint128 lockPeriod, Permit calldata permitData)
         external
         isAllowedToken(token)
         restricted
@@ -71,9 +71,9 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
 
         uint128 releaseTime = uint128(block.timestamp) + lockPeriod;
 
-        $.deposits[msg.sender][token].push(Deposit(uint128(permitData.amount), releaseTime));
+        $.deposits[recipient][token].push(Deposit(uint128(permitData.amount), releaseTime));
 
-        emit Deposited(msg.sender, token, uint128(permitData.amount), releaseTime);
+        emit Deposited(recipient, token, uint128(permitData.amount), releaseTime);
     }
 
     /**
