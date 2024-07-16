@@ -1,65 +1,141 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import {IL2RewardManager} from "../interface/IL2RewardManager.sol";
 import {IXReceiver} from "interfaces/core/IXReceiver.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {BridgingParams} from "../struct/BridgingParams.sol";
+import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
 /**
- * @title L2RwardManager
+ * @title L2RewardManager
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract L2RewardManager is IXReceiver {
+contract L2RewardManager is
+    IL2RewardManager,
+    IXReceiver,
+    AccessManagedUpgradeable
+{
+    using SafeERC20 for IERC20;
     // The ERC20 token being distributed
     IERC20 public immutable XTOKEN;
-    // The root of the Merkle tree
-    bytes32 public immutable merkleRoot;
-    // to track claimed tokens
-    mapping(uint256 => bool) private claimed;
 
-    constructor(address xToken, bytes32 _merkleRoot) {
-        merkleRoot = _merkleRoot;
+    // Mapping of startEpoch and endEpoch to Merkle root
+    mapping(uint64 startEpoch => mapping(uint64 endEpoch => bytes32 rewardRoot))
+        public rewardRoots;
+
+    /**
+     * @notice Mapping to track claimed tokens for users for each unique epoch range
+     * @dev claimed[1][5][Alice's address] = true;  // If Alice claimed Reward 1
+     * claimed[6][10][Alice's address] = true; // If Alice claimed Reward 2
+     */
+    mapping(uint64 startEpoch => mapping(uint64 endEpoch => mapping(address account => bool isClaimed)))
+        private claimed;
+
+    constructor(address xToken) {
         XTOKEN = IERC20(xToken);
     }
 
-    // Check if a token has been claimed
-    function isClaimed(uint256 index) public view returns (bool) {
-        return claimed[index];
+    /// @inheritdoc IL2RewardManager
+    function isClaimed(
+        uint64 startEpoch,
+        uint64 endEpoch,
+        address account
+    ) public view returns (bool) {
+        return claimed[startEpoch][endEpoch][account];
     }
 
-    /** @notice The receiver function as required by the IXReceiver interface.
-     * @dev The Connext bridge contract will call this function.
-     */
+    /// @inheritdoc IL2RewardManager
     function xReceive(
-        bytes32 _transferId,
+        bytes32,
         uint256 _amount,
         address _asset,
-        address _originSender,
-        uint32 _origin,
+        address,
+        uint32,
         bytes memory _callData
-    ) external returns (bytes memory) {
+    ) external override(IL2RewardManager, IXReceiver) returns (bytes memory) {
         // Check for the right token
-        require(_asset == address(XTOKEN), "Wrong asset received");
-        // Enforce a cost to update merkle on L2
-        require(_amount > 0, "Must pay at least 1 wei");
+        if (_asset != address(XTOKEN)) {
+            revert InvalidAsset();
+        }
 
         // Decode the _callData to get the BridgingParams
-        // TODO get struct for BridgingParams
-        string memory params = abi.decode(_callData, (BridgingParams));
+        BridgingParams memory params = abi.decode(_callData, (BridgingParams));
 
-        //TODO do something
+        if (_amount < params.rewardsAmount) {
+            revert InvalidAmount();
+        }
+
+        emit RewardAmountReceived(
+            params.startEpoch,
+            params.endEpoch,
+            params.rewardsRoot,
+            params.rewardsAmount
+        );
+        //TODO: do something with calldata?
+        return abi.encode(true);
     }
 
+    /// @inheritdoc IL2RewardManager
+    function postRewardsRoot(
+        uint64 startEpoch,
+        uint64 endEpoch,
+        bytes32 root
+    ) external restricted {
+        rewardRoots[startEpoch][endEpoch] = root;
+        emit RewardsRootPosted(startEpoch, endEpoch, root);
+    }
 
+    /// @inheritdoc IL2RewardManager
     function claimRewards(
-        uint256 index,
-        address account,
-        uint256 amount,
-        bytes32[] calldata merkleProof
+        uint64[] calldata startEpochs,
+        uint64[] calldata endEpochs,
+        address[] calldata accounts,
+        uint256[] calldata amounts,
+        bytes32[][] calldata merkleProofs
     ) external {
-        //TODO change to revert syntax
-        require(!isClaimed(index), "L2RewardManager: Rewards already claimed.");
-        // TODO Claim rewards
+        if (
+            startEpochs.length != endEpochs.length ||
+            startEpochs.length != accounts.length ||
+            startEpochs.length != amounts.length ||
+            startEpochs.length != merkleProofs.length
+        ) revert InvalidInputLength();
 
+        for (uint256 i = 0; i < startEpochs.length; i++) {
+            if (isClaimed(startEpochs[i], endEpochs[i], accounts[i])) {
+                revert AlreadyClaimed(
+                    startEpochs[i],
+                    endEpochs[i],
+                    accounts[i]
+                );
+            }
+
+            bytes32 rewardRoot = rewardRoots[startEpochs[i]][endEpochs[i]];
+
+            // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
+            bytes32 leaf = keccak256(
+                bytes.concat(
+                    keccak256(
+                        abi.encode(
+                            accounts[i],
+                            startEpochs[i],
+                            endEpochs[i],
+                            amounts[i]
+                        )
+                    )
+                )
+            );
+            if (!MerkleProof.verifyCalldata(merkleProofs[i], rewardRoot, leaf))
+                revert InvalidProof();
+
+            // Mark it claimed and transfer the tokens
+            claimed[startEpochs[i]][endEpochs[i]][accounts[i]] = true;
+
+            XTOKEN.safeTransfer(accounts[i], amounts[i]);
+
+            emit Claimed(accounts[i], startEpochs[i], endEpochs[i], amounts[i]);
+        }
     }
 }
