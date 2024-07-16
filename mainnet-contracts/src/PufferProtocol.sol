@@ -342,7 +342,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Decrease the number of registered validators for that module
             _decreaseNumberOfRegisteredValidators($, validatorInfos[i].moduleName);
             // Storage VT and the active validator count update for the Node Operator
-            $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
+            if (SafeCast.toUint96(vtBurnAmount) > $.nodeOperatorInfo[validator.node].vtBalance) {
+                $.nodeOperatorInfo[validator.node].vtBalance = 0;
+            } else {
+                $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
+            }
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
 
             delete validator.node;
