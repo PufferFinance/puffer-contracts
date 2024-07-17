@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import {ClaimOrder} from "../struct/RewardManagerInfo.sol";
+
 interface IL2RewardManager {
     /**
      * @notice Check if a token has been claimed for a specific epoch range and account
@@ -9,7 +11,11 @@ interface IL2RewardManager {
      * @param account The address of the account to check
      * @return bool indicating whether the reward has been claimed
      */
-    function isClaimed(uint64 startEpoch, uint64 endEpoch, address account) external view returns (bool);
+    function isClaimed(
+        uint64 startEpoch,
+        uint64 endEpoch,
+        address account
+    ) external view returns (bool);
 
     /**
      * @notice The receiver function as required by the IXReceiver interface.
@@ -37,23 +43,17 @@ interface IL2RewardManager {
      * @param endEpoch The end epoch of the interval
      * @param root The merkle root of the rewards
      */
-    function postRewardsRoot(uint64 startEpoch, uint64 endEpoch, bytes32 root) external;
+    function postRewardsRoot(
+        uint64 startEpoch,
+        uint64 endEpoch,
+        bytes32 root
+    ) external;
 
     /**
      * @notice Claims the rewards for a specific epoch range
-     * @param startEpochs The start epoch of the intervals
-     * @param endEpochs The end epoch of the intervals
-     * @param accounts The array of addresses to claim rewards for
-     * @param amounts The array of amounts to claim
-     * @param merkleProofs The array of merkle proofs
+     * @param claimOrders The list of orders for claiming.
      */
-    function claimRewards(
-        uint64[] calldata startEpochs,
-        uint64[] calldata endEpochs,
-        address[] calldata accounts,
-        uint256[] calldata amounts,
-        bytes32[][] calldata merkleProofs
-    ) external;
+    function claimRewards(ClaimOrder[] calldata claimOrders) external;
 
     /**
      * @notice Event emitted when reward amount is received
@@ -62,7 +62,12 @@ interface IL2RewardManager {
      * @param rewardsRoot The merkle root of the rewards
      * @param rewardsAmount The total rewards amount
      */
-    event RewardAmountReceived(uint64 startEpoch, uint64 endEpoch, bytes32 rewardsRoot, uint128 rewardsAmount);
+    event RewardAmountReceived(
+        uint64 startEpoch,
+        uint64 endEpoch,
+        bytes32 rewardsRoot,
+        uint128 rewardsAmount
+    );
 
     /**
      * @notice Event emitted when rewards root is posted
@@ -79,7 +84,12 @@ interface IL2RewardManager {
      * @param endEpoch The end epoch of the interval
      * @param amount The amount claimed
      */
-    event Claimed(address indexed account, uint64 startEpoch, uint64 endEpoch, uint256 amount);
+    event Claimed(
+        address indexed account,
+        uint64 startEpoch,
+        uint64 endEpoch,
+        uint256 amount
+    );
 
     /**
      * @notice Custom error for invalid asset
@@ -92,11 +102,6 @@ interface IL2RewardManager {
     error InvalidAmount();
 
     /**
-     * @notice Custom error for invalid input length
-     */
-    error InvalidInputLength();
-
-    /**
      * @notice Custom error for already claimed rewards
      */
     error AlreadyClaimed(uint64 startEpoch, uint64 endEpoch, address account);
@@ -105,9 +110,4 @@ interface IL2RewardManager {
      * @notice Custom error for invalid proof
      */
     error InvalidProof();
-
-    /**
-     * @notice Custom error for transfer failed
-     */
-    error TransferFailed();
 }

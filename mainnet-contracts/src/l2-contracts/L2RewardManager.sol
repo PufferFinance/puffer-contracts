@@ -5,8 +5,10 @@ import {IL2RewardManager} from "../interface/IL2RewardManager.sol";
 import {IXReceiver} from "interfaces/core/IXReceiver.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {BridgingParams} from "../struct/BridgingParams.sol";
+import {BridgingParams, ClaimOrder} from "../struct/RewardManagerInfo.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {RewardManagerStorage} from "../struct/RewardManagerStorage.sol";
 
 /**
  * @title L2RewardManager
@@ -16,26 +18,24 @@ import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/acce
 contract L2RewardManager is
     IL2RewardManager,
     IXReceiver,
-    AccessManagedUpgradeable
+    AccessManagedUpgradeable,
+    UUPSUpgradeable
 {
     using SafeERC20 for IERC20;
     // The ERC20 token being distributed
     IERC20 public immutable XTOKEN;
 
-    // Mapping of startEpoch and endEpoch to Merkle root
-    mapping(uint64 startEpoch => mapping(uint64 endEpoch => bytes32 rewardRoot))
-        public rewardRoots;
-
-    /**
-     * @notice Mapping to track claimed tokens for users for each unique epoch range
-     * @dev claimed[1][5][Alice's address] = true;  // If Alice claimed Reward 1
-     * claimed[6][10][Alice's address] = true; // If Alice claimed Reward 2
-     */
-    mapping(uint64 startEpoch => mapping(uint64 endEpoch => mapping(address account => bool isClaimed)))
-        private claimed;
+    // keccak256(abi.encode(uint256(keccak256("L2RewardManager.storage")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _REWARD_MANAGER_STORAGE_LOCATION =
+        0x7f1aa0bc41c09fbe61ccc14f95edc9998b7136087969b5ccb26131ec2cbbc800;
 
     constructor(address xToken) {
         XTOKEN = IERC20(xToken);
+        _disableInitializers();
+    }
+
+    function initialize(address accessManager) external initializer {
+        __AccessManaged_init(accessManager);
     }
 
     /// @inheritdoc IL2RewardManager
@@ -44,7 +44,8 @@ contract L2RewardManager is
         uint64 endEpoch,
         address account
     ) public view returns (bool) {
-        return claimed[startEpoch][endEpoch][account];
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.claimedRewards[startEpoch][endEpoch][account];
     }
 
     /// @inheritdoc IL2RewardManager
@@ -55,7 +56,12 @@ contract L2RewardManager is
         address,
         uint32,
         bytes memory _callData
-    ) external override(IL2RewardManager, IXReceiver) returns (bytes memory) {
+    )
+        external
+        override(IL2RewardManager, IXReceiver)
+        restricted
+        returns (bytes memory)
+    {
         // Check for the right token
         if (_asset != address(XTOKEN)) {
             revert InvalidAsset();
@@ -84,58 +90,87 @@ contract L2RewardManager is
         uint64 endEpoch,
         bytes32 root
     ) external restricted {
-        rewardRoots[startEpoch][endEpoch] = root;
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        $.rewardRoots[startEpoch][endEpoch] = root;
         emit RewardsRootPosted(startEpoch, endEpoch, root);
     }
 
     /// @inheritdoc IL2RewardManager
-    function claimRewards(
-        uint64[] calldata startEpochs,
-        uint64[] calldata endEpochs,
-        address[] calldata accounts,
-        uint256[] calldata amounts,
-        bytes32[][] calldata merkleProofs
-    ) external {
-        if (
-            startEpochs.length != endEpochs.length ||
-            startEpochs.length != accounts.length ||
-            startEpochs.length != amounts.length ||
-            startEpochs.length != merkleProofs.length
-        ) revert InvalidInputLength();
+    function claimRewards(ClaimOrder[] calldata claimOrders) external {
+        uint256 length = claimOrders.length;
 
-        for (uint256 i = 0; i < startEpochs.length; i++) {
-            if (isClaimed(startEpochs[i], endEpochs[i], accounts[i])) {
+        for (uint256 i = 0; i < length; i++) {
+            ClaimOrder memory claimOrder = claimOrders[i];
+            if (
+                isClaimed(
+                    claimOrder.startEpoch,
+                    claimOrder.endEpoch,
+                    claimOrder.account
+                )
+            ) {
                 revert AlreadyClaimed(
-                    startEpochs[i],
-                    endEpochs[i],
-                    accounts[i]
+                    claimOrder.startEpoch,
+                    claimOrder.endEpoch,
+                    claimOrder.account
                 );
             }
+            RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            bytes32 rewardRoot = rewardRoots[startEpochs[i]][endEpochs[i]];
+            bytes32 rewardRoot = $.rewardRoots[claimOrder.startEpoch][
+                claimOrder.endEpoch
+            ];
 
             // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
             bytes32 leaf = keccak256(
                 bytes.concat(
                     keccak256(
                         abi.encode(
-                            accounts[i],
-                            startEpochs[i],
-                            endEpochs[i],
-                            amounts[i]
+                            claimOrder.account,
+                            claimOrder.startEpoch,
+                            claimOrder.endEpoch,
+                            claimOrder.amount
                         )
                     )
                 )
             );
-            if (!MerkleProof.verifyCalldata(merkleProofs[i], rewardRoot, leaf))
+            if (!MerkleProof.verify(claimOrder.merkleProof, rewardRoot, leaf))
                 revert InvalidProof();
 
             // Mark it claimed and transfer the tokens
-            claimed[startEpochs[i]][endEpochs[i]][accounts[i]] = true;
+            $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][
+                    claimOrder.account
+                ] = true;
 
-            XTOKEN.safeTransfer(accounts[i], amounts[i]);
+            XTOKEN.safeTransfer(claimOrder.account, claimOrder.amount);
 
-            emit Claimed(accounts[i], startEpochs[i], endEpochs[i], amounts[i]);
+            emit Claimed(
+                claimOrder.account,
+                claimOrder.startEpoch,
+                claimOrder.endEpoch,
+                claimOrder.amount
+            );
         }
     }
+
+    function _getRewardManagerStorage()
+        internal
+        pure
+        returns (RewardManagerStorage storage $)
+    {
+        // solhint-disable-next-line
+        assembly {
+            $.slot := _REWARD_MANAGER_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @dev Authorizes an upgrade to a new implementation
+     * Restricted access
+     * @param newImplementation The address of the new implementation
+     */
+    // slither-disable-next-line dead-code
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override restricted {}
 }
