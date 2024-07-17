@@ -116,7 +116,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @notice Mints and bridges rewards according to the provided parameters.
      * @param params The parameters for bridging rewards.
      */
-    function mintAndBridgeRewards(BridgingParams calldata params) external payable restricted {
+    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
@@ -137,8 +137,11 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // This contract approves transfer to Connext
         XTOKEN.approve(address(_CONNEXT), params.rewardsAmount);
 
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(params) });
+
         // Encode calldata for the target contract call
-        bytes memory callData = abi.encode(params);
+        bytes memory callData = abi.encode(bridgingParams);
 
         _CONNEXT.xcall{ value: msg.value }(
             _DESTINATION_DOMAIN, // _destination: Domain ID of the destination chain
@@ -153,6 +156,33 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         emit MintedAndBridgedRewards(
             params.rewardsAmount, params.startEpoch, params.endEpoch, params.rewardsRoot, params.rewardsURI
         );
+    }
+
+    /**
+     * @notice Sets the L2 reward claimer.
+     * @param claimer The address of the new claimer.
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function setL2RewardClaimer(address claimer) external payable restricted {
+        SetClaimerParams memory params = SetClaimerParams({ account: msg.sender, claimer: claimer });
+
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.SetClaimer, data: abi.encode(params) });
+
+        // Encode calldata for the target contract call
+        bytes memory callData = abi.encode(bridgingParams);
+
+        _CONNEXT.xcall{ value: msg.value }(
+            _DESTINATION_DOMAIN, // _destination: Domain ID of the destination chain
+            L2_REWARD_MANAGER, // _to: address of the target contract
+            address(0), // _asset: address of the token contract
+            msg.sender, // _delegate: address that can revert or forceLocal on destination
+            0, // _amount: amount of tokens to transfer
+            _SLIPPAGE, // _slippage: max slippage the user will accept in BPS (e.g. 300 = 3%)
+            callData // _callData: the encoded calldata to send
+        );
+
+        emit L2RewardClaimerUpdated(msg.sender, claimer);
     }
 
     /**

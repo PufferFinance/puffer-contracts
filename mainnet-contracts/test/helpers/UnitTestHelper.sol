@@ -36,8 +36,6 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 
-import "forge-std/console.sol";
-
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");

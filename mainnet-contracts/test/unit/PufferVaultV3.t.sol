@@ -5,7 +5,7 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
-import { ROLE_ID_DAO, ROLE_ID_LOCKBOX } from "../../script/Roles.sol";
+import { ROLE_ID_DAO, PUBLIC_ROLE } from "../../script/Roles.sol";
 
 contract PufferVaultV3Test is UnitTestHelper {
     function setUp() public override {
@@ -19,12 +19,15 @@ contract PufferVaultV3Test is UnitTestHelper {
         xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
         xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
 
+        bytes4[] memory pufferVaultSelectors = new bytes4[](1);
+        pufferVaultSelectors[0] = IPufferVaultV3.setL2RewardClaimer.selector;
+
         vm.startPrank(_broadcaster);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
-        accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, ROLE_ID_LOCKBOX);
+        accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
+        accessManager.setTargetFunctionRole(address(pufferVault), pufferVaultSelectors, PUBLIC_ROLE);
 
         accessManager.grantRole(ROLE_ID_DAO, DAO, 0);
-        accessManager.grantRole(ROLE_ID_LOCKBOX, address(lockBox), 0);
 
         vm.stopPrank();
 
@@ -40,8 +43,8 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.warp(365 days);
     }
 
-    function testMintAndBridgeRewardsSuccess() public {
-        IPufferVaultV3.BridgingParams memory params = IPufferVaultV3.BridgingParams({
+    function test_MintAndBridgeRewardsSuccess() public {
+        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             rewardsAmount: 100 ether,
             startEpoch: 1,
             endEpoch: 2,
@@ -60,8 +63,8 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function testMintAndBridgeRewardsInvalidMintAmount() public {
-        IPufferVaultV3.BridgingParams memory params = IPufferVaultV3.BridgingParams({
+    function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
+        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             rewardsAmount: 200 ether, // assuming this is more than allowed
             startEpoch: 1,
             endEpoch: 2,
@@ -76,8 +79,8 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function testMintAndBridgeRewardsNotAllowedMintFrequency() public {
-        IPufferVaultV3.BridgingParams memory params = IPufferVaultV3.BridgingParams({
+    function test_MintAndBridgeRewardsNotAllowedMintFrequency() public {
+        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             rewardsAmount: 1 ether,
             startEpoch: 1,
             endEpoch: 2,
@@ -95,7 +98,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function testSetAllowedRewardMintAmountSuccess() public {
+    function test_SetAllowedRewardMintAmountSuccess() public {
         uint88 newAmount = 200 ether;
         vm.startPrank(DAO);
 
@@ -106,7 +109,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function testSetAllowedRewardMintAmountRevert() public {
+    function testRevert_SetAllowedRewardMintAmount() public {
         uint88 newAmount = 200 ether;
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
         pufferVault.setAllowedRewardMintAmount(newAmount);
@@ -124,10 +127,18 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function testSetAllowedRewardMintFrequencyRevert() public {
+    function testRevert_SetAllowedRewardMintFrequency() public {
         uint24 newFrequency = 86400; // 24 hours
 
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
         pufferVault.setAllowedRewardMintFrequency(newFrequency);
+    }
+
+    function testSetClaimerRevert() public {
+        address newClaimer = address(0x123);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferVaultV3.L2RewardClaimerUpdated(address(this), newClaimer);
+        pufferVault.setL2RewardClaimer(newClaimer);
     }
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
@@ -69,8 +68,6 @@ contract UpgradePufETH is BaseScript {
             destinationDomain: 0,
             l2RewardManager: address(0)
         });
-
-        console.log("LOCKBOX", bridgingDeployment.xPufETHLockBox);
 
         PufferVaultV3 newImplementation = new PufferVaultV3Tests(
             IStETH(deployment.stETH),

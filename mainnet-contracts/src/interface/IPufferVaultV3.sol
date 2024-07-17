@@ -5,20 +5,44 @@ import { IPufferVaultV2 } from "./IPufferVaultV2.sol";
 
 /**
  * @title IPufferVaultV3
- * @author Puffer Finance
- * @custom:security-contact security@puffer.fi
  * @notice Interface for the PufferVault version 3 contract.
+ * @custom:security-contact security@puffer.fi
  */
 interface IPufferVaultV3 is IPufferVaultV2 {
+    enum BridgingType {
+        MintAndBridge,
+        SetClaimer
+    }
+
     /**
-     * @notice Parameters for bridging rewards.
+     * @notice Parameters for bridging actions.
+     * @param bridgingType The type of bridging action.
+     * @param data The data associated with the bridging action.
+     */
+    struct BridgingParams {
+        BridgingType bridgingType;
+        bytes data;
+    }
+
+    /**
+     * @notice Parameters for setting a claimer.
+     * @param account The account setting the claimer.
+     * @param claimer The address of the new claimer.
+     */
+    struct SetClaimerParams {
+        address account;
+        address claimer;
+    }
+
+    /**
+     * @notice Parameters for minting and bridging rewards.
      * @param rewardsAmount The amount of rewards to be bridged.
      * @param startEpoch The starting epoch for the rewards.
      * @param endEpoch The ending epoch for the rewards.
      * @param rewardsRoot The merkle root of the rewards.
      * @param rewardsURI The URI for the rewards metadata.
      */
-    struct BridgingParams {
+    struct MintAndBridgeParams {
         uint88 rewardsAmount;
         uint64 startEpoch;
         uint64 endEpoch;
@@ -79,8 +103,21 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     event AllowedRewardMintFrequencyUpdated(uint24 oldFrequency, uint24 newFrequency);
 
     /**
+     * @notice Event emitted when the L2 reward claimer is updated.
+     * @param account The account setting the claimer.
+     * @param claimer The address of the new claimer.
+     */
+    event L2RewardClaimerUpdated(address account, address claimer);
+
+    /**
      * @notice Mints and bridges rewards according to the provided parameters.
      * @param params The parameters for bridging rewards.
      */
-    function mintAndBridgeRewards(BridgingParams calldata params) external payable;
+    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable;
+
+    /**
+     * @notice Sets the L2 reward claimer.
+     * @param claimer The address of the new claimer.
+     */
+    function setL2RewardClaimer(address claimer) external payable;
 }
