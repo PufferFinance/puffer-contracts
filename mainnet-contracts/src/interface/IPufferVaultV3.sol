@@ -20,8 +20,8 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @param l2RewardManager The address of the L2 reward manager.
      */
     struct BridgeData {
+        // using struct to allow future addition to this
         uint32 destinationDomainId;
-        address l2RewardManager;
     }
 
     /**
@@ -56,8 +56,8 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     struct MintAndBridgeParams {
         address bridge;
         uint256 rewardsAmount;
-        uint64 startEpoch;
-        uint64 endEpoch;
+        uint256 startEpoch;
+        uint256 endEpoch;
         bytes32 rewardsRoot;
         string rewardsURI;
     }
@@ -71,11 +71,11 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @param rewardsRoot The merkle root of the rewards.
      * @param rewardsURI The URI for the rewards metadata.
      */
-    struct MintAndBridgeCalldata {
-        uint128 rewardsAmount;
-        uint128 ethToPufETHRate;
-        uint64 startEpoch;
-        uint64 endEpoch;
+    struct MintAndBridgeData {
+        uint256 rewardsAmount;
+        uint256 ethToPufETHRate;
+        uint256 startEpoch;
+        uint256 endEpoch;
         bytes32 rewardsRoot;
         string rewardsURI;
     }
@@ -84,13 +84,11 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @notice Constructor parameters for bridging.
      * @param xToken The address of the xToken contract.
      * @param lockBox The address of the lockBox contract.
-     * @param destinationDomain The destination domain ID.
      * @param l2RewardManager The address of the L2 reward manager.
      */
     struct BridgingConstructorParams {
         address xToken;
         address lockBox;
-        uint32 destinationDomain;
         address l2RewardManager;
     }
 
@@ -125,8 +123,8 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      */
     event MintedAndBridgedRewards(
         uint256 rewardsAmount,
-        uint64 startEpoch,
-        uint64 endEpoch,
+        uint256 startEpoch,
+        uint256 endEpoch,
         bytes32 indexed rewardsRoot,
         uint256 ethToPufETHRate,
         string rewardsURI
@@ -137,14 +135,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @param oldAmount The old allowed reward mint amount.
      * @param newAmount The new allowed reward mint amount.
      */
-    event AllowedRewardMintAmountUpdated(uint88 oldAmount, uint88 newAmount);
+    event AllowedRewardMintAmountUpdated(uint256 oldAmount, uint256 newAmount);
 
     /**
      * @notice Event emitted when the allowed reward mint frequency is updated.
      * @param oldFrequency The old allowed reward mint frequency.
      * @param newFrequency The new allowed reward mint frequency.
      */
-    event AllowedRewardMintFrequencyUpdated(uint24 oldFrequency, uint24 newFrequency);
+    event AllowedRewardMintFrequencyUpdated(uint256 oldFrequency, uint256 newFrequency);
 
     /**
      * @notice Event emitted when the L2 reward claimer is updated.

@@ -35,8 +35,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         xpufETH.setLockbox(address(lockBox));
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
         pufferVault.setAllowedRewardMintFrequency(1 days);
-        IPufferVaultV3.BridgeData memory bridgeData =
-            IPufferVaultV3.BridgeData({ destinationDomainId: 1, l2RewardManager: address(0x1234) });
+        IPufferVaultV3.BridgeData memory bridgeData = IPufferVaultV3.BridgeData({ destinationDomainId: 1 });
 
         pufferVault.updateBridgeData(address(connext), bridgeData);
 

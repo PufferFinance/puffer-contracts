@@ -26,11 +26,9 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     using Math for uint256;
 
     // The token to be paid on this domain.
-    IERC20 public immutable XTOKEN;
+    IERC20 public immutable XPUFETH;
     // The lockbox contract for xToken.
     IXERC20Lockbox public immutable LOCKBOX;
-    // The destination domain ID for bridging.
-    uint32 internal immutable _DESTINATION_DOMAIN;
     // The address of the L2 reward manager.
     address public immutable L2_REWARD_MANAGER;
 
@@ -55,8 +53,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         IDelegationManager delegationManager,
         BridgingConstructorParams memory bridgingConstructorParams
     ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
-        XTOKEN = IERC20(bridgingConstructorParams.xToken);
-        _DESTINATION_DOMAIN = bridgingConstructorParams.destinationDomain;
+        XPUFETH = IERC20(bridgingConstructorParams.xToken);
         LOCKBOX = IXERC20Lockbox(bridgingConstructorParams.lockBox);
         L2_REWARD_MANAGER = bridgingConstructorParams.l2RewardManager;
         _disableInitializers();
@@ -97,24 +94,24 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
         BridgeData memory bridgeData = $.bridges[params.bridge];
 
-        if (bridgeData.l2RewardManager == address(0)) {
+        if (bridgeData.destinationDomainId == 0) {
             revert BridgeNotAllowlisted();
         }
 
-        uint256 ethToPufETHRate = previewDeposit(1 ether);
+        uint256 ethToPufETHRate = convertToShares(1 ether);
         uint256 shares = ethToPufETHRate.mulDiv(params.rewardsAmount, 1 ether, Math.Rounding.Floor);
 
         $.lastRewardMintTimestamp = uint40(block.timestamp);
         $.totalRewardMintAmount += uint104(params.rewardsAmount);
 
         _mint(address(this), shares);
-        _approve(address(this), address(LOCKBOX), params.rewardsAmount);
+        _approve(address(this), address(LOCKBOX), shares);
         LOCKBOX.deposit(shares);
 
         // This contract approves transfer to the bridge
-        XTOKEN.approve(address(params.bridge), shares);
+        XPUFETH.approve(address(params.bridge), shares);
 
-        MintAndBridgeCalldata memory bridgingCalldata = MintAndBridgeCalldata({
+        MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: uint128(params.rewardsAmount),
             ethToPufETHRate: uint128(ethToPufETHRate),
             startEpoch: params.startEpoch,
@@ -126,17 +123,17 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         BridgingParams memory bridgingParams =
             BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
 
-        // Encode calldata for the target contract call
-        bytes memory encodedCallData = abi.encode(bridgingParams);
+        // Encode data for the target contract call
+        bytes memory encodedData = abi.encode(bridgingParams);
 
         IBridgeInterface(params.bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: bridgeData.l2RewardManager, // Address of the target contract
-            asset: address(XTOKEN), // Address of the token contract
+            to: L2_REWARD_MANAGER, // Address of the target contract
+            asset: address(XPUFETH), // Address of the token contract
             delegate: msg.sender, // Address that can revert or forceLocal on destination
             amount: shares, // Amount of tokens to transfer
             slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
-            callData: encodedCallData // Encoded calldata to send
+            callData: encodedData // Encoded data to send
          });
 
         emit MintedAndBridgedRewards({
@@ -159,7 +156,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         VaultStorage storage $ = _getPufferVaultStorage();
         BridgeData memory bridgeData = $.bridges[bridge];
 
-        if (bridgeData.l2RewardManager == address(0)) {
+        if (bridgeData.destinationDomainId == 0) {
             revert BridgeNotAllowlisted();
         }
 
@@ -168,17 +165,17 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         BridgingParams memory bridgingParams =
             BridgingParams({ bridgingType: BridgingType.SetClaimer, data: abi.encode(params) });
 
-        // Encode calldata for the target contract call
-        bytes memory callData = abi.encode(bridgingParams);
+        // Encode data for the target contract call
+        bytes memory encodedData = abi.encode(bridgingParams);
 
         IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: bridgeData.l2RewardManager, // Address of the target contract
+            to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(0), // Address of the token contract
             delegate: msg.sender, // Address that can revert or forceLocal on destination
             amount: 0, // Amount of tokens to transfer
             slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
-            callData: callData // Encoded calldata to send
+            callData: encodedData // Encoded data to send
          });
 
         emit L2RewardClaimerUpdated(msg.sender, claimer);
@@ -220,7 +217,6 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         }
 
         $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
-        $.bridges[bridge].l2RewardManager = bridgeData.l2RewardManager;
         emit BridgeDataUpdated(bridge, bridgeData);
     }
 

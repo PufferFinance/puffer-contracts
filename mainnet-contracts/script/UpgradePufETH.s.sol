@@ -64,7 +64,6 @@ contract UpgradePufETH is BaseScript {
         IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
             xToken: bridgingDeployment.xPufETH,
             lockBox: bridgingDeployment.xPufETHLockBox,
-            destinationDomain: 0,
             l2RewardManager: address(0)
         });
 
