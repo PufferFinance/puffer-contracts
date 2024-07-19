@@ -295,10 +295,11 @@ contract UnitTestHelper is Test, BaseScript {
         selectors[0] = PufferVaultV2.transferETH.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
 
-        bytes4[] memory V3selectors = new bytes4[](3);
+        bytes4[] memory V3selectors = new bytes4[](4);
         V3selectors[0] = PufferVaultV3.mintAndBridgeRewards.selector;
         V3selectors[1] = PufferVaultV3.setAllowedRewardMintAmount.selector;
         V3selectors[2] = PufferVaultV3.setAllowedRewardMintFrequency.selector;
+        V3selectors[3] = PufferVaultV3.updateBridgeData.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), V3selectors, ROLE_ID_DAO);
 
         vm.stopPrank();

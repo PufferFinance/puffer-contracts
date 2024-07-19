@@ -10,14 +10,11 @@ import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.so
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { IConnext } from "./interface/Connext/IConnext.sol";
+import { IBridgeInterface } from "./interface/Connext/IBridgeInterface.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title PufferVaultV3
@@ -26,19 +23,16 @@ import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
-    // The Connext contract on the origin domain.
-    IConnext public immutable _CONNEXT;
+    using Math for uint256;
+
     // The token to be paid on this domain.
     IERC20 public immutable XTOKEN;
     // The lockbox contract for xToken.
     IXERC20Lockbox public immutable LOCKBOX;
     // The destination domain ID for bridging.
-    uint32 public immutable _DESTINATION_DOMAIN;
+    uint32 internal immutable _DESTINATION_DOMAIN;
     // The address of the L2 reward manager.
     address public immutable L2_REWARD_MANAGER;
-
-    // Slippage constant used in bridging transactions.
-    uint256 internal constant _SLIPPAGE = 0;
 
     /**
      * @notice Initializes the PufferVaultV3 contract.
@@ -61,7 +55,6 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         IDelegationManager delegationManager,
         BridgingConstructorParams memory bridgingConstructorParams
     ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
-        _CONNEXT = IConnext(bridgingConstructorParams.connext);
         XTOKEN = IERC20(bridgingConstructorParams.xToken);
         _DESTINATION_DOMAIN = bridgingConstructorParams.destinationDomain;
         LOCKBOX = IXERC20Lockbox(bridgingConstructorParams.lockBox);
@@ -70,37 +63,12 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Fallback function to receive ETH.
-     */
-    receive() external payable virtual override { }
-
-    /**
      * @notice Returns the total assets held by the vault.
-     * @dev See {IERC4626-totalAssets}. pufETH, the shares of the vault, will be backed primarily by the WETH asset.
-     * However, at any point in time, the full backings may be a combination of stETH, WETH, Eigenpod ETH Rewards and ETH.
-     * `totalAssets()` is calculated by summing the following:
-     * - WETH held in the vault contract
-     * - ETH held in the vault contract
-     * - PUFFER_ORACLE.getLockedEthAmount(), which is the oracle-reported Puffer validator ETH locked in the Beacon chain
-     * - stETH held in the vault contract, in EigenLayer's stETH strategy, and in Lido's withdrawal queue. (we assume stETH is always 1:1 with ETH since it's rebasing)
-     * - ETH held in the eigenpods as a result of receiving rewards.
-     * NOTE on the native ETH deposits:
-     * When dealing with NATIVE ETH deposits, we need to deduct callvalue from the balance.
-     * The contract calculates the amount of shares (pufETH) to mint based on the total assets.
-     * When a user sends ETH, the msg.value is immediately added to address(this).balance.
-     * Since address(this.balance)` is used in calculating `totalAssets()`, we must deduct the `callvalue()` from the balance to prevent the user from minting excess shares.
-     * `msg.value` cannot be accessed from a view function, so we use assembly to get the callvalue.
+     * @dev Returns the total assets held by the vault, including ETH held in the eigenpods as a result of receiving rewards.
      * @return The total assets held by the vault.
      */
     function totalAssets() public view virtual override returns (uint256) {
-        uint256 callValue;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            callValue := callvalue()
-        }
-        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + getELBackingEthAmount()
-            + _WETH.balanceOf(address(this)) + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount()
-            + getTotalRewardMintAmount();
+        return (super.totalAssets() + getTotalRewardMintAmount());
     }
 
     /**
@@ -127,43 +95,74 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
             revert NotAllowedMintFrequency();
         }
 
+        BridgeData memory bridgeData = $.bridges[params.bridge];
+
+        if (bridgeData.l2RewardManager == address(0)) {
+            revert BridgeNotAllowlisted();
+        }
+
+        uint256 ethToPufETHRate = previewDeposit(1 ether);
+        uint256 shares = ethToPufETHRate.mulDiv(params.rewardsAmount, 1 ether, Math.Rounding.Floor);
+
         $.lastRewardMintTimestamp = uint40(block.timestamp);
         $.totalRewardMintAmount += uint104(params.rewardsAmount);
 
-        _mint(address(this), params.rewardsAmount);
+        _mint(address(this), shares);
         _approve(address(this), address(LOCKBOX), params.rewardsAmount);
-        LOCKBOX.deposit(params.rewardsAmount);
+        LOCKBOX.deposit(shares);
 
-        // This contract approves transfer to Connext
-        XTOKEN.approve(address(_CONNEXT), params.rewardsAmount);
+        // This contract approves transfer to the bridge
+        XTOKEN.approve(address(params.bridge), shares);
+
+        MintAndBridgeCalldata memory bridgingCalldata = MintAndBridgeCalldata({
+            rewardsAmount: uint128(params.rewardsAmount),
+            ethToPufETHRate: uint128(ethToPufETHRate),
+            startEpoch: params.startEpoch,
+            endEpoch: params.endEpoch,
+            rewardsRoot: params.rewardsRoot,
+            rewardsURI: params.rewardsURI
+        });
 
         BridgingParams memory bridgingParams =
-            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(params) });
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
 
         // Encode calldata for the target contract call
-        bytes memory callData = abi.encode(bridgingParams);
+        bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        _CONNEXT.xcall{ value: msg.value }(
-            _DESTINATION_DOMAIN, // _destination: Domain ID of the destination chain
-            L2_REWARD_MANAGER, // _to: address of the target contract
-            address(XTOKEN), // _asset: address of the token contract
-            msg.sender, // _delegate: address that can revert or forceLocal on destination
-            params.rewardsAmount, // _amount: amount of tokens to transfer
-            _SLIPPAGE, // _slippage: max slippage the user will accept in BPS (e.g. 300 = 3%)
-            callData // _callData: the encoded calldata to send
-        );
+        IBridgeInterface(params.bridge).xcall{ value: msg.value }({
+            destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
+            to: bridgeData.l2RewardManager, // Address of the target contract
+            asset: address(XTOKEN), // Address of the token contract
+            delegate: msg.sender, // Address that can revert or forceLocal on destination
+            amount: shares, // Amount of tokens to transfer
+            slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
+            callData: encodedCallData // Encoded calldata to send
+         });
 
-        emit MintedAndBridgedRewards(
-            params.rewardsAmount, params.startEpoch, params.endEpoch, params.rewardsRoot, params.rewardsURI
-        );
+        emit MintedAndBridgedRewards({
+            rewardsAmount: params.rewardsAmount,
+            startEpoch: params.startEpoch,
+            endEpoch: params.endEpoch,
+            rewardsRoot: params.rewardsRoot,
+            ethToPufETHRate: ethToPufETHRate,
+            rewardsURI: params.rewardsURI
+        });
     }
 
     /**
      * @notice Sets the L2 reward claimer.
+     * @param bridge The address of the bridge.
      * @param claimer The address of the new claimer.
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function setL2RewardClaimer(address claimer) external payable restricted {
+    function setL2RewardClaimer(address bridge, address claimer) external payable restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        BridgeData memory bridgeData = $.bridges[bridge];
+
+        if (bridgeData.l2RewardManager == address(0)) {
+            revert BridgeNotAllowlisted();
+        }
+
         SetClaimerParams memory params = SetClaimerParams({ account: msg.sender, claimer: claimer });
 
         BridgingParams memory bridgingParams =
@@ -172,15 +171,15 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // Encode calldata for the target contract call
         bytes memory callData = abi.encode(bridgingParams);
 
-        _CONNEXT.xcall{ value: msg.value }(
-            _DESTINATION_DOMAIN, // _destination: Domain ID of the destination chain
-            L2_REWARD_MANAGER, // _to: address of the target contract
-            address(0), // _asset: address of the token contract
-            msg.sender, // _delegate: address that can revert or forceLocal on destination
-            0, // _amount: amount of tokens to transfer
-            _SLIPPAGE, // _slippage: max slippage the user will accept in BPS (e.g. 300 = 3%)
-            callData // _callData: the encoded calldata to send
-        );
+        IBridgeInterface(bridge).xcall{ value: msg.value }({
+            destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
+            to: bridgeData.l2RewardManager, // Address of the target contract
+            asset: address(0), // Address of the token contract
+            delegate: msg.sender, // Address that can revert or forceLocal on destination
+            amount: 0, // Amount of tokens to transfer
+            slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
+            callData: callData // Encoded calldata to send
+         });
 
         emit L2RewardClaimerUpdated(msg.sender, claimer);
     }
@@ -210,8 +209,29 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Authorizes the upgrade to a new implementation.
-     * @param newImplementation The address of the new implementation.
+     * @notice Updates the bridge data.
+     * @param bridge The address of the bridge.
+     * @param bridgeData The updated bridge data.
      */
-    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+    function updateBridgeData(address bridge, BridgeData memory bridgeData) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        if (bridge == address(0)) {
+            revert InvalidAddress();
+        }
+
+        $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
+        $.bridges[bridge].l2RewardManager = bridgeData.l2RewardManager;
+        emit BridgeDataUpdated(bridge, bridgeData);
+    }
+
+    /**
+     * @notice Returns the bridge data for a given bridge.
+     * @param bridge The address of the bridge.
+     * @return The bridge data.
+     */
+    function getBridge(address bridge) external view returns (BridgeData memory) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        return $.bridges[bridge];
+    }
 }

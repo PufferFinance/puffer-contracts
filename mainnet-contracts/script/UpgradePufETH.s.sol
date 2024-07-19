@@ -62,7 +62,6 @@ contract UpgradePufETH is BaseScript {
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
         IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
-            connext: bridgingDeployment.connext,
             xToken: bridgingDeployment.xPufETH,
             lockBox: bridgingDeployment.xPufETHLockBox,
             destinationDomain: 0,

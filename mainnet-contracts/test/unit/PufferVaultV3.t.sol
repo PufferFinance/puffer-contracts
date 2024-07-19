@@ -35,6 +35,10 @@ contract PufferVaultV3Test is UnitTestHelper {
         xpufETH.setLockbox(address(lockBox));
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
         pufferVault.setAllowedRewardMintFrequency(1 days);
+        IPufferVaultV3.BridgeData memory bridgeData =
+            IPufferVaultV3.BridgeData({ destinationDomainId: 1, l2RewardManager: address(0x1234) });
+
+        pufferVault.updateBridgeData(address(connext), bridgeData);
 
         vm.stopPrank();
         vm.deal(address(this), 300 ether);
@@ -45,6 +49,7 @@ contract PufferVaultV3Test is UnitTestHelper {
 
     function test_MintAndBridgeRewardsSuccess() public {
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+            bridge: address(connext),
             rewardsAmount: 100 ether,
             startEpoch: 1,
             endEpoch: 2,
@@ -65,6 +70,7 @@ contract PufferVaultV3Test is UnitTestHelper {
 
     function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+            bridge: address(connext),
             rewardsAmount: 200 ether, // assuming this is more than allowed
             startEpoch: 1,
             endEpoch: 2,
@@ -81,6 +87,7 @@ contract PufferVaultV3Test is UnitTestHelper {
 
     function test_MintAndBridgeRewardsNotAllowedMintFrequency() public {
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+            bridge: address(connext),
             rewardsAmount: 1 ether,
             startEpoch: 1,
             endEpoch: 2,
@@ -139,6 +146,6 @@ contract PufferVaultV3Test is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferVaultV3.L2RewardClaimerUpdated(address(this), newClaimer);
-        pufferVault.setL2RewardClaimer(newClaimer);
+        pufferVault.setL2RewardClaimer(address(connext), newClaimer);
     }
 }

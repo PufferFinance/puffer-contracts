@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 
 /**
  * @title PufferVaultStorage
@@ -37,6 +38,7 @@ abstract contract PufferVaultStorage {
         uint88 allowedRewardMintAmount;
         uint24 allowedRewardMintFrequency;
         uint40 lastRewardMintTimestamp;
+        mapping(address bridge => IPufferVaultV3.BridgeData bridgeData) bridges;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.depositTracker")) - 1)) & ~bytes32(uint256(0xff))
