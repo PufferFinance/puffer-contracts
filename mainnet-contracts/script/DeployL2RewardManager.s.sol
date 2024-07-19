@@ -30,27 +30,19 @@ import {L2RewardManager} from "../src/l2-contracts/L2RewardManager.sol";
 contract DeployL2RewardManager is BaseScript {
 
     address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
+    address L1_PUFFER_VAULT = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9; //@todo change for mainnet
 
     function run() public broadcast {
         AccessManager accessManager = new AccessManager(_broadcaster);
 
         console.log("AccessManager", address(accessManager));
 
-        L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT));
+        L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT), address(L1_PUFFER_VAULT));
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         ERC1967Proxy proxy = new ERC1967Proxy(address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager))));
         console.log("L2RewardManager Proxy", address(proxy));
 
-        bytes4[] memory bridgeContractSelector = new bytes4[](1);
-        bridgeContractSelector[0] = L2RewardManager.xReceive.selector;
 
-        // TODO - create new role for bridge contract
-        bytes memory cd = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(proxy), bridgeContractSelector, PUBLIC_ROLE);
-
-        console.logBytes(cd);
-        accessManager.execute(address(accessManager), cd);
-
-        accessManager.grantRole(PUBLIC_ROLE, _CONNEXT, 0);
     }
 }

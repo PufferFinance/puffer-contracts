@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {BridgingParams, BridgingType, ClaimOrder, MintAndBridgeParams, SetClaimerParams} from "../struct/L2RewardManagerInfo.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IL2RewardManager} from "../interface/IL2RewardManager.sol";
 import {IXReceiver} from "interfaces/core/IXReceiver.sol";
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {L2RewardManagerStorage} from "./L2RewardManagerStorage.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {BridgingParams, BridgingType, MintAndBridgeParams, SetClaimerParams, ClaimOrder} from "../struct/RewardManagerInfo.sol";
-import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {RewardManagerStorage} from "../struct/RewardManagerStorage.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title L2RewardManager
@@ -17,28 +18,39 @@ import {RewardManagerStorage} from "../struct/RewardManagerStorage.sol";
  */
 contract L2RewardManager is
     IL2RewardManager,
+    L2RewardManagerStorage,
     IXReceiver,
     AccessManagedUpgradeable,
     UUPSUpgradeable
 {
     using SafeERC20 for IERC20;
+    using Math for uint256;
+
     // The ERC20 token being distributed
-    IERC20 public immutable XTOKEN;
+    IERC20 public immutable xPufETH;
 
-    // keccak256(abi.encode(uint256(keccak256("L2RewardManager.storage")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _REWARD_MANAGER_STORAGE_LOCATION =
-        0x7f1aa0bc41c09fbe61ccc14f95edc9998b7136087969b5ccb26131ec2cbbc800;
+    address public immutable L1_PUFFER_VAULT;
 
-    constructor(address xToken) {
-        XTOKEN = IERC20(xToken);
+    constructor(address _xPufETH, address l1PufferVault) {
+        xPufETH = IERC20(_xPufETH);
+        L1_PUFFER_VAULT = l1PufferVault;
         _disableInitializers();
+    }
+
+    modifier onlyPufferVault(address _originSender) {
+        if (_originSender != address(L1_PUFFER_VAULT)) {
+            revert CallerNotPufferVault();
+        }
+        _;
     }
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
     }
 
-    /// @inheritdoc IL2RewardManager
+    /**
+     * @inheritdoc IL2RewardManager
+     */
     function isClaimed(
         uint64 startEpoch,
         uint64 endEpoch,
@@ -48,18 +60,20 @@ contract L2RewardManager is
         return $.claimedRewards[startEpoch][endEpoch][account];
     }
 
-    /// @inheritdoc IL2RewardManager
+    /**
+     * @inheritdoc IL2RewardManager
+     */
     function xReceive(
         bytes32,
         uint256 _amount,
         address _asset,
-        address,
+        address _originSender,
         uint32,
         bytes memory _callData
     )
         external
         override(IL2RewardManager, IXReceiver)
-        restricted
+        onlyPufferVault(_originSender)
         returns (bytes memory)
     {
         // Decode the _callData to get the BridgingParams
@@ -75,7 +89,7 @@ contract L2RewardManager is
                 (MintAndBridgeParams)
             );
             // Check for the right token
-            if (_asset != address(XTOKEN)) {
+            if (_asset != address(xPufETH)) {
                 revert InvalidAsset();
             }
 
@@ -83,10 +97,11 @@ contract L2RewardManager is
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            $.rewardRoots[params.startEpoch][params.endEpoch] = params
-                .rewardsRoot;
-            $.ethToPufETHRates[params.startEpoch][params.endEpoch] = params
-                .ethToPufETHRate;
+            // Store the rate and root
+            $.rateAndRoots[params.startEpoch][params.endEpoch] = RateAndRoot({
+                ethToPufETHRate: params.ethToPufETHRate,
+                rewardRoot: params.rewardsRoot
+            });
 
             emit RewardRootAndRatePosted(
                 params.rewardsAmount,
@@ -101,7 +116,10 @@ contract L2RewardManager is
                 bridgingParams.data,
                 (SetClaimerParams)
             );
-            setClaimer(claimerParams.account, claimerParams.claimer);
+            RewardManagerStorage storage $ = _getRewardManagerStorage();
+            $.customClaimers[claimerParams.account] = claimerParams.claimer;
+
+            emit ClaimerSet(claimerParams.account, claimerParams.claimer);
         } else {
             revert InvalidBridgingType();
         }
@@ -110,11 +128,9 @@ contract L2RewardManager is
         return abi.encode(true);
     }
 
-    function setClaimer(address account, address claimer) public restricted {
-        // TODO: implement
-    }
-
-    /// @inheritdoc IL2RewardManager
+    /**
+     * @inheritdoc IL2RewardManager
+     */
     function claimRewards(ClaimOrder[] calldata claimOrders) external {
         uint256 length = claimOrders.length;
 
@@ -135,12 +151,9 @@ contract L2RewardManager is
             }
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            bytes32 rewardRoot = $.rewardRoots[claimOrder.startEpoch][
-                claimOrder.endEpoch
-            ];
-            uint128 ethToPufETHRate = $.ethToPufETHRates[claimOrder.startEpoch][
-                claimOrder.endEpoch
-            ];
+            RateAndRoot storage rateAndRoot = $.rateAndRoots[
+                claimOrder.startEpoch
+            ][claimOrder.endEpoch];
 
             // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
             bytes32 leaf = keccak256(
@@ -155,16 +168,31 @@ contract L2RewardManager is
                     )
                 )
             );
-            if (!MerkleProof.verify(claimOrder.merkleProof, rewardRoot, leaf))
-                revert InvalidProof();
+            if (
+                !MerkleProof.verify(
+                    claimOrder.merkleProof,
+                    rateAndRoot.rewardRoot,
+                    leaf
+                )
+            ) revert InvalidProof();
 
             // Mark it claimed and transfer the tokens
             $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][
                     claimOrder.account
                 ] = true;
-            uint256 amountToTransfer = claimOrder.amount * ethToPufETHRate;
+            uint256 amountToTransfer = claimOrder.amount.mulDiv(
+                rateAndRoot.ethToPufETHRate,
+                10 ** 18,
+                Math.Rounding.Ceil
+            ); //TODO: check if this is correct
 
-            XTOKEN.safeTransfer(claimOrder.account, amountToTransfer);
+            // if the custom claimer is set, then transfer the tokens to the set claimer
+            xPufETH.safeTransfer(
+                ($.customClaimers[claimOrder.account] == address(0))
+                    ? claimOrder.account
+                    : $.customClaimers[claimOrder.account],
+                amountToTransfer
+            );
 
             emit Claimed(
                 claimOrder.account,
@@ -172,17 +200,6 @@ contract L2RewardManager is
                 claimOrder.endEpoch,
                 amountToTransfer
             );
-        }
-    }
-
-    function _getRewardManagerStorage()
-        internal
-        pure
-        returns (RewardManagerStorage storage $)
-    {
-        // solhint-disable-next-line
-        assembly {
-            $.slot := _REWARD_MANAGER_STORAGE_LOCATION
         }
     }
 
