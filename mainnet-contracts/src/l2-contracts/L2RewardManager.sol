@@ -5,7 +5,7 @@ import {IL2RewardManager} from "../interface/IL2RewardManager.sol";
 import {IXReceiver} from "interfaces/core/IXReceiver.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {BridgingParams, ClaimOrder} from "../struct/RewardManagerInfo.sol";
+import {BridgingParams, BridgingType, MintAndBridgeParams, SetClaimerParams, ClaimOrder} from "../struct/RewardManagerInfo.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {RewardManagerStorage} from "../struct/RewardManagerStorage.sol";
@@ -62,38 +62,56 @@ contract L2RewardManager is
         restricted
         returns (bytes memory)
     {
-        // Check for the right token
-        if (_asset != address(XTOKEN)) {
-            revert InvalidAsset();
-        }
-
         // Decode the _callData to get the BridgingParams
-        BridgingParams memory params = abi.decode(_callData, (BridgingParams));
+        BridgingParams memory bridgingParams = abi.decode(
+            _callData,
+            (BridgingParams)
+        );
+        BridgingType bridgeType = bridgingParams.bridgingType;
 
-        if (_amount < params.rewardsAmount) {
-            revert InvalidAmount();
+        if (bridgeType == BridgingType.MintAndBridge) {
+            MintAndBridgeParams memory params = abi.decode(
+                bridgingParams.data,
+                (MintAndBridgeParams)
+            );
+            // Check for the right token
+            if (_asset != address(XTOKEN)) {
+                revert InvalidAsset();
+            }
+
+            if (_amount < params.rewardsAmount) revert InvalidAmount();
+
+            RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+            $.rewardRoots[params.startEpoch][params.endEpoch] = params
+                .rewardsRoot;
+            $.ethToPufETHRates[params.startEpoch][params.endEpoch] = params
+                .ethToPufETHRate;
+
+            emit RewardRootAndRatePosted(
+                params.rewardsAmount,
+                params.ethToPufETHRate,
+                params.startEpoch,
+                params.endEpoch,
+                params.rewardsRoot
+            );
+        } else if (bridgeType == BridgingType.SetClaimer) {
+            // Set the claimer
+            SetClaimerParams memory claimerParams = abi.decode(
+                bridgingParams.data,
+                (SetClaimerParams)
+            );
+            setClaimer(claimerParams.account, claimerParams.claimer);
+        } else {
+            revert InvalidBridgingType();
         }
 
-        emit RewardAmountReceived(
-            params.startEpoch,
-            params.endEpoch,
-            params.rewardsRoot,
-            params.rewardsAmount
-        );
         //TODO: do something with calldata?
         return abi.encode(true);
     }
 
-    /// @inheritdoc IL2RewardManager
-    function postRewardsRoot(
-        uint64 startEpoch,
-        uint64 endEpoch,
-        bytes32 root
-    ) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        $.rewardRoots[startEpoch][endEpoch] = root;
-        emit RewardsRootPosted(startEpoch, endEpoch, root);
+    function setClaimer(address account, address claimer) public restricted {
+        // TODO: implement
     }
 
     /// @inheritdoc IL2RewardManager
@@ -120,6 +138,9 @@ contract L2RewardManager is
             bytes32 rewardRoot = $.rewardRoots[claimOrder.startEpoch][
                 claimOrder.endEpoch
             ];
+            uint128 ethToPufETHRate = $.ethToPufETHRates[claimOrder.startEpoch][
+                claimOrder.endEpoch
+            ];
 
             // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
             bytes32 leaf = keccak256(
@@ -141,14 +162,15 @@ contract L2RewardManager is
             $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][
                     claimOrder.account
                 ] = true;
+            uint256 amountToTransfer = claimOrder.amount * ethToPufETHRate;
 
-            XTOKEN.safeTransfer(claimOrder.account, claimOrder.amount);
+            XTOKEN.safeTransfer(claimOrder.account, amountToTransfer);
 
             emit Claimed(
                 claimOrder.account,
                 claimOrder.startEpoch,
                 claimOrder.endEpoch,
-                claimOrder.amount
+                amountToTransfer
             );
         }
     }

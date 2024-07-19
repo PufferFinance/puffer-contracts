@@ -6,6 +6,7 @@ import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "./BaseScript.s.sol";
+import { ROLE_ID_OPERATIONS_MULTISIG, PUBLIC_ROLE } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { Timelock } from "../src/Timelock.sol";
@@ -45,11 +46,11 @@ contract DeployL2RewardManager is BaseScript {
         bridgeContractSelector[0] = L2RewardManager.xReceive.selector;
 
         // TODO - create new role for bridge contract
-        bytes memory cd = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(proxy), bridgeContractSelector, accessManager.BRIDGE_ROLE());
+        bytes memory cd = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(proxy), bridgeContractSelector, PUBLIC_ROLE);
 
         console.logBytes(cd);
         accessManager.execute(address(accessManager), cd);
 
-        accessManager.grantRole(accessManager.BRIDGE_ROLE(), _CONNEXT, 0);
+        accessManager.grantRole(PUBLIC_ROLE, _CONNEXT, 0);
     }
 }

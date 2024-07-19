@@ -11,6 +11,10 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 struct RewardManagerStorage {
     /**
+     * @notice Mapping to track the exchange rate from ETH to pufETH for each unique epoch range
+     */
+    mapping(uint64 startEpoch => mapping(uint64 endEpoch => uint128 ethToPufETHRate)) ethToPufETHRates;
+    /**
      * @notice Mapping to track reward roots for each unique epoch range
      */
     mapping(uint64 startEpoch => mapping(uint64 endEpoch => bytes32 rewardRoot)) rewardRoots;

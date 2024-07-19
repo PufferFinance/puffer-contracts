@@ -38,16 +38,24 @@ interface IL2RewardManager {
     ) external returns (bytes memory);
 
     /**
-     * @notice Posts the updated rewards root for a specific epoch range
-     * @param startEpoch The start epoch of the interval
-     * @param endEpoch The end epoch of the interval
-     * @param root The merkle root of the rewards
+     * @notice Sets the claimer for a specific account
+     * @param account The account to set the claimer for
+     * @param claimer The address of the claimer
      */
-    function postRewardsRoot(
-        uint64 startEpoch,
-        uint64 endEpoch,
-        bytes32 root
-    ) external;
+
+      function setClaimer(address account, address claimer) external;
+
+    // /**
+    //  * @notice Posts the updated rewards root for a specific epoch range
+    //  * @param startEpoch The start epoch of the interval
+    //  * @param endEpoch The end epoch of the interval
+    //  * @param root The merkle root of the rewards
+    //  */
+    // function postRewardsRoot(
+    //     uint64 startEpoch,
+    //     uint64 endEpoch,
+    //     bytes32 root
+    // ) external;
 
     /**
      * @notice Claims the rewards for a specific epoch range
@@ -56,26 +64,14 @@ interface IL2RewardManager {
     function claimRewards(ClaimOrder[] calldata claimOrders) external;
 
     /**
-     * @notice Event emitted when reward amount is received
-     * @param startEpoch The start epoch of the interval
-     * @param endEpoch The end epoch of the interval
-     * @param rewardsRoot The merkle root of the rewards
+     * @notice Event emitted when rewards root and rate are posted
      * @param rewardsAmount The total rewards amount
-     */
-    event RewardAmountReceived(
-        uint64 startEpoch,
-        uint64 endEpoch,
-        bytes32 rewardsRoot,
-        uint128 rewardsAmount
-    );
-
-    /**
-     * @notice Event emitted when rewards root is posted
+     * @param ethToPufETHRate The exchange rate from ETH to pufETH
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
      * @param root The merkle root of the rewards
      */
-    event RewardsRootPosted(uint64 startEpoch, uint64 endEpoch, bytes32 root);
+    event RewardRootAndRatePosted( uint128 rewardsAmount,  uint128 ethToPufETHRate, uint64 startEpoch, uint64 endEpoch, bytes32 root);
 
     /**
      * @notice Event emitted when rewards are claimed
@@ -110,4 +106,9 @@ interface IL2RewardManager {
      * @notice Custom error for invalid proof
      */
     error InvalidProof();
+
+    /**
+     * @notice Custom error for invalid bridging type
+     */
+    error InvalidBridgingType();
 }
