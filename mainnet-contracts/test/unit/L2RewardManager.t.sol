@@ -11,6 +11,9 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {MockBridge} from "../mocks/BridgeMock.sol";
 import {Merkle} from "murky/Merkle.sol";
 
+/**
+ * forge test --match-path test/unit/L2RewardManager.t.sol -vvvv --via-ir
+ */
 contract L2RewardManagerTest is UnitTestHelper {
     L2RewardManager public l2RewardManager;
     ERC20Mock public xPufETH;
@@ -375,6 +378,132 @@ contract L2RewardManagerTest is UnitTestHelper {
 
         // assertEq(xPufETH.balanceOf(account), amount);
         // assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, account));
+    }
+
+    function test_claimRewardsDifferentExchangeRate() public {
+        // The ethToPufETHRate is changed to 0.9 ether, so alice's reward should be 0.01308 * 0.9 = 0.011772
+        // bob's reward should be 0.013 * 0.9 = 0.0117
+        // charlie's reward should be 1 * 0.9 = 0.9
+
+        uint128 aliceAmountToClaim = 0.011772 ether;
+        uint128 bobAmountToClaim = 0.0117 ether;
+        uint128 charlieAmountToClaim = 0.9 ether;
+
+        // 3 validators got the rewards
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+        address charlie = makeAddr("charlie");
+        uint64 startEpoch = 1;
+        uint64 endEpoch = 2;
+
+        // Build a merkle proof for that
+        MerkleProofData[] memory validatorRewards = new MerkleProofData[](3);
+        validatorRewards[0] = MerkleProofData({
+            account: alice,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            amount: 0.01308 ether
+        });
+        validatorRewards[1] = MerkleProofData({
+            account: bob,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            amount: 0.013 ether
+        });
+        validatorRewards[2] = MerkleProofData({
+            account: charlie,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            amount: 1 ether
+        });
+
+        uint128 rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
+
+        // the exchange rate is changed to 1ether-> 0.9 ether
+        uint128 ethToPufETHRate = 0.9 ether;
+        bytes32 rewardsRoot = _buildMerkleProof(validatorRewards);
+
+        // Post the rewards root
+        MintAndBridgeParams memory bridgingCalldata = MintAndBridgeParams({
+            rewardsAmount: rewardsAmount,
+            ethToPufETHRate: ethToPufETHRate,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: rewardsRoot,
+            rewardsURI: "uri"
+        });
+
+        BridgingParams memory bridgingParams = BridgingParams({
+            bridgingType: BridgingType.MintAndBridge,
+            data: abi.encode(bridgingCalldata)
+        });
+        bytes memory encodedCallData = abi.encode(bridgingParams);
+
+        vm.startPrank(l1_vault);
+
+        vm.expectEmit();
+        emit IL2RewardManager.RewardRootAndRatePosted(
+            rewardsAmount,
+            ethToPufETHRate,
+            startEpoch,
+            endEpoch,
+            rewardsRoot
+        );
+        // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
+        bytes32 result = mockBridge.xcall(
+            uint32(0),
+            address(l2RewardManager),
+            address(xPufETH),
+            address(this),
+            rewardsAmount,
+            uint256(0),
+            encodedCallData
+        );
+
+        // Claim the rewards
+        // Alice amount
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 0.01308 ether;
+
+        bytes32[][] memory aliceProofs = new bytes32[][](1);
+        aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+
+        assertEq(alice.balance, 0, "alice should start with zero balance");
+
+        vm.startPrank(alice);
+
+        ClaimOrder[] memory claimOrders = new ClaimOrder[](1);
+        claimOrders[0] = ClaimOrder({
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            account: alice,
+            amount: amounts[0],
+            merkleProof: aliceProofs[0]
+        });
+
+        vm.expectEmit();
+        emit IL2RewardManager.Claimed(
+            alice,
+            startEpoch,
+            endEpoch,
+            aliceAmountToClaim
+        );
+        l2RewardManager.claimRewards(claimOrders);
+        assertEq(
+            xPufETH.balanceOf(alice),
+            0.011772 ether,
+            "alice should end with 0.011772 xpufETH"
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IL2RewardManager.AlreadyClaimed.selector,
+                startEpoch,
+                endEpoch,
+                alice
+            )
+        );
+        l2RewardManager.claimRewards(claimOrders);
     }
 
     function _buildMerkleProof(
