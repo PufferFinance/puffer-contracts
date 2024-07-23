@@ -57,7 +57,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         }
 
         // The users that use a smart wallet and do not use the Permit and they do the .approve and then .deposit.
-        // They might get confused when they open Etherscan, and see: 
+        // They might get confused when they open Etherscan, and see:
         // "Although one or more Error Occurred [execution reverted] Contract Execution Completed"
 
         // To avoid that, we don't want to call the permit function if it is not necessary.
