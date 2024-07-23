@@ -32,6 +32,7 @@ contract L2RewardManager is
 {
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using Math for uint128;
 
     // The ERC20 token being distributed
     IERC20 public immutable xPufETH;
@@ -70,6 +71,7 @@ contract L2RewardManager is
         external
         override(IL2RewardManager, IXReceiver)
         onlyPufferVault(originSender)
+        restricted
         returns (bytes memory)
     {
         // Decode the callData to get the BridgingParams
@@ -83,7 +85,9 @@ contract L2RewardManager is
                 revert InvalidAsset();
             }
 
-            if (amount < params.rewardsAmount) revert InvalidAmount();
+            if (amount != params.rewardsAmount.mulDiv(params.ethToPufETHRate, 1 ether, Math.Rounding.Floor)) {
+                revert InvalidAmount();
+            }
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -137,7 +141,7 @@ contract L2RewardManager is
             // Mark it claimed and transfer the tokens
             $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][claimOrder.account] = true;
             uint256 amountToTransfer =
-                claimOrder.amount.mulDiv(rateAndRoot.ethToPufETHRate, 10 ** 18, Math.Rounding.Ceil); //TODO: check if this is correct
+                claimOrder.amount.mulDiv(rateAndRoot.ethToPufETHRate, 1 ether, Math.Rounding.Floor);
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
             xPufETH.safeTransfer(

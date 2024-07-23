@@ -21,6 +21,8 @@ interface IL2RewardManager {
     /**
      * @notice The receiver function as required by the IXReceiver interface.
      * @dev The Connext bridge contract will call this function.
+     * @dev Restricted to the whitelisted Bridge contract only
+     * @dev The origin sender must be the L1 PufferVaultV3 contract
      * @param transferId The transfer ID
      * @param amount The amount transferred
      * @param asset The asset transferred
