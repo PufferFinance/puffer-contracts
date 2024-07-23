@@ -99,6 +99,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         }
 
         uint256 ethToPufETHRate = convertToShares(1 ether);
+        // calculate the shares using this formula since calling convertToShares again is costly
         uint256 shares = ethToPufETHRate.mulDiv(params.rewardsAmount, 1 ether, Math.Rounding.Floor);
 
         $.lastRewardMintTimestamp = uint40(block.timestamp);
@@ -112,8 +113,8 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         XPUFETH.approve(address(params.bridge), shares);
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
-            rewardsAmount: uint128(params.rewardsAmount),
-            ethToPufETHRate: uint128(ethToPufETHRate),
+            rewardsAmount: params.rewardsAmount,
+            ethToPufETHRate: ethToPufETHRate,
             startEpoch: params.startEpoch,
             endEpoch: params.endEpoch,
             rewardsRoot: params.rewardsRoot,

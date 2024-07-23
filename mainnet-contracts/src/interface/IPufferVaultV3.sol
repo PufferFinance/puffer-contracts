@@ -17,7 +17,6 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     /**
      * @notice Data required for bridging.
      * @param destinationDomainId The destination domain ID.
-     * @param l2RewardManager The address of the L2 reward manager.
      */
     struct BridgeData {
         // using struct to allow future addition to this
@@ -149,14 +148,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @param account The account setting the claimer.
      * @param claimer The address of the new claimer.
      */
-    event L2RewardClaimerUpdated(address account, address claimer);
+    event L2RewardClaimerUpdated(address indexed account, address indexed claimer);
 
     /**
      * @notice Event emitted when bridge data is updated.
      * @param bridge The address of the bridge.
      * @param bridgeData The updated bridge data.
      */
-    event BridgeDataUpdated(address bridge, BridgeData bridgeData);
+    event BridgeDataUpdated(address indexed bridge, BridgeData bridgeData);
 
     /**
      * @notice Mints and bridges rewards according to the provided parameters.
