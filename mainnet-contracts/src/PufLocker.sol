@@ -61,7 +61,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         // "Although one or more Error Occurred [execution reverted] Contract Execution Completed"
 
         // To avoid that, we don't want to call the permit function if it is not necessary.
-        if (permitData.deadline < block.timestamp) {
+        if (permitData.deadline > block.timestamp) {
             // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
             try ERC20Permit(token).permit({
                 owner: msg.sender,
