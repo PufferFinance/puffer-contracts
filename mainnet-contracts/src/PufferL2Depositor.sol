@@ -55,16 +55,28 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
         uint256 referralCode,
         uint128 lockPeriod
     ) external onlySupportedTokens(token) restricted {
-        // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
-        try ERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+
+        // The users that use a smart wallet and do not use the Permit and they do the .approve and then .deposit.
+        // They might get confused when they open Etherscan, and see: 
+        // "Although one or more Error Occurred [execution reverted] Contract Execution Completed"
+
+        // To avoid that, we don't want to call the permit function if it is not necessary.
+        // OpenZeppelin's ERC20Permit tokens use the ECDSA.sol library to check if the signature is valid.
+        // We can borrow the line of code that they wrote and skip calling the permit function if `permitData.s` is not valid.
+
+        // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/9e73c4b58120c17135bf269945d0f148810bf7f1/contracts/utils/cryptography/ECDSA.sol#L137
+        if (uint256(permitData.s) < 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
+            try ERC20Permit(token).permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { } catch { }
+        }
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
 
