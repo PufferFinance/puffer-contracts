@@ -7,6 +7,7 @@
     "url": "https://puffer.fi"
   },
   "dependencies": {
+    "@connext/interfaces": "^2.0.5",
     "@openzeppelin/contracts": "5.0.1",
     "@openzeppelin/contracts-upgradeable": "5.0.1",
     "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#1bf4c12",
