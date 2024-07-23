@@ -15,7 +15,6 @@ abstract contract L2RewardManagerStorage {
      *      |                                                           |
      *      +-----------------------------------------------------------+
      */
-
     struct RateAndRoot {
         uint128 ethToPufETHRate;
         bytes32 rewardRoot;
@@ -29,7 +28,8 @@ abstract contract L2RewardManagerStorage {
         /**
          * @notice Mapping to track claimed tokens for users for each unique epoch range
          */
-        mapping(uint64 startEpoch => mapping(uint64 endEpoch => mapping(address account => bool claimed))) claimedRewards;
+        mapping(uint64 startEpoch => mapping(uint64 endEpoch => mapping(address account => bool claimed)))
+            claimedRewards;
         /**
          * @notice Mapping to track the custom claimer set by specific accounts
          */
@@ -40,11 +40,7 @@ abstract contract L2RewardManagerStorage {
     bytes32 internal constant _REWARD_MANAGER_STORAGE_LOCATION =
         0x7f1aa0bc41c09fbe61ccc14f95edc9998b7136087969b5ccb26131ec2cbbc800;
 
-    function _getRewardManagerStorage()
-        internal
-        pure
-        returns (RewardManagerStorage storage $)
-    {
+    function _getRewardManagerStorage() internal pure returns (RewardManagerStorage storage $) {
         // solhint-disable-next-line
         assembly {
             $.slot := _REWARD_MANAGER_STORAGE_LOCATION

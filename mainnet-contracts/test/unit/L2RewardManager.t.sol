@@ -2,14 +2,14 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import {UnitTestHelper} from "../helpers/UnitTestHelper.sol";
-import {L2RewardManager} from "../../src/l2-contracts/L2RewardManager.sol";
-import {IL2RewardManager} from "../../src/interface/IL2RewardManager.sol";
-import {BridgingParams, BridgingType, MintAndBridgeParams, ClaimOrder} from "../../src/struct/L2RewardManagerInfo.sol";
-import {ERC20Mock} from "../mocks/ERC20Mock.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {MockBridge} from "../mocks/BridgeMock.sol";
-import {Merkle} from "murky/Merkle.sol";
+import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
+import { L2RewardManager } from "../../src/l2-contracts/L2RewardManager.sol";
+import { IL2RewardManager } from "../../src/interface/IL2RewardManager.sol";
+import { BridgingParams, BridgingType, MintAndBridgeParams, ClaimOrder } from "../../src/struct/L2RewardManagerInfo.sol";
+import { ERC20Mock } from "../mocks/ERC20Mock.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { MockBridge } from "../mocks/BridgeMock.sol";
+import { Merkle } from "murky/Merkle.sol";
 
 /**
  * forge test --match-path test/unit/L2RewardManager.t.sol -vvvv --via-ir
@@ -30,17 +30,11 @@ contract L2RewardManagerTest is UnitTestHelper {
         mockBridge = new MockBridge();
         // Deploy the MockERC20 token
         xPufETH = new ERC20Mock("xPufETH", "xPufETH");
-        address l2RewardManagerImp = address(
-            new L2RewardManager(address(xPufETH), l1_vault)
-        );
+        address l2RewardManagerImp = address(new L2RewardManager(address(xPufETH), l1_vault));
         l2RewardManager = L2RewardManager(
             address(
                 new ERC1967Proxy(
-                    l2RewardManagerImp,
-                    abi.encodeCall(
-                        L2RewardManager.initialize,
-                        (address(accessManager))
-                    )
+                    l2RewardManagerImp, abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
                 )
             )
         );
@@ -66,22 +60,14 @@ contract L2RewardManagerTest is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        BridgingParams memory bridgingParams = BridgingParams({
-            bridgingType: BridgingType.MintAndBridge,
-            data: abi.encode(bridgingCalldata)
-        });
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(
-            rewardsAmount,
-            ethToPufETHRate,
-            startEpoch,
-            endEpoch,
-            rewardsRoot
-        );
+        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         bytes32 result = mockBridge.xcall(
             uint32(0),
@@ -115,17 +101,13 @@ contract L2RewardManagerTest is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        BridgingParams memory bridgingParams = BridgingParams({
-            bridgingType: BridgingType.MintAndBridge,
-            data: abi.encode(bridgingCalldata)
-        });
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IL2RewardManager.InvalidAmount.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidAmount.selector));
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         bytes32 result = mockBridge.xcall(
             uint32(0),
@@ -154,17 +136,13 @@ contract L2RewardManagerTest is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        BridgingParams memory bridgingParams = BridgingParams({
-            bridgingType: BridgingType.MintAndBridge,
-            data: abi.encode(bridgingCalldata)
-        });
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IL2RewardManager.InvalidAsset.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidAsset.selector));
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         bytes32 result = mockBridge.xcall(
             uint32(0),
@@ -194,24 +172,12 @@ contract L2RewardManagerTest is UnitTestHelper {
 
         // Build a merkle proof for that
         MerkleProofData[] memory validatorRewards = new MerkleProofData[](3);
-        validatorRewards[0] = MerkleProofData({
-            account: alice,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 0.01308 ether
-        });
-        validatorRewards[1] = MerkleProofData({
-            account: bob,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 0.013 ether
-        });
-        validatorRewards[2] = MerkleProofData({
-            account: charlie,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 1 ether
-        });
+        validatorRewards[0] =
+            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.01308 ether });
+        validatorRewards[1] =
+            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.013 ether });
+        validatorRewards[2] =
+            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: 1 ether });
 
         uint128 rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
@@ -230,22 +196,14 @@ contract L2RewardManagerTest is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        BridgingParams memory bridgingParams = BridgingParams({
-            bridgingType: BridgingType.MintAndBridge,
-            data: abi.encode(bridgingCalldata)
-        });
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(
-            rewardsAmount,
-            ethToPufETHRate,
-            startEpoch,
-            endEpoch,
-            rewardsRoot
-        );
+        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         bytes32 result = mockBridge.xcall(
             uint32(0),
@@ -281,41 +239,20 @@ contract L2RewardManagerTest is UnitTestHelper {
         vm.expectEmit();
         emit IL2RewardManager.Claimed(alice, startEpoch, endEpoch, amounts[0]);
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(
-            xPufETH.balanceOf(alice),
-            0.01308 ether,
-            "alice should end with 0.01308 xpufETH"
-        );
+        assertEq(xPufETH.balanceOf(alice), 0.01308 ether, "alice should end with 0.01308 xpufETH");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IL2RewardManager.AlreadyClaimed.selector,
-                startEpoch,
-                endEpoch,
-                alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
 
         // Bob amount
         vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IL2RewardManager.AlreadyClaimed.selector,
-                startEpoch,
-                endEpoch,
-                alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
 
         bytes32[][] memory bobProofs = new bytes32[][](1);
         bobProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
         bytes32[][] memory charlieProofs = new bytes32[][](1);
-        charlieProofs[0] = rewardsMerkleProof.getProof(
-            rewardsMerkleProofData,
-            2
-        );
+        charlieProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 2);
 
         // Mutate amounts, set Charlie's amount
         amounts[0] = 1 ether;
@@ -329,16 +266,10 @@ contract L2RewardManagerTest is UnitTestHelper {
             amount: amounts[0],
             merkleProof: charlieProofs[0]
         });
-        vm.expectRevert(
-            abi.encodeWithSelector(IL2RewardManager.InvalidProof.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidProof.selector));
         l2RewardManager.claimRewards(claimOrders);
 
-        assertEq(
-            xPufETH.balanceOf(charlie),
-            0,
-            "charlie should start with zero balance"
-        );
+        assertEq(xPufETH.balanceOf(charlie), 0, "charlie should start with zero balance");
         // Bob claiming for charlie (bob is msg.sender)
         claimOrders[0] = ClaimOrder({
             startEpoch: startEpoch,
@@ -348,19 +279,11 @@ contract L2RewardManagerTest is UnitTestHelper {
             merkleProof: charlieProofs[0]
         });
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(
-            xPufETH.balanceOf(charlie),
-            1 ether,
-            "charlie should end with 1 xpufETH"
-        );
+        assertEq(xPufETH.balanceOf(charlie), 1 ether, "charlie should end with 1 xpufETH");
 
         // Mutate amounts, set back Bob's amount
         amounts[0] = 0.013 ether;
-        assertEq(
-            xPufETH.balanceOf(bob),
-            0,
-            "bob should start with zero balance"
-        );
+        assertEq(xPufETH.balanceOf(bob), 0, "bob should start with zero balance");
         // Bob claiming with his proof
         claimOrders[0] = ClaimOrder({
             startEpoch: startEpoch,
@@ -370,11 +293,7 @@ contract L2RewardManagerTest is UnitTestHelper {
             merkleProof: bobProofs[0]
         });
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(
-            xPufETH.balanceOf(bob),
-            0.013 ether,
-            "bob should end with 0.013 xpufETH"
-        );
+        assertEq(xPufETH.balanceOf(bob), 0.013 ether, "bob should end with 0.013 xpufETH");
 
         // assertEq(xPufETH.balanceOf(account), amount);
         // assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, account));
@@ -398,24 +317,12 @@ contract L2RewardManagerTest is UnitTestHelper {
 
         // Build a merkle proof for that
         MerkleProofData[] memory validatorRewards = new MerkleProofData[](3);
-        validatorRewards[0] = MerkleProofData({
-            account: alice,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 0.01308 ether
-        });
-        validatorRewards[1] = MerkleProofData({
-            account: bob,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 0.013 ether
-        });
-        validatorRewards[2] = MerkleProofData({
-            account: charlie,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            amount: 1 ether
-        });
+        validatorRewards[0] =
+            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.01308 ether });
+        validatorRewards[1] =
+            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.013 ether });
+        validatorRewards[2] =
+            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: 1 ether });
 
         uint128 rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
@@ -433,22 +340,14 @@ contract L2RewardManagerTest is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        BridgingParams memory bridgingParams = BridgingParams({
-            bridgingType: BridgingType.MintAndBridge,
-            data: abi.encode(bridgingCalldata)
-        });
+        BridgingParams memory bridgingParams =
+            BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(
-            rewardsAmount,
-            ethToPufETHRate,
-            startEpoch,
-            endEpoch,
-            rewardsRoot
-        );
+        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         bytes32 result = mockBridge.xcall(
             uint32(0),
@@ -482,33 +381,15 @@ contract L2RewardManagerTest is UnitTestHelper {
         });
 
         vm.expectEmit();
-        emit IL2RewardManager.Claimed(
-            alice,
-            startEpoch,
-            endEpoch,
-            aliceAmountToClaim
-        );
+        emit IL2RewardManager.Claimed(alice, startEpoch, endEpoch, aliceAmountToClaim);
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(
-            xPufETH.balanceOf(alice),
-            0.011772 ether,
-            "alice should end with 0.011772 xpufETH"
-        );
+        assertEq(xPufETH.balanceOf(alice), 0.011772 ether, "alice should end with 0.011772 xpufETH");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IL2RewardManager.AlreadyClaimed.selector,
-                startEpoch,
-                endEpoch,
-                alice
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
     }
 
-    function _buildMerkleProof(
-        MerkleProofData[] memory validatorRewards
-    ) internal returns (bytes32 root) {
+    function _buildMerkleProof(MerkleProofData[] memory validatorRewards) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
         rewardsMerkleProofData = new bytes32[](validatorRewards.length);

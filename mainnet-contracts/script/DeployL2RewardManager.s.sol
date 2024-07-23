@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
@@ -10,7 +9,7 @@ import { ROLE_ID_OPERATIONS_MULTISIG, PUBLIC_ROLE } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { Timelock } from "../src/Timelock.sol";
-import {L2RewardManager} from "../src/l2-contracts/L2RewardManager.sol";
+import { L2RewardManager } from "../src/l2-contracts/L2RewardManager.sol";
 /**
  * @title DeployL2RewardManager
  * @author Puffer Finance
@@ -27,8 +26,8 @@ import {L2RewardManager} from "../src/l2-contracts/L2RewardManager.sol";
  *
  *         PK=${deployer_pk} forge script script/DeployL2RewardManager.s.sol:DeployL2RewardManager -vvvv --rpc-url=... --broadcast
  */
-contract DeployL2RewardManager is BaseScript {
 
+contract DeployL2RewardManager is BaseScript {
     address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
     address L1_PUFFER_VAULT = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9; //@todo change for mainnet
 
@@ -40,9 +39,9 @@ contract DeployL2RewardManager is BaseScript {
         L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT), address(L1_PUFFER_VAULT));
         console.log("L2RewardManager Implementation", address(newImplementation));
 
-        ERC1967Proxy proxy = new ERC1967Proxy(address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager))));
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+        );
         console.log("L2RewardManager Proxy", address(proxy));
-
-
     }
 }

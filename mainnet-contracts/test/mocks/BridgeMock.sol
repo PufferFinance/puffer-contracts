@@ -2,11 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IXReceiver } from "interfaces/core/IXReceiver.sol";
-import {L2RewardManager} from "../../src/l2-contracts/L2RewardManager.sol";
+import { L2RewardManager } from "../../src/l2-contracts/L2RewardManager.sol";
 import "forge-std/Test.sol";
 
-contract MockBridge  {
-   function xcall(
+contract MockBridge {
+    function xcall(
         uint32 _destination,
         address _to,
         address _asset,

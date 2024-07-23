@@ -1,40 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import {ClaimOrder} from "../struct/L2RewardManagerInfo.sol";
+import { ClaimOrder } from "../struct/L2RewardManagerInfo.sol";
 
+/**
+ * @title IL2RewardManager
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
 interface IL2RewardManager {
     /**
-     * @notice Check if a token has been claimed for a specific epoch range and account
+     * @notice Check if the reward has been claimed for a specific period and an account
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
      * @param account The address of the account to check
      * @return bool indicating whether the reward has been claimed
      */
-    function isClaimed(
-        uint64 startEpoch,
-        uint64 endEpoch,
-        address account
-    ) external view returns (bool);
+    function isClaimed(uint64 startEpoch, uint64 endEpoch, address account) external view returns (bool);
 
     /**
      * @notice The receiver function as required by the IXReceiver interface.
      * @dev The Connext bridge contract will call this function.
-     * @param _transferId The transfer ID
-     * @param _amount The amount transferred
-     * @param _asset The asset transferred
-     * @param _originSender The address of the origin sender
-     * @param _origin The origin chain ID
-     * @param _callData The call data
+     * @param transferId The transfer ID
+     * @param amount The amount transferred
+     * @param asset The asset transferred
+     * @param originSender The address of the origin sender
+     * @param origin The origin chain ID
+     * @param callData The call data
      * @return bytes The result of the call
      */
     function xReceive(
-        bytes32 _transferId,
-        uint256 _amount,
-        address _asset,
-        address _originSender,
-        uint32 _origin,
-        bytes memory _callData
+        bytes32 transferId,
+        uint256 amount,
+        address asset,
+        address originSender,
+        uint32 origin,
+        bytes memory callData
     ) external returns (bytes memory);
 
     /**
@@ -52,11 +53,7 @@ interface IL2RewardManager {
      * @param root The merkle root of the rewards
      */
     event RewardRootAndRatePosted(
-        uint128 rewardsAmount,
-        uint128 ethToPufETHRate,
-        uint64 startEpoch,
-        uint64 endEpoch,
-        bytes32 root
+        uint128 rewardsAmount, uint128 ethToPufETHRate, uint64 startEpoch, uint64 endEpoch, bytes32 root
     );
 
     /**
@@ -73,17 +70,11 @@ interface IL2RewardManager {
      * @param endEpoch The end epoch of the interval
      * @param amount The amount claimed
      */
-    event Claimed(
-        address indexed account,
-        uint64 startEpoch,
-        uint64 endEpoch,
-        uint256 amount
-    );
+    event Claimed(address indexed account, uint64 startEpoch, uint64 endEpoch, uint256 amount);
 
     /**
      * @notice Custom error when called function is not by PufferVault
      */
-
     error CallerNotPufferVault();
 
     /**
