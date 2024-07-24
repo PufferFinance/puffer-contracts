@@ -71,7 +71,6 @@ contract L2RewardManager is
         external
         override(IL2RewardManager, IXReceiver)
         onlyPufferVault(originSender)
-        restricted
         returns (bytes memory)
     {
         // Decode the callData to get the BridgingParams

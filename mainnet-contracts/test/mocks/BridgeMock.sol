@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IXReceiver } from "interfaces/core/IXReceiver.sol";
+import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManager } from "../../src/l2-contracts/L2RewardManager.sol";
-import "forge-std/Test.sol";
 
-contract MockBridge {
+contract BridgeMock {
     function xcall(
         uint32 _destination,
         address _to,
@@ -23,7 +22,7 @@ contract MockBridge {
             _destination,
             _callData
         );
-        console.log("rewardAmount: ", uint128(_amount));
+
         return keccak256(abi.encodePacked(uint128(_amount)));
     }
 }
