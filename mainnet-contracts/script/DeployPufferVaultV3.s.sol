@@ -83,10 +83,6 @@ contract DeployPufferVaultV3 is BaseScript {
 
         console.log("AccessManager", address(accessManager));
 
-        operationsMultisig = _broadcaster;
-        pauserMultisig = _broadcaster;
-        communityMultisig = _broadcaster;
-
         stETHStrategyTestnet elStETHStrategy = new stETHStrategyTestnet();
 
         stETHStrategy = IStrategy(elStETHStrategy);

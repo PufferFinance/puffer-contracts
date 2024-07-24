@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManager } from "../../src/l2-contracts/L2RewardManager.sol";
 
 contract BridgeMock {
