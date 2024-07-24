@@ -2,21 +2,15 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import {
-    BridgingType,
-    ClaimOrder,
-    MintAndBridgeParams,
-    SetClaimerParams
-} from "../struct/L2RewardManagerInfo.sol";
-import { IPufferVaultV3 } from "./../interface/IPufferVaultV3.sol";
+    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { IPufferVaultV3 } from "mainnet-contracts/src/interface/IPufferVaultV3.sol";
 import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IL2RewardManager } from "../interface/IL2RewardManager.sol";
+import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
 import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ClaimOrder } from "./struct/ClaimOrder.sol";
 
 /**
  * @title L2RewardManager
@@ -31,16 +25,13 @@ contract L2RewardManager is
     UUPSUpgradeable
 {
     using SafeERC20 for IERC20;
-    using Math for uint256;
-    using Math for uint128;
 
-    // The ERC20 token being distributed
-    IERC20 public immutable xPufETH;
+    IERC20 public immutable XPUFETH;
 
     address public immutable L1_PUFFER_VAULT;
 
-    constructor(address _xPufETH, address l1PufferVault) {
-        xPufETH = IERC20(_xPufETH);
+    constructor(address xPufETH, address l1PufferVault) {
+        XPUFETH = IERC20(xPufETH);
         L1_PUFFER_VAULT = l1PufferVault;
         _disableInitializers();
     }
@@ -66,50 +57,24 @@ contract L2RewardManager is
 
     /**
      * @inheritdoc IL2RewardManager
+     * // todo restricted = Assign bridge role to allowed bridges.
      */
-    function xReceive(bytes32, uint256 amount, address asset, address originSender, uint32, bytes memory callData)
+    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
         external
         override(IL2RewardManager, IXReceiver)
         onlyPufferVault(originSender)
+        restricted
         returns (bytes memory)
     {
-        // Decode the callData to get the BridgingParams
         IPufferVaultV3.BridgingParams memory bridgingParams = abi.decode(callData, (IPufferVaultV3.BridgingParams));
-        IPufferVaultV3.BridgingType bridgeType = bridgingParams.bridgingType;
 
-        if (bridgeType == IPufferVaultV3.BridgingType.MintAndBridge) {
-            MintAndBridgeParams memory params = abi.decode(bridgingParams.data, (MintAndBridgeParams));
-            // Check for the right token
-            if (asset != address(xPufETH)) {
-                revert InvalidAsset();
-            }
-
-            if (amount != params.rewardsAmount.mulDiv(params.ethToPufETHRate, 1 ether, Math.Rounding.Floor)) {
-                revert InvalidAmount();
-            }
-
-            RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-            // Store the rate and root
-            $.rateAndRoots[params.startEpoch][params.endEpoch] =
-                RateAndRoot({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
-
-            emit RewardRootAndRatePosted(
-                params.rewardsAmount, params.ethToPufETHRate, params.startEpoch, params.endEpoch, params.rewardsRoot
-            );
-        } else if (bridgeType == IPufferVaultV3.BridgingType.SetClaimer) {
-            // Set the claimer
-            SetClaimerParams memory claimerParams = abi.decode(bridgingParams.data, (SetClaimerParams));
-            RewardManagerStorage storage $ = _getRewardManagerStorage();
-            $.customClaimers[claimerParams.account] = claimerParams.claimer;
-
-            emit ClaimerSet(claimerParams.account, claimerParams.claimer);
+        if (bridgingParams.bridgingType == IPufferVaultV3.BridgingType.MintAndBridge) {
+            _handleMintAndBridge(amount, bridgingParams.data);
+        } else if (bridgingParams.bridgingType == IPufferVaultV3.BridgingType.SetClaimer) {
+            _handleSetClaimer(bridgingParams.data);
         } else {
             revert InvalidBridgingType();
         }
-
-        //TODO: do something with calldata?
-        return abi.encode(true);
     }
 
     /**
@@ -120,9 +85,11 @@ contract L2RewardManager is
 
         for (uint256 i = 0; i < length; i++) {
             ClaimOrder memory claimOrder = claimOrders[i];
+
             if (isClaimed(claimOrder.startEpoch, claimOrder.endEpoch, claimOrder.account)) {
                 revert AlreadyClaimed(claimOrder.startEpoch, claimOrder.endEpoch, claimOrder.account);
             }
+
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
             RateAndRoot storage rateAndRoot = $.rateAndRoots[claimOrder.startEpoch][claimOrder.endEpoch];
@@ -135,23 +102,62 @@ contract L2RewardManager is
                     )
                 )
             );
-            if (!MerkleProof.verify(claimOrder.merkleProof, rateAndRoot.rewardRoot, leaf)) revert InvalidProof();
+            if (!MerkleProof.verify(claimOrder.merkleProof, rateAndRoot.rewardRoot, leaf)) {
+                revert InvalidProof();
+            }
 
             // Mark it claimed and transfer the tokens
             $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][claimOrder.account] = true;
-            uint256 amountToTransfer =
-                claimOrder.amount.mulDiv(rateAndRoot.ethToPufETHRate, 1 ether, Math.Rounding.Floor);
+
+            uint256 amountToTransfer = claimOrder.amount * rateAndRoot.ethToPufETHRate / 1 ether;
+
+            address recipient = $.rewardsClaimers[claimOrder.account] == address(0)
+                ? claimOrder.account
+                : $.rewardsClaimers[claimOrder.account];
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
-            xPufETH.safeTransfer(
-                ($.customClaimers[claimOrder.account] == address(0))
-                    ? claimOrder.account
-                    : $.customClaimers[claimOrder.account],
-                amountToTransfer
-            );
+            XPUFETH.safeTransfer(recipient, amountToTransfer);
 
-            emit Claimed(claimOrder.account, claimOrder.startEpoch, claimOrder.endEpoch, amountToTransfer);
+            emit Claimed({
+                account: claimOrder.account,
+                recipient: recipient,
+                startEpoch: claimOrder.startEpoch,
+                endEpoch: claimOrder.endEpoch,
+                amount: amountToTransfer
+            });
         }
+    }
+
+    function _handleMintAndBridge(uint256 amount, uint256 ethToPufETH, bytes calldata data) internal {
+        IPufferVaultV3.MintAndBridgeParams memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeParams));
+
+        // Validate that the exchange rate is correct //@todo might be problematic, but it shouldnt
+        if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
+            revert InvalidAmount();
+        }
+
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        // Store the rate and root
+        $.rateAndRoots[params.startEpoch][params.endEpoch] =
+            RateAndRoot({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
+
+        emit RewardRootAndRatePosted({
+            rewardsAmount: params.rewardsAmount,
+            ethToPufETHRate: params.ethToPufETHRate,
+            startEpoch: params.startEpoch,
+            endEpoch: params.endEpoch,
+            root: params.rewardsRoot
+        });
+    }
+
+    function _handleSetClaimer(bytes calldata data) internal {
+        IPufferVaultV3.SetClaimerParams memory claimerParams = abi.decode(data, (IPufferVaultV3.SetClaimerParams));
+
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.rewardsClaimers[claimerParams.account] = claimerParams.claimer;
+
+        emit ClaimerSet({ account: claimerParams.account, claimer: claimerParams.claimer });
     }
 
     /**

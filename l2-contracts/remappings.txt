@@ -1,0 +1,15 @@
+ds-test/=node_modules/forge-std/lib/ds-test/src/
+erc4626-tests/=node_modules/erc4626-tests/
+forge-std/=node_modules/forge-std/src/
+@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@connext/=node_modules/@connext/
+@crytic=node_modules/@crytic/properties
+eigenlayer/=node_modules/eigenlayer-contracts/src/contracts
+eigenlayer-middleware/=node_modules/eigenlayer-middleware/src/
+eigenlayer-test/=node_modules/eigenlayer-contracts/src/test
+eigenlayer-contracts/=node_modules/eigenlayer-contracts/
+rave/=node_modules/rave/src/
+rave-test/=node_modules/rave/test/
+murky/=node_modules/murky/src/
+mainnet-contracts/=node_modules/mainnet-contracts/

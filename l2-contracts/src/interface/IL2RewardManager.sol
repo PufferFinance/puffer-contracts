@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ClaimOrder } from "../struct/L2RewardManagerInfo.sol";
+import { ClaimOrder } from "../struct/ClaimOrder.sol";
 
 /**
  * @title IL2RewardManager
@@ -55,7 +55,7 @@ interface IL2RewardManager {
      * @param root The merkle root of the rewards
      */
     event RewardRootAndRatePosted(
-        uint256 rewardsAmount, uint256 ethToPufETHRate, uint256 startEpoch, uint256 endEpoch, bytes32 root
+        uint128 rewardsAmount, uint128 ethToPufETHRate, uint64 startEpoch, uint64 endEpoch, bytes32 root
     );
 
     /**
@@ -63,16 +63,19 @@ interface IL2RewardManager {
      * @param account The account to set the claimer for
      * @param claimer The address of the claimer
      */
-    event ClaimerSet(address indexed account, address claimer);
+    event ClaimerSet(address indexed account, address indexed claimer);
 
     /**
      * @notice Event emitted when rewards are claimed
      * @param account The address of the account claiming the rewards
+     * @param recipient The address of the recipient of the rewards
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
      * @param amount The amount claimed
      */
-    event Claimed(address indexed account, uint64 startEpoch, uint64 endEpoch, uint256 amount);
+    event Claimed(
+        address indexed account, address indexed recipient, uint64 startEpoch, uint64 endEpoch, uint256 amount
+    );
 
     /**
      * @notice Custom error when called function is not by PufferVault
