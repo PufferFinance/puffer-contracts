@@ -143,8 +143,10 @@ contract L2RewardManagerTest is Test {
             rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams =
-            IPufferVaultV3.BridgingParams({ bridgingType: IPufferVaultV3.BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) });
+        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
+            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+            data: abi.encode(bridgingCalldata)
+        });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
