@@ -41,7 +41,7 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         address to;
         bytes data;
     }
-    
+
     // List of non-empty transactions
     string[] legitTransactions;
 
@@ -214,7 +214,7 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
             // Filter out empty txs
             if (transactions[i].to == address(0) || transactions[i].data.length == 0) {
                 continue;
-            } 
+            }
 
             vm.serializeAddress(singleTx, "to", transactions[i].to);
             vm.serializeString(singleTx, "value", "\"0\"");
