@@ -23,7 +23,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
      * @notice EIP-712 type hash
      */
     bytes32 internal constant _MIGRATE_TYPEHASH = keccak256(
-        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce)"
+        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce,uint256 chainId)"
     );
 
     /**
@@ -149,7 +149,8 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
                 address(TOKEN),
                 amount,
                 signatureExpiry,
-                _useNonce(depositor)
+                _useNonce(depositor),
+                block.chainid
             )
         );
 
