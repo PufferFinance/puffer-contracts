@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { EpochRecord } from "./struct/L2RewardManagerInfo.sol";
+
 /**
  * @title L2RewardManagerStorage
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
 abstract contract L2RewardManagerStorage {
-    struct RateAndRoot {
-        uint256 ethToPufETHRate;
-        bytes32 rewardRoot;
-    }
-
     /**
      * @custom:storage-location erc7201:L2RewardManager.storage
      * @dev +-----------------------------------------------------------+
@@ -24,11 +21,11 @@ abstract contract L2RewardManagerStorage {
         /**
          * @notice Mapping to track the exchange rate from ETH to pufETH and reward root for each unique epoch range
          */
-        mapping(uint64 startEpoch => mapping(uint64 endEpoch => RateAndRoot)) rateAndRoots;
+        mapping(uint256 startEpoch => mapping(uint256 endEpoch => EpochRecord)) epochRecords;
         /**
          * @notice Mapping to track claimed tokens for users for each unique epoch range
          */
-        mapping(uint64 startEpoch => mapping(uint64 endEpoch => mapping(address account => bool claimed)))
+        mapping(uint256 startEpoch => mapping(uint256 endEpoch => mapping(address account => bool claimed)))
             claimedRewards;
         /**
          * @notice Mapping to track the custom claimer set by specific accounts

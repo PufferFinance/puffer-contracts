@@ -10,7 +10,7 @@ import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { ClaimOrder } from "./struct/ClaimOrder.sol";
+import { ClaimOrder, EpochRecord } from "./struct/L2RewardManagerInfo.sol";
 
 /**
  * @title L2RewardManager
@@ -50,15 +50,23 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function isClaimed(uint64 startEpoch, uint64 endEpoch, address account) public view returns (bool) {
+    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) public view returns (bool) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.claimedRewards[startEpoch][endEpoch][account];
     }
 
     /**
      * @inheritdoc IL2RewardManager
-     * // todo restricted = Assign bridge role to allowed bridges.
      */
+    function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.epochRecords[startEpoch][endEpoch];
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    // TODO restricted = Assign bridge role to allowed bridges.
     function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
         external
         override(IL2RewardManager, IXReceiver)
@@ -92,7 +100,7 @@ contract L2RewardManager is
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            RateAndRoot storage rateAndRoot = $.rateAndRoots[claimOrder.startEpoch][claimOrder.endEpoch];
+            EpochRecord storage epochRecord = $.epochRecords[claimOrder.startEpoch][claimOrder.endEpoch];
 
             // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
             bytes32 leaf = keccak256(
@@ -102,14 +110,14 @@ contract L2RewardManager is
                     )
                 )
             );
-            if (!MerkleProof.verify(claimOrder.merkleProof, rateAndRoot.rewardRoot, leaf)) {
+            if (!MerkleProof.verify(claimOrder.merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
             }
 
             // Mark it claimed and transfer the tokens
             $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][claimOrder.account] = true;
 
-            uint256 amountToTransfer = claimOrder.amount * rateAndRoot.ethToPufETHRate / 1 ether;
+            uint256 amountToTransfer = claimOrder.amount * epochRecord.ethToPufETHRate / 1 ether;
 
             address recipient = $.rewardsClaimers[claimOrder.account] == address(0)
                 ? claimOrder.account
@@ -128,8 +136,8 @@ contract L2RewardManager is
         }
     }
 
-    function _handleMintAndBridge(uint256 amount, uint256 ethToPufETH, bytes calldata data) internal {
-        IPufferVaultV3.MintAndBridgeParams memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeParams));
+    function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
+        IPufferVaultV3.MintAndBridgeData memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeData));
 
         // Validate that the exchange rate is correct //@todo might be problematic, but it shouldnt
         if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
@@ -139,8 +147,8 @@ contract L2RewardManager is
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         // Store the rate and root
-        $.rateAndRoots[params.startEpoch][params.endEpoch] =
-            RateAndRoot({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
+        $.epochRecords[params.startEpoch][params.endEpoch] =
+            EpochRecord({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
 
         emit RewardRootAndRatePosted({
             rewardsAmount: params.rewardsAmount,
@@ -151,7 +159,7 @@ contract L2RewardManager is
         });
     }
 
-    function _handleSetClaimer(bytes calldata data) internal {
+    function _handleSetClaimer(bytes memory data) internal {
         IPufferVaultV3.SetClaimerParams memory claimerParams = abi.decode(data, (IPufferVaultV3.SetClaimerParams));
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();

@@ -5,23 +5,21 @@ import { L2RewardManager } from "../../src/L2RewardManager.sol";
 
 contract BridgeMock {
     function xcall(
-        uint32 _destination,
-        address _to,
-        address _asset,
-        address _delegate,
-        uint256 _amount,
+        uint32 destination,
+        address to,
+        address asset,
+        address delegate,
+        uint256 amount,
         uint256,
-        bytes calldata _callData
-    ) external payable returns (bytes32) {
-        L2RewardManager(_to).xReceive(
-            keccak256(abi.encodePacked(_to, uint128(_amount), _asset, _delegate, _callData)), // transferId
-            uint128(_amount),
-            _asset,
+        bytes calldata callData
+    ) external payable returns (bytes memory) {
+        L2RewardManager(to).xReceive(
+            keccak256(abi.encodePacked(to, amount, asset, delegate, callData)), // transferId
+            amount,
+            asset,
             msg.sender,
-            _destination,
-            _callData
+            destination,
+            callData
         );
-
-        return keccak256(abi.encodePacked(uint128(_amount)));
     }
 }

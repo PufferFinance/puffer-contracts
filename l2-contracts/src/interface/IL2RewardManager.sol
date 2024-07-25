@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ClaimOrder } from "../struct/ClaimOrder.sol";
+import { ClaimOrder, EpochRecord } from "../struct/L2RewardManagerInfo.sol";
+import { L2RewardManagerStorage } from "../L2RewardManagerStorage.sol";
 
 /**
  * @title IL2RewardManager
@@ -16,7 +17,15 @@ interface IL2RewardManager {
      * @param account The address of the account to check
      * @return bool indicating whether the reward has been claimed
      */
-    function isClaimed(uint64 startEpoch, uint64 endEpoch, address account) external view returns (bool);
+    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) external view returns (bool);
+
+    /**
+     * @notice Get the epoch record for a specific period
+     * @param startEpoch The start epoch of the interval
+     * @param endEpoch The end epoch of the interval
+     * @return EpochRecord The epoch record of exchange rate and reward root
+     */
+    function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory);
 
     /**
      * @notice The receiver function as required by the IXReceiver interface.
@@ -55,7 +64,7 @@ interface IL2RewardManager {
      * @param root The merkle root of the rewards
      */
     event RewardRootAndRatePosted(
-        uint128 rewardsAmount, uint128 ethToPufETHRate, uint64 startEpoch, uint64 endEpoch, bytes32 root
+        uint256 rewardsAmount, uint256 ethToPufETHRate, uint256 startEpoch, uint256 endEpoch, bytes32 root
     );
 
     /**
@@ -74,7 +83,7 @@ interface IL2RewardManager {
      * @param amount The amount claimed
      */
     event Claimed(
-        address indexed account, address indexed recipient, uint64 startEpoch, uint64 endEpoch, uint256 amount
+        address indexed account, address indexed recipient, uint256 startEpoch, uint256 endEpoch, uint256 amount
     );
 
     /**
@@ -95,7 +104,7 @@ interface IL2RewardManager {
     /**
      * @notice Custom error for already claimed rewards
      */
-    error AlreadyClaimed(uint64 startEpoch, uint64 endEpoch, address account);
+    error AlreadyClaimed(uint256 startEpoch, uint256 endEpoch, address account);
 
     /**
      * @notice Custom error for invalid proof
