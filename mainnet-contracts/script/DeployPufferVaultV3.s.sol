@@ -35,7 +35,7 @@ import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
 import { IGuardianModule } from "../src/interface/IGuardianModule.sol";
 import { BridgeMock } from "../test/mocks/BridgeMock.sol";
-import { L2RewardManager } from "../src/l2-contracts/L2RewardManager.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 
 /**
  * @title DeployPufferVaultV3

@@ -9,7 +9,7 @@ import { ROLE_ID_BRIDGE } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { Timelock } from "../src/Timelock.sol";
-import { L2RewardManager } from "../src/l2-contracts/L2RewardManager.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 /**
  * @title DeployL2RewardManager
  * @author Puffer Finance
