@@ -7,10 +7,12 @@ import { Permit } from "../../mainnet-contracts/src/structs/Permit.sol";
 import { ValidatorKeyData } from "mainnet-contracts/src/struct/ValidatorKeyData.sol";
 import { IPufferProtocol } from "mainnet-contracts/src/interface/IPufferProtocol.sol";
 import { PufferProtocol } from "mainnet-contracts/src/PufferProtocol.sol";
+import { ModuleLimit } from "mainnet-contracts/src/struct/ProtocolStorage.sol";
 import { PufferVaultV2 } from "mainnet-contracts/src/PufferVaultV2.sol";
 import { ValidatorTicket } from "mainnet-contracts/src/ValidatorTicket.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * See the docs for more detailed information: https://docs.puffer.fi/nodes/registration#batch-registering-validators
@@ -39,6 +41,15 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         address to;
         bytes data;
     }
+
+    // List of non-empty transactions
+    string[] legitTransactions;
+
+    // Internal counter for how many validators we plan on registering to a certain module
+    mapping(bytes32 moduleName => uint256 thisScriptRegistrations) internal moduleRegistrations;
+
+    // If the module has limit - moduleEndBuffer validators, we will not register to that module
+    uint256 moduleEndBuffer = 10;
 
     function setUp() public {
         if (block.chainid == 17000) {
@@ -72,7 +83,8 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         }
 
         uint256 numberOfValidators = vm.promptUint("How many validators would you like to register?");
-        require(numberOfValidators > 0, "Number of validators must be greater than 0");
+        require(numberOfValidators > 0, "Number of validators must > 0");
+        require(numberOfValidators < 51, "Number of validators must be <= 50");
 
         uint256 vtAmount = vm.promptUint("Enter the VT amount per validator (28 is minimum)");
         require(vtAmount >= 28, "VT amount must be at least 28");
@@ -96,7 +108,15 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         transactions[0] = Tx({ to: validatorTicketAddress, data: approveVTCalldata });
         transactions[1] = Tx({ to: address(pufETH), data: approvePufETHCalldata });
 
-        for (uint256 i = 0; i < numberOfValidators; ++i) {
+        uint256 i = 0;
+        bytes32 lastSkippedModuleName;
+
+        // Keep iterating over the modules until we have registered `numberOfValidators`
+        while (true) {
+            if (registeredPubKeys.length == numberOfValidators) {
+                break;
+            }
+
             // Select the module to register to
             bytes32 moduleName = moduleWeights[(moduleSelectionIndex + i) % moduleWeights.length];
 
@@ -104,6 +124,29 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
             if (moduleToRegisterTo != bytes32(0)) {
                 require(pufferProtocol.getModuleAddress(moduleToRegisterTo) != address(0), "Invalid Puffer Module");
                 moduleName = moduleToRegisterTo;
+            }
+
+            ModuleLimit memory moduleLimit = pufferProtocol.getModuleLimitInformation(moduleName);
+
+            // We assume that the TX will not be executed right away, because of that we have `moduleEndBuffer` to stop registrations to that module if it's almost full.
+            // +1 is to account for the current registration
+            if (
+                (moduleLimit.numberOfRegisteredValidators + moduleRegistrations[moduleName] + 1)
+                    > (moduleLimit.allowedLimit - moduleEndBuffer)
+            ) {
+                ++i;
+                // Infinite loop protection, This will happen if the user selects a Puffer Module that is almost full
+                if (moduleName == lastSkippedModuleName) {
+                    console.log(
+                        "The selected Puffer module doesn't have the capacity to register more validators, please select another module"
+                    );
+                    console.log(registeredPubKeys.length, " validators can be registered to that Puffer module");
+                    break;
+                }
+
+                // console.log("Skipping module: ", string(abi.encodePacked(moduleName)));
+                lastSkippedModuleName = moduleName;
+                continue;
             }
 
             _generateValidatorKey(i, moduleName);
@@ -135,14 +178,16 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
             transactions[i + 2] = Tx({ to: protocolAddress, data: registerValidatorKeyCalldata });
 
             registeredPubKeys.push(validatorData.blsPubKey);
+            moduleRegistrations[moduleName] += 1;
+            ++i;
         }
 
         // Create Safe TX JSON
         _createSafeJson(safe, transactions);
 
         console.log("Validator PubKeys:");
-        for (uint256 i = 0; i < registeredPubKeys.length; ++i) {
-            console.logBytes(registeredPubKeys[i]);
+        for (uint256 j = 0; j < registeredPubKeys.length; ++j) {
+            console.logBytes(registeredPubKeys[j]);
         }
     }
 
@@ -163,17 +208,20 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         vm.serializeString(meta, "checksum", "");
         string memory metaOutput = vm.serializeString(meta, "description", "");
 
-        string[] memory txs = new string[](transactions.length);
-
         for (uint256 i = 0; i < transactions.length; ++i) {
             string memory singleTx = "tx";
 
+            // Filter out empty txs
+            if (transactions[i].to == address(0) || transactions[i].data.length == 0) {
+                continue;
+            }
+
             vm.serializeAddress(singleTx, "to", transactions[i].to);
             vm.serializeString(singleTx, "value", "\"0\"");
-            txs[i] = vm.serializeBytes(singleTx, "data", transactions[i].data);
+            legitTransactions.push(vm.serializeBytes(singleTx, "data", transactions[i].data));
         }
 
-        vm.serializeString(root, "transactions", txs);
+        vm.serializeString(root, "transactions", legitTransactions);
         string memory finalJson = vm.serializeString(root, "meta", metaOutput);
         vm.writeJson(finalJson, "./safe-registration-file.json");
 
