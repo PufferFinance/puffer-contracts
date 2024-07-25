@@ -176,6 +176,7 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
 
             registeredPubKeys.push(validatorData.blsPubKey);
             moduleRegistrations[moduleName] += 1;
+            ++i;
         }
 
         // Create Safe TX JSON
