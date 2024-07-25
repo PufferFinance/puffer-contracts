@@ -195,17 +195,17 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         // First we need to craft the JSON file for the transactions batch
         string memory root = "root";
 
-        vm.serializeString(root, "version", "\"1.0\"");
+        vm.serializeString(root, "version", "1.0");
         vm.serializeUint(root, "createdAt", block.timestamp * 1000);
         // Needs to be a string
-        vm.serializeString(root, "chainId", string.concat("\"", Strings.toString(block.chainid), "\""));
+        vm.serializeString(root, "chainId", Strings.toString(block.chainid));
 
         string memory meta = "meta";
         vm.serializeString(meta, "name", "Transactions Batch");
-        vm.serializeString(meta, "txBuilderVersion", "\"1.16.5\"");
+        vm.serializeString(meta, "txBuilderVersion", "1.16.5");
         vm.serializeAddress(meta, "createdFromSafeAddress", safe);
         vm.serializeString(meta, "createdFromOwnerAddress", "");
-        vm.serializeString(meta, "checksum", "");
+        vm.serializeString(meta, "checksum", ""); //@todo Add checksum
         string memory metaOutput = vm.serializeString(meta, "description", "");
 
         for (uint256 i = 0; i < transactions.length; ++i) {
@@ -217,20 +217,13 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
             }
 
             vm.serializeAddress(singleTx, "to", transactions[i].to);
-            vm.serializeString(singleTx, "value", "\"0\"");
+            vm.serializeString(singleTx, "value", "0");
             legitTransactions.push(vm.serializeBytes(singleTx, "data", transactions[i].data));
         }
 
         vm.serializeString(root, "transactions", legitTransactions);
         string memory finalJson = vm.serializeString(root, "meta", metaOutput);
         vm.writeJson(finalJson, "./safe-registration-file.json");
-
-        // Because foundry doesn't support creating JSON array of objects, we need to run NodeJS script to convert this to a valid JSON
-
-        string[] memory inputs = new string[](2);
-        inputs[0] = "node";
-        inputs[1] = "parse-foundry-json";
-        vm.ffi(inputs);
     }
 
     // Validates the pufETH and VT balances for the `safe` (node operator)
