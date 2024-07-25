@@ -41,6 +41,9 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         address to;
         bytes data;
     }
+    
+    // List of non-empty transactions
+    string[] legitTransactions;
 
     // Internal counter for how many validators we plan on registering to a certain module
     mapping(bytes32 moduleName => uint256 thisScriptRegistrations) internal moduleRegistrations;
@@ -205,17 +208,20 @@ contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
         vm.serializeString(meta, "checksum", "");
         string memory metaOutput = vm.serializeString(meta, "description", "");
 
-        string[] memory txs = new string[](transactions.length);
-
         for (uint256 i = 0; i < transactions.length; ++i) {
             string memory singleTx = "tx";
 
+            // Filter out empty txs
+            if (transactions[i].to == address(0) || transactions[i].data.length == 0) {
+                continue;
+            } 
+
             vm.serializeAddress(singleTx, "to", transactions[i].to);
             vm.serializeString(singleTx, "value", "\"0\"");
-            txs[i] = vm.serializeBytes(singleTx, "data", transactions[i].data);
+            legitTransactions.push(vm.serializeBytes(singleTx, "data", transactions[i].data));
         }
 
-        vm.serializeString(root, "transactions", txs);
+        vm.serializeString(root, "transactions", legitTransactions);
         string memory finalJson = vm.serializeString(root, "meta", metaOutput);
         vm.writeJson(finalJson, "./safe-registration-file.json");
 
