@@ -50,7 +50,7 @@ contract PufferL2Staking is UnitTestHelper {
      * @notice EIP-712 type hash
      */
     bytes32 internal constant _MIGRATE_TYPEHASH = keccak256(
-        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce)"
+        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce,uint256 chainId)"
     );
 
     PufferL2Depositor depositor;
@@ -357,8 +357,11 @@ contract PufferL2Staking is UnitTestHelper {
         // get bobs SK
         (, uint256 bobSK) = makeAddrAndKey("bob");
 
-        bytes32 innerHash =
-            keccak256(abi.encode(_MIGRATE_TYPEHASH, bob, mockMigrator, bob, address(dai), amount, signatureExpiry, 0)); // nonce is 0
+        bytes32 innerHash = keccak256(
+            abi.encode(
+                _MIGRATE_TYPEHASH, bob, mockMigrator, bob, address(dai), amount, signatureExpiry, 0, block.chainid
+            )
+        ); // nonce is 0
         bytes32 outerHash = keccak256(abi.encodePacked("\x19\x01", pufToken.DOMAIN_SEPARATOR(), innerHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bobSK, outerHash);
 
