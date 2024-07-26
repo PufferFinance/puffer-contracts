@@ -10,5 +10,7 @@
 
 mainnet-contracts/out/*
 mainnet-contracts/cache/*
+l2-contracts/out/*
+l2-contracts/cache/*
 
 .DS_Store

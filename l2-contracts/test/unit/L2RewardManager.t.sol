@@ -31,6 +31,7 @@ contract L2RewardManagerTest is Test {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
+
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
     uint256 rewardsAmount;
@@ -62,10 +63,6 @@ contract L2RewardManagerTest is Test {
         calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(mockBridge), 0);
 
         accessManager.multicall(calldatas);
-
-        // Deal some tokens to the contract and test accounts
-        deal(address(xPufETH), address(this), 1000 ether);
-        deal(address(xPufETH), address(l2RewardManager), 1000 ether);
     }
 
     function test_MintAndBridgeRewardsSuccess() public {
@@ -162,7 +159,7 @@ contract L2RewardManagerTest is Test {
 
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
-        // vm.deal(l2RewardManager, rewardsAmount);
+        deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
 
         ethToPufETHRate = 1 ether;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
@@ -308,6 +305,8 @@ contract L2RewardManagerTest is Test {
         // total reward amount calculated for merkle tree
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
+        deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
+
         // the exchange rate is changed to 1ether-> 0.9 ether
         ethToPufETHRate = 0.9 ether;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
@@ -330,7 +329,7 @@ contract L2RewardManagerTest is Test {
 
         // total xPufETH amount to be minted and bridged
         // this amount is calculated based on the exchange rate
-        amountAdjustedForExchangeRate = rewardsAmount * ethToPufETHRate / 1 ether;
+        amountAdjustedForExchangeRate = (rewardsAmount * ethToPufETHRate) / 1 ether;
 
         vm.startPrank(l1_vault);
 
@@ -375,6 +374,98 @@ contract L2RewardManagerTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
+    }
+
+    function testFuzz_rewardsClaiming(
+        uint256 ethToPufETH,
+        uint256 aliceAmount,
+        uint256 bobAmount,
+        uint256 charlieAmount
+    ) public {
+        ethToPufETH = bound(ethToPufETH, 0.98 ether, 0.999 ether);
+
+        // Randomize the rewards amount
+        aliceAmount = bound(aliceAmount, 0, 3 ether);
+        bobAmount = bound(bobAmount, 0, 0.1 ether);
+        charlieAmount = bound(charlieAmount, 0, 5 ether);
+
+        // Build merkle proof data
+        MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
+        merkleProofDatas[0] =
+            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: aliceAmount });
+        merkleProofDatas[1] =
+            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: bobAmount });
+        merkleProofDatas[2] =
+            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: charlieAmount });
+
+        // total reward amount calculated for merkle tree
+        rewardsAmount = aliceAmount + bobAmount + charlieAmount;
+        rewardsRoot = _buildMerkleProof(merkleProofDatas);
+
+        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+            rewardsAmount: rewardsAmount,
+            ethToPufETHRate: ethToPufETH,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: rewardsRoot,
+            rewardsURI: "uri"
+        });
+
+        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
+            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+            data: abi.encode(bridgingCalldata)
+        });
+        bytes memory encodedCallData = abi.encode(bridgingParams);
+
+        // Lockbox is address(0), we are siimulating minting on L2 this way
+        vm.startPrank(address(0));
+        xPufETH.mint(address(l2RewardManager), ((rewardsAmount * ethToPufETH) / 1 ether));
+
+        vm.startPrank(address(mockBridge));
+        l2RewardManager.xReceive(
+            bytes32(0),
+            ((rewardsAmount * ethToPufETH) / 1 ether),
+            address(xPufETH),
+            address(l1_vault),
+            0,
+            encodedCallData
+        );
+
+        bytes32[][] memory merkleProofs = new bytes32[][](3);
+        merkleProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+        merkleProofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
+        merkleProofs[2] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 2);
+
+        ClaimOrder[] memory claimOrders = new ClaimOrder[](3);
+        claimOrders[0] = ClaimOrder({
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            account: alice,
+            amount: aliceAmount,
+            merkleProof: merkleProofs[0]
+        });
+        claimOrders[1] = ClaimOrder({
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            account: bob,
+            amount: bobAmount,
+            merkleProof: merkleProofs[1]
+        });
+        claimOrders[2] = ClaimOrder({
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            account: charlie,
+            amount: charlieAmount,
+            merkleProof: merkleProofs[2]
+        });
+
+        l2RewardManager.claimRewards(claimOrders);
+
+        // The reward manager might have some dust left
+        // Since we have 3 claimers, if each of the claimers has a difference of 1 wei, that is acceptable
+        assertApproxEqAbs(
+            xPufETH.balanceOf(address(l2RewardManager)), 0, 3, "l2rewardManager should end with zero balance"
+        );
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {

@@ -1,0 +1,69 @@
+name: L2 contracts
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "l2-contracts/**"
+  pull_request:
+    paths:
+      - "l2-contracts/**"
+
+jobs:
+#   codespell:
+#       name: Check for spelling errors
+#       runs-on: ubuntu-latest
+
+#       steps:
+#         - name: Checkout
+#           uses: actions/checkout@v4
+#           with:
+#             fetch-depth: 0
+
+#         - name: Codespell
+#           uses: codespell-project/actions-codespell@v2.0
+#           with:
+#             check_hidden: true
+#             check_filenames: true
+#             ignore_words_list: amountIn
+#             skip: package-lock.json,*.pdf,./.git,yarn.lock
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.12.1
+      
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+          node-version: 20
+
+      - name: Branch name
+        run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+
+      - name: Install yarn
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install # will run `yarn install` command
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        # with: 
+        #   version: nightly-de33b6af53005037b463318d2628b5cfcaf39916
+
+      - name: Run tests
+        working-directory: l2-contracts
+        run: forge test -vvv --match-path './test/unit/*'
+
+      - name: forge fmt
+        working-directory: l2-contracts
+        run: forge fmt
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "forge fmt"
+          file_pattern: '*.sol'
