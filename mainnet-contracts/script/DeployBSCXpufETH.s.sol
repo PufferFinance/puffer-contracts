@@ -23,7 +23,6 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  *       forge script script/DeployBSCXpufETH.s.sol:DeployBSCXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployBSCXpufETH is BaseScript {
-
     // TODO: change these addresses for bsc
     address OPERATIONS_MULTISIG = 0x37bEbCdB82E9428B89eEaB55288da70322079c46;
     address COMMUNITY_MULTISIG = 0xd817733f3c5211e35Bc0df56c48118321b837dc1;
