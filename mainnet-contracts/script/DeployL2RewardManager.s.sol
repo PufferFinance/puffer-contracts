@@ -7,9 +7,9 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { BaseScript } from "./BaseScript.s.sol";
 import { ROLE_ID_BRIDGE } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { Timelock } from "../src/Timelock.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
+import { IL2RewardManager } from "l2-contracts/src/interface/IL2RewardManager.sol";
+
 /**
  * @title DeployL2RewardManager
  * @author Puffer Finance
@@ -26,7 +26,6 @@ import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
  *
  *         PK=${deployer_pk} forge script script/DeployL2RewardManager.s.sol:DeployL2RewardManager -vvvv --rpc-url=... --broadcast
  */
-
 contract DeployL2RewardManager is BaseScript {
     address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
     address L1_PUFFER_VAULT = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9; //@todo change for mainnet
@@ -46,20 +45,15 @@ contract DeployL2RewardManager is BaseScript {
         console.log("L2RewardManager Proxy", address(proxy));
 
         bytes[] memory calldatas = new bytes[](2);
+
         bytes4[] memory bridgeSelectors = new bytes4[](1);
         bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
+
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(l2RewardManager),
-            bridgeSelectors,
-            ROLE_ID_BRIDGE
+            AccessManager.setTargetFunctionRole.selector, address(proxy), bridgeSelectors, ROLE_ID_BRIDGE
         );
-        calldatas[1] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector,
-            ROLE_ID_BRIDGE,
-            CONNEXT_BRIDGE,
-            0
-        );
+        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, CONNEXT_BRIDGE, 0);
+
         accessManager.multicall(calldatas);
     }
 }
