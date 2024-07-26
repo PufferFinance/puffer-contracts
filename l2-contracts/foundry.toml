@@ -14,7 +14,7 @@ auto_detect_solc = false
 optimizer = true
 optimizer_runs = 200
 evm_version = "cancun" # is live on mainnet
-seed = "0x1337"
+# seed = "0x1337"
 solc = "0.8.26"
 # via_ir = true
 
@@ -35,3 +35,6 @@ holesky="${HOLESKY_RPC_URL}"
 fail_on_revert=false
 depth = 110
 runs = 50
+
+[fuzz]
+runs = 50000

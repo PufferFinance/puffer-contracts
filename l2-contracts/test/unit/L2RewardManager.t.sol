@@ -462,10 +462,15 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.claimRewards(claimOrders);
 
         // The reward manager might have some dust left
-        // Since we have 3 claimers, if each of the claimers has a difference of 1 wei, that is acceptable
+        // 2 wei rounding allowed
         assertApproxEqAbs(
-            xPufETH.balanceOf(address(l2RewardManager)), 0, 3, "l2rewardManager should end with zero balance"
+            xPufETH.balanceOf(address(l2RewardManager)), 0, 2, "l2rewardManager should end with zero balance"
         );
+
+        // We need to upscale by *1 ether, because if the aliceBalance is very small, it rounds to 0
+        assertApproxEqAbs((xPufETH.balanceOf(alice) * 1 ether / ethToPufETH), aliceAmount, 2, "Alice ETH amount");
+        assertApproxEqAbs((xPufETH.balanceOf(bob) * 1 ether / ethToPufETH), bobAmount, 2, "Bob ETH amount");
+        assertApproxEqAbs((xPufETH.balanceOf(charlie) * 1 ether / ethToPufETH), charlieAmount, 2, "Charlie ETH amount");
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {

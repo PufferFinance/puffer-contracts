@@ -21,5 +21,7 @@ contract BridgeMock {
             destination,
             callData
         );
+
+        return "";
     }
 }
