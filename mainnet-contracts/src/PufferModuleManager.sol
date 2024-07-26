@@ -346,6 +346,17 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
+    function callStartCheckpoint(address[] calldata moduleAddresses) external virtual restricted {
+        for (uint256 i = 0; i < moduleAddresses.length; i++) {
+            // reverts if supplied with a duplicate module address
+            IPufferModule(moduleAddresses[i]).startCheckpoint();
+        }
+    }
+
+    /**
+     * @inheritdoc IPufferModuleManager
+     * @dev Restricted to the DAO
+     */
     function callDeregisterOperatorFromAVS(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,

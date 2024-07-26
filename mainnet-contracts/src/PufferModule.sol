@@ -190,6 +190,15 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function startCheckpoint() external virtual onlyPufferModuleManager {
+        ModuleStorage storage $ = _getPufferModuleStorage();
+        $.eigenPod.startCheckpoint({ revertIfNoBalance: true });
+    }
+
+    /**
      * @dev Restricted to PufferProtocol
      */
     function call(address to, uint256 amount, bytes calldata data)

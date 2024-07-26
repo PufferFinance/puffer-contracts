@@ -220,6 +220,11 @@ interface IPufferModuleManager {
     function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external;
 
     /**
+     * @notice Starts the checkpointing on puffer modules
+     */
+    function callStartCheckpoint(address[] calldata moduleAddresses) external;
+
+    /**
      * @notice Calls the modifyOperatorDetails function on the restaking operator
      * @param restakingOperator is the address of the restaking operator
      * @dev See IDelegationManager(EigenLayer) for more details about the other parameters

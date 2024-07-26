@@ -114,6 +114,11 @@ interface IPufferModule {
     ) external;
 
     /**
+     * @notice Starts the checkpoint for the module
+     */
+    function startCheckpoint() external;
+
+    /**
      * @notice Function callable only by PufferProtocol
      * @param to is the destination address
      * @param amount is the ETH amount in wei
