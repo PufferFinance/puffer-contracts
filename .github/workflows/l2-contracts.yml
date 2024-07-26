@@ -56,7 +56,7 @@ jobs:
 
       - name: Run tests
         working-directory: l2-contracts
-        run: forge test -vvv --match-path './test/unit/*'
+        run: export FOUNDRY_PROFILE=ci && forge test -vvv --match-path './test/unit/*'
 
       - name: forge fmt
         working-directory: l2-contracts

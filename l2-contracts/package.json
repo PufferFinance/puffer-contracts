@@ -42,7 +42,7 @@
     "build": "forge build",
     "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
     "lint": "yarn run lint:sol",
-    "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
+    "test:unit": "FOUNDRY_PROFILE=dev && forge test --mp \"./test/unit/**/*.sol\" -vvv",
     "slither": "slither ."
   }
 }
