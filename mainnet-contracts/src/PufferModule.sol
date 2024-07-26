@@ -10,14 +10,10 @@ import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
-import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { Unauthorized } from "./Errors.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
@@ -45,11 +41,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IDelayedWithdrawalRouter public immutable EIGEN_WITHDRAWAL_ROUTER;
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     */
     IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**
@@ -69,12 +60,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
-        IDelayedWithdrawalRouter eigenWithdrawalRouter,
         IDelegationManager delegationManager,
         IPufferModuleManager moduleManager
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
-        EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
         PUFFER_MODULE_MANAGER = moduleManager;
@@ -126,6 +115,15 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @inheritdoc IPufferModule
+     */
+    function setProofSubmitter(address proofSubmitter) external onlyPufferProtocol {
+        ModuleStorage storage $ = _getPufferModuleStorage();
+
+        $.eigenPod.setProofSubmitter(proofSubmitter);
+    }
+
+    /**
+     * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
     function queueWithdrawals(uint256 shareAmount)
@@ -173,30 +171,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function verifyAndProcessWithdrawals(
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields,
-        bytes32[][] calldata withdrawalFields
-    ) external virtual whenNotPaused onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        $.eigenPod.verifyAndProcessWithdrawals({
-            oracleTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            withdrawalProofs: withdrawalProofs,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields,
-            withdrawalFields: withdrawalFields
-        });
-    }
-
-    /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
-     */
     function verifyWithdrawalCredentials(
         uint64 oracleTimestamp,
         BeaconChainProofs.StateRootProof calldata stateRootProof,
@@ -207,22 +181,12 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.verifyWithdrawalCredentials({
-            oracleTimestamp: oracleTimestamp,
+            beaconTimestamp: oracleTimestamp,
             stateRootProof: stateRootProof,
             validatorIndices: validatorIndices,
-            withdrawalCredentialProofs: validatorFieldsProofs,
+            validatorFieldsProofs: validatorFieldsProofs,
             validatorFields: validatorFields
         });
-    }
-
-    /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
-     */
-    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external virtual onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        $.eigenPod.withdrawNonBeaconChainETHBalanceWei(address(this), amountToWithdraw);
     }
 
     /**
@@ -235,78 +199,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     {
         // slither-disable-next-line arbitrary-send-eth
         return to.call{ value: amount }(data);
-    }
-
-    /**
-     * @notice Submit a valid MerkleProof all their validators' staking rewards will be sent to node operator
-     * @dev Anybody can trigger a claim of the rewards for any node operator as long as the proofs submitted are valid
-     *
-     * @param node is a node operator's wallet address
-     * @param blockNumbers is the array of block numbers for which the sender is claiming the rewards
-     * @param amounts is the array of amounts to claim
-     * @param merkleProofs is the array of Merkle proofs
-     */
-    function collectRewards(
-        address node,
-        uint256[] calldata blockNumbers,
-        uint256[] calldata amounts,
-        bytes32[][] calldata merkleProofs
-    ) external virtual whenNotPaused {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        // Anybody can submit a valid proof and the ETH will be sent to the node operator
-        uint256 ethToSend = 0;
-
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            if ($.claimedRewards[blockNumbers[i]][node]) {
-                revert AlreadyClaimed(blockNumbers[i], node);
-            }
-
-            bytes32 rewardsRoot = $.rewardsRoots[blockNumbers[i]];
-            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(node, amounts[i]))));
-
-            if (MerkleProof.verifyCalldata(merkleProofs[i], rewardsRoot, leaf)) {
-                $.claimedRewards[blockNumbers[i]][node] = true;
-                ethToSend += amounts[i];
-            }
-        }
-
-        if (ethToSend == 0) {
-            revert NothingToClaim(node);
-        }
-
-        payable(node).sendValue(ethToSend);
-        emit RewardsClaimed(node, ethToSend);
-    }
-
-    /**
-     * @notice Posts the rewards root for this module
-     * @param root is the Merkle Root hash
-     * @param blockNumber is the block number for when the Merkle Proof was generated
-     */
-    function postRewardsRoot(bytes32 root, uint256 blockNumber, bytes[] calldata guardianSignatures)
-        external
-        virtual
-        whenNotPaused
-    {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        if (blockNumber <= $.lastProofOfRewardsBlockNumber) {
-            revert InvalidBlockNumber(blockNumber);
-        }
-
-        IGuardianModule guardianModule = PUFFER_PROTOCOL.GUARDIAN_MODULE();
-
-        bytes32 signedMessageHash = LibGuardianMessages._getModuleRewardsRootMessage($.moduleName, root, blockNumber);
-
-        bool validSignatures = guardianModule.validateGuardiansEOASignatures(guardianSignatures, signedMessageHash);
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
-
-        $.lastProofOfRewardsBlockNumber = blockNumber;
-        $.rewardsRoots[blockNumber] = root;
-        emit RewardsRootPosted(blockNumber, root);
     }
 
     /**

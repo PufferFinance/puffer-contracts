@@ -9,7 +9,6 @@ import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
@@ -62,7 +61,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         IRestakingOperator operator = _createRestakingOperator();
 
         IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
-            earningsReceiver: address(this),
+            __deprecated_earningsReceiver: address(this),
             delegationApprover: address(0),
             stakerOptOutWindowBlocks: 100
         });
@@ -75,7 +74,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
         assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
 
-        assertEq(details.earningsReceiver, address(this), "updated earnings");
+        assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
     }
 
     function test_update_metadata_uri() public {
@@ -253,7 +252,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
         assertEq(details.delegationApprover, address(0), "delegation approver");
         assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
-        assertEq(details.earningsReceiver, address(moduleManager), "earnings receiver");
+        assertEq(details.__deprecated_earningsReceiver, address(moduleManager), "earnings receiver");
 
         return operator;
     }

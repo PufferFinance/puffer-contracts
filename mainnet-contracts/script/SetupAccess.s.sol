@@ -77,7 +77,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](32);
+        calldatas = new bytes[](31);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -104,20 +104,19 @@ contract SetupAccess is BaseScript {
 
         calldatas[19] = moduleManagerAccess[0];
         calldatas[20] = moduleManagerAccess[1];
-        calldatas[21] = moduleManagerAccess[2];
 
-        calldatas[22] = roleLabels[0];
-        calldatas[23] = roleLabels[1];
-        calldatas[24] = roleLabels[2];
-        calldatas[25] = roleLabels[3];
+        calldatas[21] = roleLabels[0];
+        calldatas[22] = roleLabels[1];
+        calldatas[23] = roleLabels[2];
+        calldatas[24] = roleLabels[3];
 
-        calldatas[26] = coordinatorAccess[0];
-        calldatas[27] = coordinatorAccess[1];
+        calldatas[25] = coordinatorAccess[0];
+        calldatas[26] = coordinatorAccess[1];
 
-        calldatas[28] = validatorTicketAccess[0];
-        calldatas[29] = validatorTicketAccess[1];
-        calldatas[30] = validatorTicketAccess[2];
-        calldatas[31] = validatorTicketAccess[3];
+        calldatas[27] = validatorTicketAccess[0];
+        calldatas[28] = validatorTicketAccess[1];
+        calldatas[29] = validatorTicketAccess[2];
+        calldatas[30] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -139,7 +138,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](2);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](12);
@@ -161,28 +160,15 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](4);
+        bytes4[] memory botSelectors = new bytes4[](2);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
-        botSelectors[1] = PufferModuleManager.callVerifyAndProcessWithdrawals.selector;
-        botSelectors[2] = PufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei.selector;
-        botSelectors[3] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
+        botSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.moduleManager,
             botSelectors,
             ROLE_ID_OPERATIONS_PAYMASTER
-        );
-
-        // Public selectors
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferModuleManager.callVerifyWithdrawalCredentials.selector;
-
-        calldatas[2] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.moduleManager,
-            publicSelectors,
-            accessManager.PUBLIC_ROLE()
         );
 
         return calldatas;

@@ -517,6 +517,12 @@ domutils@^3.0.1:
   dependencies:
     solidity-docgen "^0.6.0-beta.32"
 
+"eigenlayer-contracts@https://github.com/Layr-Labs/eigenlayer-contracts.git#4478eb6":
+  version "1.0.0"
+  resolved "https://github.com/Layr-Labs/eigenlayer-contracts.git#4478eb6eff809c249921adb6f3af372dac3978f8"
+  dependencies:
+    solidity-docgen "^0.6.0-beta.32"
+
 "eigenlayer-middleware@https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a":
   version "1.0.0"
   resolved "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a8d2be12cea9fe07210566ca631ac9d711"
