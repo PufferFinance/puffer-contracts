@@ -42,7 +42,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
      * @inheritdoc IPufLocker
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, uint128 lockPeriod, Permit calldata permitData)
+    function deposit(address token, address recipient, uint128 lockPeriod, Permit calldata permitData)
         external
         isAllowedToken(token)
         restricted
@@ -55,8 +55,13 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         if (lockPeriod < $.minLockPeriod || lockPeriod > $.maxLockPeriod) {
             revert InvalidLockPeriod();
         }
-        // if the first 32 bytes of the signature is non-zero
-        if (permitData.r != 0) {
+
+        // The users that use a smart wallet and do not use the Permit and they do the .approve and then .deposit.
+        // They might get confused when they open Etherscan, and see:
+        // "Although one or more Error Occurred [execution reverted] Contract Execution Completed"
+
+        // To avoid that, we don't want to call the permit function if it is not necessary.
+        if (permitData.deadline >= block.timestamp) {
             // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
             try ERC20Permit(token).permit({
                 owner: msg.sender,
@@ -73,9 +78,9 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
 
         uint128 releaseTime = uint128(block.timestamp) + lockPeriod;
 
-        $.deposits[msg.sender][token].push(Deposit(uint128(permitData.amount), releaseTime));
+        $.deposits[recipient][token].push(Deposit(uint128(permitData.amount), releaseTime));
 
-        emit Deposited(msg.sender, token, uint128(permitData.amount), releaseTime);
+        emit Deposited(recipient, token, uint128(permitData.amount), releaseTime);
     }
 
     /**

@@ -10,6 +10,7 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { Permit } from "./structs/Permit.sol";
 import { IWETH } from "./interface/IWETH.sol";
 import { IPufferL2Depositor } from "./interface/IPufferL2Depositor.sol";
+import { IPufLocker } from "./interface/IPufLocker.sol";
 
 /**
  * @title Puffer L2 Depositor contract
@@ -25,11 +26,14 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
 
     address public immutable WETH;
 
+    IPufLocker public immutable PUFFER_LOCKER;
+
     mapping(address token => address pufToken) public tokens;
     mapping(address migrator => bool isAllowed) public isAllowedMigrator;
 
-    constructor(address accessManager, address weth) AccessManaged(accessManager) {
+    constructor(address accessManager, address weth, IPufLocker locker) AccessManaged(accessManager) {
         WETH = weth;
+        PUFFER_LOCKER = locker;
         _addNewToken(weth);
     }
 
@@ -44,13 +48,19 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deposit(address token, address account, Permit calldata permitData, uint256 referralCode)
-        external
-        onlySupportedTokens(token)
-        restricted
-    {
-        // if the first 32 bytes of the signature is non-zero
-        if (permitData.r != 0) {
+    function deposit(
+        address token,
+        address account,
+        Permit calldata permitData,
+        uint256 referralCode,
+        uint128 lockPeriod
+    ) external onlySupportedTokens(token) restricted {
+        // The users that use a smart wallet and do not use the Permit and they do the .approve and then .deposit.
+        // They might get confused when they open Etherscan, and see:
+        // "Although one or more Error Occurred [execution reverted] Contract Execution Completed"
+
+        // To avoid that, we don't want to call the permit function if it is not necessary.
+        if (permitData.deadline >= block.timestamp) {
             // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
             try ERC20Permit(token).permit({
                 owner: msg.sender,
@@ -66,6 +76,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
         IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);
 
         _deposit({
+            lockPeriod: lockPeriod,
             token: token,
             depositor: msg.sender,
             account: account,
@@ -78,10 +89,17 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      * @inheritdoc IPufferL2Depositor
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositETH(address account, uint256 referralCode) external payable restricted {
+    function depositETH(address account, uint256 referralCode, uint128 lockPeriod) external payable restricted {
         IWETH(WETH).deposit{ value: msg.value }();
 
-        _deposit({ token: WETH, depositor: msg.sender, account: account, amount: msg.value, referralCode: referralCode });
+        _deposit({
+            token: WETH,
+            depositor: msg.sender,
+            account: account,
+            amount: msg.value,
+            referralCode: referralCode,
+            lockPeriod: lockPeriod
+        });
     }
 
     /**
@@ -120,14 +138,30 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
      */
     function revertIfPaused() external restricted { }
 
-    function _deposit(address token, address depositor, address account, uint256 amount, uint256 referralCode)
-        internal
-    {
+    function _deposit(
+        address token,
+        address depositor,
+        address account,
+        uint256 amount,
+        uint256 referralCode,
+        uint128 lockPeriod
+    ) internal {
         PufToken pufToken = PufToken(tokens[token]);
 
         IERC20(token).safeIncreaseAllowance(address(pufToken), amount);
 
-        pufToken.deposit(depositor, account, amount);
+        // If the lockPeriod is greater than 0 we wrap and then deposit the wrapped tokens to the locker contract
+        if (lockPeriod > 0) {
+            pufToken.deposit(depositor, address(this), amount);
+            IERC20(address(pufToken)).safeIncreaseAllowance(address(PUFFER_LOCKER), amount);
+            Permit memory permitData;
+            permitData.amount = amount;
+            // Tokens are being deposited to the locker contract for the account
+            PUFFER_LOCKER.deposit(address(pufToken), account, lockPeriod, permitData);
+        } else {
+            // The account will receive the ERC20 tokens
+            pufToken.deposit(depositor, account, amount);
+        }
 
         emit DepositedToken(token, msg.sender, account, amount, referralCode);
     }
