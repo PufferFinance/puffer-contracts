@@ -27,6 +27,11 @@ interface IL2RewardManager {
     function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory);
 
     /**
+     * @notice Get the rewards claimer for a specific `account`
+     */
+    function getRewardsClaimer(address account) external view returns (address);
+
+    /**
      * @notice The receiver function as required by the IXReceiver interface.
      * @dev The Connext bridge contract will call this function.
      * @dev Restricted to the whitelisted Bridge contract only

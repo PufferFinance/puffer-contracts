@@ -53,7 +53,7 @@ contract L2RewardManager is
      */
     function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) public view returns (bool) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.claimedRewards[startEpoch][endEpoch][account];
+        return $.claimedRewards[_getIntervalId(startEpoch, endEpoch)][account];
     }
 
     /**
@@ -61,7 +61,7 @@ contract L2RewardManager is
      */
     function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.epochRecords[startEpoch][endEpoch];
+        return $.epochRecords[_getIntervalId(startEpoch, endEpoch)];
     }
 
     /**
@@ -90,51 +90,63 @@ contract L2RewardManager is
      * @inheritdoc IL2RewardManager
      */
     function claimRewards(ClaimOrder[] calldata claimOrders) external {
-        uint256 length = claimOrders.length;
-
-        for (uint256 i = 0; i < length; i++) {
-            ClaimOrder memory claimOrder = claimOrders[i];
-
-            if (isClaimed(claimOrder.startEpoch, claimOrder.endEpoch, claimOrder.account)) {
-                revert AlreadyClaimed(claimOrder.startEpoch, claimOrder.endEpoch, claimOrder.account);
+        for (uint256 i = 0; i < claimOrders.length; i++) {
+            if (isClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account)) {
+                revert AlreadyClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account);
             }
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            EpochRecord storage epochRecord = $.epochRecords[claimOrder.startEpoch][claimOrder.endEpoch];
+            bytes32 intervalId = _getIntervalId(claimOrders[i].startEpoch, claimOrders[i].endEpoch);
 
-            // Node calculated using: keccak256(abi.encode(alice, startEpoch, endEpoch, total))
+            EpochRecord storage epochRecord = $.epochRecords[intervalId];
+
+            // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
+            // The leaf is: keccak256(abi.encode(AliceAddress, startEpoch, endEpoch, totalETHEarned))
             bytes32 leaf = keccak256(
                 bytes.concat(
                     keccak256(
-                        abi.encode(claimOrder.account, claimOrder.startEpoch, claimOrder.endEpoch, claimOrder.amount)
+                        abi.encode(
+                            claimOrders[i].account,
+                            claimOrders[i].startEpoch,
+                            claimOrders[i].endEpoch,
+                            claimOrders[i].amount
+                        )
                     )
                 )
             );
-            if (!MerkleProof.verify(claimOrder.merkleProof, epochRecord.rewardRoot, leaf)) {
+            if (!MerkleProof.verify(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
             }
 
             // Mark it claimed and transfer the tokens
-            $.claimedRewards[claimOrder.startEpoch][claimOrder.endEpoch][claimOrder.account] = true;
+            $.claimedRewards[intervalId][claimOrders[i].account] = true;
 
-            uint256 amountToTransfer = claimOrder.amount * epochRecord.ethToPufETHRate / 1 ether;
+            uint256 amountToTransfer = claimOrders[i].amount * epochRecord.ethToPufETHRate / 1 ether;
 
-            address recipient = $.rewardsClaimers[claimOrder.account] == address(0)
-                ? claimOrder.account
-                : $.rewardsClaimers[claimOrder.account];
+            address recipient = $.rewardsClaimers[claimOrders[i].account] == address(0)
+                ? claimOrders[i].account
+                : $.rewardsClaimers[claimOrders[i].account];
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
             XPUFETH.safeTransfer(recipient, amountToTransfer);
 
             emit Claimed({
-                account: claimOrder.account,
                 recipient: recipient,
-                startEpoch: claimOrder.startEpoch,
-                endEpoch: claimOrder.endEpoch,
+                account: claimOrders[i].account,
+                startEpoch: claimOrders[i].startEpoch,
+                endEpoch: claimOrders[i].endEpoch,
                 amount: amountToTransfer
             });
         }
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getRewardsClaimer(address account) external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.rewardsClaimers[account];
     }
 
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
@@ -148,7 +160,7 @@ contract L2RewardManager is
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         // Store the rate and root
-        $.epochRecords[params.startEpoch][params.endEpoch] =
+        $.epochRecords[_getIntervalId(params.startEpoch, params.endEpoch)] =
             EpochRecord({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
 
         emit RewardRootAndRatePosted({
@@ -167,6 +179,10 @@ contract L2RewardManager is
         $.rewardsClaimers[claimerParams.account] = claimerParams.claimer;
 
         emit ClaimerSet({ account: claimerParams.account, claimer: claimerParams.claimer });
+    }
+
+    function _getIntervalId(uint256 startEpoch, uint256 endEpoch) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(startEpoch, endEpoch));
     }
 
     /**

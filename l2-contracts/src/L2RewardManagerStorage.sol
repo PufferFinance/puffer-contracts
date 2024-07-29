@@ -20,13 +20,16 @@ abstract contract L2RewardManagerStorage {
     struct RewardManagerStorage {
         /**
          * @notice Mapping to track the exchange rate from ETH to pufETH and reward root for each unique epoch range
+         * @dev `rewardsInterval` is calculated as `keccak256(abi.encodePacked(startEpoch, endEpoch))`
+         * we are using that instead of the merkle root, because we want to prevent double posting of the same epoch range
          */
-        mapping(uint256 startEpoch => mapping(uint256 endEpoch => EpochRecord)) epochRecords;
+        mapping(bytes32 rewardsInterval => EpochRecord) epochRecords;
         /**
          * @notice Mapping to track claimed tokens for users for each unique epoch range
+         * @dev `rewardsInterval` is calculated as `keccak256(abi.encodePacked(startEpoch, endEpoch))`
+         * we are using that instead of the merkle root, because we want to prevent double posting of the same epoch range
          */
-        mapping(uint256 startEpoch => mapping(uint256 endEpoch => mapping(address account => bool claimed)))
-            claimedRewards;
+        mapping(bytes32 rewardsInterval => mapping(address account => bool claimed)) claimedRewards;
         /**
          * @notice Mapping to track the custom claimer set by specific accounts
          */
