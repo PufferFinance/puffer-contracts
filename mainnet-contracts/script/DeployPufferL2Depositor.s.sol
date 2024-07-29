@@ -39,12 +39,12 @@ contract DeployPufferL2Depositor is Script {
 
         vm.startBroadcast();
 
-        depositor = new PufferL2Depositor(address(accessManager), weth);
-
         address pufLockerImpl = address(new PufLocker());
         pufLocker = PufLocker(
             address(new ERC1967Proxy(pufLockerImpl, abi.encodeCall(PufLocker.initialize, (address(accessManager)))))
         );
+
+        depositor = new PufferL2Depositor(address(accessManager), weth, pufLocker);
 
         bytes[] memory calldatas = new bytes[](4);
 
