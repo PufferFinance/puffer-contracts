@@ -87,10 +87,11 @@ interface IPufLocker {
     /**
      * @notice Deposit tokens into the locker
      * @param token The address of the token to deposit
+     * @param token The address of the recipient
      * @param lockPeriod The lock period for the deposit
      * @param permitData The permit data for the deposit
      */
-    function deposit(address token, uint128 lockPeriod, Permit calldata permitData) external;
+    function deposit(address token, address recipient, uint128 lockPeriod, Permit calldata permitData) external;
 
     /**
      * @notice Withdraws specified deposits for a given token and transfers the funds to the recipient
