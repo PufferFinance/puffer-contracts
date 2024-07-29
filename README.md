@@ -43,7 +43,7 @@ Where:
 
 - rewards increase as [restaking operators](https://docs.puffer.fi/protocol/puffer-modules#restaking-operators) run AVSs and whenever validator tickets are minted.
 
-- penalties accrue if validators are slashed on PoS for more than their 1 ETH collateral, which is [disincentivized behavior](https://docs.puffer.fi/protocol/validator-tickets#why--noop-incentives) and mitigated through [anti-slashing technology](https://docs.puffer.fi/technology/secure-signer). Penalties can also accrue if the restaking operator is slashed running AVSs, which is why Puffer is [restricting restaking operator participation](https://docs.puffer.fi/protocol/puffer-modules#restricting-reops) during its nascent stages.
+- penalties accrue if validators are slashed on PoS for more than their 2 ETH collateral, which is [disincentivized behavior](https://docs.puffer.fi/protocol/validator-tickets#why--noop-incentives) and mitigated through [anti-slashing technology](https://docs.puffer.fi/technology/secure-signer). Penalties can also accrue if the restaking operator is slashed running AVSs, which is why Puffer is [restricting restaking operator participation](https://docs.puffer.fi/protocol/puffer-modules#restricting-reops) during its nascent stages.
 
 
 ## Contract addresses
