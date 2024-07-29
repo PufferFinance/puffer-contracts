@@ -11,6 +11,7 @@ import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ClaimOrder, EpochRecord } from "./struct/L2RewardManagerInfo.sol";
+import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 
 /**
  * @title L2RewardManager
@@ -38,7 +39,7 @@ contract L2RewardManager is
 
     modifier onlyPufferVault(address originSender) {
         if (originSender != address(L1_PUFFER_VAULT)) {
-            revert CallerNotPufferVault();
+            revert Unauthorized();
         }
         _;
     }

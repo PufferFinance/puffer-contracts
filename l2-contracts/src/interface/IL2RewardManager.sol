@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ClaimOrder, EpochRecord } from "../struct/L2RewardManagerInfo.sol";
-import { L2RewardManagerStorage } from "../L2RewardManagerStorage.sol";
 
 /**
  * @title IL2RewardManager
@@ -85,21 +84,6 @@ interface IL2RewardManager {
     event Claimed(
         address indexed account, address indexed recipient, uint256 startEpoch, uint256 endEpoch, uint256 amount
     );
-
-    /**
-     * @notice Custom error when called function is not by PufferVault
-     */
-    error CallerNotPufferVault();
-
-    /**
-     * @notice Custom error for invalid asset
-     */
-    error InvalidAsset();
-
-    /**
-     * @notice Custom error for invalid amount
-     */
-    error InvalidAmount();
 
     /**
      * @notice Custom error for already claimed rewards

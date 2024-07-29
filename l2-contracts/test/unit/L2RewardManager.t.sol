@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { L2RewardManager } from "../../src/L2RewardManager.sol";
 import { IL2RewardManager } from "../../src/interface/IL2RewardManager.sol";
+import { InvalidAmount } from "mainnet-contracts/src/Errors.sol";
 import { IPufferVaultV3 } from "mainnet-contracts/src/interface/IPufferVaultV3.sol";
 import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -127,7 +128,7 @@ contract L2RewardManagerTest is Test {
 
         vm.startPrank(l1_vault);
 
-        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidAmount.selector));
+        vm.expectRevert(abi.encodeWithSelector(InvalidAmount.selector));
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
