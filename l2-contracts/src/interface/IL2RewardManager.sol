@@ -58,6 +58,11 @@ interface IL2RewardManager {
     function getRewardsClaimer(address account) external view returns (address);
 
     /**
+     * @notice Get the claiming delay
+     */
+    function getClaimingDelay() external view returns (uint256);
+
+    /**
      * @notice The receiver function as required by the IXReceiver interface.
      * @dev The Connext bridge contract will call this function.
      * @dev Restricted to the whitelisted Bridge contract only
@@ -130,7 +135,7 @@ interface IL2RewardManager {
     /**
      * @notice Thrown if the `account` tries to claim the rewards before the claiming delay has passed
      */
-    error ClaimingDelayNotPassed(uint256 startEpoch, uint256 endEpoch, address account);
+    error ClaimingLocked(uint256 startEpoch, uint256 endEpoch, address account, uint256 lockedUntil);
 
     /**
      * @notice Thrown if the merkle proof supplied is not valid

@@ -104,9 +104,12 @@ contract L2RewardManager is
             EpochRecord storage epochRecord = $.epochRecords[intervalId];
 
             if (block.timestamp < epochRecord.timeBridged + $.claimingDelay) {
-                revert ClaimingDelayNotPassed(
-                    claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account
-                );
+                revert ClaimingLocked({
+                    startEpoch: claimOrders[i].startEpoch,
+                    endEpoch: claimOrders[i].endEpoch,
+                    account: claimOrders[i].account,
+                    lockedUntil: epochRecord.timeBridged + $.claimingDelay
+                });
             }
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
@@ -155,6 +158,14 @@ contract L2RewardManager is
     function getRewardsClaimer(address account) external view returns (address) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.rewardsClaimers[account];
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getClaimingDelay() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.claimingDelay;
     }
 
     /**
