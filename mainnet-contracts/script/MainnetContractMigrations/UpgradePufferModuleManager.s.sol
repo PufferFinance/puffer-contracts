@@ -35,7 +35,7 @@ contract UpgradePufferModuleManager is BaseScript {
     PufferProtocol pufferProtocol =
         PufferProtocol(0xf7b6B32492c2e13799D921E84202450131bd238B);
     AVSContractsRegistry avsContractsRegistry =
-        AVSContractsRegistry(0x1565e55b63675c703fcc3778bd33ea97f7be882f);
+        AVSContractsRegistry(0x1565E55B63675c703fcC3778BD33eA97F7bE882F);
     address ACCESS_MANAGER = 0x8c1686069474410E6243425f4a10177a94EBEE11;
     address PufferModuleManagerProxy =
         0x9E1E4fCb49931df5743e659ad910d331735C3860;
