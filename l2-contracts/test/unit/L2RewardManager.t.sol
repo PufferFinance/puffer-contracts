@@ -12,7 +12,6 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { ROLE_ID_BRIDGE } from "mainnet-contracts/script/Roles.sol";
-import { ClaimOrder, EpochRecord } from "../../src/struct/L2RewardManagerInfo.sol";
 
 /**
  * forge test --match-path test/unit/L2RewardManager.t.sol -vvvv
@@ -101,7 +100,7 @@ contract L2RewardManagerTest is Test {
             encodedCallData
         );
 
-        EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        IL2RewardManager.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
     }
@@ -196,7 +195,9 @@ contract L2RewardManagerTest is Test {
             encodedCallData
         );
 
-        EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        vm.warp(block.timestamp + 5 days);
+
+        IL2RewardManager.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
 
@@ -212,8 +213,8 @@ contract L2RewardManagerTest is Test {
 
         vm.startPrank(alice);
 
-        ClaimOrder[] memory claimOrders = new ClaimOrder[](1);
-        claimOrders[0] = ClaimOrder({
+        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: alice,
@@ -244,7 +245,7 @@ contract L2RewardManagerTest is Test {
         // Bob claiming with Charlie's prof (charlie did not claim yet)
         // It will revert with InvalidProof because the proof is not valid for bob
 
-        claimOrders[0] = ClaimOrder({
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: bob,
@@ -256,7 +257,7 @@ contract L2RewardManagerTest is Test {
 
         assertEq(xPufETH.balanceOf(charlie), 0, "charlie should start with zero balance");
         // Bob claiming for charlie (bob is msg.sender)
-        claimOrders[0] = ClaimOrder({
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: charlie,
@@ -270,7 +271,7 @@ contract L2RewardManagerTest is Test {
         amounts[0] = 0.013 ether;
         assertEq(xPufETH.balanceOf(bob), 0, "bob should start with zero balance");
         // Bob claiming with his proof
-        claimOrders[0] = ClaimOrder({
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: bob,
@@ -291,8 +292,6 @@ contract L2RewardManagerTest is Test {
         // charlie's reward should be 1 * 0.9 = 0.9
 
         uint256 aliceAmountToClaim = 0.011772 ether;
-        uint256 bobAmountToClaim = 0.0117 ether;
-        uint256 charlieAmountToClaim = 0.9 ether;
 
         // Build a merkle proof for that
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
@@ -308,7 +307,7 @@ contract L2RewardManagerTest is Test {
 
         deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
 
-        // the exchange rate is changed to 1ether-> 0.9 ether
+        // the exchange rate is changed to 1ether -> 0.9 ether
         ethToPufETHRate = 0.9 ether;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
@@ -347,6 +346,8 @@ contract L2RewardManagerTest is Test {
             encodedCallData
         );
 
+        vm.warp(block.timestamp + 5 days);
+
         // Claim the rewards
         // Alice amount
         uint256[] memory amounts = new uint256[](1);
@@ -359,8 +360,8 @@ contract L2RewardManagerTest is Test {
 
         vm.startPrank(alice);
 
-        ClaimOrder[] memory claimOrders = new ClaimOrder[](1);
-        claimOrders[0] = ClaimOrder({
+        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: alice,
@@ -432,27 +433,29 @@ contract L2RewardManagerTest is Test {
             encodedCallData
         );
 
+        vm.warp(block.timestamp + 5 days);
+
         bytes32[][] memory merkleProofs = new bytes32[][](3);
         merkleProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
         merkleProofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
         merkleProofs[2] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 2);
 
-        ClaimOrder[] memory claimOrders = new ClaimOrder[](3);
-        claimOrders[0] = ClaimOrder({
+        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](3);
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: alice,
             amount: aliceAmount,
             merkleProof: merkleProofs[0]
         });
-        claimOrders[1] = ClaimOrder({
+        claimOrders[1] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: bob,
             amount: bobAmount,
             merkleProof: merkleProofs[1]
         });
-        claimOrders[2] = ClaimOrder({
+        claimOrders[2] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             account: charlie,

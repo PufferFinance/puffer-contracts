@@ -10,7 +10,6 @@ import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { ClaimOrder, EpochRecord } from "./struct/L2RewardManagerInfo.sol";
 import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 
 /**
@@ -46,6 +45,7 @@ contract L2RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+        _setClaimingDelay(12 hours);
     }
 
     /**
@@ -67,13 +67,12 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    // TODO restricted = Assign bridge role to allowed bridges.
     function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
         external
         override(IL2RewardManager, IXReceiver)
         onlyPufferVault(originSender)
         restricted
-        returns (bytes memory)
+        returns (bytes memory emptyReturnData)
     {
         IPufferVaultV3.BridgingParams memory bridgingParams = abi.decode(callData, (IPufferVaultV3.BridgingParams));
 
@@ -84,6 +83,9 @@ contract L2RewardManager is
         } else {
             revert InvalidBridgingType();
         }
+
+        // Return empty bytes
+        return "";
     }
 
     /**
@@ -100,6 +102,12 @@ contract L2RewardManager is
             bytes32 intervalId = _getIntervalId(claimOrders[i].startEpoch, claimOrders[i].endEpoch);
 
             EpochRecord storage epochRecord = $.epochRecords[intervalId];
+
+            if (block.timestamp < epochRecord.timeBridged + $.claimingDelay) {
+                revert ClaimingDelayNotPassed(
+                    claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account
+                );
+            }
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
             // The leaf is: keccak256(abi.encode(AliceAddress, startEpoch, endEpoch, totalETHEarned))
@@ -149,10 +157,17 @@ contract L2RewardManager is
         return $.rewardsClaimers[account];
     }
 
+    /**
+     * @notice Sets the delay period for claiming rewards
+     * @param delayPeriod The new delay period in seconds
+     */
+    function setDelayPeriod(uint256 delayPeriod) external restricted {
+        _setClaimingDelay(delayPeriod);
+    }
+
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
         IPufferVaultV3.MintAndBridgeData memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeData));
 
-        // Validate that the exchange rate is correct //@todo might be problematic, but it shouldnt
         if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
             revert InvalidAmount();
         }
@@ -160,8 +175,11 @@ contract L2RewardManager is
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         // Store the rate and root
-        $.epochRecords[_getIntervalId(params.startEpoch, params.endEpoch)] =
-            EpochRecord({ ethToPufETHRate: params.ethToPufETHRate, rewardRoot: params.rewardsRoot });
+        $.epochRecords[_getIntervalId(params.startEpoch, params.endEpoch)] = EpochRecord({
+            ethToPufETHRate: params.ethToPufETHRate,
+            rewardRoot: params.rewardsRoot,
+            timeBridged: block.timestamp
+        });
 
         emit RewardRootAndRatePosted({
             rewardsAmount: params.rewardsAmount,
@@ -183,6 +201,16 @@ contract L2RewardManager is
 
     function _getIntervalId(uint256 startEpoch, uint256 endEpoch) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(startEpoch, endEpoch));
+    }
+
+    function _setClaimingDelay(uint256 newDelay) internal restricted {
+        if (newDelay < 6 hours) {
+            revert InvalidDelayPeriod();
+        }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
+        $.claimingDelay = newDelay;
     }
 
     /**
