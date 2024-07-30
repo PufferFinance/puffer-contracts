@@ -17,7 +17,7 @@ import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordin
  * deploy along with verification:
  * forge script script/DeployRestakingOperator.s.sol:DeployRestakingOperator -vvvv --rpc-url=$HOLESKY_RPC_URL --account puffer --verify --etherscan-api-key $ETHERSCAN_API_KEY --broadcast
  */
-contract DeployRestakingOperator is Script { 
+contract DeployRestakingOperator is Script {
     // https://github.com/PufferFinance/Deployments-and-ACL/blob/main/docs/deployments/holesky.md#v2
     address ACCESS_MANAGER = 0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e;
     address RESTAKING_OPERATOR_BEACON = 0x99c3E46E575df251149866285DdA7DAEba875B71;
