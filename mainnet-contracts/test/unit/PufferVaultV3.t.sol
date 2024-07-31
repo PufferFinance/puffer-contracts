@@ -5,9 +5,17 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
-import { ROLE_ID_DAO, PUBLIC_ROLE } from "../../script/Roles.sol";
+import { ROLE_ID_DAO, PUBLIC_ROLE, ROLE_ID_BRIDGE, ROLE_ID_GUARDIANS } from "../../script/Roles.sol";
+import { ERC20Mock } from "../mocks/ERC20Mock.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PufferVaultV3Test is UnitTestHelper {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+    address charlie = makeAddr("charlie");
+    uint256 startEpoch = 1;
+    uint256 endEpoch = 2;
+
     function setUp() public override {
         super.setUp();
 
@@ -22,16 +30,23 @@ contract PufferVaultV3Test is UnitTestHelper {
         bytes4[] memory pufferVaultSelectors = new bytes4[](1);
         pufferVaultSelectors[0] = IPufferVaultV3.setL2RewardClaimer.selector;
 
+        bytes4[] memory gaurdianSelectors = new bytes4[](1);
+        gaurdianSelectors[0] = IPufferVaultV3.mintAndBridgeRewards.selector;
+
         vm.startPrank(_broadcaster);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
+        // TODO: should this be open to public?
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
         accessManager.setTargetFunctionRole(address(pufferVault), pufferVaultSelectors, PUBLIC_ROLE);
+        accessManager.setTargetFunctionRole(address(pufferVault), gaurdianSelectors, ROLE_ID_GUARDIANS);
 
         accessManager.grantRole(ROLE_ID_DAO, DAO, 0);
+        accessManager.grantRole(ROLE_ID_GUARDIANS, guardian1, 0);
 
         vm.stopPrank();
 
         vm.startPrank(DAO);
+
         xpufETH.setLockbox(address(lockBox));
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
         pufferVault.setAllowedRewardMintFrequency(1 days);
@@ -47,12 +62,16 @@ contract PufferVaultV3Test is UnitTestHelper {
     }
 
     function test_MintAndBridgeRewardsSuccess() public {
+        uint256 aliceAmount = 0.01308 ether;
+        uint256 rewardsAmount = aliceAmount + 0.013 ether + 1 ether;
+        uint256 ethToPufETHRate = pufferVault.convertToShares(1 ether);
+
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             bridge: address(connext),
-            rewardsAmount: 100 ether,
-            startEpoch: 1,
-            endEpoch: 2,
-            rewardsRoot: bytes32(0),
+            rewardsAmount: rewardsAmount,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: bytes32("root"),
             rewardsURI: "uri"
         });
 
@@ -61,9 +80,29 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.startPrank(DAO);
 
         pufferVault.setAllowedRewardMintAmount(100 ether);
-        pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+        vm.stopPrank();
+        vm.startPrank(guardian1);
 
-        assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
+        assertEq(IERC20(pufferVault).balanceOf(address(lockBox)), 0, "vault should have 0 pufETH before minting");
+        vm.expectEmit();
+        emit IPufferVaultV3.MintedAndBridgedRewards(
+            rewardsAmount, startEpoch, endEpoch, bytes32("root"), ethToPufETHRate, "uri"
+        );
+
+        pufferVault.mintAndBridgeRewards(params);
+
+        assertEq(pufferVault.totalAssets(), initialTotalAssets + rewardsAmount);
+
+        assertEq(IERC20(xpufETH).balanceOf(address(this)), 0, "vault should have 0 xPufETH as it was bridged");
+        assertEq(IERC20(xpufETH).balanceOf(address(l2)), 0, "vault should have 0 xPufETH as it was bridged");
+        assertEq(IERC20(xpufETH).balanceOf(address(lockBox)), 0, "lockbox should have 0 xPufETH");
+        assertEq(
+            IERC20(pufferVault).balanceOf(address(lockBox)), rewardsAmount, "vault should have rewardsAmount pufETH"
+        );
+
+        // TODO: check for l2RewardManager should have rewardsAmount xPufETH received
+        // CANT FIND l2RewardManager in the deployment here, how are we initializing the PufferVaultV3 ? :(
+
         vm.stopPrank();
     }
 
@@ -80,7 +119,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.startPrank(DAO);
 
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidMintAmount.selector));
-        pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+        pufferVault.mintAndBridgeRewards(params);
         vm.stopPrank();
     }
 
@@ -97,10 +136,10 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.startPrank(DAO);
 
         pufferVault.setAllowedRewardMintAmount(2 ether);
-        pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+        pufferVault.mintAndBridgeRewards(params);
 
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.NotAllowedMintFrequency.selector));
-        pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+        pufferVault.mintAndBridgeRewards(params);
         vm.stopPrank();
     }
 

@@ -12,7 +12,6 @@ import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IBridgeInterface } from "./interface/Connext/IBridgeInterface.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -81,7 +80,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @notice Mints and bridges rewards according to the provided parameters.
      * @param params The parameters for bridging rewards.
      */
-    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
+    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
@@ -127,7 +126,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // Encode data for the target contract call
         bytes memory encodedData = abi.encode(bridgingParams);
 
-        IBridgeInterface(params.bridge).xcall{ value: msg.value }({
+        IBridgeInterface(params.bridge).xcall({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract
@@ -153,7 +152,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @param claimer The address of the new claimer.
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function setL2RewardClaimer(address bridge, address claimer) external payable restricted {
+    function setL2RewardClaimer(address bridge, address claimer) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
         BridgeData memory bridgeData = $.bridges[bridge];
 
@@ -169,7 +168,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // Encode data for the target contract call
         bytes memory encodedData = abi.encode(bridgingParams);
 
-        IBridgeInterface(bridge).xcall{ value: msg.value }({
+        IBridgeInterface(bridge).xcall({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(0), // Address of the token contract

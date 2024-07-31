@@ -161,14 +161,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @notice Mints and bridges rewards according to the provided parameters.
      * @param params The parameters for bridging rewards.
      */
-    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable;
+    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external;
 
     /**
      * @notice Sets the L2 reward claimer.
      * @param bridge The address of the bridge.
      * @param claimer The address of the new claimer.
      */
-    function setL2RewardClaimer(address bridge, address claimer) external payable;
+    function setL2RewardClaimer(address bridge, address claimer) external;
 
     /**
      * @notice Updates the bridge data.
