@@ -23,10 +23,9 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  *       forge script script/DeployBSCXpufETH.s.sol:DeployBSCXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployBSCXpufETH is BaseScript {
-    // TODO: change these addresses for bsc
-    address OPERATIONS_MULTISIG = 0x37bEbCdB82E9428B89eEaB55288da70322079c46;
-    address COMMUNITY_MULTISIG = 0xd817733f3c5211e35Bc0df56c48118321b837dc1;
-    address PAUSER_MULTISIG = 0xB714703d3F1A974F83808A97ee255a1954ec1537;
+    address OPERATIONS_MULTISIG = 0xc1c5bb23f6D06fb1Aa9208BE59400874D74A78AD;
+    address COMMUNITY_MULTISIG = 0xA654561EEAcbCa8d044ce38Cf78ae29AEee032CB;
+    address PAUSER_MULTISIG = 0x53974Be9B9Bb363F5459281D4e70D4eF32F5e28B;
 
     // https://docs.connext.network/resources/deployments
     address CONNEXT_BRIDGE = 0xCd401c10afa37d641d2F594852DA94C700e4F2CE;
