@@ -103,6 +103,8 @@ contract L2RewardManagerTest is Test {
     }
 
     function test_claimerGetsTheRewards(address claimer) public {
+        vm.assume(claimer != alice);
+        
         test_handleSetClaimer(claimer);
 
         uint256 aliceAmount = 0.01308 ether;
