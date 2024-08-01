@@ -51,22 +51,6 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) public view returns (bool) {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.claimedRewards[_getIntervalId(startEpoch, endEpoch)][account];
-    }
-
-    /**
-     * @inheritdoc IL2RewardManager
-     */
-    function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory) {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.epochRecords[_getIntervalId(startEpoch, endEpoch)];
-    }
-
-    /**
-     * @inheritdoc IL2RewardManager
-     */
     function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
         external
         override(IL2RewardManager, IXReceiver)
@@ -90,8 +74,9 @@ contract L2RewardManager is
 
     /**
      * @inheritdoc IL2RewardManager
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function claimRewards(ClaimOrder[] calldata claimOrders) external {
+    function claimRewards(ClaimOrder[] calldata claimOrders) external restricted {
         for (uint256 i = 0; i < claimOrders.length; i++) {
             if (isClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account)) {
                 revert AlreadyClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account);
@@ -99,7 +84,7 @@ contract L2RewardManager is
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            bytes32 intervalId = _getIntervalId(claimOrders[i].startEpoch, claimOrders[i].endEpoch);
+            bytes32 intervalId = getIntervalId(claimOrders[i].startEpoch, claimOrders[i].endEpoch);
 
             EpochRecord storage epochRecord = $.epochRecords[intervalId];
 
@@ -135,9 +120,7 @@ contract L2RewardManager is
 
             uint256 amountToTransfer = claimOrders[i].amount * epochRecord.ethToPufETHRate / 1 ether;
 
-            address recipient = $.rewardsClaimers[claimOrders[i].account] == address(0)
-                ? claimOrders[i].account
-                : $.rewardsClaimers[claimOrders[i].account];
+            address recipient = getRewardsClaimer(claimOrders[i].account);
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
             XPUFETH.safeTransfer(recipient, amountToTransfer);
@@ -153,9 +136,40 @@ contract L2RewardManager is
     }
 
     /**
+     * @notice Sets the delay period for claiming rewards
+     * @param delayPeriod The new delay period in seconds
+     */
+    function setDelayPeriod(uint256 delayPeriod) external restricted {
+        _setClaimingDelay(delayPeriod);
+    }
+
+    /**
      * @inheritdoc IL2RewardManager
      */
-    function getRewardsClaimer(address account) external view returns (address) {
+    function getIntervalId(uint256 startEpoch, uint256 endEpoch) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(startEpoch, endEpoch));
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) public view returns (bool) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.claimedRewards[getIntervalId(startEpoch, endEpoch)][account];
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.epochRecords[getIntervalId(startEpoch, endEpoch)];
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getRewardsClaimer(address account) public view returns (address) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.rewardsClaimers[account] != address(0) ? $.rewardsClaimers[account] : account;
     }
@@ -168,25 +182,17 @@ contract L2RewardManager is
         return $.claimingDelay;
     }
 
-    /**
-     * @notice Sets the delay period for claiming rewards
-     * @param delayPeriod The new delay period in seconds
-     */
-    function setDelayPeriod(uint256 delayPeriod) external restricted {
-        _setClaimingDelay(delayPeriod);
-    }
-
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
         IPufferVaultV3.MintAndBridgeData memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeData));
 
+        // Sanity check
         if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
             revert InvalidAmount();
         }
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        // Store the rate and root
-        $.epochRecords[_getIntervalId(params.startEpoch, params.endEpoch)] = EpochRecord({
+        $.epochRecords[getIntervalId(params.startEpoch, params.endEpoch)] = EpochRecord({
             ethToPufETHRate: params.ethToPufETHRate,
             rewardRoot: params.rewardsRoot,
             timeBridged: block.timestamp
@@ -201,6 +207,9 @@ contract L2RewardManager is
         });
     }
 
+    /**
+     * @dev We want to allow Smart Contracts(Node Operators) on Ethereum Mainnet to set the claimer of the rewards on L2. It is likely that they will not have the same address on L2.
+     */
     function _handleSetClaimer(bytes memory data) internal {
         IPufferVaultV3.SetClaimerParams memory claimerParams = abi.decode(data, (IPufferVaultV3.SetClaimerParams));
 
@@ -210,11 +219,7 @@ contract L2RewardManager is
         emit ClaimerSet({ account: claimerParams.account, claimer: claimerParams.claimer });
     }
 
-    function _getIntervalId(uint256 startEpoch, uint256 endEpoch) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(startEpoch, endEpoch));
-    }
-
-    function _setClaimingDelay(uint256 newDelay) internal restricted {
+    function _setClaimingDelay(uint256 newDelay) internal {
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
