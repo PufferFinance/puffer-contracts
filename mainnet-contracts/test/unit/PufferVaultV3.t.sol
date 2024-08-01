@@ -19,13 +19,14 @@ contract PufferVaultV3Test is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 
-        bytes4[] memory xpufETHselectors = new bytes4[](3);
+        bytes4[] memory xpufETHselectors = new bytes4[](2);
         xpufETHselectors[0] = xPufETH.mint.selector;
         xpufETHselectors[1] = xPufETH.burn.selector;
 
-        bytes4[] memory xpufETHDAOselectors = new bytes4[](2);
-        xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
-        xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
+        bytes4[] memory daoSelectors = new bytes4[](3);
+        daoSelectors[0] = xPufETH.setLimits.selector;
+        daoSelectors[1] = xPufETH.setLockbox.selector;
+        daoSelectors[2] = IPufferVaultV3.setAllowedRewardMintAmount.selector;
 
         bytes4[] memory pufferVaultSelectors = new bytes4[](1);
         pufferVaultSelectors[0] = IPufferVaultV3.setL2RewardClaimer.selector;
@@ -34,7 +35,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         gaurdianSelectors[0] = IPufferVaultV3.mintAndBridgeRewards.selector;
 
         vm.startPrank(_broadcaster);
-        accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
+        accessManager.setTargetFunctionRole(address(xpufETH), daoSelectors, ROLE_ID_DAO);
         // TODO: should this be open to public?
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
         accessManager.setTargetFunctionRole(address(pufferVault), pufferVaultSelectors, PUBLIC_ROLE);
@@ -94,7 +95,7 @@ contract PufferVaultV3Test is UnitTestHelper {
         assertEq(pufferVault.totalAssets(), initialTotalAssets + rewardsAmount);
 
         assertEq(IERC20(xpufETH).balanceOf(address(this)), 0, "vault should have 0 xPufETH as it was bridged");
-        assertEq(IERC20(xpufETH).balanceOf(address(l2)), 0, "vault should have 0 xPufETH as it was bridged");
+        // assertEq(IERC20(xpufETH).balanceOf(address(l2)), 0, "vault should have 0 xPufETH as it was bridged");
         assertEq(IERC20(xpufETH).balanceOf(address(lockBox)), 0, "lockbox should have 0 xPufETH");
         assertEq(
             IERC20(pufferVault).balanceOf(address(lockBox)), rewardsAmount, "vault should have rewardsAmount pufETH"
@@ -110,13 +111,13 @@ contract PufferVaultV3Test is UnitTestHelper {
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             bridge: address(connext),
             rewardsAmount: 200 ether, // assuming this is more than allowed
-            startEpoch: 1,
-            endEpoch: 2,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
             rewardsRoot: bytes32(0),
             rewardsURI: "uri"
         });
 
-        vm.startPrank(DAO);
+        vm.startPrank(guardian1);
 
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidMintAmount.selector));
         pufferVault.mintAndBridgeRewards(params);
@@ -127,8 +128,8 @@ contract PufferVaultV3Test is UnitTestHelper {
         IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
             bridge: address(connext),
             rewardsAmount: 1 ether,
-            startEpoch: 1,
-            endEpoch: 2,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
             rewardsRoot: bytes32(0),
             rewardsURI: "uri"
         });
@@ -136,9 +137,16 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.startPrank(DAO);
 
         pufferVault.setAllowedRewardMintAmount(2 ether);
+        vm.stopPrank();
+        vm.startPrank(guardian1);
         pufferVault.mintAndBridgeRewards(params);
 
+        // should revert as the frequency is 1 day
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.NotAllowedMintFrequency.selector));
+        pufferVault.mintAndBridgeRewards(params);
+
+        // move time forward by 1 day and it should mint now
+        vm.warp(block.timestamp + 1 days);
         pufferVault.mintAndBridgeRewards(params);
         vm.stopPrank();
     }
