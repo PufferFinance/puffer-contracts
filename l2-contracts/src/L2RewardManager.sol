@@ -157,7 +157,7 @@ contract L2RewardManager is
      */
     function getRewardsClaimer(address account) external view returns (address) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.rewardsClaimers[account];
+        return $.rewardsClaimers[account] != address(0) ? $.rewardsClaimers[account] : account;
     }
 
     /**
