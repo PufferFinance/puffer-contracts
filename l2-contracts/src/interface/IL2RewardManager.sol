@@ -63,6 +63,11 @@ interface IL2RewardManager {
     function getClaimingDelay() external view returns (uint256);
 
     /**
+     * @notice Returns the interval ID for a given start and end epoch
+     */
+    function getIntervalId(uint256 startEpoch, uint256 endEpoch) external returns (bytes32);
+
+    /**
      * @notice The receiver function as required by the IXReceiver interface.
      * @dev The Connext bridge contract will call this function.
      * @dev Restricted to the whitelisted Bridge contract only

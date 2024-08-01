@@ -11,7 +11,7 @@ import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ROLE_ID_BRIDGE } from "mainnet-contracts/script/Roles.sol";
+import { ROLE_ID_BRIDGE, PUBLIC_ROLE } from "mainnet-contracts/script/Roles.sol";
 
 /**
  * forge test --match-path test/unit/L2RewardManager.t.sol -vvvv
@@ -61,15 +61,31 @@ contract L2RewardManagerTest is Test {
                 )
             )
         );
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
         bytes4[] memory bridgeSelectors = new bytes4[](1);
         bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManager), bridgeSelectors, ROLE_ID_BRIDGE
         );
-        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(mockBridge), 0);
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = IL2RewardManager.claimRewards.selector;
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardManager), publicSelectors, PUBLIC_ROLE
+        );
+
+        calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(mockBridge), 0);
 
         accessManager.multicall(calldatas);
+    }
+
+    function test_setDelayPeriod() public {
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidDelayPeriod.selector));
+        l2RewardManager.setDelayPeriod(1 hours);
+
+        uint256 delayPeriod = 2 days;
+        l2RewardManager.setDelayPeriod(delayPeriod);
+        assertEq(l2RewardManager.getClaimingDelay(), delayPeriod, "Claiming delay should be set correctly");
     }
 
     function test_handleSetClaimer(address claimer) public {
@@ -103,6 +119,10 @@ contract L2RewardManagerTest is Test {
     }
 
     function test_claimerGetsTheRewards(address claimer) public {
+        vm.assume(claimer != alice);
+        vm.assume(claimer != address(xPufETH));
+        vm.assume(claimer != address(l2RewardManager));
+
         test_handleSetClaimer(claimer);
 
         uint256 aliceAmount = 0.01308 ether;
