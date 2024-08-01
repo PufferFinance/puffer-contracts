@@ -79,6 +79,15 @@ contract L2RewardManagerTest is Test {
         accessManager.multicall(calldatas);
     }
 
+    function test_setDelayPeriod() public {
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidDelayPeriod.selector));
+        l2RewardManager.setDelayPeriod(1 hours);
+
+        uint256 delayPeriod = 2 days;
+        l2RewardManager.setDelayPeriod(delayPeriod);
+        assertEq(l2RewardManager.getClaimingDelay(), delayPeriod, "Claiming delay should be set correctly");
+    }
+
     function test_handleSetClaimer(address claimer) public {
         vm.assume(claimer != address(0));
 
