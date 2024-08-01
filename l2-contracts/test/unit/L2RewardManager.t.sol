@@ -104,7 +104,9 @@ contract L2RewardManagerTest is Test {
 
     function test_claimerGetsTheRewards(address claimer) public {
         vm.assume(claimer != alice);
-        
+        vm.assume(claimer != address(xPufETH));
+        vm.assume(claimer != address(l2RewardManager));
+
         test_handleSetClaimer(claimer);
 
         uint256 aliceAmount = 0.01308 ether;
