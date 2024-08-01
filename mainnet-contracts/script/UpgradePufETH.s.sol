@@ -19,11 +19,13 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
-
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
+import { IL2RewardManager } from "l2-contracts/src/interface/IL2RewardManager.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title UpgradePufETH
@@ -54,6 +56,8 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
+    L2RewardManager l2RewardManager;
+
     function run(PufferDeployment memory deployment, BridgingDeployment memory bridgingDeployment, address pufferOracle)
         public
         broadcast
@@ -61,10 +65,20 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
+        address l2RewardManagerImp =
+            address(new L2RewardManager(address(bridgingDeployment.xPufETH), deployment.pufferVault));
+        l2RewardManager = L2RewardManager(
+            address(
+                new ERC1967Proxy(
+                    l2RewardManagerImp, abi.encodeCall(L2RewardManager.initialize, (address(deployment.accessManager)))
+                )
+            )
+        );
+
         IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
             xToken: bridgingDeployment.xPufETH,
             lockBox: bridgingDeployment.xPufETHLockBox,
-            l2RewardManager: address(0)
+            l2RewardManager: address(l2RewardManager)
         });
 
         PufferVaultV3 newImplementation = new PufferVaultV3Tests(
