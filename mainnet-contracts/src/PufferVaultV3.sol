@@ -77,8 +77,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Mints and bridges rewards according to the provided parameters.
-     * @param params The parameters for bridging rewards.
+     * @inheritdoc IPufferVaultV3
      */
     function mintAndBridgeRewards(MintAndBridgeParams calldata params) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -147,9 +146,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Sets the L2 reward claimer.
-     * @param bridge The address of the bridge.
-     * @param claimer The address of the new claimer.
+     * @inheritdoc IPufferVaultV3
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
     function setL2RewardClaimer(address bridge, address claimer) external restricted {
@@ -182,8 +179,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Sets the allowed reward mint amount.
-     * @param newAmount The new allowed reward mint amount.
+     * @inheritdoc IPufferVaultV3
      */
     function setAllowedRewardMintAmount(uint88 newAmount) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -194,8 +190,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Sets the allowed reward mint frequency.
-     * @param newFrequency The new allowed reward mint frequency.
+     * @inheritdoc IPufferVaultV3
      */
     function setAllowedRewardMintFrequency(uint24 newFrequency) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -206,9 +201,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Updates the bridge data.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
+     * @inheritdoc IPufferVaultV3
      */
     function updateBridgeData(address bridge, BridgeData memory bridgeData) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -221,9 +214,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
-     * @notice Returns the bridge data for a given bridge.
-     * @param bridge The address of the bridge.
-     * @return The bridge data.
+     * @inheritdoc IPufferVaultV3
      */
     function getBridge(address bridge) external view returns (BridgeData memory) {
         VaultStorage storage $ = _getPufferVaultStorage();

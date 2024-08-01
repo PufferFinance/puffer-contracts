@@ -171,6 +171,17 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     function setL2RewardClaimer(address bridge, address claimer) external;
 
     /**
+     * @notice Sets the allowed reward mint amount.
+     * @param newAmount The new allowed reward mint amount.
+     */
+    function setAllowedRewardMintAmount(uint88 newAmount) external;
+
+    /**
+     * @notice Sets the allowed reward mint frequency.
+     * @param newFrequency The new allowed reward mint frequency.
+     */
+    function setAllowedRewardMintFrequency(uint24 newFrequency) external;
+    /**
      * @notice Updates the bridge data.
      * @param bridge The address of the bridge.
      * @param bridgeData The updated bridge data.
