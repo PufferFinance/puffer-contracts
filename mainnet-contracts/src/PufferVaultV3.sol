@@ -72,7 +72,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @notice Returns the total reward mint amount.
      * @return The total reward mint amount.
      */
-    function getTotalRewardMintAmount() internal view returns (uint256) {
+    function getTotalRewardMintAmount() public view returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.totalRewardMintAmount;
     }
