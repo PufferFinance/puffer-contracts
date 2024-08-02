@@ -103,7 +103,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
     }
 
     /**
-     * @notice Creates a new staking token contract
+     * @inheritdoc IPufferL2Depositor
      * @dev Restricted to Puffer DAO
      */
     function addNewToken(address token) external restricted {
@@ -111,7 +111,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
     }
 
     /**
-     * @notice Changes the status of `migrator` to `allowed`
+     * @inheritdoc IPufferL2Depositor
      * @dev Restricted to Puffer DAO
      */
     function setMigrator(address migrator, bool allowed) external restricted {
@@ -123,7 +123,7 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
     }
 
     /**
-     * @notice Sets the deposit cap for the `token`
+     * @inheritdoc IPufferL2Depositor
      * @dev Restricted to Puffer DAO
      */
     function setDepositCap(address token, uint256 newDepositCap) external onlySupportedTokens(token) restricted {

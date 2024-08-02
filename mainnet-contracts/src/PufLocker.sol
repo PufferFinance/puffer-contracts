@@ -122,6 +122,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
 
     /**
      * @inheritdoc IPufLocker
+     * @dev Restricted to Puffer DAO
      */
     function setIsAllowedToken(address token, bool allowed) external restricted {
         PufLockerData storage $ = _getPufLockerStorage();
@@ -131,6 +132,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
 
     /**
      * @inheritdoc IPufLocker
+     * @dev Restricted to Puffer DAO
      */
     function setLockPeriods(uint128 minLock, uint128 maxLock) external restricted {
         if (minLock > maxLock) {
