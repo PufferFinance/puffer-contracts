@@ -75,5 +75,21 @@ interface IPufferL2Depositor {
      */
     function revertIfPaused() external;
 
+    /**
+     * @notice Sets the deposit cap for the `token`
+     * @dev Restricted to Puffer DAO
+     */
     function setDepositCap(address token, uint256 newDepositCap) external;
+
+    /**
+     * @notice Changes the status of `migrator` to `allowed`
+     * @dev Restricted to Puffer DAO
+     */
+    function setMigrator(address migrator, bool allowed) external;
+
+    /**
+     * @notice Creates a new staking token contract
+     * @dev Restricted to Puffer DAO
+     */
+    function addNewToken(address token) external;
 }

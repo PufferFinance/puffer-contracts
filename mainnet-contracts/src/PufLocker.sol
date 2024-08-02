@@ -121,8 +121,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
     }
 
     /**
-     * @notice Creates a new staking token contract
-     * @dev Restricted to Puffer DAO
+     * @inheritdoc IPufLocker
      */
     function setIsAllowedToken(address token, bool allowed) external restricted {
         PufLockerData storage $ = _getPufLockerStorage();
@@ -131,8 +130,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
     }
 
     /**
-     * @notice Creates a new staking token contract
-     * @dev Restricted to Puffer DAO
+     * @inheritdoc IPufLocker
      */
     function setLockPeriods(uint128 minLock, uint128 maxLock) external restricted {
         if (minLock > maxLock) {

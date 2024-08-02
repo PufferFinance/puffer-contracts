@@ -57,12 +57,13 @@ contract DeployPufferL2Depositor is Script {
             AccessManager.setTargetFunctionRole.selector, address(depositor), publicSelectors, PUBLIC_ROLE
         );
 
-        bytes4[] memory multisigSelectors = new bytes4[](2);
-        multisigSelectors[0] = PufferL2Depositor.setMigrator.selector;
-        multisigSelectors[1] = PufferL2Depositor.addNewToken.selector;
+        bytes4[] memory daoSelectors = new bytes4[](3);
+        daoSelectors[0] = PufferL2Depositor.setMigrator.selector;
+        daoSelectors[1] = PufferL2Depositor.addNewToken.selector;
+        daoSelectors[2] = PufferL2Depositor.setDepositCap.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(depositor), multisigSelectors, ROLE_ID_DAO
+            AccessManager.setTargetFunctionRole.selector, address(depositor), daoSelectors, ROLE_ID_DAO
         );
 
         bytes4[] memory lockerPublicSelectors = new bytes4[](1);
@@ -72,15 +73,12 @@ contract DeployPufferL2Depositor is Script {
             AccessManager.setTargetFunctionRole.selector, address(pufLocker), lockerPublicSelectors, PUBLIC_ROLE
         );
 
-        bytes4[] memory opsLockerSelectors = new bytes4[](2);
-        opsLockerSelectors[0] = PufLocker.setIsAllowedToken.selector;
-        opsLockerSelectors[1] = PufLocker.setLockPeriods.selector;
+        bytes4[] memory daoLockerSelectors = new bytes4[](2);
+        daoLockerSelectors[0] = PufLocker.setIsAllowedToken.selector;
+        daoLockerSelectors[1] = PufLocker.setLockPeriods.selector;
 
         calldatas[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(pufLocker),
-            opsLockerSelectors,
-            ROLE_ID_OPERATIONS_MULTISIG
+            AccessManager.setTargetFunctionRole.selector, address(pufLocker), daoLockerSelectors, ROLE_ID_DAO
         );
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));

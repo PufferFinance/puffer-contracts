@@ -103,6 +103,18 @@ interface IPufLocker {
     function withdraw(address token, uint256[] calldata depositIndexes, address recipient) external;
 
     /**
+     * @notice Sets the allow token addresses to be locked.
+     * @dev Restricted to Puffer DAO
+     */
+    function setIsAllowedToken(address token, bool allowed) external;
+
+    /**
+     * @notice Sets allowed locking periods.
+     * @dev Restricted to Puffer DAO
+     */
+    function setLockPeriods(uint128 minLock, uint128 maxLock) external;
+
+    /**
      * @notice Get deposits for a specific user and token
      * @dev Amount == 0 && releaseTime > 0 = the deposit got withdrawn
      * @param user The address of the user
