@@ -7,9 +7,6 @@ import { IPufLocker } from "../../src/interface/IPufLocker.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { ROLE_ID_OPERATIONS_MULTISIG, PUBLIC_ROLE } from "../../script/Roles.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { ERC20Mock } from "../mocks/ERC20Mock.sol";
@@ -75,7 +72,7 @@ contract PufLockerTest is UnitTestHelper {
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
 
-        pufLocker.deposit(address(mockToken), 61, permit); // Lock for 1 minute
+        pufLocker.deposit(address(mockToken), address(this), 61, permit); // Lock for 1 minute
     }
 
     function testRevert_SetAllowedToken_Unauthorized() public {
@@ -105,7 +102,7 @@ contract PufLockerTest is UnitTestHelper {
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
 
-        pufLocker.deposit(address(mockToken), 3600, permit); // Lock for 1 hour
+        pufLocker.deposit(address(mockToken), bob, 3600, permit); // Lock for 1 hour
         (PufLocker.Deposit[] memory deposits) = pufLocker.getDeposits(bob, address(mockToken), 0, 1);
         assertEq(deposits.length, 1, "Should have 1 deposit");
         assertEq(deposits[0].amount, 10e18, "Deposit amount should be 100 tokens");
@@ -118,7 +115,7 @@ contract PufLockerTest is UnitTestHelper {
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
         vm.expectRevert(abi.encodeWithSelector(InvalidAmount.selector));
-        pufLocker.deposit(address(mockToken), 3600, permit); // Lock for 1 hour with 0 amount
+        pufLocker.deposit(address(mockToken), bob, 3600, permit); // Lock for 1 hour with 0 amount
         vm.stopPrank();
     }
 
@@ -128,7 +125,7 @@ contract PufLockerTest is UnitTestHelper {
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
         vm.expectRevert(abi.encodeWithSelector(IPufLocker.InvalidLockPeriod.selector));
-        pufLocker.deposit(address(mockToken), 30, permit); // Lock for 30 seconds, which is less than minLockPeriod
+        pufLocker.deposit(address(mockToken), bob, 30, permit); // Lock for 30 seconds, which is less than minLockPeriod
         vm.stopPrank();
     }
 
@@ -137,7 +134,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 10e18;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        pufLocker.deposit(address(mockToken), 60, permit); // Lock for 1 minute
+        pufLocker.deposit(address(mockToken), bob, 60, permit); // Lock for 1 minute
         vm.warp(block.timestamp + 61); // Fast forward time by 61 seconds
 
         uint256[] memory indexes = new uint256[](1);
@@ -155,7 +152,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 10e18;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        pufLocker.deposit(address(mockToken), 3600, permit); // Lock for 1 hour
+        pufLocker.deposit(address(mockToken), bob, 3600, permit); // Lock for 1 hour
         uint256[] memory indexes = new uint256[](1);
         indexes[0] = 0;
 
@@ -169,7 +166,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 10e18;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        pufLocker.deposit(address(mockToken), 60, permit); // Lock for 1 minute
+        pufLocker.deposit(address(mockToken), bob, 60, permit); // Lock for 1 minute
         vm.warp(block.timestamp + 61); // Fast forward time by 61 seconds
 
         uint256[] memory indexes = new uint256[](2);
@@ -186,7 +183,7 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 10e18;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        pufLocker.deposit(address(mockToken), 60, permit); // Lock for 1 minute
+        pufLocker.deposit(address(mockToken), bob, 60, permit); // Lock for 1 minute
         vm.warp(block.timestamp + 61); // Fast forward time by 61 seconds
 
         uint256[] memory indexes = new uint256[](1);
@@ -206,20 +203,20 @@ contract PufLockerTest is UnitTestHelper {
         uint256 amount = 2e18;
         Permit memory permit =
             _signPermit(_testTemps("bob", address(pufLocker), amount, block.timestamp), mockToken.DOMAIN_SEPARATOR());
-        pufLocker.deposit(address(mockToken), 3601, permit);
+        pufLocker.deposit(address(mockToken), bob, 3601, permit);
 
         uint256 amount2 = 4e18;
         Permit memory permit2 =
             _signPermit(_testTemps("bob", address(pufLocker), amount2, block.timestamp), mockToken.DOMAIN_SEPARATOR());
         mockToken.approve(address(pufLocker), amount2);
-        pufLocker.deposit(address(mockToken), 3620, permit2);
+        pufLocker.deposit(address(mockToken), bob, 3620, permit2);
 
         uint256 amount3 = 5e18;
         Permit memory permit3 = _signPermit(
             _testTemps("bob", address(pufLocker), amount3, block.timestamp + 2), mockToken.DOMAIN_SEPARATOR()
         );
         mockToken.approve(address(pufLocker), amount3);
-        pufLocker.deposit(address(mockToken), 3630, permit3);
+        pufLocker.deposit(address(mockToken), bob, 3630, permit3);
 
         // Get the first 2 deposits
         PufLocker.Deposit[] memory depositsPage1 = pufLocker.getDeposits(bob, address(mockToken), 0, 2);
