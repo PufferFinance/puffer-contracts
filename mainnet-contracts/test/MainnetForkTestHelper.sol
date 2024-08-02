@@ -221,6 +221,7 @@ contract MainnetForkTestHelper is Test {
 
         vm.stopPrank();
     }
+
     function _upgradeToMainnetV3Puffer() internal {
         // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
         MockPufferOracle mockOracle = new MockPufferOracle();
@@ -249,9 +250,7 @@ contract MainnetForkTestHelper is Test {
         vm.startPrank(address(timelock));
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), ""
-        );
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
 
         vm.stopPrank();
     }
