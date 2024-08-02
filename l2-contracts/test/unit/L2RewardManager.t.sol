@@ -292,6 +292,28 @@ contract L2RewardManagerTest is Test {
         );
     }
 
+    function test_merkleWithBackendMockData() public {
+        startEpoch = 61180;
+        endEpoch = 61190;
+
+        address noOp1 = 0xBDAdFC936FA42Bcc54f39667B1868035290a0241;
+        address noOp2 = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+
+        MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
+        merkleProofDatas[0] =
+            MerkleProofData({ account: noOp1, startEpoch: startEpoch, endEpoch: endEpoch, amount: 6000 });
+        merkleProofDatas[1] =
+            MerkleProofData({ account: noOp2, startEpoch: startEpoch, endEpoch: endEpoch, amount: 4000 });
+
+        rewardsRoot = _buildMerkleProof(merkleProofDatas);
+
+        assertEq(
+            rewardsRoot,
+            bytes32(hex"164fd266b4897088f1548c40c63164ffbb7dab815ff65cee3888fcba59b31343"),
+            "Root should be correct"
+        );
+    }
+
     function test_claimRewardsAllCases() public {
         // Build a merkle proof for that
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
