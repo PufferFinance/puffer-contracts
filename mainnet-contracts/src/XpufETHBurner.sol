@@ -20,10 +20,21 @@ import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.
 contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice The XPUFETH token contract on Ethereum Mainnet
+     */
     IERC20 public immutable XPUFETH;
+    /**
+     * @notice The PufferVault contract on Ethereum Mainnet
+     */
     PufferVaultV3 public immutable pufETH;
+    /**
+     * @notice The XERC20Lockbox contract on Ethereum Mainnet
+     */
     IXERC20Lockbox public immutable LOCKBOX;
-
+    /**
+     * @notice The Rewards Manager contract on L2
+     */
     address public immutable L2_REWARDS_MANAGER;
 
     constructor(address XpufETH, address lockbox, address l2RewardsManager) {
@@ -45,7 +56,7 @@ contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable 
     }
 
     /**
-     * @notice Receives the bridged XpufETH, unwraps it to pufETH and burns the pufETH.
+     * @notice This contract receives XPufETH from the L2 via bridge, unwraps it to pufETH and then burns the pufETH, reverting the original mintAndBridge call
      */
     function xReceive(bytes32, uint256, address, address originSender, uint32, bytes memory callData)
         external
@@ -63,6 +74,7 @@ contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable 
         LOCKBOX.withdraw(epochRecord.pufETHAmount);
 
         // Tell the PufferVault to burn the pufETH and subtract from the ethRewardsAmount
+        // The PufferVault will subtract ethAmount from the rewardsAmount and burn the pufETH from this contract
         pufETH.revertBridgingInterval({
             pufETHAmount: epochRecord.pufETHAmount,
             ethAmount: epochRecord.ethAmount,
