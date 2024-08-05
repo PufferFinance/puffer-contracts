@@ -28,6 +28,7 @@ import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { XPufETHBurner } from "src/XPufETHBurner.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
 import {
     ROLE_ID_DAO,
@@ -102,9 +103,11 @@ contract UnitTestHelper is Test, BaseScript {
     ValidatorTicketPricer public validatorTicketPricer;
     xPufETH public xpufETH;
     XERC20Lockbox public lockBox;
+    XPufETHBurner public xPufETHBurner;
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
+    address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
     address public timelock;
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
@@ -187,6 +190,7 @@ contract UnitTestHelper is Test, BaseScript {
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
         xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
         lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
+        xPufETHBurner = XPufETHBurner(payable(bridgingDeployment.xPufETHBurner));
         connext = ConnextMock(payable(bridgingDeployment.connext));
 
         // pufETH dependencies

@@ -38,4 +38,5 @@ struct BridgingDeployment {
     address connext;
     address xPufETH;
     address xPufETHLockBox;
+    address xPufETHBurner;
 }

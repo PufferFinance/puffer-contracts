@@ -5,28 +5,11 @@ import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-
-import { PufferVaultV3Tests } from "../src/PufferVaultV3Tests.sol";
-import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
-import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
-import { IStETH } from "../src/interface/Lido/IStETH.sol";
-import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IWETH } from "../src/interface/Other/IWETH.sol";
-import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
-import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
-
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
-import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
-
+import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
+import { XPufETHBurner } from "src/XPufETHBurner.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { ConnextMock } from "../test/mocks/ConnextMock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -70,10 +53,27 @@ contract DeployPufETHBridging is BaseScript {
         XERC20Lockbox xERC20Lockbox =
             new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
 
+        // XPufETHBurner
+        XPufETHBurner xPufETHBurnerImpl = new XPufETHBurner({
+            XpufETH: address(xPufETHProxy),
+            pufETH: deployment.pufferVault,
+            lockbox: address(xERC20Lockbox),
+            l2RewardsManager: makeAddr("l2RewardsManagerMock")
+        });
+
+        XPufETHBurner xPufETHBurnerProxy = XPufETHBurner(
+            address(
+                new ERC1967Proxy(
+                    address(xPufETHBurnerImpl), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+                )
+            )
+        );
+
         bridgingDeployment = BridgingDeployment({
             connext: address(new ConnextMock()),
             xPufETH: address(xPufETHProxy),
-            xPufETHLockBox: address(xERC20Lockbox)
+            xPufETHLockBox: address(xERC20Lockbox),
+            xPufETHBurner: address(xPufETHBurnerProxy)
         });
     }
 }

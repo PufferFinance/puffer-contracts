@@ -27,7 +27,7 @@ contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable 
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
      */
-    PufferVaultV3 public immutable pufETH;
+    PufferVaultV3 public immutable PUFFER_VAULT;
     /**
      * @notice The XERC20Lockbox contract on Ethereum Mainnet
      */
@@ -37,9 +37,10 @@ contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable 
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    constructor(address XpufETH, address lockbox, address l2RewardsManager) {
+    constructor(address XpufETH, address lockbox, address pufETH, address l2RewardsManager) {
         XPUFETH = IERC20(XpufETH);
         LOCKBOX = IXERC20Lockbox(lockbox);
+        PUFFER_VAULT = PufferVaultV3(payable(pufETH));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }
@@ -75,7 +76,7 @@ contract XPufETHBurner is IXReceiver, AccessManagedUpgradeable, UUPSUpgradeable 
 
         // Tell the PufferVault to burn the pufETH and subtract from the ethRewardsAmount
         // The PufferVault will subtract ethAmount from the rewardsAmount and burn the pufETH from this contract
-        pufETH.revertBridgingInterval({
+        PUFFER_VAULT.revertBridgingInterval({
             pufETHAmount: epochRecord.pufETHAmount,
             ethAmount: epochRecord.ethAmount,
             startEpoch: epochRecord.startEpoch,
