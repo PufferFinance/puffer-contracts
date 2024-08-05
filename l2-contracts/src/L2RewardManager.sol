@@ -125,7 +125,7 @@ contract L2RewardManager is
                     )
                 )
             );
-            if (!MerkleProof.verify(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
+            if (!MerkleProof.verifyCalldata(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
             }
 
