@@ -108,7 +108,8 @@ contract DeployPufferVaultV3 is BaseScript {
             )
         );
 
-        L2RewardManager l2RewardManager = new L2RewardManager(address(xPufETHProxy), address(vaultProxy));
+        //@todo: set the correct address
+        L2RewardManager l2RewardManager = new L2RewardManager(address(xPufETHProxy), address(vaultProxy), address(0));
 
         XERC20Lockbox xERC20Lockbox = new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: address(vaultProxy) });
 

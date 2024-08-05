@@ -5,13 +5,18 @@ import "forge-std/Test.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { L2RewardManager } from "../../src/L2RewardManager.sol";
 import { IL2RewardManager } from "../../src/interface/IL2RewardManager.sol";
-import { InvalidAmount } from "mainnet-contracts/src/Errors.sol";
+import { L2RewardManagerStorage } from "../../src/L2RewardManagerStorage.sol";
+import { InvalidAmount, InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { IPufferVaultV3 } from "mainnet-contracts/src/interface/IPufferVaultV3.sol";
 import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ROLE_ID_BRIDGE, PUBLIC_ROLE } from "mainnet-contracts/script/Roles.sol";
+import { ROLE_ID_BRIDGE, PUBLIC_ROLE, ROLE_ID_REWARD_WATCHER } from "mainnet-contracts/script/Roles.sol";
+
+contract MockL1Burner {
+    function xReceive(bytes32, uint256, address, address, uint32, bytes memory) external returns (bytes memory) { }
+}
 
 /**
  * forge test --match-path test/unit/L2RewardManager.t.sol -vvvv
@@ -39,6 +44,8 @@ contract L2RewardManagerTest is Test {
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
 
+    address mockL1Burner;
+
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
     uint256 rewardsAmount;
@@ -49,11 +56,13 @@ contract L2RewardManagerTest is Test {
     function setUp() public {
         accessManager = new AccessManager(address(this));
 
+        mockL1Burner = address(new MockL1Burner());
+
         // Deploy the BridgeMock contract
         mockBridge = new BridgeMock();
         // Deploy the MockERC20 token
         xPufETH = new ERC20Mock("xPufETH", "xPufETH");
-        address l2RewardManagerImp = address(new L2RewardManager(address(xPufETH), l1_vault));
+        address l2RewardManagerImp = address(new L2RewardManager(address(xPufETH), l1_vault, mockL1Burner));
         l2RewardManager = L2RewardManager(
             address(
                 new ERC1967Proxy(
@@ -61,7 +70,7 @@ contract L2RewardManagerTest is Test {
                 )
             )
         );
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](5);
         bytes4[] memory bridgeSelectors = new bytes4[](1);
         bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
         calldatas[0] = abi.encodeWithSelector(
@@ -76,7 +85,89 @@ contract L2RewardManagerTest is Test {
 
         calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(mockBridge), 0);
 
+        bytes4[] memory rewardsWatcherSelectors = new bytes4[](3);
+        rewardsWatcherSelectors[0] = L2RewardManager.freezeAndRevertInterval.selector;
+        rewardsWatcherSelectors[1] = L2RewardManager.freezeClaimingForInterval.selector;
+        rewardsWatcherSelectors[2] = L2RewardManager.revertInterval.selector;
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardManager),
+            rewardsWatcherSelectors,
+            ROLE_ID_REWARD_WATCHER
+        );
+
+        calldatas[4] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_WATCHER, address(this), 0);
+
         accessManager.multicall(calldatas);
+    }
+
+    function test_updateBridgeData() public {
+        L2RewardManagerStorage.BridgeData memory bridgeData =
+            L2RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
+        l2RewardManager.updateBridgeData(address(0), bridgeData);
+
+        l2RewardManager.updateBridgeData(address(mockBridge), bridgeData);
+    }
+
+    function test_freezeInvalidInterval() public {
+        // Allowlist bridge
+        test_updateBridgeData();
+
+        // Non existing interval
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
+        l2RewardManager.freezeAndRevertInterval(address(mockBridge), 123124, 523523);
+
+        test_MintAndBridgeRewardsSuccess();
+
+        vm.warp(block.timestamp + 1 days);
+        // Unlock the interval
+        assertEq(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), false, "claiming should be unlocked");
+
+        // We cant revert, because the interval is unlocked
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
+        l2RewardManager.freezeAndRevertInterval(address(mockBridge), startEpoch, endEpoch);
+    }
+
+    function test_freezeAndRevertInterval() public {
+        // Allowlist bridge
+        test_updateBridgeData();
+
+        test_MintAndBridgeRewardsSuccess();
+
+        vm.expectEmit(true, true, true, true);
+        emit IL2RewardManager.ClaimingIntervalReverted(startEpoch, endEpoch, rewardsAmount, rewardsRoot);
+        l2RewardManager.freezeAndRevertInterval(address(mockBridge), startEpoch, endEpoch);
+    }
+
+    function test_freezeInterval() public {
+        test_MintAndBridgeRewardsSuccess();
+
+        assertTrue(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), "claiming should be locked");
+
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        assertEq(epochRecord.startEpoch, startEpoch, "startEpoch should be stored in storage correctly");
+        assertEq(epochRecord.endEpoch, endEpoch, "endEpoch should be stored in storage correctly");
+        assertEq(epochRecord.timeBridged, block.timestamp, "timeBridged should be stored in storage correctly");
+
+        // Freezing the interval sets the timeBridged to 0, making that interval unclaimable
+        vm.expectEmit(true, true, true, true);
+        emit IL2RewardManager.ClaimingIntervalFrozen(startEpoch, endEpoch);
+        l2RewardManager.freezeClaimingForInterval(startEpoch, endEpoch);
+
+        epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        assertEq(epochRecord.timeBridged, 0, "timeBridged should be zero");
+
+        assertTrue(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), "claiming should stay locked");
+    }
+
+    function test_revertInterval() public {
+        test_updateBridgeData();
+        test_freezeInterval();
+
+        l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
     }
 
     function test_setDelayPeriod() public {
@@ -153,7 +244,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
@@ -228,7 +320,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
@@ -251,8 +344,9 @@ contract L2RewardManagerTest is Test {
             uint256(0),
             encodedCallData
         );
+        vm.stopPrank();
 
-        IL2RewardManager.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
     }
@@ -268,7 +362,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
@@ -338,7 +433,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
@@ -364,7 +460,7 @@ contract L2RewardManagerTest is Test {
 
         vm.warp(block.timestamp + 5 days);
 
-        IL2RewardManager.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
 
@@ -485,7 +581,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
@@ -577,7 +674,8 @@ contract L2RewardManagerTest is Test {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: "uri",
+            xPufETHAmount: rewardsAmount
         });
 
         IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({

@@ -63,6 +63,7 @@ interface IPufferVaultV3 is IPufferVaultV2 {
 
     /**
      * @notice Parameters for minting and bridging rewards (calldata).
+     * @param xPufETHAmount The xPufETH amount minted and bridged.
      * @param rewardsAmount The amount of rewards to be bridged.
      * @param ethToPufETHRate The exchange rate from ETH to pufETH.
      * @param startEpoch The starting epoch for the rewards.
@@ -71,6 +72,7 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      * @param rewardsURI The URI for the rewards metadata.
      */
     struct MintAndBridgeData {
+        uint256 xPufETHAmount;
         uint256 rewardsAmount;
         uint256 ethToPufETHRate;
         uint256 startEpoch;
@@ -128,6 +130,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
         uint256 ethToPufETHRate,
         string rewardsURI
     );
+
+    /**
+     * @param rewardsAmount The amount of rewards reverted.
+     * @param startEpoch The starting epoch for the rewards.
+     * @param endEpoch The ending epoch for the rewards.
+     * @param rewardsRoot The merkle root of the rewards.
+     */
+    event RevertedRewards(uint256 rewardsAmount, uint256 startEpoch, uint256 endEpoch, bytes32 indexed rewardsRoot);
 
     /**
      * @notice Event emitted when the allowed reward mint amount is updated.

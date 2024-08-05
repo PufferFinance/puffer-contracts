@@ -114,6 +114,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
+            xPufETHAmount: shares,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: params.startEpoch,
             endEpoch: params.endEpoch,
@@ -219,6 +220,31 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
         $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
         emit BridgeDataUpdated(bridge, bridgeData);
+    }
+
+    /**
+     * @notice Reverts the rewards interval for a specific period.
+     * @dev Can only be called by the Burner contract.
+     */
+    function revertBridgingInterval(
+        uint256 pufETHAmount,
+        uint256 ethAmount,
+        uint256 startEpoch,
+        uint256 endEpoch,
+        bytes32 rewardsRoot
+    ) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        $.totalRewardMintAmount -= uint104(ethAmount);
+        // msg.sender is the XPufETHBurner contract
+        _burn(msg.sender, pufETHAmount);
+
+        emit RevertedRewards({
+            rewardsAmount: ethAmount,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: rewardsRoot
+        });
     }
 
     /**

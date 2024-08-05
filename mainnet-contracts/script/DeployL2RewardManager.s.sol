@@ -30,13 +30,14 @@ contract DeployL2RewardManager is BaseScript {
     address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
     address L1_PUFFER_VAULT = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9; //@todo change for mainnet
     address CONNEXT_BRIDGE = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
+    address L1_BURNER = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
 
     function run() public broadcast {
         AccessManager accessManager = new AccessManager(_broadcaster);
 
         console.log("AccessManager", address(accessManager));
 
-        L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT), address(L1_PUFFER_VAULT));
+        L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT), address(L1_PUFFER_VAULT), L1_BURNER);
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         ERC1967Proxy proxy = new ERC1967Proxy(
