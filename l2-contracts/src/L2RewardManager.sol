@@ -321,12 +321,12 @@ contract L2RewardManager is
 
         bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
 
-        // Locked interval
+        // Revert if the claiming is not locked
         if (!_isClaimingLocked(intervalId)) {
             revert UnableToFreezeInterval();
         }
 
-        // Non existing interval
+        // revert for non-existing interval
         if ($.epochRecords[intervalId].rewardRoot == bytes32(0)) {
             revert UnableToFreezeInterval();
         }
