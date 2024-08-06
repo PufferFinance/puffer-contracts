@@ -353,6 +353,8 @@ contract L2RewardManager is
 
         EpochRecord memory epochRecord = $.epochRecords[intervalId];
 
+        XPUFETH.approve(bridge, epochRecord.pufETHAmount);
+
         IBridgeInterface(bridge).xcall({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L1_BURNER, // Address of the target contract

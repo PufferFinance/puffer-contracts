@@ -67,7 +67,8 @@ contract DeployXPufETHBurner is DeployerHelper {
             AccessManager.setTargetFunctionRole.selector, address(pufferVault), vaultSelectors, ROLE_ID_REWARD_BURNER
         );
 
-        calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_BURNER, xPufETHBurnerProxy, 0);
+        calldatas[3] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_BURNER, xPufETHBurnerProxy, 0);
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
 
