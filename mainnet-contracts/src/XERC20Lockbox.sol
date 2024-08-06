@@ -22,6 +22,11 @@ contract XERC20Lockbox is IXERC20Lockbox {
     IERC20 public immutable ERC20;
 
     /**
+     * @notice Whether the ERC20 token is the native gas token of this chain
+     */
+    bool public constant IS_NATIVE = false;
+
+    /**
      * @notice Constructor
      *
      * @param xerc20 The address of the XERC20 contract
