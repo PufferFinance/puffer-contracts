@@ -158,8 +158,14 @@ contract L2RewardManager is
      *
      * revertInterval is called to bridge the xPufETH back to the L1.
      * On the L1, we unwrap xPufETH -> pufETH and burn the pufETH to undo the minting and bridging of the rewards.
+     *
+     * We use msg.value to pay for the relayer fee on the destination chain.
      */
-    function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external restricted {
+    function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch)
+        external
+        payable
+        restricted
+    {
         _freezeClaimingForInterval(startEpoch, endEpoch);
 
         _revertInterval(bridge, startEpoch, endEpoch);
@@ -176,8 +182,9 @@ contract L2RewardManager is
     /**
      * @notice Reverts the already frozen interval. It bridges the xPufETH back to the L1
      * @dev On the L1, we unwrap xPufETH to pufETH and burn the pufETH to undo the minting
+     * We use msg.value to pay for the relayer fee on the destination chain.
      */
-    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external restricted {
+    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external payable restricted {
         _revertInterval(bridge, startEpoch, endEpoch);
     }
 
@@ -355,7 +362,7 @@ contract L2RewardManager is
 
         XPUFETH.approve(bridge, epochRecord.pufETHAmount);
 
-        IBridgeInterface(bridge).xcall({
+        IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L1_BURNER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract

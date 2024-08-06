@@ -83,11 +83,6 @@ interface IL2RewardManager {
     ) external returns (bytes memory);
 
     /**
-     * @notice Reverts rewards interval for a specifing period using the `bridge`
-     */
-    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external;
-
-    /**
      * @notice Claims the rewards for a specific epoch range
      * @param claimOrders The list of orders for claiming.
      */

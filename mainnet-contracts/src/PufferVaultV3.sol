@@ -81,7 +81,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @notice Mints and bridges rewards according to the provided parameters.
      * @param params The parameters for bridging rewards.
      */
-    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external restricted {
+    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
@@ -128,7 +128,8 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // Encode data for the target contract call
         bytes memory encodedData = abi.encode(bridgingParams);
 
-        IBridgeInterface(params.bridge).xcall({
+        // we use value to pay for the relayer fee on the destination chain
+        IBridgeInterface(params.bridge).xcall{value: msg.value}({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract
@@ -154,7 +155,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @param claimer The address of the new claimer.
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function setL2RewardClaimer(address bridge, address claimer) external restricted {
+    function setL2RewardClaimer(address bridge, address claimer) external payable restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
         BridgeData memory bridgeData = $.bridges[bridge];
 
@@ -170,7 +171,8 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         // Encode data for the target contract call
         bytes memory encodedData = abi.encode(bridgingParams);
 
-        IBridgeInterface(bridge).xcall({
+        // we use value to pay for the relayer fee on the destination chain
+        IBridgeInterface(bridge).xcall{value: msg.value}({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(0), // Address of the token contract
