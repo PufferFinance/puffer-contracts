@@ -16,18 +16,30 @@ abstract contract DeployerHelper is Script {
     address xPufETH;
     address lockbox;
 
+    address everclearBridge;
+
+    address deployer;
+
     // Chain IDs
     uint256 mainnet = 1;
     uint256 holesky = 1700;
     uint256 binance = 56;
     uint256 base = 8453;
+    uint256 sepolia = 11155111;
+    uint256 opSepolia = 11155420;
 
     function _loadExistingContractsAddresses() internal {
+        (, address msgSender,) = vm.readCallers();
+        // Some fork / other network
+        deployer = msgSender;
+        console.log("Deployer:", block.chainid, deployer);
+
         _getAccessManager();
         _getPufferVault();
         _getValidatorTicket();
         _getPufferProtocol();
         _getXPufETH();
+        _getEverclear();
     }
 
     function _getAccessManager() internal returns (AccessManager) {
@@ -40,10 +52,7 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == binance) {
             accessManager = AccessManager(0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474);
         } else {
-            (, address msgSender,) = vm.readCallers();
-            // Some fork / other network
-            console.log("Deploying new access manager", block.chainid, msgSender);
-            accessManager = new AccessManager(msgSender);
+            accessManager = new AccessManager(deployer);
         }
 
         return accessManager;
@@ -86,5 +95,20 @@ abstract contract DeployerHelper is Script {
             xPufETH = 0x64274835D88F5c0215da8AADd9A5f2D2A2569381;
         }
         return xPufETH;
+    }
+
+    function _getEverclear() internal returns (address) {
+        if (block.chainid == mainnet) {
+            everclearBridge = 0x8898B472C54c31894e3B9bb83cEA802a5d0e63C6;
+        } else if (block.chainid == base) {
+            everclearBridge = 0xB8448C6f7f7887D36DcA487370778e419e9ebE3F;
+        } else if (block.chainid == binance) {
+            everclearBridge = 0xCd401c10afa37d641d2F594852DA94C700e4F2CE;
+        } else if (block.chainid == opSepolia) {
+            everclearBridge = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A;
+        } else if (block.chainid == sepolia) {
+            everclearBridge = 0x445fbf9cCbaf7d557fd771d56937E94397f43965;
+        }
+        return everclearBridge;
     }
 }

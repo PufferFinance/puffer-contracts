@@ -42,6 +42,8 @@ bracket_spacing = true
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
 holesky="${HOLESKY_RPC_URL}"
+sepolia="${SEPOLIA_RPC_URL}"
+opsepolia ="${OP_SEPOLIA_RPC_URL}"
 
 [invariant]
 fail_on_revert=false

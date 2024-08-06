@@ -4,57 +4,149 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { BaseScript } from "./BaseScript.s.sol";
-import { ROLE_ID_BRIDGE } from "../script/Roles.sol";
+import { ROLE_ID_BRIDGE, ROLE_ID_REWARD_BURNER } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { IL2RewardManager } from "l2-contracts/src/interface/IL2RewardManager.sol";
+import { DeployerHelper } from "./DeployerHelper.s.sol";
+import { NoImplementation } from "../src/NoImplementation.sol";
+import { XPufETHBurner } from "src/XPufETHBurner.sol";
+import { PufferVaultV3 } from "src/PufferVaultV3.sol";
+import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
- * @title DeployL2RewardManager
- * @author Puffer Finance
- * @notice Deploys L2RewardManager
  * @dev
+ * To run the simulation do the following:
+ *         forge script script/DeployL2RewardManager.s.sol:DeployL2RewardManager -vvvv --rpc-url=...
  *
- *
- *         NOTE:
- *
- *         If you ran the deployment script, but did not `--broadcast` the transaction, it will still update your local chainId-deployment.json file.
- *         Other scripts will fail because addresses will be updated in deployments file, but the deployment never happened.
- *
- *         BaseScript.sol holds the private key logic, if you don't have `PK` ENV variable, it will use the default one PK from `makeAddr("pufferDeployer")`
- *
- *         PK=${deployer_pk} forge script script/DeployL2RewardManager.s.sol:DeployL2RewardManager -vvvv --rpc-url=... --broadcast
+ * If everything looks good, run the same command with `--broadcast --verify`
  */
-contract DeployL2RewardManager is BaseScript {
-    address _CONNEXT = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
-    address L1_PUFFER_VAULT = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9; //@todo change for mainnet
-    address CONNEXT_BRIDGE = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
-    address L1_BURNER = 0x8247ed6d0a344eeae4edBC7e44572F1B70ECA82A; //@todo change for mainnet
+contract DeployL2RewardManager is DeployerHelper {
+    address xPufETHBurnerProxy;
+    address l2RewardsManagerProxy;
+    address l1PufferVault;
 
-    function run() public broadcast {
-        AccessManager accessManager = new AccessManager(_broadcaster);
+    function run() public {
+        vm.createSelectFork(vm.rpcUrl("sepolia"));
 
-        console.log("AccessManager", address(accessManager));
+        vm.startBroadcast();
+        // Load addresses for Sepolia
+        _loadExistingContractsAddresses();
+        l1PufferVault = pufferVault;
 
-        L2RewardManager newImplementation = new L2RewardManager(address(_CONNEXT), address(L1_PUFFER_VAULT), L1_BURNER);
-        console.log("L2RewardManager Implementation", address(newImplementation));
+        address noImpl = address(new NoImplementation());
 
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
-        );
-        console.log("L2RewardManager Proxy", address(proxy));
+        // Deploy empty proxy
+        xPufETHBurnerProxy = address(new ERC1967Proxy(noImpl, ""));
 
-        bytes[] memory calldatas = new bytes[](2);
+        vm.label(address(xPufETHBurnerProxy), "XPufETHBurnerProxy");
+
+        bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
+        bridgeSelectors[0] = XPufETHBurner.xReceive.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(proxy), bridgeSelectors, ROLE_ID_BRIDGE
+            AccessManager.setTargetFunctionRole.selector, address(xPufETHBurnerProxy), bridgeSelectors, ROLE_ID_BRIDGE
         );
-        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, CONNEXT_BRIDGE, 0);
 
-        accessManager.multicall(calldatas);
+        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, everclearBridge, 0);
+
+        bytes4[] memory vaultSelectors = new bytes4[](1);
+        vaultSelectors[0] = PufferVaultV3.revertBridgingInterval.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(pufferVault), vaultSelectors, ROLE_ID_REWARD_BURNER
+        );
+
+        calldatas[3] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_BURNER, xPufETHBurnerProxy, 0);
+
+        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+
+        console.log("Multicall L1 data:");
+        console.logBytes(multicallData);
+
+        vm.stopBroadcast();
+        // Deploy stuff on L2
+        vm.createSelectFork(vm.rpcUrl("opsepolia"));
+        vm.startBroadcast();
+        // Load addresses for Sepolia
+        _loadExistingContractsAddresses();
+
+        L2RewardManager newImplementation =
+            new L2RewardManager(everclearBridge, address(l1PufferVault), address(xPufETHBurnerProxy));
+        console.log("L2RewardManager Implementation", address(newImplementation));
+
+        l2RewardsManagerProxy = address(
+            new ERC1967Proxy(
+                address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+            )
+        );
+        vm.makePersistent(l2RewardsManagerProxy);
+
+        console.log("L2RewardManager Proxy", address(l2RewardsManagerProxy));
+        vm.label(address(l2RewardsManagerProxy), "L2RewardManagerProxy");
+        vm.label(address(newImplementation), "L2RewardManagerImplementation");
+
+        bytes[] memory calldatasL2 = new bytes[](2);
+
+        bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
+        bridgeSelectorsL2[0] = IL2RewardManager.xReceive.selector;
+
+        calldatasL2[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardsManagerProxy),
+            bridgeSelectorsL2,
+            ROLE_ID_BRIDGE
+        );
+        calldatasL2[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, everclearBridge, 0);
+
+        bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatasL2));
+
+        console.log("Encoded Multicall");
+        console.logBytes(encodedMulticall);
+
+        // accessManager.multicall(calldatasL2);
+
+        // Upgrade contract on L1
+        vm.stopBroadcast();
+
+        // Switch back to Fork 0
+        vm.selectFork(0);
+        vm.startBroadcast();
+        // Load addresses for Sepolia
+        _loadExistingContractsAddresses();
+
+        vm.makePersistent(l2RewardsManagerProxy);
+
+        // XPufETHBurner
+        XPufETHBurner xPufETHBurnerImpl = new XPufETHBurner({
+            XpufETH: xPufETH,
+            pufETH: pufferVault,
+            lockbox: lockbox,
+            l2RewardsManager: l2RewardsManagerProxy
+        });
+
+        vm.label(address(xPufETHBurnerImpl), "xPufETHBurnerImpl");
+
+        bytes memory upgradeCd = abi.encodeWithSelector(
+            UUPSUpgradeable.upgradeToAndCall.selector,
+            address(xPufETHBurnerImpl),
+            abi.encodeCall(XPufETHBurner.initialize, (address(accessManager)))
+        );
+
+        // For testnet, the deployer can execute the upgrade
+        UUPSUpgradeable(xPufETHBurnerProxy).upgradeToAndCall(
+            address(xPufETHBurnerImpl), abi.encodeCall(XPufETHBurner.initialize, (address(accessManager)))
+        );
+
+        // accessManager.execute(address(xPufETHBurnerProxy), upgradeCd);
+
+        console.log("Upgrade CD target", address(xPufETHBurnerImpl));
+        console.logBytes(upgradeCd);
+
+        vm.stopBroadcast();
     }
 }
