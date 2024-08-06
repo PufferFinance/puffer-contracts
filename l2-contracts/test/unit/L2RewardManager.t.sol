@@ -255,6 +255,8 @@ contract L2RewardManagerTest is Test {
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
+        deal(address(xPufETH), address(l1_vault), rewardsAmount);
+        xPufETH.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -331,6 +333,9 @@ contract L2RewardManagerTest is Test {
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
+
+        deal(address(xPufETH), address(l1_vault), rewardsAmount);
+        xPufETH.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -444,6 +449,9 @@ contract L2RewardManagerTest is Test {
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         vm.startPrank(l1_vault);
+
+        deal(address(xPufETH), address(l1_vault), rewardsAmount);
+        xPufETH.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -596,6 +604,8 @@ contract L2RewardManagerTest is Test {
         amountAdjustedForExchangeRate = (rewardsAmount * ethToPufETHRate) / 1 ether;
 
         vm.startPrank(l1_vault);
+        deal(address(xPufETH), address(l1_vault), rewardsAmount);
+        xPufETH.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
