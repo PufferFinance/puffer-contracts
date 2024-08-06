@@ -129,7 +129,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         bytes memory encodedData = abi.encode(bridgingParams);
 
         // we use value to pay for the relayer fee on the destination chain
-        IBridgeInterface(params.bridge).xcall{value: msg.value}({
+        IBridgeInterface(params.bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract
@@ -172,7 +172,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         bytes memory encodedData = abi.encode(bridgingParams);
 
         // we use value to pay for the relayer fee on the destination chain
-        IBridgeInterface(bridge).xcall{value: msg.value}({
+        IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARD_MANAGER, // Address of the target contract
             asset: address(0), // Address of the token contract
