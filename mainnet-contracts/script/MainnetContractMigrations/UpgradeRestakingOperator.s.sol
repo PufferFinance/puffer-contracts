@@ -3,13 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
-import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
-import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
