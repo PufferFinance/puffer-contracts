@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.4 <0.9.0;
 
 import { IXERC20 } from "../interface/IXERC20.sol";
@@ -29,6 +29,15 @@ contract xPufETH is xPufETHStorage, IXERC20, AccessManagedUpgradeable, ERC20Perm
         __AccessManaged_init(accessManager);
         __ERC20_init("xPufETH", "xPufETH");
         __ERC20Permit_init("xPufETH");
+    }
+
+    /**
+     * @notice Returns the address of the lockbox
+     */
+    function lockbox() external view returns (address) {
+        xPufETH storage $ = _getXPufETHStorage();
+
+        return $.lockbox;
     }
 
     /**

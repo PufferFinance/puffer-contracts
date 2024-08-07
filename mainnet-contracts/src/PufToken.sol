@@ -23,18 +23,13 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
      * @notice EIP-712 type hash
      */
     bytes32 internal constant _MIGRATE_TYPEHASH = keccak256(
-        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce)"
+        "Migrate(address depositor,address migratorContract,address destination,address token,uint256 amount,uint256 signatureExpiry,uint256 nonce,uint256 chainId)"
     );
-
-    /**
-     * @notice Standard Token Decimals
-     */
-    uint256 internal constant _STANDARD_TOKEN_DECIMALS = 18;
 
     /**
      * @notice The underlying token decimals
      */
-    uint256 internal immutable _TOKEN_DECIMALS;
+    uint8 internal immutable _TOKEN_DECIMALS;
 
     /**
      * @notice Puffer Token factory
@@ -59,7 +54,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         // The Factory is the deployer of the contract
         PUFFER_FACTORY = PufferL2Depositor(msg.sender);
         TOKEN = ERC20(token);
-        _TOKEN_DECIMALS = uint256(TOKEN.decimals());
+        _TOKEN_DECIMALS = TOKEN.decimals();
         totalDepositCap = depositCap;
     }
 
@@ -104,11 +99,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @inheritdoc IPufStakingPool
      */
-    function deposit(address from, address account, uint256 amount)
-        external
-        whenNotPaused
-        validateAddressAndAmount(account, amount)
-    {
+    function deposit(address from, address account, uint256 amount) external whenNotPaused {
         _deposit(from, account, amount);
     }
 
@@ -118,12 +109,9 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     function withdraw(address recipient, uint256 amount) external validateAddressAndAmount(recipient, amount) {
         _burn(msg.sender, amount);
 
-        uint256 deNormalizedAmount = _denormalizeAmount(amount);
+        TOKEN.safeTransfer(recipient, amount);
 
-        TOKEN.safeTransfer(recipient, deNormalizedAmount);
-
-        // Using the original deposit amount in the event (in this case it is denormalized amount)
-        emit Withdrawn(msg.sender, recipient, deNormalizedAmount);
+        emit Withdrawn(msg.sender, recipient, amount);
     }
 
     /**
@@ -132,7 +120,6 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     function migrate(uint256 amount, address migratorContract, address destination)
         external
         onlyAllowedMigratorContract(migratorContract)
-        validateAddressAndAmount(destination, amount)
         whenNotPaused
     {
         _migrate({ depositor: msg.sender, amount: amount, destination: destination, migratorContract: migratorContract });
@@ -162,7 +149,8 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
                 address(TOKEN),
                 amount,
                 signatureExpiry,
-                _useNonce(depositor)
+                _useNonce(depositor),
+                block.chainid
             )
         );
 
@@ -185,19 +173,20 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         totalDepositCap = newDepositCap;
     }
 
-    function _deposit(address depositor, address account, uint256 amount) internal {
+    function _deposit(address depositor, address account, uint256 amount)
+        internal
+        validateAddressAndAmount(account, amount)
+    {
         TOKEN.safeTransferFrom(msg.sender, address(this), amount);
 
-        uint256 normalizedAmount = _normalizeAmount(amount);
-
-        if (totalSupply() + normalizedAmount > totalDepositCap) {
+        if (totalSupply() + amount > totalDepositCap) {
             revert TotalDepositCapReached();
         }
 
         // Mint puffToken to the account
-        _mint(account, normalizedAmount);
+        _mint(account, amount);
 
-        // If the user is deposiing using the factory, we emit the `depositor` from the parameters
+        // If the user is depositng using the factory, we emit the `depositor` from the parameters
         if (msg.sender == address(PUFFER_FACTORY)) {
             emit Deposited(depositor, account, amount);
         } else {
@@ -209,10 +198,11 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @notice Transfers the Token from this contract using the migrator contract
      */
-    function _migrate(address depositor, uint256 amount, address destination, address migratorContract) internal {
+    function _migrate(address depositor, uint256 amount, address destination, address migratorContract)
+        internal
+        validateAddressAndAmount(destination, amount)
+    {
         _burn(depositor, amount);
-
-        uint256 deNormalizedAmount = _denormalizeAmount(amount);
 
         emit Migrated({
             depositor: depositor,
@@ -221,26 +211,12 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
             amount: amount
         });
 
-        TOKEN.safeIncreaseAllowance(migratorContract, deNormalizedAmount);
+        TOKEN.safeIncreaseAllowance(migratorContract, amount);
 
         IMigrator(migratorContract).migrate({ depositor: depositor, destination: destination, amount: amount });
     }
 
-    function _normalizeAmount(uint256 amount) internal view returns (uint256 normalizedAmount) {
-        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
-            return amount / (10 ** (_TOKEN_DECIMALS - _STANDARD_TOKEN_DECIMALS));
-        } else if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
-            return amount * (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
-        }
-        return amount;
-    }
-
-    function _denormalizeAmount(uint256 amount) internal view returns (uint256 denormalizedAmount) {
-        if (_TOKEN_DECIMALS > _STANDARD_TOKEN_DECIMALS) {
-            return amount * (10 ** (_TOKEN_DECIMALS - _STANDARD_TOKEN_DECIMALS));
-        } else if (_TOKEN_DECIMALS < _STANDARD_TOKEN_DECIMALS) {
-            return amount / (10 ** (_STANDARD_TOKEN_DECIMALS - _TOKEN_DECIMALS));
-        }
-        return amount;
+    function decimals() public view override returns (uint8 _decimals) {
+        return _TOKEN_DECIMALS;
     }
 }
