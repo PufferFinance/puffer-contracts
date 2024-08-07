@@ -36,7 +36,7 @@ contract UpgradePufferModule is Script {
     function run() public {
         require(block.chainid == 1, "This script is only for Puffer Mainnet");
         vm.startBroadcast();
-        
+
         PufferModule newImplementation = new PufferModule({
             protocol: pufferProtocol,
             eigenPodManager: eigenPodManager,
