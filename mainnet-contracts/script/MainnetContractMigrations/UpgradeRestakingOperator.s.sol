@@ -15,6 +15,7 @@ import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { GenerateAccessManagerCalldata1 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata1.s.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * forge script script/MainnetContractMigrations/UpgradeRestakingOperator.s.sol:UpgradeRestakingOperator --rpc-url=$RPC_URL --private-key $PK
@@ -24,6 +25,7 @@ contract UpgradeRestakingOperator is Script {
     address EIGEN_SLASHER = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
     address MODULE_MANAGER_PROXY = 0x9E1E4fCb49931df5743e659ad910d331735C3860;
     address MODULE_BEACON = 0xdd38A5a7789C74fc7F64556fc772343658EEBb04;
+    address REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
     address RESTAKING_OPERATOR_BEACON = 0x6756B856Dd3843C84249a6A31850cB56dB824c4B;
     address PUFFER_PROTOCOL = 0xf7b6B32492c2e13799D921E84202450131bd238B;
     address DAO = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
@@ -45,7 +47,8 @@ contract UpgradeRestakingOperator is Script {
         RestakingOperator restakingOperatorImpl = new RestakingOperator({
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             slasher: ISlasher(EIGEN_SLASHER),
-            moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY)
+            moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY),
+            rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
         });
 
         bytes memory accessCd =

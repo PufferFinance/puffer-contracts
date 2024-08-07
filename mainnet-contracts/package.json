@@ -12,7 +12,7 @@
     "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#1bf4c12",
     "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
     "murky": "https://github.com/dmfxyz/murky.git",
-    "rave": "https://github.com/PufferFinance/rave.git#691419d"
+    "rave": "https://github.com/PufferFinance/rave.git#57ce268"
   },
   "devDependencies": {
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
