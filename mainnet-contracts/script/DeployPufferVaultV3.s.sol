@@ -18,7 +18,7 @@ import {
     ROLE_ID_DAO,
     PUBLIC_ROLE,
     ROLE_ID_BRIDGE,
-    ROLE_ID_REWARD_BURNER,
+    ROLE_ID_L1_REWARD_MANAGER,
     PUBLIC_ROLE
 } from "./Roles.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
@@ -33,7 +33,8 @@ import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
-import { XPufETHBurner } from "../src/XPufETHBurner.sol";
+import { L1RewardManager } from "../src/L1RewardManager.sol";
+import { L1RewardManagerStorage } from "../src/L1RewardManagerStorage.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
 import { IGuardianModule } from "../src/interface/IGuardianModule.sol";
@@ -76,7 +77,7 @@ contract DeployPufferVaultV3 is BaseScript {
 
     AccessManager accessManager;
     xPufETH xPufETHProxy;
-    address burnerProxy;
+    address l1RewardManagerProxy;
     BridgeMock bridge;
     L2RewardManager l2RewardManager;
 
@@ -117,40 +118,34 @@ contract DeployPufferVaultV3 is BaseScript {
 
         address noImpl = address(new NoImplementation());
 
-        burnerProxy = address(new ERC1967Proxy(noImpl, ""));
+        l1RewardManagerProxy = address(new ERC1967Proxy(noImpl, ""));
 
         XERC20Lockbox xERC20Lockbox = new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: address(vaultProxy) });
 
-        vm.label(address(burnerProxy), "XPufETHBurnerProxy");
+        vm.label(address(l1RewardManagerProxy), "XPufETHBurnerProxy");
 
         l2RewardManager = L2RewardManager(
             address(
                 new ERC1967Proxy(
-                    address(new L2RewardManager(address(xPufETHProxy), address(vaultProxy), burnerProxy)),
+                    address(new L2RewardManager(address(xPufETHProxy), l1RewardManagerProxy)),
                     abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
                 )
             )
         );
 
-        // XPufETHBurner
-        XPufETHBurner xPufETHBurnerImpl = new XPufETHBurner({
+        // L1RewardManager
+        L1RewardManager l1RewardManager = new L1RewardManager({
             XpufETH: address(xPufETHProxy),
             pufETH: address(vaultProxy),
             lockbox: address(xERC20Lockbox),
             l2RewardsManager: address(l2RewardManager)
         });
-        vm.label(address(xPufETHBurnerImpl), "xPufETHBurnerImpl");
+        vm.label(address(l1RewardManager), "l1RewardManager");
 
         // Upgrade to new impl
-        NoImplementation(payable(address(burnerProxy))).upgradeToAndCall(
-            address(xPufETHBurnerImpl), abi.encodeCall(XPufETHBurner.initialize, (address(accessManager)))
+        NoImplementation(payable(address(l1RewardManagerProxy))).upgradeToAndCall(
+            address(l1RewardManager), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
         );
-
-        IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
-            xToken: address(xPufETHProxy),
-            lockBox: address(xERC20Lockbox),
-            l2RewardManager: address(l2RewardManager)
-        });
 
         PufferOracleV2 oracle =
             new PufferOracleV2(IGuardianModule(address(0)), payable(address(vaultProxy)), address(accessManager));
@@ -162,22 +157,22 @@ contract DeployPufferVaultV3 is BaseScript {
             IStrategy(elStETHStrategy),
             IEigenLayer(eigenStrategyManager),
             IPufferOracle(oracle),
-            _DELEGATION_MANAGER,
-            bridgingParams
+            _DELEGATION_MANAGER
         );
 
         UUPSUpgradeable(address(vaultProxy)).upgradeToAndCall(
             address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
         );
 
-        IPufferVaultV3.BridgeData memory bridgeData = IPufferVaultV3.BridgeData({ destinationDomainId: 1 });
+        L1RewardManagerStorage.BridgeData memory bridgeData =
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
         L2RewardManagerStorage.BridgeData memory bridgeData2 =
             L2RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
 
-        PufferVaultV3(payable(address(vaultProxy))).updateBridgeData(address(bridge), bridgeData);
+        L1RewardManager(payable(address(l1RewardManager))).updateBridgeData(address(bridge), bridgeData);
         L2RewardManager(payable(address(l2RewardManager))).updateBridgeData(address(bridge), bridgeData2);
 
-        PufferVaultV3(payable(address(vaultProxy))).setAllowedRewardMintAmount(1000 ether);
+        L1RewardManager(payable(address(l1RewardManager))).setAllowedRewardMintAmount(1000 ether);
 
         console.log("PufferVault:", address(vaultProxy));
         console.log("xpufETHProxy:", address(xPufETHProxy));
@@ -221,22 +216,23 @@ contract DeployPufferVaultV3 is BaseScript {
         bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = XPufETHBurner.xReceive.selector;
+        bridgeSelectors[0] = L1RewardManager.xReceive.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(burnerProxy), bridgeSelectors, ROLE_ID_BRIDGE
+            AccessManager.setTargetFunctionRole.selector, address(l1RewardManagerProxy), bridgeSelectors, ROLE_ID_BRIDGE
         );
 
         calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(bridge), 0);
 
         bytes4[] memory vaultSelectors = new bytes4[](1);
-        vaultSelectors[0] = PufferVaultV3.revertBridgingInterval.selector;
+        vaultSelectors[0] = PufferVaultV3.revertMintRewards.selector;
 
         calldatas[2] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), vaultSelectors, ROLE_ID_REWARD_BURNER
+            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), vaultSelectors, ROLE_ID_L1_REWARD_MANAGER
         );
 
-        calldatas[3] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_BURNER, burnerProxy, 0);
+        calldatas[3] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_L1_REWARD_MANAGER, l1RewardManagerProxy, 0);
 
         accessManager.multicall(calldatas);
     }

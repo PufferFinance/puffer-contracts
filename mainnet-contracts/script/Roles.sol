@@ -6,7 +6,7 @@ pragma solidity >=0.8.0 <0.9.0;
 // Deprecated
 uint64 constant ROLE_ID_UPGRADER = 1;
 
-uint64 constant ROLE_ID_REWARD_BURNER = 20;
+uint64 constant ROLE_ID_L1_REWARD_MANAGER = 20;
 uint64 constant ROLE_ID_REWARD_WATCHER = 21;
 uint64 constant ROLE_ID_OPERATIONS_MULTISIG = 22;
 uint64 constant ROLE_ID_OPERATIONS_PAYMASTER = 23;

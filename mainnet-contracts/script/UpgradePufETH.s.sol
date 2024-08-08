@@ -61,12 +61,6 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
-            xToken: bridgingDeployment.xPufETH,
-            lockBox: bridgingDeployment.xPufETHLockBox,
-            l2RewardManager: address(0)
-        });
-
         PufferVaultV3 newImplementation = new PufferVaultV3Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
@@ -74,8 +68,7 @@ contract UpgradePufETH is BaseScript {
             IStrategy(deployment.stETHStrategyMock),
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle),
-            _DELEGATION_MANAGER,
-            bridgingParams
+            _DELEGATION_MANAGER
         );
 
         vm.expectEmit(true, true, true, true);

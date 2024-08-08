@@ -12,7 +12,9 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { IBridgeInterface } from "mainnet-contracts/src/interface/Connext/IBridgeInterface.sol";
+import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
 import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
+import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
 
 /**
  * @title L2RewardManager
@@ -34,24 +36,18 @@ contract L2RewardManager is
     IERC20 public immutable XPUFETH;
 
     /**
-     * @notice PufferVault on Ethereum Mainnet
-     */
-    address public immutable L1_PUFFER_VAULT;
-
-    /**
      * @notice Burner contract on Ethereum Mainnet
      */
-    address public immutable L1_BURNER;
+    address public immutable L1_REWARD_MANAGER;
 
-    constructor(address xPufETH, address l1PufferVault, address l1Burner) {
+    constructor(address xPufETH, address l1RewardManager) {
         XPUFETH = IERC20(xPufETH);
-        L1_PUFFER_VAULT = l1PufferVault;
-        L1_BURNER = l1Burner;
+        L1_REWARD_MANAGER = l1RewardManager;
         _disableInitializers();
     }
 
-    modifier onlyPufferVault(address originSender) {
-        if (originSender != address(L1_PUFFER_VAULT)) {
+    modifier onlyL1RewardManager(address originSender) {
+        if (originSender != address(L1_REWARD_MANAGER)) {
             revert Unauthorized();
         }
         _;
@@ -68,15 +64,15 @@ contract L2RewardManager is
     function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
         external
         override(IL2RewardManager, IXReceiver)
-        onlyPufferVault(originSender)
+        onlyL1RewardManager(originSender)
         restricted
         returns (bytes memory emptyReturnData)
     {
-        IPufferVaultV3.BridgingParams memory bridgingParams = abi.decode(callData, (IPufferVaultV3.BridgingParams));
+        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
 
-        if (bridgingParams.bridgingType == IPufferVaultV3.BridgingType.MintAndBridge) {
+        if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
             _handleMintAndBridge(amount, bridgingParams.data);
-        } else if (bridgingParams.bridgingType == IPufferVaultV3.BridgingType.SetClaimer) {
+        } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
             _handleSetClaimer(bridgingParams.data);
         } else {
             revert InvalidBridgingType();
@@ -259,7 +255,8 @@ contract L2RewardManager is
     }
 
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
-        IPufferVaultV3.MintAndBridgeData memory params = abi.decode(data, (IPufferVaultV3.MintAndBridgeData));
+        L1RewardManagerStorage.MintAndBridgeData memory params =
+            abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
 
         // Sanity check
         if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
@@ -274,7 +271,7 @@ contract L2RewardManager is
             endEpoch: uint72(params.endEpoch),
             timeBridged: uint48(block.timestamp),
             rewardRoot: params.rewardsRoot,
-            pufETHAmount: uint128(params.xPufETHAmount),
+            pufETHAmount: uint128(amount),
             ethAmount: uint128(params.rewardsAmount)
         });
 
@@ -291,7 +288,8 @@ contract L2RewardManager is
      * @dev We want to allow Smart Contracts(Node Operators) on Ethereum Mainnet to set the claimer of the rewards on L2. It is likely that they will not have the same address on L2.
      */
     function _handleSetClaimer(bytes memory data) internal {
-        IPufferVaultV3.SetClaimerParams memory claimerParams = abi.decode(data, (IPufferVaultV3.SetClaimerParams));
+        L1RewardManagerStorage.SetClaimerParams memory claimerParams =
+            abi.decode(data, (L1RewardManagerStorage.SetClaimerParams));
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         $.rewardsClaimers[claimerParams.account] = claimerParams.claimer;
@@ -364,7 +362,7 @@ contract L2RewardManager is
 
         IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: L1_BURNER, // Address of the target contract
+            to: L1_REWARD_MANAGER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract
             delegate: msg.sender, // Address that can revert or forceLocal on destination
             amount: epochRecord.pufETHAmount, // Amount of tokens to transfer

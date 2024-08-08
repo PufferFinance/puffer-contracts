@@ -6,16 +6,27 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { L2RewardManager } from "../../src/L2RewardManager.sol";
 import { IL2RewardManager } from "../../src/interface/IL2RewardManager.sol";
 import { L2RewardManagerStorage } from "../../src/L2RewardManagerStorage.sol";
+import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
+import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
+import { L1RewardManager } from "mainnet-contracts/src/L1RewardManager.sol";
 import { InvalidAmount, InvalidAddress } from "mainnet-contracts/src/Errors.sol";
-import { IPufferVaultV3 } from "mainnet-contracts/src/interface/IPufferVaultV3.sol";
 import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { ROLE_ID_BRIDGE, PUBLIC_ROLE, ROLE_ID_REWARD_WATCHER } from "mainnet-contracts/script/Roles.sol";
+import { XERC20Lockbox } from "mainnet-contracts/src/XERC20Lockbox.sol";
+import { xPufETH } from "mainnet-contracts/src/l2/xPufETH.sol";
+import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
+import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
 
-contract MockL1Burner {
-    function xReceive(bytes32, uint256, address, address, uint32, bytes memory) external returns (bytes memory) { }
+contract PufferVaultMock is ERC20Mock {
+    constructor() ERC20Mock("VaultMock", "pufETH") { }
+
+    function mintRewards(uint256 rewardsAmount) external { }
+
+    function revertMintRewards(uint256 pufETHAmount, uint256 ethAmount) external { }
 }
 
 /**
@@ -29,22 +40,16 @@ contract L2RewardManagerTest is Test {
         uint256 amount;
     }
 
-    L2RewardManager public l2RewardManager;
-    ERC20Mock public xPufETH;
     BridgeMock public mockBridge;
 
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
-
-    address l1_vault = address(0x1);
 
     AccessManager accessManager;
     // 3 validators got the rewards
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
-
-    address mockL1Burner;
 
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
@@ -53,24 +58,80 @@ contract L2RewardManagerTest is Test {
     bytes32 rewardsRoot;
     uint256 amountAdjustedForExchangeRate;
 
+    L1RewardManager l1RewardManager;
+    XERC20Lockbox xERC20Lockbox;
+    PufferVaultMock pufferVault;
+
+    xPufETH xPufETHProxy;
+
+    address l1RewardManagerProxy;
+    address l2RewardManagerProxy;
+    L2RewardManager public l2RewardManager;
+
     function setUp() public {
         accessManager = new AccessManager(address(this));
-
-        mockL1Burner = address(new MockL1Burner());
 
         // Deploy the BridgeMock contract
         mockBridge = new BridgeMock();
         // Deploy the MockERC20 token
-        xPufETH = new ERC20Mock("xPufETH", "xPufETH");
-        address l2RewardManagerImp = address(new L2RewardManager(address(xPufETH), l1_vault, mockL1Burner));
-        l2RewardManager = L2RewardManager(
+
+        xPufETH xpufETHImplementation = new xPufETH();
+
+        pufferVault = new PufferVaultMock();
+
+        address noImpl = address(new NoImplementation());
+
+        // Deploy empty proxy
+        l1RewardManagerProxy = address(new ERC1967Proxy(noImpl, ""));
+        l1RewardManager = L1RewardManager(address(l1RewardManagerProxy));
+        vm.label(address(l1RewardManager), "l1RewardManagerProxy");
+
+        xPufETHProxy = xPufETH(
             address(
-                new ERC1967Proxy(
-                    l2RewardManagerImp, abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+                new ERC1967Proxy{ salt: bytes32("xPufETH") }(
+                    address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (address(accessManager)))
                 )
             )
         );
-        bytes[] memory calldatas = new bytes[](5);
+        vm.label(address(xPufETHProxy), "xPufETHProxy");
+
+        xPufETHProxy.setLimits(address(mockBridge), type(uint104).max, type(uint104).max);
+
+        bytes4[] memory lockBoxSelectors = new bytes4[](2);
+        lockBoxSelectors[0] = xPufETH.mint.selector;
+        lockBoxSelectors[1] = xPufETH.burn.selector;
+        accessManager.setTargetFunctionRole(address(xPufETHProxy), lockBoxSelectors, accessManager.PUBLIC_ROLE());
+
+        // Deploy the lockbox
+        xERC20Lockbox = new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: address(pufferVault) });
+
+        xPufETHProxy.setLockbox(address(xERC20Lockbox));
+
+        address l2RewardManagerImpl = address(new L2RewardManager(address(xPufETHProxy), address(l1RewardManager)));
+
+        l2RewardManager = L2RewardManager(
+            address(
+                new ERC1967Proxy(
+                    address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+                )
+            )
+        );
+
+        vm.label(address(l2RewardManager), "l2RewardManagerProxy");
+
+        // L1RewardManager
+        L1RewardManager l1RewardManagerImpl = new L1RewardManager({
+            XpufETH: address(xPufETHProxy),
+            pufETH: address(pufferVault),
+            lockbox: address(xERC20Lockbox),
+            l2RewardsManager: address(l2RewardManager)
+        });
+
+        UUPSUpgradeable(address(l1RewardManagerProxy)).upgradeToAndCall(
+            address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
+        );
+
+        bytes[] memory calldatas = new bytes[](6);
         bytes4[] memory bridgeSelectors = new bytes4[](1);
         bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
         calldatas[0] = abi.encodeWithSelector(
@@ -98,6 +159,12 @@ contract L2RewardManagerTest is Test {
 
         calldatas[4] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_WATCHER, address(this), 0);
+
+        calldatas[5] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(l1RewardManager), bridgeSelectors, ROLE_ID_BRIDGE
+        );
+
+        vm.label(address(l1RewardManager), "l1RewardManagerProxy");
 
         accessManager.multicall(calldatas);
     }
@@ -137,6 +204,8 @@ contract L2RewardManagerTest is Test {
 
         test_MintAndBridgeRewardsSuccess();
 
+        deal(address(pufferVault), address(xERC20Lockbox), 100 ether);
+
         vm.expectEmit(true, true, true, true);
         emit IL2RewardManager.ClaimingIntervalReverted(startEpoch, endEpoch, rewardsAmount, rewardsRoot);
         l2RewardManager.freezeAndRevertInterval(address(mockBridge), startEpoch, endEpoch);
@@ -167,6 +236,8 @@ contract L2RewardManagerTest is Test {
         test_updateBridgeData();
         test_freezeInterval();
 
+        // Airdrop rewards to the lockbox so that it doesn't revert
+        deal(address(pufferVault), address(xERC20Lockbox), 100 ether);
         l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
     }
 
@@ -183,16 +254,16 @@ contract L2RewardManagerTest is Test {
         vm.assume(claimer != address(0));
 
         // Assume that Alice calls setClaimer on L1
-        IPufferVaultV3.SetClaimerParams memory params =
-            IPufferVaultV3.SetClaimerParams({ account: alice, claimer: claimer });
+        L1RewardManagerStorage.SetClaimerParams memory params =
+            L1RewardManagerStorage.SetClaimerParams({ account: alice, claimer: claimer });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.SetClaimer,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.SetClaimer,
             data: abi.encode(params)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        vm.startPrank(l1_vault);
+        vm.startPrank(address(l1RewardManager));
 
         vm.expectEmit();
         emit IL2RewardManager.ClaimerSet(alice, claimer);
@@ -200,7 +271,7 @@ contract L2RewardManagerTest is Test {
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             rewardsAmount,
             uint256(0),
@@ -211,7 +282,7 @@ contract L2RewardManagerTest is Test {
 
     function test_claimerGetsTheRewards(address claimer) public {
         vm.assume(claimer != alice);
-        vm.assume(claimer != address(xPufETH));
+        vm.assume(claimer != address(xPufETHProxy));
         vm.assume(claimer != address(l2RewardManager));
 
         test_handleSetClaimer(claimer);
@@ -230,7 +301,7 @@ contract L2RewardManagerTest is Test {
         rewardsAmount = aliceAmount + 0.013 ether + 1 ether;
 
         // Airdrop the rewards to the L2RewardManager
-        deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
+        deal(address(xPufETHProxy), address(l2RewardManager), rewardsAmount);
 
         // For simplicity we assume the exchange rate is 1:1
         ethToPufETHRate = 1 ether;
@@ -238,25 +309,24 @@ contract L2RewardManagerTest is Test {
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
         // Post the rewards root
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        vm.startPrank(l1_vault);
-        deal(address(xPufETH), address(l1_vault), rewardsAmount);
-        xPufETH.approve(address(mockBridge), rewardsAmount);
+        vm.startPrank(address(l1RewardManager));
+        deal(address(xPufETHProxy), address(l1RewardManager), rewardsAmount);
+        xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -264,7 +334,7 @@ contract L2RewardManagerTest is Test {
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             rewardsAmount,
             uint256(0),
@@ -279,7 +349,7 @@ contract L2RewardManagerTest is Test {
         bytes32[][] memory aliceProofs = new bytes32[][](1);
         aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
 
-        assertEq(xPufETH.balanceOf(claimer), 0, "Claimer should start with zero balance");
+        assertEq(xPufETHProxy.balanceOf(claimer), 0, "Claimer should start with zero balance");
 
         IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
@@ -307,8 +377,8 @@ contract L2RewardManagerTest is Test {
         vm.expectEmit();
         emit IL2RewardManager.Claimed(alice, claimer, startEpoch, endEpoch, aliceAmount);
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(xPufETH.balanceOf(claimer), aliceAmount, "alice should end with 0.01308 xpufETH");
-        assertEq(xPufETH.balanceOf(alice), 0, "alice should end with 0 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(claimer), aliceAmount, "alice should end with 0.01308 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(alice), 0, "alice should end with 0 xpufETH");
     }
 
     function test_MintAndBridgeRewardsSuccess() public {
@@ -316,26 +386,25 @@ contract L2RewardManagerTest is Test {
         ethToPufETHRate = 1 ether;
         rewardsRoot = keccak256(abi.encodePacked("testRoot"));
 
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        vm.startPrank(l1_vault);
+        vm.startPrank(address(l1RewardManager));
 
-        deal(address(xPufETH), address(l1_vault), rewardsAmount);
-        xPufETH.approve(address(mockBridge), rewardsAmount);
+        deal(address(xPufETHProxy), address(l1RewardManager), rewardsAmount);
+        xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -343,7 +412,7 @@ contract L2RewardManagerTest is Test {
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             rewardsAmount,
             uint256(0),
@@ -361,30 +430,29 @@ contract L2RewardManagerTest is Test {
         ethToPufETHRate = 1 ether;
         rewardsRoot = keccak256(abi.encodePacked("testRoot"));
 
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        vm.startPrank(l1_vault);
+        vm.startPrank(address(l1RewardManager));
 
         vm.expectRevert(abi.encodeWithSelector(InvalidAmount.selector));
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             0 ether, // invalid amount transfered
             uint256(0),
@@ -426,32 +494,31 @@ contract L2RewardManagerTest is Test {
 
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
-        deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
+        deal(address(xPufETHProxy), address(l2RewardManager), rewardsAmount);
 
         ethToPufETHRate = 1 ether;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
         // Post the rewards root
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
-        vm.startPrank(l1_vault);
+        vm.startPrank(address(l1RewardManager));
 
-        deal(address(xPufETH), address(l1_vault), rewardsAmount);
-        xPufETH.approve(address(mockBridge), rewardsAmount);
+        deal(address(xPufETHProxy), address(l1RewardManager), rewardsAmount);
+        xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -459,7 +526,7 @@ contract L2RewardManagerTest is Test {
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             rewardsAmount,
             uint256(0),
@@ -480,7 +547,7 @@ contract L2RewardManagerTest is Test {
         bytes32[][] memory aliceProofs = new bytes32[][](1);
         aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
 
-        assertEq(xPufETH.balanceOf(alice), 0, "alice should start with zero balance");
+        assertEq(xPufETHProxy.balanceOf(alice), 0, "alice should start with zero balance");
 
         vm.startPrank(alice);
 
@@ -496,7 +563,7 @@ contract L2RewardManagerTest is Test {
         vm.expectEmit();
         emit IL2RewardManager.Claimed(alice, alice, startEpoch, endEpoch, amounts[0]);
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(xPufETH.balanceOf(alice), 0.01308 ether, "alice should end with 0.01308 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(alice), 0.01308 ether, "alice should end with 0.01308 xpufETH");
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
@@ -526,7 +593,7 @@ contract L2RewardManagerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidProof.selector));
         l2RewardManager.claimRewards(claimOrders);
 
-        assertEq(xPufETH.balanceOf(charlie), 0, "charlie should start with zero balance");
+        assertEq(xPufETHProxy.balanceOf(charlie), 0, "charlie should start with zero balance");
         // Bob claiming for charlie (bob is msg.sender)
         claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
@@ -536,11 +603,11 @@ contract L2RewardManagerTest is Test {
             merkleProof: charlieProofs[0]
         });
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(xPufETH.balanceOf(charlie), 1 ether, "charlie should end with 1 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(charlie), 1 ether, "charlie should end with 1 xpufETH");
 
         // Mutate amounts, set back Bob's amount
         amounts[0] = 0.013 ether;
-        assertEq(xPufETH.balanceOf(bob), 0, "bob should start with zero balance");
+        assertEq(xPufETHProxy.balanceOf(bob), 0, "bob should start with zero balance");
         // Bob claiming with his proof
         claimOrders[0] = IL2RewardManager.ClaimOrder({
             startEpoch: startEpoch,
@@ -550,7 +617,7 @@ contract L2RewardManagerTest is Test {
             merkleProof: bobProofs[0]
         });
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(xPufETH.balanceOf(bob), 0.013 ether, "bob should end with 0.013 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(bob), 0.013 ether, "bob should end with 0.013 xpufETH");
 
         assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, alice));
         assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, bob));
@@ -576,25 +643,24 @@ contract L2RewardManagerTest is Test {
         // total reward amount calculated for merkle tree
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
-        deal(address(xPufETH), address(l2RewardManager), rewardsAmount);
+        deal(address(xPufETHProxy), address(l2RewardManager), rewardsAmount);
 
         // the exchange rate is changed to 1ether -> 0.9 ether
         ethToPufETHRate = 0.9 ether;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
         // Post the rewards root
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
@@ -603,9 +669,9 @@ contract L2RewardManagerTest is Test {
         // this amount is calculated based on the exchange rate
         amountAdjustedForExchangeRate = (rewardsAmount * ethToPufETHRate) / 1 ether;
 
-        vm.startPrank(l1_vault);
-        deal(address(xPufETH), address(l1_vault), rewardsAmount);
-        xPufETH.approve(address(mockBridge), rewardsAmount);
+        vm.startPrank(address(l1RewardManager));
+        deal(address(xPufETHProxy), address(l1RewardManager), rewardsAmount);
+        xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
         emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
@@ -613,7 +679,7 @@ contract L2RewardManagerTest is Test {
         mockBridge.xcall(
             uint32(0),
             address(l2RewardManager),
-            address(xPufETH),
+            address(xPufETHProxy),
             address(this),
             amountAdjustedForExchangeRate,
             uint256(0),
@@ -630,7 +696,7 @@ contract L2RewardManagerTest is Test {
         bytes32[][] memory aliceProofs = new bytes32[][](1);
         aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
 
-        assertEq(xPufETH.balanceOf(alice), 0, "alice should start with zero balance");
+        assertEq(xPufETHProxy.balanceOf(alice), 0, "alice should start with zero balance");
 
         vm.startPrank(alice);
 
@@ -646,7 +712,7 @@ contract L2RewardManagerTest is Test {
         vm.expectEmit();
         emit IL2RewardManager.Claimed(alice, alice, startEpoch, endEpoch, aliceAmountToClaim);
         l2RewardManager.claimRewards(claimOrders);
-        assertEq(xPufETH.balanceOf(alice), aliceAmountToClaim, "alice should end with 0.011772 xpufETH");
+        assertEq(xPufETHProxy.balanceOf(alice), aliceAmountToClaim, "alice should end with 0.011772 xpufETH");
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
         l2RewardManager.claimRewards(claimOrders);
@@ -678,32 +744,31 @@ contract L2RewardManagerTest is Test {
         rewardsAmount = aliceAmount + bobAmount + charlieAmount;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
-        IPufferVaultV3.MintAndBridgeData memory bridgingCalldata = IPufferVaultV3.MintAndBridgeData({
+        L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
             ethToPufETHRate: ethToPufETH,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri",
-            xPufETHAmount: rewardsAmount
+            rewardsURI: "uri"
         });
 
-        IPufferVaultV3.BridgingParams memory bridgingParams = IPufferVaultV3.BridgingParams({
-            bridgingType: IPufferVaultV3.BridgingType.MintAndBridge,
+        IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
+            bridgingType: IL1RewardManager.BridgingType.MintAndBridge,
             data: abi.encode(bridgingCalldata)
         });
         bytes memory encodedCallData = abi.encode(bridgingParams);
 
         // Lockbox is address(0), we are siimulating minting on L2 this way
-        vm.startPrank(address(0));
-        xPufETH.mint(address(l2RewardManager), ((rewardsAmount * ethToPufETH) / 1 ether));
+        vm.startPrank(address(xERC20Lockbox));
+        xPufETHProxy.mint(address(l2RewardManager), ((rewardsAmount * ethToPufETH) / 1 ether));
 
         vm.startPrank(address(mockBridge));
         l2RewardManager.xReceive(
             bytes32(0),
             ((rewardsAmount * ethToPufETH) / 1 ether),
-            address(xPufETH),
-            address(l1_vault),
+            address(xPufETHProxy),
+            address(l1RewardManager),
             0,
             encodedCallData
         );
@@ -743,13 +808,15 @@ contract L2RewardManagerTest is Test {
         // The reward manager might have some dust left
         // 2 wei rounding allowed
         assertApproxEqAbs(
-            xPufETH.balanceOf(address(l2RewardManager)), 0, 2, "l2rewardManager should end with zero balance"
+            xPufETHProxy.balanceOf(address(l2RewardManager)), 0, 2, "l2rewardManager should end with zero balance"
         );
 
         // We need to upscale by *1 ether, because if the aliceBalance is very small, it rounds to 0
-        assertApproxEqAbs((xPufETH.balanceOf(alice) * 1 ether / ethToPufETH), aliceAmount, 2, "Alice ETH amount");
-        assertApproxEqAbs((xPufETH.balanceOf(bob) * 1 ether / ethToPufETH), bobAmount, 2, "Bob ETH amount");
-        assertApproxEqAbs((xPufETH.balanceOf(charlie) * 1 ether / ethToPufETH), charlieAmount, 2, "Charlie ETH amount");
+        assertApproxEqAbs((xPufETHProxy.balanceOf(alice) * 1 ether / ethToPufETH), aliceAmount, 2, "Alice ETH amount");
+        assertApproxEqAbs((xPufETHProxy.balanceOf(bob) * 1 ether / ethToPufETH), bobAmount, 2, "Bob ETH amount");
+        assertApproxEqAbs(
+            (xPufETHProxy.balanceOf(charlie) * 1 ether / ethToPufETH), charlieAmount, 2, "Charlie ETH amount"
+        );
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {

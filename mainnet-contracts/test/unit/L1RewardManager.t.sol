@@ -5,11 +5,21 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
+import { IL1RewardManager } from "../../src/interface/IL1RewardManager.sol";
 import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { L1RewardManager } from "../../src/L1RewardManager.sol";
+import { L1RewardManagerStorage } from "../../src/L1RewardManagerStorage.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
-import { ROLE_ID_DAO, PUBLIC_ROLE, ROLE_ID_BRIDGE, ROLE_ID_REWARD_BURNER } from "../../script/Roles.sol";
+import {
+    ROLE_ID_DAO,
+    PUBLIC_ROLE,
+    ROLE_ID_BRIDGE,
+    ROLE_ID_L1_REWARD_MANAGER,
+    ROLE_ID_OPERATIONS_PAYMASTER
+} from "../../script/Roles.sol";
+import { GenerateAccessManagerCalldata3 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
 
-contract PufferVaultV3Test is UnitTestHelper {
+contract L1RewardManagerTest is UnitTestHelper {
     uint256 rewardsAmount;
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
@@ -25,37 +35,28 @@ contract PufferVaultV3Test is UnitTestHelper {
         xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
         xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
 
-        bytes4[] memory pufferVaultSelectors = new bytes4[](1);
-        pufferVaultSelectors[0] = IPufferVaultV3.setL2RewardClaimer.selector;
-
         vm.startPrank(_broadcaster);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
-        accessManager.setTargetFunctionRole(address(pufferVault), pufferVaultSelectors, PUBLIC_ROLE);
 
-        accessManager.grantRole(ROLE_ID_DAO, DAO, 0);
-        accessManager.grantRole(ROLE_ID_BRIDGE, address(connext), 0);
+        bytes memory cd =
+            new GenerateAccessManagerCalldata3().run(address(l1RewardManager), address(connext), address(pufferVault));
+        (bool s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateAccessManagerCalldata3");
 
-        bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = xPufETHBurner.xReceive.selector;
-        accessManager.setTargetFunctionRole(address(xPufETHBurner), bridgeSelectors, ROLE_ID_BRIDGE);
+        vm.label(address(l1RewardManager), "L1RewardManager");
 
-        // Burner role
-        bytes4[] memory burnerSelectors = new bytes4[](1);
-        burnerSelectors[0] = PufferVaultV3.revertBridgingInterval.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), burnerSelectors, ROLE_ID_REWARD_BURNER);
-
-        accessManager.grantRole(ROLE_ID_REWARD_BURNER, address(xPufETHBurner), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
 
         vm.stopPrank();
 
         vm.startPrank(DAO);
         xpufETH.setLockbox(address(lockBox));
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
-        pufferVault.setAllowedRewardMintFrequency(1 days);
-        IPufferVaultV3.BridgeData memory bridgeData = IPufferVaultV3.BridgeData({ destinationDomainId: 1 });
 
-        pufferVault.updateBridgeData(address(connext), bridgeData);
+        L1RewardManagerStorage.BridgeData memory bridgeData =
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
+        l1RewardManager.updateBridgeData(address(connext), bridgeData);
 
         vm.stopPrank();
         vm.deal(address(this), 300 ether);
@@ -64,10 +65,24 @@ contract PufferVaultV3Test is UnitTestHelper {
         vm.warp(365 days);
     }
 
-    function test_MintAndBridgeRewardsSuccess() public {
+    modifier allowedDailyFrequency() {
+        vm.startPrank(DAO);
+        l1RewardManager.setAllowedRewardMintFrequency(1 days);
+        vm.stopPrank();
+        _;
+    }
+
+    modifier allowMintAmount(uint104 amount) {
+        vm.startPrank(DAO);
+        l1RewardManager.setAllowedRewardMintAmount(amount);
+        vm.stopPrank();
+        _;
+    }
+
+    function test_MintAndBridgeRewardsSuccess() public allowedDailyFrequency allowMintAmount(100 ether) {
         rewardsAmount = 100 ether;
 
-        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
             bridge: address(connext),
             rewardsAmount: rewardsAmount,
             startEpoch: startEpoch,
@@ -78,16 +93,12 @@ contract PufferVaultV3Test is UnitTestHelper {
 
         uint256 initialTotalAssets = pufferVault.totalAssets();
 
-        vm.startPrank(DAO);
-
-        pufferVault.setAllowedRewardMintAmount(100 ether);
-        pufferVault.mintAndBridgeRewards(params);
+        l1RewardManager.mintAndBridgeRewards(params);
 
         assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
-        vm.stopPrank();
     }
 
-    function test_undoMintAndBridgeRewards() public {
+    function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
         // Get the initial state
         uint256 assetsBefore = pufferVault.totalAssets();
         uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
@@ -120,12 +131,12 @@ contract PufferVaultV3Test is UnitTestHelper {
         bytes memory encodedCallData = abi.encode(epochRecord);
 
         // airdrop rewardsAmount to burner
-        deal(address(xpufETH), address(xPufETHBurner), 100 ether);
+        deal(address(xpufETH), address(l1RewardManager), 100 ether);
 
         vm.startPrank(address(connext));
 
         // Simulate a call from the connext bridge
-        xPufETHBurner.xReceive(bytes32(0), 0, address(0), address(l2RewardsManagerMock), 0, encodedCallData);
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 0, encodedCallData);
 
         assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
         assertEq(
@@ -135,7 +146,7 @@ contract PufferVaultV3Test is UnitTestHelper {
     }
 
     function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
-        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
             bridge: address(connext),
             rewardsAmount: 200 ether, // assuming this is more than allowed
             startEpoch: 1,
@@ -144,15 +155,16 @@ contract PufferVaultV3Test is UnitTestHelper {
             rewardsURI: "uri"
         });
 
-        vm.startPrank(DAO);
-
-        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidMintAmount.selector));
-        pufferVault.mintAndBridgeRewards(params);
-        vm.stopPrank();
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidMintAmount.selector));
+        l1RewardManager.mintAndBridgeRewards(params);
     }
 
-    function test_MintAndBridgeRewardsNotAllowedMintFrequency() public {
-        IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+    function test_MintAndBridgeRewardsNotAllowedMintFrequency()
+        public
+        allowedDailyFrequency
+        allowMintAmount(100 ether)
+    {
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
             bridge: address(connext),
             rewardsAmount: 1 ether,
             startEpoch: 1,
@@ -160,24 +172,19 @@ contract PufferVaultV3Test is UnitTestHelper {
             rewardsRoot: bytes32(0),
             rewardsURI: "uri"
         });
+        l1RewardManager.mintAndBridgeRewards(params);
 
-        vm.startPrank(DAO);
-
-        pufferVault.setAllowedRewardMintAmount(2 ether);
-        pufferVault.mintAndBridgeRewards(params);
-
-        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.NotAllowedMintFrequency.selector));
-        pufferVault.mintAndBridgeRewards(params);
-        vm.stopPrank();
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.NotAllowedMintFrequency.selector));
+        l1RewardManager.mintAndBridgeRewards(params);
     }
 
     function test_SetAllowedRewardMintAmountSuccess() public {
         uint88 newAmount = 200 ether;
-        vm.startPrank(DAO);
 
+        vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferVaultV3.AllowedRewardMintAmountUpdated(0, newAmount);
-        pufferVault.setAllowedRewardMintAmount(newAmount);
+        emit IL1RewardManager.AllowedRewardMintAmountUpdated(0, newAmount);
+        l1RewardManager.setAllowedRewardMintAmount(newAmount);
 
         vm.stopPrank();
     }
@@ -185,18 +192,18 @@ contract PufferVaultV3Test is UnitTestHelper {
     function testRevert_SetAllowedRewardMintAmount() public {
         uint88 newAmount = 200 ether;
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
-        pufferVault.setAllowedRewardMintAmount(newAmount);
+        l1RewardManager.setAllowedRewardMintAmount(newAmount);
     }
 
-    function testSetAllowedRewardMintFrequencySuccess() public {
+    function testSetAllowedRewardMintFrequencySuccess() public allowedDailyFrequency {
         uint24 oldFrequency = 1 days;
         uint24 newFrequency = 2 days;
 
         vm.startPrank(DAO);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVaultV3.AllowedRewardMintFrequencyUpdated(oldFrequency, newFrequency);
-        pufferVault.setAllowedRewardMintFrequency(newFrequency);
+        emit IL1RewardManager.AllowedRewardMintFrequencyUpdated(oldFrequency, newFrequency);
+        l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
         vm.stopPrank();
     }
 
@@ -204,14 +211,14 @@ contract PufferVaultV3Test is UnitTestHelper {
         uint24 newFrequency = 86400; // 24 hours
 
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
-        pufferVault.setAllowedRewardMintFrequency(newFrequency);
+        l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
     }
 
     function testSetClaimerRevert() public {
         address newClaimer = address(0x123);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVaultV3.L2RewardClaimerUpdated(address(this), newClaimer);
-        pufferVault.setL2RewardClaimer(address(connext), newClaimer);
+        emit IL1RewardManager.L2RewardClaimerUpdated(address(this), newClaimer);
+        l1RewardManager.setL2RewardClaimer(address(connext), newClaimer);
     }
 }

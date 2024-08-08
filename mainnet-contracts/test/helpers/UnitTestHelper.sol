@@ -28,7 +28,8 @@ import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
-import { XPufETHBurner } from "src/XPufETHBurner.sol";
+import { L1RewardManager } from "src/L1RewardManager.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
 import {
     ROLE_ID_DAO,
@@ -103,10 +104,12 @@ contract UnitTestHelper is Test, BaseScript {
     ValidatorTicketPricer public validatorTicketPricer;
     xPufETH public xpufETH;
     XERC20Lockbox public lockBox;
-    XPufETHBurner public xPufETHBurner;
+    L1RewardManager public l1RewardManager;
+    L2RewardManager public l2RewardManager;
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
+    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER");
     address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
     address public timelock;
 
@@ -190,7 +193,8 @@ contract UnitTestHelper is Test, BaseScript {
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
         xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
         lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
-        xPufETHBurner = XPufETHBurner(payable(bridgingDeployment.xPufETHBurner));
+        l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
+        l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         connext = ConnextMock(payable(bridgingDeployment.connext));
 
         // pufETH dependencies
@@ -298,13 +302,6 @@ contract UnitTestHelper is Test, BaseScript {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = PufferVaultV2.transferETH.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
-
-        bytes4[] memory V3selectors = new bytes4[](4);
-        V3selectors[0] = PufferVaultV3.mintAndBridgeRewards.selector;
-        V3selectors[1] = PufferVaultV3.setAllowedRewardMintAmount.selector;
-        V3selectors[2] = PufferVaultV3.setAllowedRewardMintFrequency.selector;
-        V3selectors[3] = PufferVaultV3.updateBridgeData.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), V3selectors, ROLE_ID_DAO);
 
         vm.stopPrank();
 

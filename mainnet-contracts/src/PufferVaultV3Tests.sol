@@ -18,20 +18,8 @@ contract PufferVaultV3Tests is PufferVaultV3 {
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
-        IDelegationManager delegationManager,
-        BridgingConstructorParams memory bridgingConstructorParams
-    )
-        PufferVaultV3(
-            stETH,
-            weth,
-            lidoWithdrawalQueue,
-            stETHStrategy,
-            eigenStrategyManager,
-            oracle,
-            delegationManager,
-            bridgingConstructorParams
-        )
-    {
+        IDelegationManager delegationManager
+    ) PufferVaultV3(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
         _disableInitializers();
