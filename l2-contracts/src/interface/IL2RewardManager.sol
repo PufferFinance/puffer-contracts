@@ -11,23 +11,18 @@ import { L2RewardManagerStorage } from "../L2RewardManagerStorage.sol";
 interface IL2RewardManager {
     /**
      * @notice Check if the reward has been claimed for a specific period and an account
-     * @param startEpoch The start epoch of the interval
-     * @param endEpoch The end epoch of the interval
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param account The address of the account to check
      * @return bool indicating whether the reward has been claimed
      */
-    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) external view returns (bool);
+    function isClaimed(bytes32 intervalId, address account) external view returns (bool);
 
     /**
      * @notice Get the epoch record for a specific period
-     * @param startEpoch The start epoch of the interval
-     * @param endEpoch The end epoch of the interval
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @return EpochRecord The epoch record of exchange rate and reward root
      */
-    function getEpochRecord(uint256 startEpoch, uint256 endEpoch)
-        external
-        view
-        returns (L2RewardManagerStorage.EpochRecord memory);
+    function getEpochRecord(bytes32 intervalId) external view returns (L2RewardManagerStorage.EpochRecord memory);
 
     /**
      * @notice Get the rewards claimer for a specific `account`
@@ -46,15 +41,13 @@ interface IL2RewardManager {
 
     /**
      * @notice A record of a single order for claim function call.
-     * @param startEpoch The start epoch of the interval where the merkle root is generated from.
-     * @param endEpoch The end epoch of the interval where the merkle root is generated from.
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param amount The amount of reward to claim.
      * @param account The address of the account claiming the reward.
      * @param merkleProof The merkle proof to verify the claim.
      */
     struct ClaimOrder {
-        uint256 startEpoch;
-        uint256 endEpoch;
+        bytes32 intervalId;
         uint256 amount;
         address account;
         bytes32[] merkleProof;
@@ -67,10 +60,10 @@ interface IL2RewardManager {
     function claimRewards(ClaimOrder[] calldata claimOrders) external;
 
     /**
-     * @notice Returns `true` if the claiming is locked for the `startEpoch` and `endEpoch`
+     * @notice Returns `true` if the claiming is locked for the `intervalId`
      * There is a delay period before between the bridging of the rewards and the claiming.
      */
-    function isClaimingLocked(uint256 startEpoch, uint256 endEpoch) external view returns (bool);
+    function isClaimingLocked(bytes32 intervalId) external view returns (bool);
 
     /**
      * @notice Event emitted when rewards root and rate are posted
@@ -78,10 +71,16 @@ interface IL2RewardManager {
      * @param ethToPufETHRate The exchange rate from ETH to pufETH
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param rewardsRoot The merkle root of the rewards
      */
     event RewardRootAndRatePosted(
-        uint256 rewardsAmount, uint256 ethToPufETHRate, uint256 startEpoch, uint256 endEpoch, bytes32 rewardsRoot
+        uint256 rewardsAmount,
+        uint256 ethToPufETHRate,
+        uint256 startEpoch,
+        uint256 endEpoch,
+        bytes32 intervalId,
+        bytes32 rewardsRoot
     );
 
     /**
@@ -95,22 +94,22 @@ interface IL2RewardManager {
      * @notice Event emitted when the claiming interval is reverted
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param pufETHAmount The amount of xPufETH
      * @param rewardsRoot The merkle root of the rewards
      */
-    event ClaimingIntervalReverted(uint256 startEpoch, uint256 endEpoch, uint256 pufETHAmount, bytes32 rewardsRoot);
+    event ClaimingIntervalReverted(
+        uint256 startEpoch, uint256 endEpoch, bytes32 intervalId, uint256 pufETHAmount, bytes32 rewardsRoot
+    );
 
     /**
      * @notice Event emitted when rewards are claimed
      * @param account The address of the account claiming the rewards
      * @param recipient The address of the recipient of the rewards
-     * @param startEpoch The start epoch of the interval
-     * @param endEpoch The end epoch of the interval
+     * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param amount The amount claimed
      */
-    event Claimed(
-        address indexed account, address indexed recipient, uint256 startEpoch, uint256 endEpoch, uint256 amount
-    );
+    event Claimed(address indexed account, address indexed recipient, bytes32 intervalId, uint256 amount);
 
     /**
      * @notice Event emitted when the delay period is changed
@@ -135,12 +134,12 @@ interface IL2RewardManager {
     /**
      * @notice Thrown if the `account` already claimed the rewards for the interval
      */
-    error AlreadyClaimed(uint256 startEpoch, uint256 endEpoch, address account);
+    error AlreadyClaimed(bytes32 intervalId, address account);
 
     /**
      * @notice Thrown if the `account` tries to claim the rewards before the claiming delay has passed
      */
-    error ClaimingLocked(uint256 startEpoch, uint256 endEpoch, address account, uint256 lockedUntil);
+    error ClaimingLocked(bytes32 intervalId, address account, uint256 lockedUntil);
 
     /**
      * @notice Thrown if the merkle proof supplied is not valid

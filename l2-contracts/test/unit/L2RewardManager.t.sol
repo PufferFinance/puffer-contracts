@@ -35,8 +35,6 @@ contract PufferVaultMock is ERC20Mock {
 contract L2RewardManagerTest is Test {
     struct MerkleProofData {
         address account;
-        uint256 startEpoch;
-        uint256 endEpoch;
         uint256 amount;
     }
 
@@ -53,6 +51,7 @@ contract L2RewardManagerTest is Test {
 
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
+    bytes32 intervalId = keccak256(abi.encodePacked(startEpoch, endEpoch));
     uint256 rewardsAmount;
     uint256 ethToPufETHRate;
     bytes32 rewardsRoot;
@@ -191,7 +190,7 @@ contract L2RewardManagerTest is Test {
 
         vm.warp(block.timestamp + 1 days);
         // Unlock the interval
-        assertEq(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), false, "claiming should be unlocked");
+        assertEq(l2RewardManager.isClaimingLocked(intervalId), false, "claiming should be unlocked");
 
         // We cant revert, because the interval is unlocked
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
@@ -207,16 +206,16 @@ contract L2RewardManagerTest is Test {
         deal(address(pufferVault), address(xERC20Lockbox), 100 ether);
 
         vm.expectEmit(true, true, true, true);
-        emit IL2RewardManager.ClaimingIntervalReverted(startEpoch, endEpoch, rewardsAmount, rewardsRoot);
+        emit IL2RewardManager.ClaimingIntervalReverted(startEpoch, endEpoch, intervalId, rewardsAmount, rewardsRoot);
         l2RewardManager.freezeAndRevertInterval(address(mockBridge), startEpoch, endEpoch);
     }
 
     function test_freezeInterval() public {
         test_MintAndBridgeRewardsSuccess();
 
-        assertTrue(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), "claiming should be locked");
+        assertTrue(l2RewardManager.isClaimingLocked(intervalId), "claiming should be locked");
 
-        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(intervalId);
         assertEq(epochRecord.startEpoch, startEpoch, "startEpoch should be stored in storage correctly");
         assertEq(epochRecord.endEpoch, endEpoch, "endEpoch should be stored in storage correctly");
         assertEq(epochRecord.timeBridged, block.timestamp, "timeBridged should be stored in storage correctly");
@@ -226,10 +225,10 @@ contract L2RewardManagerTest is Test {
         emit IL2RewardManager.ClaimingIntervalFrozen(startEpoch, endEpoch);
         l2RewardManager.freezeClaimingForInterval(startEpoch, endEpoch);
 
-        epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        epochRecord = l2RewardManager.getEpochRecord(intervalId);
         assertEq(epochRecord.timeBridged, 0, "timeBridged should be zero");
 
-        assertTrue(l2RewardManager.isClaimingLocked(startEpoch, endEpoch), "claiming should stay locked");
+        assertTrue(l2RewardManager.isClaimingLocked(intervalId), "claiming should stay locked");
     }
 
     function test_revertInterval() public {
@@ -291,12 +290,9 @@ contract L2RewardManagerTest is Test {
 
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] =
-            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: aliceAmount });
-        merkleProofDatas[1] =
-            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.013 ether });
-        merkleProofDatas[2] =
-            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: 1 ether });
+        merkleProofDatas[0] = MerkleProofData({ account: alice, amount: aliceAmount });
+        merkleProofDatas[1] = MerkleProofData({ account: bob, amount: 0.013 ether });
+        merkleProofDatas[2] = MerkleProofData({ account: charlie, amount: 1 ether });
 
         rewardsAmount = aliceAmount + 0.013 ether + 1 ether;
 
@@ -329,7 +325,9 @@ contract L2RewardManagerTest is Test {
         xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
+        emit IL2RewardManager.RewardRootAndRatePosted(
+            rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, intervalId, rewardsRoot
+        );
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
@@ -353,8 +351,7 @@ contract L2RewardManagerTest is Test {
 
         IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: alice,
             amount: amounts[0],
             merkleProof: aliceProofs[0]
@@ -363,8 +360,7 @@ contract L2RewardManagerTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(
                 IL2RewardManager.ClaimingLocked.selector,
-                startEpoch,
-                endEpoch,
+                intervalId,
                 alice,
                 (block.timestamp + l2RewardManager.getClaimingDelay())
             )
@@ -375,7 +371,7 @@ contract L2RewardManagerTest is Test {
         vm.warp(block.timestamp + 5 days);
 
         vm.expectEmit();
-        emit IL2RewardManager.Claimed(alice, claimer, startEpoch, endEpoch, aliceAmount);
+        emit IL2RewardManager.Claimed(alice, claimer, intervalId, aliceAmount);
         l2RewardManager.claimRewards(claimOrders);
         assertEq(xPufETHProxy.balanceOf(claimer), aliceAmount, "alice should end with 0.01308 xpufETH");
         assertEq(xPufETHProxy.balanceOf(alice), 0, "alice should end with 0 xpufETH");
@@ -407,7 +403,9 @@ contract L2RewardManagerTest is Test {
         xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
+        emit IL2RewardManager.RewardRootAndRatePosted(
+            rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, intervalId, rewardsRoot
+        );
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
@@ -420,7 +418,7 @@ contract L2RewardManagerTest is Test {
         );
         vm.stopPrank();
 
-        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(intervalId);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
     }
@@ -468,16 +466,14 @@ contract L2RewardManagerTest is Test {
         address noOp2 = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
 
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
-        merkleProofDatas[0] =
-            MerkleProofData({ account: noOp1, startEpoch: startEpoch, endEpoch: endEpoch, amount: 6000 });
-        merkleProofDatas[1] =
-            MerkleProofData({ account: noOp2, startEpoch: startEpoch, endEpoch: endEpoch, amount: 4000 });
+        merkleProofDatas[0] = MerkleProofData({ account: noOp1, amount: 6000 });
+        merkleProofDatas[1] = MerkleProofData({ account: noOp2, amount: 4000 });
 
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
         assertEq(
             rewardsRoot,
-            bytes32(hex"164fd266b4897088f1548c40c63164ffbb7dab815ff65cee3888fcba59b31343"),
+            bytes32(hex"f23e9eb111a4bddade881056f2bf6f865286670e675303d92729a460240df173"),
             "Root should be correct"
         );
     }
@@ -485,12 +481,9 @@ contract L2RewardManagerTest is Test {
     function test_claimRewardsAllCases() public {
         // Build a merkle proof for that
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] =
-            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.01308 ether });
-        merkleProofDatas[1] =
-            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.013 ether });
-        merkleProofDatas[2] =
-            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: 1 ether });
+        merkleProofDatas[0] = MerkleProofData({ account: alice, amount: 0.01308 ether });
+        merkleProofDatas[1] = MerkleProofData({ account: bob, amount: 0.013 ether });
+        merkleProofDatas[2] = MerkleProofData({ account: charlie, amount: 1 ether });
 
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
 
@@ -521,7 +514,9 @@ contract L2RewardManagerTest is Test {
         xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
+        emit IL2RewardManager.RewardRootAndRatePosted(
+            rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, intervalId, rewardsRoot
+        );
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
@@ -535,7 +530,7 @@ contract L2RewardManagerTest is Test {
 
         vm.warp(block.timestamp + 5 days);
 
-        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(startEpoch, endEpoch);
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(intervalId);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
 
@@ -553,24 +548,23 @@ contract L2RewardManagerTest is Test {
 
         IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: alice,
             amount: amounts[0],
             merkleProof: aliceProofs[0]
         });
 
         vm.expectEmit();
-        emit IL2RewardManager.Claimed(alice, alice, startEpoch, endEpoch, amounts[0]);
+        emit IL2RewardManager.Claimed(alice, alice, intervalId, amounts[0]);
         l2RewardManager.claimRewards(claimOrders);
         assertEq(xPufETHProxy.balanceOf(alice), 0.01308 ether, "alice should end with 0.01308 xpufETH");
 
-        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, intervalId, alice));
         l2RewardManager.claimRewards(claimOrders);
 
         // Bob amount
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, intervalId, alice));
         l2RewardManager.claimRewards(claimOrders);
 
         bytes32[][] memory bobProofs = new bytes32[][](1);
@@ -584,8 +578,7 @@ contract L2RewardManagerTest is Test {
         // It will revert with InvalidProof because the proof is not valid for bob
 
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: bob,
             amount: amounts[0],
             merkleProof: charlieProofs[0]
@@ -596,8 +589,7 @@ contract L2RewardManagerTest is Test {
         assertEq(xPufETHProxy.balanceOf(charlie), 0, "charlie should start with zero balance");
         // Bob claiming for charlie (bob is msg.sender)
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: charlie,
             amount: amounts[0],
             merkleProof: charlieProofs[0]
@@ -610,8 +602,7 @@ contract L2RewardManagerTest is Test {
         assertEq(xPufETHProxy.balanceOf(bob), 0, "bob should start with zero balance");
         // Bob claiming with his proof
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: bob,
             amount: amounts[0],
             merkleProof: bobProofs[0]
@@ -619,9 +610,9 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.claimRewards(claimOrders);
         assertEq(xPufETHProxy.balanceOf(bob), 0.013 ether, "bob should end with 0.013 xpufETH");
 
-        assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, alice));
-        assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, bob));
-        assertTrue(l2RewardManager.isClaimed(startEpoch, endEpoch, charlie));
+        assertTrue(l2RewardManager.isClaimed(intervalId, alice));
+        assertTrue(l2RewardManager.isClaimed(intervalId, bob));
+        assertTrue(l2RewardManager.isClaimed(intervalId, charlie));
     }
 
     function test_claimRewardsDifferentExchangeRate() public {
@@ -633,12 +624,9 @@ contract L2RewardManagerTest is Test {
 
         // Build a merkle proof for that
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] =
-            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.01308 ether });
-        merkleProofDatas[1] =
-            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: 0.013 ether });
-        merkleProofDatas[2] =
-            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: 1 ether });
+        merkleProofDatas[0] = MerkleProofData({ account: alice, amount: 0.01308 ether });
+        merkleProofDatas[1] = MerkleProofData({ account: bob, amount: 0.013 ether });
+        merkleProofDatas[2] = MerkleProofData({ account: charlie, amount: 1 ether });
 
         // total reward amount calculated for merkle tree
         rewardsAmount = 0.01308 ether + 0.013 ether + 1 ether;
@@ -674,7 +662,9 @@ contract L2RewardManagerTest is Test {
         xPufETHProxy.approve(address(mockBridge), rewardsAmount);
 
         vm.expectEmit();
-        emit IL2RewardManager.RewardRootAndRatePosted(rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, rewardsRoot);
+        emit IL2RewardManager.RewardRootAndRatePosted(
+            rewardsAmount, ethToPufETHRate, startEpoch, endEpoch, intervalId, rewardsRoot
+        );
         // calling xcall on L1 which triggers xReceive on L2 using mockBridge here
         mockBridge.xcall(
             uint32(0),
@@ -702,19 +692,18 @@ contract L2RewardManagerTest is Test {
 
         IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: alice,
             amount: amounts[0],
             merkleProof: aliceProofs[0]
         });
 
         vm.expectEmit();
-        emit IL2RewardManager.Claimed(alice, alice, startEpoch, endEpoch, aliceAmountToClaim);
+        emit IL2RewardManager.Claimed(alice, alice, intervalId, aliceAmountToClaim);
         l2RewardManager.claimRewards(claimOrders);
         assertEq(xPufETHProxy.balanceOf(alice), aliceAmountToClaim, "alice should end with 0.011772 xpufETH");
 
-        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, startEpoch, endEpoch, alice));
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.AlreadyClaimed.selector, intervalId, alice));
         l2RewardManager.claimRewards(claimOrders);
     }
 
@@ -733,12 +722,9 @@ contract L2RewardManagerTest is Test {
 
         // Build merkle proof data
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] =
-            MerkleProofData({ account: alice, startEpoch: startEpoch, endEpoch: endEpoch, amount: aliceAmount });
-        merkleProofDatas[1] =
-            MerkleProofData({ account: bob, startEpoch: startEpoch, endEpoch: endEpoch, amount: bobAmount });
-        merkleProofDatas[2] =
-            MerkleProofData({ account: charlie, startEpoch: startEpoch, endEpoch: endEpoch, amount: charlieAmount });
+        merkleProofDatas[0] = MerkleProofData({ account: alice, amount: aliceAmount });
+        merkleProofDatas[1] = MerkleProofData({ account: bob, amount: bobAmount });
+        merkleProofDatas[2] = MerkleProofData({ account: charlie, amount: charlieAmount });
 
         // total reward amount calculated for merkle tree
         rewardsAmount = aliceAmount + bobAmount + charlieAmount;
@@ -782,22 +768,19 @@ contract L2RewardManagerTest is Test {
 
         IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](3);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: alice,
             amount: aliceAmount,
             merkleProof: merkleProofs[0]
         });
         claimOrders[1] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: bob,
             amount: bobAmount,
             merkleProof: merkleProofs[1]
         });
         claimOrders[2] = IL2RewardManager.ClaimOrder({
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
+            intervalId: intervalId,
             account: charlie,
             amount: charlieAmount,
             merkleProof: merkleProofs[2]
@@ -826,18 +809,8 @@ contract L2RewardManagerTest is Test {
 
         for (uint256 i = 0; i < merkleProofDatas.length; ++i) {
             MerkleProofData memory merkleProofData = merkleProofDatas[i];
-            rewardsMerkleProofData[i] = keccak256(
-                bytes.concat(
-                    keccak256(
-                        abi.encode(
-                            merkleProofData.account,
-                            merkleProofData.startEpoch,
-                            merkleProofData.endEpoch,
-                            merkleProofData.amount
-                        )
-                    )
-                )
-            );
+            rewardsMerkleProofData[i] =
+                keccak256(bytes.concat(keccak256(abi.encode(merkleProofData.account, merkleProofData.amount))));
         }
 
         root = rewardsMerkleProof.getRoot(rewardsMerkleProofData);

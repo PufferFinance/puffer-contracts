@@ -54,20 +54,17 @@ contract L2RewardManager is
      */
     function claimRewards(ClaimOrder[] calldata claimOrders) external restricted {
         for (uint256 i = 0; i < claimOrders.length; i++) {
-            if (isClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account)) {
-                revert AlreadyClaimed(claimOrders[i].startEpoch, claimOrders[i].endEpoch, claimOrders[i].account);
+            if (isClaimed(claimOrders[i].intervalId, claimOrders[i].account)) {
+                revert AlreadyClaimed(claimOrders[i].intervalId, claimOrders[i].account);
             }
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            bytes32 intervalId = getIntervalId(claimOrders[i].startEpoch, claimOrders[i].endEpoch);
+            EpochRecord storage epochRecord = $.epochRecords[claimOrders[i].intervalId];
 
-            EpochRecord storage epochRecord = $.epochRecords[intervalId];
-
-            if (_isClaimingLocked(intervalId)) {
+            if (_isClaimingLocked(claimOrders[i].intervalId)) {
                 revert ClaimingLocked({
-                    startEpoch: claimOrders[i].startEpoch,
-                    endEpoch: claimOrders[i].endEpoch,
+                    intervalId: claimOrders[i].intervalId,
                     account: claimOrders[i].account,
                     lockedUntil: epochRecord.timeBridged + $.claimingDelay
                 });
@@ -75,24 +72,13 @@ contract L2RewardManager is
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
             // The leaf is: keccak256(abi.encode(AliceAddress, startEpoch, endEpoch, totalETHEarned))
-            bytes32 leaf = keccak256(
-                bytes.concat(
-                    keccak256(
-                        abi.encode(
-                            claimOrders[i].account,
-                            claimOrders[i].startEpoch,
-                            claimOrders[i].endEpoch,
-                            claimOrders[i].amount
-                        )
-                    )
-                )
-            );
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(claimOrders[i].account, claimOrders[i].amount))));
             if (!MerkleProof.verifyCalldata(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
             }
 
             // Mark it claimed and transfer the tokens
-            $.claimedRewards[intervalId][claimOrders[i].account] = true;
+            $.claimedRewards[claimOrders[i].intervalId][claimOrders[i].account] = true;
 
             uint256 amountToTransfer = claimOrders[i].amount * epochRecord.ethToPufETHRate / 1 ether;
 
@@ -104,8 +90,7 @@ contract L2RewardManager is
             emit Claimed({
                 recipient: recipient,
                 account: claimOrders[i].account,
-                startEpoch: claimOrders[i].startEpoch,
-                endEpoch: claimOrders[i].endEpoch,
+                intervalId: claimOrders[i].intervalId,
                 amount: amountToTransfer
             });
         }
@@ -212,24 +197,24 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function isClaimingLocked(uint256 startEpoch, uint256 endEpoch) external view returns (bool) {
-        return _isClaimingLocked(getIntervalId(startEpoch, endEpoch));
+    function isClaimingLocked(bytes32 intervalId) external view returns (bool) {
+        return _isClaimingLocked(intervalId);
     }
 
     /**
      * @inheritdoc IL2RewardManager
      */
-    function isClaimed(uint256 startEpoch, uint256 endEpoch, address account) public view returns (bool) {
+    function isClaimed(bytes32 intervalId, address account) public view returns (bool) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.claimedRewards[getIntervalId(startEpoch, endEpoch)][account];
+        return $.claimedRewards[intervalId][account];
     }
 
     /**
      * @inheritdoc IL2RewardManager
      */
-    function getEpochRecord(uint256 startEpoch, uint256 endEpoch) external view returns (EpochRecord memory) {
+    function getEpochRecord(bytes32 intervalId) external view returns (EpochRecord memory) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.epochRecords[getIntervalId(startEpoch, endEpoch)];
+        return $.epochRecords[intervalId];
     }
 
     /**
@@ -259,7 +244,9 @@ contract L2RewardManager is
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        $.epochRecords[getIntervalId(params.startEpoch, params.endEpoch)] = EpochRecord({
+        bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
+
+        $.epochRecords[intervalId] = EpochRecord({
             ethToPufETHRate: uint64(params.ethToPufETHRate),
             startEpoch: uint72(params.startEpoch),
             endEpoch: uint72(params.endEpoch),
@@ -273,6 +260,7 @@ contract L2RewardManager is
             rewardsAmount: params.rewardsAmount,
             ethToPufETHRate: params.ethToPufETHRate,
             startEpoch: params.startEpoch,
+            intervalId: intervalId,
             endEpoch: params.endEpoch,
             rewardsRoot: params.rewardsRoot
         });
@@ -372,6 +360,7 @@ contract L2RewardManager is
         emit ClaimingIntervalReverted({
             startEpoch: startEpoch,
             endEpoch: endEpoch,
+            intervalId: intervalId,
             pufETHAmount: epochRecord.pufETHAmount,
             rewardsRoot: epochRecord.rewardRoot
         });
