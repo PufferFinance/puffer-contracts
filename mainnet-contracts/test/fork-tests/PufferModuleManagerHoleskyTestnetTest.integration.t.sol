@@ -17,6 +17,7 @@ import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";

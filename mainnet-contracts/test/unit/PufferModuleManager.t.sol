@@ -6,8 +6,6 @@ import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { IPufferModule } from "../../src/interface/IPufferModule.sol";
-import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -154,15 +152,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ClaimerSet(address(operator), claimer);
         pufferModuleManager.callSetClaimerFor(address(operator), claimer);
-    }
-
-    function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-        _createPufferModule(moduleName);
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.NonBeaconChainETHBalanceWithdrawn(moduleName, 1 ether);
-        pufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei(moduleName, 1 ether);
     }
 
     function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {

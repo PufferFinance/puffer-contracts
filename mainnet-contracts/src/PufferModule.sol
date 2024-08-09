@@ -47,11 +47,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IDelayedWithdrawalRouter public immutable EIGEN_WITHDRAWAL_ROUTER;
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     */
     IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**

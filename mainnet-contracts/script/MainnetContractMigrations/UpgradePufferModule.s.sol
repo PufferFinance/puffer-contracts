@@ -8,7 +8,6 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 
@@ -28,8 +27,6 @@ contract UpgradePufferModule is Script {
 
     // https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#deployments
     address eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
-    IDelayedWithdrawalRouter eigenWithdrawalRouter =
-        IDelayedWithdrawalRouter(0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8);
     IDelegationManager delegationManager = IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
     IRewardsCoordinator rewardsCoordinator = IRewardsCoordinator(0x7750d328b314EfFa365A0402CcfD489B80B0adda);
 
@@ -40,7 +37,6 @@ contract UpgradePufferModule is Script {
         PufferModule newImplementation = new PufferModule({
             protocol: pufferProtocol,
             eigenPodManager: eigenPodManager,
-            eigenWithdrawalRouter: eigenWithdrawalRouter,
             delegationManager: delegationManager,
             moduleManager: pufferModuleManager,
             rewardsCoordinator: rewardsCoordinator
