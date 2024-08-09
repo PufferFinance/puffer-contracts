@@ -99,7 +99,7 @@ interface IL2RewardManager {
      * @param rewardsRoot The merkle root of the rewards
      */
     event ClaimingIntervalReverted(
-        uint256 startEpoch, uint256 endEpoch, bytes32 intervalId, uint256 pufETHAmount, bytes32 rewardsRoot
+        uint256 startEpoch, uint256 endEpoch, bytes32 indexed intervalId, uint256 pufETHAmount, bytes32 rewardsRoot
     );
 
     /**
@@ -109,7 +109,7 @@ interface IL2RewardManager {
      * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param amount The amount claimed
      */
-    event Claimed(address indexed account, address indexed recipient, bytes32 intervalId, uint256 amount);
+    event Claimed(address indexed account, address indexed recipient, bytes32 indexed intervalId, uint256 amount);
 
     /**
      * @notice Event emitted when the delay period is changed

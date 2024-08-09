@@ -71,7 +71,7 @@ contract L2RewardManager is
             }
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
-            // The leaf is: keccak256(abi.encode(AliceAddress, startEpoch, endEpoch, totalETHEarned))
+            // The leaf is: keccak256(abi.encode(AliceAddress, totalETHEarned))
             bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(claimOrders[i].account, claimOrders[i].amount))));
             if (!MerkleProof.verifyCalldata(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
@@ -283,6 +283,8 @@ contract L2RewardManager is
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
+        //@todo look at the last interval, if its unlocked / prevent changing the delay to lower value
+
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
