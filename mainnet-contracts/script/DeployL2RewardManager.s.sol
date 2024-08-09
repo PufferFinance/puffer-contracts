@@ -95,7 +95,7 @@ contract DeployL2RewardManager is DeployerHelper {
         bytes[] memory calldatasL2 = new bytes[](2);
 
         bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
-        bridgeSelectorsL2[0] = IL2RewardManager.xReceive.selector;
+        bridgeSelectorsL2[0] = L2RewardManager.xReceive.selector;
 
         calldatasL2[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
