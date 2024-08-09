@@ -133,7 +133,7 @@ interface IL2RewardManager {
     event ClaimingIntervalFrozen(uint256 startEpoch, uint256 endEpoch);
 
     /**
-     * @notice Thrown if the `account` already claimed the the rewards for the interval
+     * @notice Thrown if the `account` already claimed the rewards for the interval
      */
     error AlreadyClaimed(uint256 startEpoch, uint256 endEpoch, address account);
 
