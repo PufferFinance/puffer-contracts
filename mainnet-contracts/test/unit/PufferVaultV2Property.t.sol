@@ -8,6 +8,9 @@ import { PufferVault } from "../../src/PufferVault.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
+import { BridgingDeployment } from "script/DeploymentStructs.sol";
+import { DeployPufETHBridging } from "script/DeployPufETHBridging.s.sol";
+
 import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { UpgradePufETH } from "script/UpgradePufETH.s.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
@@ -59,7 +62,9 @@ contract PufferVaultV2Property is ERC4626Test {
 
         MockPufferOracle mockOracle = new MockPufferOracle();
 
-        new UpgradePufETH().run(deployment, address(mockOracle));
+        BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(deployment);
+
+        new UpgradePufETH().run(deployment, bridgingDeployment, address(mockOracle));
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVaultV2(payable(deployment.pufferVault));

@@ -30,3 +30,6 @@ uint64 constant ROLE_ID_AVS_COORDINATOR_ALLOWLISTER = 5;
 
 // Lockbox role for ETH Mainnet
 uint64 constant ROLE_ID_LOCKBOX = 7;
+
+// Bridge role for L2RewardManager
+uint64 constant ROLE_ID_BRIDGE = 8;

@@ -57,7 +57,7 @@ contract IntegrationTestHelper is Test {
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
-        PufferProtocolDeployment memory pufferDeployment = new DeployEverything().run(guardians, threshold);
+        (PufferProtocolDeployment memory pufferDeployment,) = new DeployEverything().run(guardians, threshold);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");

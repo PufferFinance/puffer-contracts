@@ -1,17 +1,6 @@
 [profile.default]
 gas_reports=[
-    "PufferDepositor",
-    "PufferOracle",
-    "PufferVault",
-    "PufferVaultV2",
-    "PufferDepositorV2",
-    "PufferProtocol",
-    "GuardianModule",
-    "RestakingOperator",
-    "EnclaveVerifier",
-    "PufferModuleManager",
-    "PufferModule",
-    "ValidatorTicket"
+
 ]
 allow_paths = ["../node_modules", "./node_modules"]
 block_number = 0 # Our RAVE evidence is generated for blockhash(0) which is bytes32(0)

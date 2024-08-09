@@ -8,8 +8,13 @@ import { SetupAccess } from "script/SetupAccess.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { DeployPufETH, PufferDeployment } from "../script/DeployPufETH.s.sol";
 import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
+import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
-import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
+import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
+import { xPufETH } from "src/l2/xPufETH.sol";
+import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { ConnextMock } from "../test/mocks/ConnextMock.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -21,7 +26,10 @@ import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStruc
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold) public returns (PufferProtocolDeployment memory) {
+    function run(address[] calldata guardians, uint256 threshold)
+        public
+        returns (PufferProtocolDeployment memory, BridgingDeployment memory)
+    {
         PufferProtocolDeployment memory deployment;
 
         // 1. Deploy pufETH
@@ -42,9 +50,6 @@ contract DeployEverything is BaseScript {
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
         );
 
-        // 2. Upgrade the vault
-        new UpgradePufETH().run(puffETHDeployment, pufferOracle);
-
         PufferProtocolDeployment memory pufferDeployment =
             new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
 
@@ -53,6 +58,10 @@ contract DeployEverything is BaseScript {
         pufferDeployment.stETH = puffETHDeployment.stETH;
         pufferDeployment.weth = puffETHDeployment.weth;
         pufferDeployment.timelock = puffETHDeployment.timelock;
+
+        BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(puffETHDeployment);
+
+        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle);
 
         // `anvil` in the terminal
         if (_localAnvil) {
@@ -69,7 +78,7 @@ contract DeployEverything is BaseScript {
 
         _writeJson(pufferDeployment);
 
-        return pufferDeployment;
+        return (pufferDeployment, bridgingDeployment);
     }
 
     function _writeJson(PufferProtocolDeployment memory deployment) internal {
