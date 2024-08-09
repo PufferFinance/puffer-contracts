@@ -9,15 +9,14 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { RestakingOperator } from "../../src/RestakingOperator.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { IBLSApkRegistry, IRegistryCoordinator } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
+import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
@@ -33,6 +32,7 @@ interface Weth {
     function approve(address spender, uint256 amount) external returns (bool);
 }
 
+// PufferTestnet V1 deployment
 contract PufferModuleManagerHoleskyTestnetTest is Test {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
@@ -59,6 +59,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     // https://holesky.eigenlayer.xyz/operator/0xe2c2dc296a0bff351f6bc3e98d37ea798e393e56
     address RESTAKING_OPERATOR_CONTRACT = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
     address RESTAKING_OPERATOR_BEACON = 0xa7DC88c059F57ADcE41070cEfEFd31F74649a261;
+    address REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
 
     function test_claim_undelegated_shares() public {
         // On this block number, we have already undelegated shares from the operator on chain
@@ -73,7 +74,8 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
             eigenPodManager: EIGEN_POD_MANAGER,
             eigenWithdrawalRouter: IDelayedWithdrawalRouter(DELAYED_WITHDRAWAL_ROUTER),
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: pufferModuleManager
+            moduleManager: pufferModuleManager,
+            rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
         });
 
         // Execute Beacon upgrade
