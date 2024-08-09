@@ -127,4 +127,9 @@ interface IPufferModule {
     function call(address to, uint256 amount, bytes calldata data)
         external
         returns (bool success, bytes memory response);
+
+    /**
+     * @notice Sets the rewards claimer to `claimer` for the PufferModule
+     */
+    function callSetClaimerFor(address claimer) external;
 }

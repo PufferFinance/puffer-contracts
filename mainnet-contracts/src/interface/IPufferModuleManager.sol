@@ -171,6 +171,12 @@ interface IPufferModuleManager {
     );
 
     /**
+     * @notice Emitted when the Restaking Operator or PufferModule sets the calimer to `claimer`
+     * @dev Signature "0x4925eafc82d0c4d67889898eeed64b18488ab19811e61620f387026dec126a28"
+     */
+    event ClaimerSet(address indexed rewardsReceiver, address indexed claimer);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -388,6 +394,14 @@ interface IPufferModuleManager {
         address avsRegistryCoordinator,
         string memory socket
     ) external;
+
+    /**
+     * @notice Calls the `callSetClaimerFor` function on the target module or restaking operator contract
+     * @param moduleOrReOp is the address of the target module or restaking operator contract
+     * @param claimer is the address of the claimer to be set
+     * @dev Restricted to the DAO
+     */
+    function callSetClaimerFor(address moduleOrReOp, address claimer) external;
 
     /**
      * @notice Calls the `target` contract with `customCalldata` from the Restaking Operator contract

@@ -24,7 +24,9 @@ import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
+import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
 
 /**
  * @title DeployPuffer
@@ -58,6 +60,7 @@ contract DeployPuffer is BaseScript {
     address eigenPodManager;
     address delayedWithdrawalRouter;
     address delegationManager;
+    address rewardsCoordinator;
     address eigenSlasher;
     address treasury;
 
@@ -74,21 +77,24 @@ contract DeployPuffer is BaseScript {
             delayedWithdrawalRouter = 0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8;
             delegationManager = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
             eigenSlasher = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
+            rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
             delayedWithdrawalRouter = address(0);
             delegationManager = address(new DelegationManagerMock());
-            eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); //@todo
+            rewardsCoordinator = address(new RewardsCoordinatorMock());
+            eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
             treasury = address(1);
         } else {
-            // Holesky
+            // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
             delayedWithdrawalRouter = 0x642c646053eaf2254f088e9019ACD73d9AE0FA32;
             delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
             eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C;
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
+            rewardsCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
         }
 
         operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
@@ -121,14 +127,16 @@ contract DeployPuffer is BaseScript {
                 protocol: PufferProtocol(payable(proxy)),
                 eigenPodManager: eigenPodManager,
                 delegationManager: IDelegationManager(delegationManager),
-                moduleManager: PufferModuleManager(address(moduleManagerProxy))
+                moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+                rewardsCoordinator: IRewardsCoordinator(rewardsCoordinator)
             });
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
                 ISlasher(eigenSlasher),
-                PufferModuleManager(address(moduleManagerProxy))
+                PufferModuleManager(address(moduleManagerProxy)),
+                IRewardsCoordinator(rewardsCoordinator)
             );
 
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));

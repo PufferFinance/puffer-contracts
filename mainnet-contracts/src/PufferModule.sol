@@ -17,6 +17,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
+import { IRewardsCoordinator } from "./interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * @title PufferModule
@@ -41,6 +42,16 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
+
+    /**
+     * @dev Upgradeable contract from EigenLayer
+     */
+    IDelayedWithdrawalRouter public immutable EIGEN_WITHDRAWAL_ROUTER;
+
+    /**
+     * @dev Upgradeable contract from EigenLayer
+     */
     IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**
@@ -61,12 +72,14 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IPufferProtocol protocol,
         address eigenPodManager,
         IDelegationManager delegationManager,
-        IPufferModuleManager moduleManager
+        IPufferModuleManager moduleManager,
+        IRewardsCoordinator rewardsCoordinator
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
         PUFFER_MODULE_MANAGER = moduleManager;
+        EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
         _disableInitializers();
     }
 
@@ -228,6 +241,14 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
+        EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
     /**

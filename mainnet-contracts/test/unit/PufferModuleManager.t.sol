@@ -137,6 +137,51 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callQueueWithdrawals(moduleName, 1 ether);
     }
 
+    // Sets the claimer for PufferModule & ReOp
+    function test_set_claimer_for_avs_rewards(address claimer, bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        vm.assume(claimer != address(0));
+
+        address createdModule = _createPufferModule(moduleName);
+
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet(address(createdModule), claimer);
+        pufferModuleManager.callSetClaimerFor(createdModule, claimer);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet(address(operator), claimer);
+        pufferModuleManager.callSetClaimerFor(address(operator), claimer);
+    }
+
+    function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.NonBeaconChainETHBalanceWithdrawn(moduleName, 1 ether);
+        pufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei(moduleName, 1 ether);
+    }
+
+    function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        uint64 oracleTimestamp;
+        BeaconChainProofs.StateRootProof memory stateRootProof;
+        uint40[] memory validatorIndices;
+        bytes[] memory validatorFieldsProofs;
+        bytes32[][] memory validatorFields;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorCredentialsVerified(moduleName, validatorIndices);
+        pufferModuleManager.callVerifyWithdrawalCredentials(
+            moduleName, oracleTimestamp, stateRootProof, validatorIndices, validatorFieldsProofs, validatorFields
+        );
+    }
+
     function test_completeQueuedWithdrawals(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
