@@ -114,4 +114,9 @@ interface IRestakingOperator {
      * @param socket is the new socket of the operator
      */
     function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket) external;
+
+    /**
+     * @notice Sets the rewards claimer to `claimer` for the RestakingOperator
+     */
+    function callSetClaimerFor(address claimer) external;
 }

@@ -21,6 +21,7 @@ import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
+import { IRewardsCoordinator } from "./interface/EigenLayer/IRewardsCoordinator.sol";
 
 /**
  * @title PufferModule
@@ -41,6 +42,11 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Upgradeable contract from EigenLayer
      */
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
+
+    /**
+     * @dev Upgradeable contract from EigenLayer
+     */
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
 
     /**
      * @dev Upgradeable contract from EigenLayer
@@ -71,13 +77,15 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         address eigenPodManager,
         IDelayedWithdrawalRouter eigenWithdrawalRouter,
         IDelegationManager delegationManager,
-        IPufferModuleManager moduleManager
+        IPufferModuleManager moduleManager,
+        IRewardsCoordinator rewardsCoordinator
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_WITHDRAWAL_ROUTER = eigenWithdrawalRouter;
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
         PUFFER_MODULE_MANAGER = moduleManager;
+        EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
         _disableInitializers();
     }
 
@@ -327,6 +335,14 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
+    }
+
+    /**
+     * @inheritdoc IPufferModule
+     * @dev Restricted to PufferModuleManager
+     */
+    function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
+        EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
     /**
