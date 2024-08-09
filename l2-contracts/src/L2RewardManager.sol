@@ -3,8 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IPufferVaultV3 } from "mainnet-contracts/src/interface/IPufferVaultV3.sol";
-import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
 import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
@@ -28,8 +27,6 @@ contract L2RewardManager is
     AccessManagedUpgradeable,
     UUPSUpgradeable
 {
-    using SafeERC20 for IERC20;
-
     /**
      * @notice xPufETH token on this chain
      */
@@ -46,40 +43,9 @@ contract L2RewardManager is
         _disableInitializers();
     }
 
-    modifier onlyL1RewardManager(address originSender) {
-        if (originSender != address(L1_REWARD_MANAGER)) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
         _setClaimingDelay(12 hours);
-    }
-
-    /**
-     * @inheritdoc IL2RewardManager
-     */
-    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
-        external
-        override(IL2RewardManager, IXReceiver)
-        onlyL1RewardManager(originSender)
-        restricted
-        returns (bytes memory emptyReturnData)
-    {
-        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
-
-        if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
-            _handleMintAndBridge(amount, bridgingParams.data);
-        } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
-            _handleSetClaimer(bridgingParams.data);
-        } else {
-            revert InvalidBridgingType();
-        }
-
-        // Return empty bytes
-        return "";
     }
 
     /**
@@ -133,7 +99,7 @@ contract L2RewardManager is
             address recipient = getRewardsClaimer(claimOrders[i].account);
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
-            XPUFETH.safeTransfer(recipient, amountToTransfer);
+            XPUFETH.transfer(recipient, amountToTransfer);
 
             emit Claimed({
                 recipient: recipient,
@@ -146,6 +112,34 @@ contract L2RewardManager is
     }
 
     /**
+     * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
+     * @dev Restricted access to `ROLE_ID_BRIDGE`
+     */
+    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
+        external
+        override(IXReceiver)
+        restricted
+        returns (bytes memory)
+    {
+        if (originSender != address(L1_REWARD_MANAGER)) {
+            revert Unauthorized();
+        }
+
+        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
+
+        if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
+            _handleMintAndBridge(amount, bridgingParams.data);
+        } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
+            _handleSetClaimer(bridgingParams.data);
+        } else {
+            revert InvalidBridgingType();
+        }
+
+        // Return empty data
+        return "";
+    }
+
+    /**
      * @notice Freezes the claiming and reverts the bridging for the interval
      * @dev If the function is called and the bridging reverts, we can just freeze the interval and prevent any the claiming of the rewards
      * by calling `freezeClaimingForInterval`.
@@ -155,7 +149,7 @@ contract L2RewardManager is
      * revertInterval is called to bridge the xPufETH back to the L1.
      * On the L1, we unwrap xPufETH -> pufETH and burn the pufETH to undo the minting and bridging of the rewards.
      *
-     * We use msg.value to pay for the relayer fee on the destination chain.
+     * msg.value is used to pay for the relayer fee on the destination chain.
      */
     function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch)
         external

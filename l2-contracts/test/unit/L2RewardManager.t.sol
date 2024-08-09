@@ -133,7 +133,7 @@ contract L2RewardManagerTest is Test {
 
         bytes[] memory calldatas = new bytes[](6);
         bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = IL2RewardManager.xReceive.selector;
+        bridgeSelectors[0] = L2RewardManager.xReceive.selector;
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManager), bridgeSelectors, ROLE_ID_BRIDGE
         );

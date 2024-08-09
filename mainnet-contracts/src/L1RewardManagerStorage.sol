@@ -8,15 +8,6 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 abstract contract L1RewardManagerStorage {
     /**
-     * @notice Data required for bridging.
-     * @param destinationDomainId The destination domain ID.
-     */
-    struct BridgeData {
-        // using struct to allow future addition to this
-        uint32 destinationDomainId;
-    }
-
-    /**
      * @notice Parameters for setting a claimer.
      * @param account The account setting the claimer.
      * @param claimer The address of the new claimer.
@@ -42,6 +33,15 @@ abstract contract L1RewardManagerStorage {
         uint256 endEpoch;
         bytes32 rewardsRoot;
         string rewardsURI;
+    }
+
+    /**
+     * @notice Data required for bridging.
+     * @param destinationDomainId The destination domain ID.
+     */
+    struct BridgeData {
+        // using struct to allow future addition to this
+        uint32 destinationDomainId;
     }
 
     /**

@@ -9,6 +9,23 @@ import { L1RewardManagerStorage } from "../L1RewardManagerStorage.sol";
  * @custom:security-contact security@puffer.fi
  */
 interface IL1RewardManager {
+    /**
+     * @notice Sets the rewards claimer on L2.
+     * Smart contracts might not be able to to own the same address on L2. This function allows to set a different address as the claimer.
+     * msg.value is used to pay for the relayer fee on the destination chain.
+     *
+     * @param bridge The address of the bridge.
+     * @param claimer The address of the new claimer.
+     */
+    function setL2RewardClaimer(address bridge, address claimer) external payable;
+
+    /**
+     * @notice Returns the bridge data for a given bridge.
+     * @param bridge The address of the bridge.
+     * @return The bridge data.
+     */
+    function getBridge(address bridge) external view returns (L1RewardManagerStorage.BridgeData memory);
+
     enum BridgingType {
         MintAndBridge,
         SetClaimer
@@ -115,33 +132,4 @@ interface IL1RewardManager {
      * @param bridgeData The updated bridge data.
      */
     event BridgeDataUpdated(address indexed bridge, L1RewardManagerStorage.BridgeData bridgeData);
-
-    /**
-     * @notice Mints and bridges rewards according to the provided parameters.
-     * @param params The parameters for bridging rewards.
-     * @dev We use msg.value to pay for the relayer fee on the destination chain.
-     */
-    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable;
-
-    /**
-     * @notice Sets the L2 reward claimer.
-     * @param bridge The address of the bridge.
-     * @param claimer The address of the new claimer.
-     * @dev We use msg.value to pay for the relayer fee on the destination chain.
-     */
-    function setL2RewardClaimer(address bridge, address claimer) external payable;
-
-    /**
-     * @notice Updates the bridge data.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
-     */
-    function updateBridgeData(address bridge, L1RewardManagerStorage.BridgeData memory bridgeData) external;
-
-    /**
-     * @notice Returns the bridge data for a given bridge.
-     * @param bridge The address of the bridge.
-     * @return The bridge data.
-     */
-    function getBridge(address bridge) external view returns (L1RewardManagerStorage.BridgeData memory);
 }

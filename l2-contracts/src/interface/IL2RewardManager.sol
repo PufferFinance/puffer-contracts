@@ -10,22 +10,6 @@ import { L2RewardManagerStorage } from "../L2RewardManagerStorage.sol";
  */
 interface IL2RewardManager {
     /**
-     * @notice A record of a single order for claim function call.
-     * @param startEpoch The start epoch of the interval where the merkle root is generated from.
-     * @param endEpoch The end epoch of the interval where the merkle root is generated from.
-     * @param amount The amount of reward to claim.
-     * @param account The address of the account claiming the reward.
-     * @param merkleProof The merkle proof to verify the claim.
-     */
-    struct ClaimOrder {
-        uint256 startEpoch;
-        uint256 endEpoch;
-        uint256 amount;
-        address account;
-        bytes32[] merkleProof;
-    }
-
-    /**
      * @notice Check if the reward has been claimed for a specific period and an account
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
@@ -61,26 +45,20 @@ interface IL2RewardManager {
     function getIntervalId(uint256 startEpoch, uint256 endEpoch) external returns (bytes32);
 
     /**
-     * @notice The receiver function as required by the IXReceiver interface.
-     * @dev The Connext bridge contract will call this function.
-     * @dev Restricted to the whitelisted Bridge contract only
-     * @dev The origin sender must be the L1 PufferVaultV3 contract
-     * @param transferId The transfer ID
-     * @param amount The amount transferred
-     * @param asset The asset transferred
-     * @param originSender The address of the origin sender
-     * @param origin The origin chain ID
-     * @param callData The call data
-     * @return bytes The result of the call
+     * @notice A record of a single order for claim function call.
+     * @param startEpoch The start epoch of the interval where the merkle root is generated from.
+     * @param endEpoch The end epoch of the interval where the merkle root is generated from.
+     * @param amount The amount of reward to claim.
+     * @param account The address of the account claiming the reward.
+     * @param merkleProof The merkle proof to verify the claim.
      */
-    function xReceive(
-        bytes32 transferId,
-        uint256 amount,
-        address asset,
-        address originSender,
-        uint32 origin,
-        bytes memory callData
-    ) external returns (bytes memory);
+    struct ClaimOrder {
+        uint256 startEpoch;
+        uint256 endEpoch;
+        uint256 amount;
+        address account;
+        bytes32[] merkleProof;
+    }
 
     /**
      * @notice Claims the rewards for a specific epoch range
