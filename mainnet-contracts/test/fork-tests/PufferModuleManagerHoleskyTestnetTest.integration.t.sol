@@ -9,7 +9,6 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
@@ -18,9 +17,9 @@ import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -72,7 +71,6 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         PufferModule upgrade = new PufferModule({
             protocol: PufferProtocol(payable(PUFFER_PROTOCOL_HOLESKY)),
             eigenPodManager: EIGEN_POD_MANAGER,
-            eigenWithdrawalRouter: IDelayedWithdrawalRouter(DELAYED_WITHDRAWAL_ROUTER),
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             moduleManager: pufferModuleManager,
             rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)

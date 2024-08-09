@@ -6,8 +6,6 @@ import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { IPufferModule } from "../../src/interface/IPufferModule.sol";
-import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -76,147 +74,10 @@ contract PufferModuleManagerTest is UnitTestHelper {
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
     }
 
-    // Reverts for everybody else
-    function tes_postRewardsRootReverts(bytes32 moduleName, address sender, bytes32 merkleRoot, uint256 blockNumber)
-        public
-    {
-        address module = _createPufferModule(moduleName);
-
-        vm.assume(sender != address(pufferProtocol.GUARDIAN_MODULE()));
-
-        vm.expectRevert();
-        PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, new bytes[](3));
-    }
-
     function test_donation(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         (bool s,) = address(module).call{ value: 5 ether }("");
         assertTrue(s);
-    }
-
-    function test_postRewardsRoot(bytes32 merkleRoot, uint256 blockNumber) public {
-        address module = _createPufferModule(CRAZY_GAINS);
-
-        vm.assume(PufferModule(payable(module)).getLastProofOfRewardsBlock() < blockNumber);
-
-        bytes32 signedMessageHash =
-            LibGuardianMessages._getModuleRewardsRootMessage(CRAZY_GAINS, merkleRoot, blockNumber);
-
-        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
-
-        PufferModule(payable(module)).postRewardsRoot(merkleRoot, blockNumber, signatures);
-    }
-
-    // Collecting the rewards as a node operator
-    function test_collect_rewards(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-        address module = _createPufferModule(moduleName);
-
-        // 3 validators got the rewards
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
-        address charlie = makeAddr("charlie");
-
-        // Build a merkle proof for that
-        MerkleProofData[] memory validatorRewards = new MerkleProofData[](3);
-        validatorRewards[0] = MerkleProofData({ node: alice, amount: 0.01308 ether });
-        validatorRewards[1] = MerkleProofData({ node: bob, amount: 0.013 ether });
-        validatorRewards[2] = MerkleProofData({ node: charlie, amount: 1 });
-
-        vm.deal(module, 0.01308 ether + 0.013 ether + 1);
-        bytes32 merkleRoot = _buildMerkleProof(validatorRewards);
-
-        bytes32 signedMessageHash = LibGuardianMessages._getModuleRewardsRootMessage(moduleName, merkleRoot, 50);
-        bytes[] memory signatures = _getGuardianEOASignatures(signedMessageHash);
-
-        // Post merkle proof with valid guardian signatures
-        PufferModule(payable(module)).postRewardsRoot(merkleRoot, 50, signatures);
-
-        // Try posting for block number lower than 50
-        vm.expectRevert(abi.encodeWithSelector(IPufferModule.InvalidBlockNumber.selector, 49));
-        PufferModule(payable(module)).postRewardsRoot(merkleRoot, 49, signatures);
-
-        // Claim the rewards
-
-        uint256[] memory blockNumbers = new uint256[](1);
-        blockNumbers[0] = 50;
-
-        // Alice amount
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 0.01308 ether;
-
-        bytes32[][] memory aliceProofs = new bytes32[][](1);
-        aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
-
-        assertEq(alice.balance, 0, "alice should start with zero balance");
-
-        vm.startPrank(alice);
-        PufferModule(payable(module)).collectRewards({
-            node: alice,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: aliceProofs
-        });
-        assertEq(alice.balance, 0.01308 ether, "alice should end with 0.01308 ether");
-
-        // Double claim in different transactions should revert
-        vm.expectRevert(abi.encodeWithSelector(IPufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
-        PufferModule(payable(module)).collectRewards({
-            node: alice,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: aliceProofs
-        });
-
-        // Bob claiming with Alice's proof (alice already claimed)
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(IPufferModule.AlreadyClaimed.selector, blockNumbers[0], alice));
-        PufferModule(payable(module)).collectRewards({
-            node: alice,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: aliceProofs
-        });
-
-        bytes32[][] memory bobProofs = new bytes32[][](1);
-        bobProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
-        bytes32[][] memory charlieProofs = new bytes32[][](1);
-        charlieProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 2);
-
-        // Mutate amounts, set Charlie's amount
-        amounts[0] = 1;
-
-        // Bob claiming with Charlie's prof (charlie did not claim yet)
-        // It will revert with nothing to claim because the proof is not valid for bob
-        vm.expectRevert(abi.encodeWithSelector(IPufferModule.NothingToClaim.selector, bob));
-        PufferModule(payable(module)).collectRewards({
-            node: bob,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: charlieProofs
-        });
-
-        // Bob claiming for charlie (bob is msg.sender)
-        PufferModule(payable(module)).collectRewards({
-            node: charlie,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: charlieProofs
-        });
-
-        assertEq(charlie.balance, 1, "1 wei for charlie");
-
-        // Mutate amounts, set Charlie's amount
-        amounts[0] = 0.013 ether;
-
-        PufferModule(payable(module)).collectRewards({
-            node: bob,
-            blockNumbers: blockNumbers,
-            amounts: amounts,
-            merkleProofs: bobProofs
-        });
-
-        assertEq(bob.balance, 0.013 ether, "bob rewards");
     }
 
     function test_callDelegateTo(
@@ -293,15 +154,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callSetClaimerFor(address(operator), claimer);
     }
 
-    function test_callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-        _createPufferModule(moduleName);
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.NonBeaconChainETHBalanceWithdrawn(moduleName, 1 ether);
-        pufferModuleManager.callWithdrawNonBeaconChainETHBalanceWei(moduleName, 1 ether);
-    }
-
     function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
@@ -331,30 +183,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
         pufferModuleManager.callCompleteQueuedWithdrawals(
             moduleName, withdrawals, tokens, middlewareTimesIndexes, receiveAsTokens
-        );
-    }
-
-    function test_verifyAndProcessWithdrawals(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-        _createPufferModule(moduleName);
-
-        uint64 oracleTimestamp;
-        BeaconChainProofs.StateRootProof memory stateRootProof;
-        BeaconChainProofs.WithdrawalProof[] memory withdrawalProofs;
-        bytes[] memory validatorFieldsProofs;
-        bytes32[][] memory validatorFields;
-        bytes32[][] memory withdrawalFields;
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.VerifiedAndProcessedWithdrawals(moduleName, validatorFields, withdrawalFields);
-        pufferModuleManager.callVerifyAndProcessWithdrawals(
-            moduleName,
-            oracleTimestamp,
-            stateRootProof,
-            withdrawalProofs,
-            validatorFieldsProofs,
-            validatorFields,
-            withdrawalFields
         );
     }
 

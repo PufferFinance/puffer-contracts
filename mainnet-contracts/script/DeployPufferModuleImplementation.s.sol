@@ -12,7 +12,6 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
@@ -32,7 +31,6 @@ contract DeployPufferModuleImplementation is Script {
         PufferModule newImpl = new PufferModule({
             protocol: PufferProtocol(payable(0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD)),
             eigenPodManager: 0x30770d7E3e71112d7A6b7259542D1f680a70e315,
-            eigenWithdrawalRouter: IDelayedWithdrawalRouter(0x642c646053eaf2254f088e9019ACD73d9AE0FA32),
             delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
             moduleManager: PufferModuleManager(0x20377c306451140119C9967Ba6D0158a05b4eD07),
             rewardsCoordinator: IRewardsCoordinator(0xAcc1fb458a1317E886dB376Fc8141540537E68fE)
