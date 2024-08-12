@@ -58,6 +58,11 @@ interface IPufferModule {
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 
     /**
+     * @notice Sets the proof submitter on the EigenPod
+     */
+    function setProofSubmitter(address proofSubmitter) external;
+
+    /**
      * @notice Calls the delegateTo function on the EigenLayer delegation manager
      * @param operator is the address of the restaking operator
      * @param approverSignatureAndExpiry the signature of the delegation approver
@@ -88,18 +93,6 @@ interface IPufferModule {
     function queueWithdrawals(uint256 shareAmount) external returns (bytes32[] memory);
 
     /**
-     * @notice Verifies and processes the withdrawals
-     */
-    function verifyAndProcessWithdrawals(
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields,
-        bytes32[][] calldata withdrawalFields
-    ) external;
-
-    /**
      * @notice Verifies the withdrawal credentials
      */
     function verifyWithdrawalCredentials(
@@ -121,9 +114,9 @@ interface IPufferModule {
     ) external;
 
     /**
-     * @notice Withdraws the non beacon chain ETH balance
+     * @notice Starts the checkpoint for the module
      */
-    function withdrawNonBeaconChainETHBalanceWei(uint256 amountToWithdraw) external;
+    function startCheckpoint() external;
 
     /**
      * @notice Function callable only by PufferProtocol

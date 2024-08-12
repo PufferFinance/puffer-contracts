@@ -13,7 +13,6 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { DelegationManagerMock } from "../test/mocks/DelegationManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -127,7 +126,6 @@ contract DeployPuffer is BaseScript {
             PufferModule moduleImplementation = new PufferModule({
                 protocol: PufferProtocol(payable(proxy)),
                 eigenPodManager: eigenPodManager,
-                eigenWithdrawalRouter: IDelayedWithdrawalRouter(delayedWithdrawalRouter),
                 delegationManager: IDelegationManager(delegationManager),
                 moduleManager: PufferModuleManager(address(moduleManagerProxy)),
                 rewardsCoordinator: IRewardsCoordinator(rewardsCoordinator)
