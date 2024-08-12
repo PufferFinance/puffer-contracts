@@ -56,7 +56,7 @@ jobs:
 
       - name: Run tests
         working-directory: mainnet-contracts
-        run: chmod +x ./test/helpers/go2mul && forge test -vvv --ffi
+        run: chmod +x /home/runner/work/puffer-contracts/puffer-contracts/mainnet-contracts/test/helpers/go2mul && forge test -vvv --ffi
         env:
           ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
           HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
