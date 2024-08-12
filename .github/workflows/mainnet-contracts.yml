@@ -57,6 +57,9 @@ jobs:
       - name: Run tests
         working-directory: mainnet-contracts
         run: forge test -vvv --ffi
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+          HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
 
       - name: forge fmt
         working-directory: mainnet-contracts
