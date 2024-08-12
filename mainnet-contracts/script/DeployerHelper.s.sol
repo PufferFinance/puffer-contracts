@@ -63,6 +63,9 @@ abstract contract DeployerHelper is Script {
             pufferVault = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
         } else if (block.chainid == holesky) {
             pufferVault = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9;
+        } else if (block.chainid == sepolia) {
+            // PufferVaultMock
+            pufferVault = 0x5C569716934245D9089F8fD3f5087940b0C0f8B3;
         }
         return pufferVault;
     }
