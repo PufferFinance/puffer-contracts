@@ -54,6 +54,10 @@ jobs:
         # with: 
         #   version: nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
+      - name: Allow go2mul binary execution
+        working-directory: mainnet-contracts
+        run: chmod +x ./test/helpers/go2mul
+
       - name: Run tests
         working-directory: mainnet-contracts
         run: forge test -vvv --ffi
