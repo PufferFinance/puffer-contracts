@@ -176,14 +176,12 @@ contract MainnetForkTestHelper is Test {
         // Community multisig can do thing instantly
         vm.startPrank(COMMUNITY_MULTISIG);
 
-        //Upgrade PufferVault
-        timelock.executeTransaction(
-            address(pufferVault),
-            abi.encodeCall(
-                UUPSUpgradeable.upgradeToAndCall,
-                (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))
-            ),
-            1
+        bytes memory upgradeCd = abi.encodeCall(
+            UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))
+        );
+
+        (bool success,) = address(timelock).call(
+            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(pufferVault), upgradeCd, 1)
         );
 
         vm.expectEmit(true, true, true, true);
@@ -196,15 +194,21 @@ contract MainnetForkTestHelper is Test {
         PufferDepositorV2 newDepositorImplementation =
             new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), _ST_ETH);
 
+        upgradeCd = abi.encodeCall(
+            UUPSUpgradeable.upgradeToAndCall,
+            (
+                address(pufferDepositor),
+                abi.encodeCall(
+                    UUPSUpgradeable.upgradeToAndCall,
+                    (address(newDepositorImplementation), abi.encodeCall(PufferDepositorV2.initialize, ()))
+                )
+            )
+        );
+
         // Upgrade PufferDepositor - no initializer here
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));
-        timelock.executeTransaction(
-            address(pufferDepositor),
-            abi.encodeCall(
-                UUPSUpgradeable.upgradeToAndCall,
-                (address(newDepositorImplementation), abi.encodeCall(PufferDepositorV2.initialize, ()))
-            ),
-            1
+        (success,) = address(timelock).call(
+            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), upgradeCd, 1)
         );
 
         // Setup access
@@ -212,7 +216,10 @@ contract MainnetForkTestHelper is Test {
         bytes memory encodedMulticall =
             new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
         // Timelock is the owner of the AccessManager
-        timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
+        (success,) = address(timelock).call(
+            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
+        );
+        require(success, "failed upgrade tx");
 
         vm.stopPrank();
     }

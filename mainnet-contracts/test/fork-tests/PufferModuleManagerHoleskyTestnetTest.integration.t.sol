@@ -142,6 +142,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     function test_register_operator_eigen_da_holesky() public {
         vm.createSelectFork(vm.rpcUrl("holesky"), 1401731); // (Apr-20-2024 04:50:24 AM +UTC)
 
+        (, uint256 ECDSA_SK) = makeAddrAndKey("secretEcdsa");
         // not important key, only used in tests
         uint256 BLS_SK = 990752502457672953874018146088155028776815267780829407860243712322774887125;
 
@@ -156,14 +157,14 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
         (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
         _getOperatorSignature(
-            vm.envUint("OPERATOR_ECDSA_SK"),
+            ECDSA_SK,
             RESTAKING_OPERATOR_CONTRACT,
             EIGEN_DA_SERVICE_MANAGER,
             bytes32(hex"aaaabbccbbaa"), // This random salt needs to be different for every new registration
             type(uint256).max
         );
 
-        address operatorAddress = vm.addr(vm.envUint("OPERATOR_ECDSA_SK"));
+        address operatorAddress = vm.addr(ECDSA_SK);
 
         IPufferModuleManager pufferModuleManager = IPufferModuleManager(PUFFER_MODULE_MANAGER);
 
