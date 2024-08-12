@@ -56,7 +56,7 @@ jobs:
 
       - name: Run tests
         working-directory: mainnet-contracts
-        run: forge test -vvv --match-path './test/unit/*'
+        run: forge test -vvv --ffi
 
       - name: forge fmt
         working-directory: mainnet-contracts
