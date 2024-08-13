@@ -202,17 +202,25 @@ contract PufferTest is Test {
 
         // Upgrade PufferDepositor
         emit Initializable.Initialized(2);
-        timelock.executeTransaction(
-            address(pufferDepositor),
-            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
-            1
+
+        (bool success,) = address(timelock).call(
+            abi.encodeWithSelector(
+                Timelock.executeTransaction.selector,
+                address(pufferDepositor),
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newDepositorImplementation), "")),
+                1
+            )
         );
+        require(success, "failed upgrade tx");
 
         // Setup access
         bytes memory encodedMulticall =
             new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
         // Timelock is the owner of the AccessManager
-        timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
+        (success,) = address(timelock).call(
+            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
+        );
+        require(success, "failed upgrade tx");
 
         vm.stopPrank();
     }
