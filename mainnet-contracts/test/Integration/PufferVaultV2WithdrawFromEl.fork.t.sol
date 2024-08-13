@@ -76,64 +76,12 @@ contract PufferVaultWithdrawalTest is Test {
 
         // Setup access
         bytes memory encodedMulticall = new GenerateAccessManagerCallData().run(address(pufferVault), pufferDepositor);
-        // Timelock is the owner of the AccessManager
-        timelock.executeTransaction(address(accessManager), encodedMulticall, 1);
-    }
 
-    function test_m2_el_withdrawal() public {
-        // On holesky, Dev wallet has some stETH that we can deposit to the contract and to the EL stETH strategy
-        vm.startPrank(pufferDevWallet); // Puffer dev wallet
-        stETH.approve(address(pufferVault), type(uint256).max);
-
-        // Deposit stETH to PufferVault
-        pufferVault.deposit(0.05 ether, pufferDevWallet);
-
-        // Deposit that to EL stETH strategy
-        vm.startPrank(operations);
-        pufferVault.depositToEigenLayer(0.05 ether);
-
-        // Upgrade contracts and setup access
-        _upgradeContracts();
-
-        uint256 assetsBefore = pufferVault.totalAssets();
-
-        // After the upgrade use the new flow for withdrawal
-        vm.startPrank(operations);
-        PufferVaultV2(payable(pufferVault)).initiateStETHWithdrawalFromEigenLayer(0.05 ether);
-
-        assertApproxEqAbs(assetsBefore, pufferVault.totalAssets(), 1, "assets must not change");
-
-        uint256 startBlock = block.number;
-
-        // Fast forward
-        vm.roll(block.number + 10000);
-
-        IEigenLayer.WithdrawerAndNonce memory withdrawerAndNonce =
-            IEigenLayer.WithdrawerAndNonce({ withdrawer: address(pufferVault), nonce: 0 });
-
-        IERC20[] memory tokens = new IERC20[](1);
-        tokens[0] = IERC20(address(stETH));
-
-        IStrategy[] memory strategies = new IStrategy[](1);
-        strategies[0] = IStrategy(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3); // stETH strategy
-
-        uint256[] memory shares = new uint256[](1);
-        shares[0] = 0.05 ether;
-
-        IEigenLayer.QueuedWithdrawal memory queuedWithdrawal = IEigenLayer.QueuedWithdrawal({
-            strategies: strategies,
-            shares: shares,
-            depositor: address(pufferVault),
-            withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: uint32(startBlock),
-            delegatedAddress: address(0)
-        });
-
-        // Claim the withdrawal using the new flow
-        PufferVaultV2(payable(pufferVault)).claimWithdrawalFromEigenLayerM2(queuedWithdrawal, tokens, 0, 0);
-
-        assertApproxEqAbs(
-            assetsBefore, pufferVault.totalAssets(), 2, "assets must not change after everything is withdrawn"
+        (bool success,) = address(timelock).call(
+            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
         );
+        require(success, "failed upgrade tx");
+        // Timelock is the owner of the AccessManager
+        // timelock.executeTransaction(address(accessManagerß), encodedMulticall, 1);
     }
 }

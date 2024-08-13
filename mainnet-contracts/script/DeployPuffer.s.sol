@@ -13,7 +13,6 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { DelegationManagerMock } from "../test/mocks/DelegationManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
-import { IDelayedWithdrawalRouter } from "eigenlayer/interfaces/IDelayedWithdrawalRouter.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -59,7 +58,6 @@ contract DeployPuffer is BaseScript {
     AVSContractsRegistry aVSContractsRegistry;
 
     address eigenPodManager;
-    address delayedWithdrawalRouter;
     address delegationManager;
     address rewardsCoordinator;
     address eigenSlasher;
@@ -75,7 +73,6 @@ contract DeployPuffer is BaseScript {
         if (isMainnet()) {
             // Mainnet / Mainnet fork
             eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
-            delayedWithdrawalRouter = 0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8;
             delegationManager = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
             eigenSlasher = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
             rewardsCoordinator = address(0); //@todo
@@ -83,7 +80,6 @@ contract DeployPuffer is BaseScript {
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
-            delayedWithdrawalRouter = address(0);
             delegationManager = address(new DelegationManagerMock());
             rewardsCoordinator = address(new RewardsCoordinatorMock());
             eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
@@ -91,7 +87,6 @@ contract DeployPuffer is BaseScript {
         } else {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
-            delayedWithdrawalRouter = 0x642c646053eaf2254f088e9019ACD73d9AE0FA32;
             delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
             eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C;
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
@@ -127,7 +122,6 @@ contract DeployPuffer is BaseScript {
             PufferModule moduleImplementation = new PufferModule({
                 protocol: PufferProtocol(payable(proxy)),
                 eigenPodManager: eigenPodManager,
-                eigenWithdrawalRouter: IDelayedWithdrawalRouter(delayedWithdrawalRouter),
                 delegationManager: IDelegationManager(delegationManager),
                 moduleManager: PufferModuleManager(address(moduleManagerProxy)),
                 rewardsCoordinator: IRewardsCoordinator(rewardsCoordinator)

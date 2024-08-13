@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
-import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
-import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { IBridgeInterface } from "mainnet-contracts/src/interface/Connext/IBridgeInterface.sol";
-import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
-import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
-import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
+import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IL2RewardManager} from "./interface/IL2RewardManager.sol";
+import {IXReceiver} from "@connext/interfaces/core/IXReceiver.sol";
+import {L2RewardManagerStorage} from "./L2RewardManagerStorage.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {InvalidAmount, Unauthorized} from "mainnet-contracts/src/Errors.sol";
+import {IBridgeInterface} from "mainnet-contracts/src/interface/Connext/IBridgeInterface.sol";
+import {IL1RewardManager} from "mainnet-contracts/src/interface/IL1RewardManager.sol";
+import {InvalidAddress} from "mainnet-contracts/src/Errors.sol";
+import {L1RewardManagerStorage} from "mainnet-contracts/src/L1RewardManagerStorage.sol";
 
 /**
  * @title L2RewardManager
@@ -52,15 +51,22 @@ contract L2RewardManager is
      * @inheritdoc IL2RewardManager
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function claimRewards(ClaimOrder[] calldata claimOrders) external restricted {
+    function claimRewards(
+        ClaimOrder[] calldata claimOrders
+    ) external restricted {
         for (uint256 i = 0; i < claimOrders.length; i++) {
             if (isClaimed(claimOrders[i].intervalId, claimOrders[i].account)) {
-                revert AlreadyClaimed(claimOrders[i].intervalId, claimOrders[i].account);
+                revert AlreadyClaimed(
+                    claimOrders[i].intervalId,
+                    claimOrders[i].account
+                );
             }
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-            EpochRecord storage epochRecord = $.epochRecords[claimOrders[i].intervalId];
+            EpochRecord storage epochRecord = $.epochRecords[
+                claimOrders[i].intervalId
+            ];
 
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
                 revert ClaimingLocked({
@@ -72,15 +78,33 @@ contract L2RewardManager is
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
             // The leaf is: keccak256(abi.encode(AliceAddress, totalETHEarned))
-            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(claimOrders[i].account, claimOrders[i].amount))));
-            if (!MerkleProof.verifyCalldata(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
+            bytes32 leaf = keccak256(
+                bytes.concat(
+                    keccak256(
+                        abi.encode(
+                            claimOrders[i].account,
+                            claimOrders[i].amount
+                        )
+                    )
+                )
+            );
+            if (
+                !MerkleProof.verifyCalldata(
+                    claimOrders[i].merkleProof,
+                    epochRecord.rewardRoot,
+                    leaf
+                )
+            ) {
                 revert InvalidProof();
             }
 
             // Mark it claimed and transfer the tokens
-            $.claimedRewards[claimOrders[i].intervalId][claimOrders[i].account] = true;
+            $.claimedRewards[claimOrders[i].intervalId][
+                claimOrders[i].account
+            ] = true;
 
-            uint256 amountToTransfer = claimOrders[i].amount * epochRecord.ethToPufETHRate / 1 ether;
+            uint256 amountToTransfer = (claimOrders[i].amount *
+                epochRecord.ethToPufETHRate) / 1 ether;
 
             address recipient = getRewardsClaimer(claimOrders[i].account);
 
@@ -100,21 +124,32 @@ contract L2RewardManager is
      * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
      * @dev Restricted access to `ROLE_ID_BRIDGE`
      */
-    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
-        external
-        override(IXReceiver)
-        restricted
-        returns (bytes memory)
-    {
+    function xReceive(
+        bytes32,
+        uint256 amount,
+        address,
+        address originSender,
+        uint32,
+        bytes memory callData
+    ) external override(IXReceiver) restricted returns (bytes memory) {
         if (originSender != address(L1_REWARD_MANAGER)) {
             revert Unauthorized();
         }
 
-        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
+        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(
+            callData,
+            (IL1RewardManager.BridgingParams)
+        );
 
-        if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
+        if (
+            bridgingParams.bridgingType ==
+            IL1RewardManager.BridgingType.MintAndBridge
+        ) {
             _handleMintAndBridge(amount, bridgingParams.data);
-        } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
+        } else if (
+            bridgingParams.bridgingType ==
+            IL1RewardManager.BridgingType.SetClaimer
+        ) {
             _handleSetClaimer(bridgingParams.data);
         } else {
             revert InvalidBridgingType();
@@ -136,11 +171,11 @@ contract L2RewardManager is
      *
      * msg.value is used to pay for the relayer fee on the destination chain.
      */
-    function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch)
-        external
-        payable
-        restricted
-    {
+    function freezeAndRevertInterval(
+        address bridge,
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) external payable restricted {
         _freezeClaimingForInterval(startEpoch, endEpoch);
 
         _revertInterval(bridge, startEpoch, endEpoch);
@@ -150,7 +185,10 @@ contract L2RewardManager is
      * @notice Freezes the claiming for the interval
      * @dev In order to freeze the claiming for the interval, the interval must be locked
      */
-    function freezeClaimingForInterval(uint256 startEpoch, uint256 endEpoch) public restricted {
+    function freezeClaimingForInterval(
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) public restricted {
         _freezeClaimingForInterval(startEpoch, endEpoch);
     }
 
@@ -159,7 +197,11 @@ contract L2RewardManager is
      * @dev On the L1, we unwrap xPufETH to pufETH and burn the pufETH to undo the minting
      * We use msg.value to pay for the relayer fee on the destination chain.
      */
-    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external payable restricted {
+    function revertInterval(
+        address bridge,
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) external payable restricted {
         _revertInterval(bridge, startEpoch, endEpoch);
     }
 
@@ -168,7 +210,10 @@ contract L2RewardManager is
      * @param bridge The address of the bridge.
      * @param bridgeData The updated bridge data.
      */
-    function updateBridgeData(address bridge, BridgeData memory bridgeData) external restricted {
+    function updateBridgeData(
+        address bridge,
+        BridgeData memory bridgeData
+    ) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         if (bridge == address(0)) {
@@ -190,7 +235,10 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function getIntervalId(uint256 startEpoch, uint256 endEpoch) public pure returns (bytes32) {
+    function getIntervalId(
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(startEpoch, endEpoch));
     }
 
@@ -204,7 +252,10 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function isClaimed(bytes32 intervalId, address account) public view returns (bool) {
+    function isClaimed(
+        bytes32 intervalId,
+        address account
+    ) public view returns (bool) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.claimedRewards[intervalId][account];
     }
@@ -212,7 +263,9 @@ contract L2RewardManager is
     /**
      * @inheritdoc IL2RewardManager
      */
-    function getEpochRecord(bytes32 intervalId) external view returns (EpochRecord memory) {
+    function getEpochRecord(
+        bytes32 intervalId
+    ) external view returns (EpochRecord memory) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.epochRecords[intervalId];
     }
@@ -222,7 +275,10 @@ contract L2RewardManager is
      */
     function getRewardsClaimer(address account) public view returns (address) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.rewardsClaimers[account] != address(0) ? $.rewardsClaimers[account] : account;
+        return
+            $.rewardsClaimers[account] != address(0)
+                ? $.rewardsClaimers[account]
+                : account;
     }
 
     /**
@@ -234,17 +290,24 @@ contract L2RewardManager is
     }
 
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
-        L1RewardManagerStorage.MintAndBridgeData memory params =
-            abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
+        L1RewardManagerStorage.MintAndBridgeData memory params = abi.decode(
+            data,
+            (L1RewardManagerStorage.MintAndBridgeData)
+        );
 
         // Sanity check
-        if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
+        if (
+            amount !=
+            ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)
+        ) {
             revert InvalidAmount();
         }
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
+
+        $.currentRewardsInterval = intervalId;
 
         $.epochRecords[intervalId] = EpochRecord({
             ethToPufETHRate: uint64(params.ethToPufETHRate),
@@ -270,13 +333,16 @@ contract L2RewardManager is
      * @dev We want to allow Smart Contracts(Node Operators) on Ethereum Mainnet to set the claimer of the rewards on L2. It is likely that they will not have the same address on L2.
      */
     function _handleSetClaimer(bytes memory data) internal {
-        L1RewardManagerStorage.SetClaimerParams memory claimerParams =
-            abi.decode(data, (L1RewardManagerStorage.SetClaimerParams));
+        L1RewardManagerStorage.SetClaimerParams memory claimerParams = abi
+            .decode(data, (L1RewardManagerStorage.SetClaimerParams));
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         $.rewardsClaimers[claimerParams.account] = claimerParams.claimer;
 
-        emit ClaimerSet({ account: claimerParams.account, claimer: claimerParams.claimer });
+        emit ClaimerSet({
+            account: claimerParams.account,
+            claimer: claimerParams.claimer
+        });
     }
 
     function _setClaimingDelay(uint256 newDelay) internal {
@@ -287,11 +353,25 @@ contract L2RewardManager is
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
+        // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
+        if (
+            !_isClaimingLocked($.currentRewardsInterval) &&
+            ($.epochRecords[$.currentRewardsInterval].timeBridged + newDelay >
+                block.timestamp)
+        ) {
+            revert UnableToSetClaimingDelay();
+        }
+
+        emit ClaimingDelayChanged({
+            oldDelay: $.claimingDelay,
+            newDelay: newDelay
+        });
         $.claimingDelay = newDelay;
     }
 
-    function _isClaimingLocked(bytes32 intervalId) internal view returns (bool) {
+    function _isClaimingLocked(
+        bytes32 intervalId
+    ) internal view returns (bool) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         uint256 timeBridged = $.epochRecords[intervalId].timeBridged;
@@ -305,7 +385,10 @@ contract L2RewardManager is
         return block.timestamp < timeBridged + $.claimingDelay;
     }
 
-    function _freezeClaimingForInterval(uint256 startEpoch, uint256 endEpoch) internal {
+    function _freezeClaimingForInterval(
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) internal {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
@@ -323,13 +406,20 @@ contract L2RewardManager is
         // To freeze the claiming, we set the timeBridged to 0
         $.epochRecords[intervalId].timeBridged = 0;
 
-        emit ClaimingIntervalFrozen({ startEpoch: startEpoch, endEpoch: endEpoch });
+        emit ClaimingIntervalFrozen({
+            startEpoch: startEpoch,
+            endEpoch: endEpoch
+        });
     }
 
     /**
      * @notice Reverts the already frozen interval
      */
-    function _revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) internal {
+    function _revertInterval(
+        address bridge,
+        uint256 startEpoch,
+        uint256 endEpoch
+    ) internal {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         BridgeData memory bridgeData = $.bridges[bridge];
@@ -344,7 +434,7 @@ contract L2RewardManager is
 
         XPUFETH.approve(bridge, epochRecord.pufETHAmount);
 
-        IBridgeInterface(bridge).xcall{ value: msg.value }({
+        IBridgeInterface(bridge).xcall{value: msg.value}({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L1_REWARD_MANAGER, // Address of the target contract
             asset: address(XPUFETH), // Address of the token contract
@@ -352,12 +442,9 @@ contract L2RewardManager is
             amount: epochRecord.pufETHAmount, // Amount of tokens to transfer
             slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
             callData: abi.encode(epochRecord) // Encoded data to send
-         });
+        });
 
-        delete $.epochRecords[intervalId].ethToPufETHRate;
-        delete $.epochRecords[intervalId].rewardRoot;
-        delete $.epochRecords[intervalId].pufETHAmount;
-        delete $.epochRecords[intervalId].ethAmount;
+        delete $.epochRecords[intervalId];
 
         emit ClaimingIntervalReverted({
             startEpoch: startEpoch,
@@ -374,5 +461,7 @@ contract L2RewardManager is
      * @param newImplementation The address of the new implementation
      */
     // slither-disable-next-line dead-code
-    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override restricted {}
 }
