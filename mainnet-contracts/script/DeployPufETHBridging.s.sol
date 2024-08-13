@@ -5,31 +5,17 @@ import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-
-import { PufferVaultV3Tests } from "../src/PufferVaultV3Tests.sol";
-import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
-import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
-import { IStETH } from "../src/interface/Lido/IStETH.sol";
-import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
-import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IWETH } from "../src/interface/Other/IWETH.sol";
-import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
-import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
-
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
-import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
-
+import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
+import { L1RewardManager } from "src/L1RewardManager.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
+import { NoImplementation } from "../src/NoImplementation.sol";
 import { ConnextMock } from "../test/mocks/ConnextMock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title DeployPufETHBridging
@@ -66,14 +52,44 @@ contract DeployPufETHBridging is BaseScript {
             )
         );
 
+        address everclearBridge = address(new ConnextMock());
+
+        address noImpl = address(new NoImplementation());
+
+        ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
+
         // Deploy the lockbox
         XERC20Lockbox xERC20Lockbox =
             new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
 
+        // L1RewardManager
+        L1RewardManager l1RewardManagerImpl = new L1RewardManager({
+            XpufETH: address(xPufETHProxy),
+            pufETH: deployment.pufferVault,
+            lockbox: address(xERC20Lockbox),
+            l2RewardsManager: address(l2RewardsManagerProxy)
+        });
+
+        L1RewardManager l1RewardManagerProxy = L1RewardManager(
+            address(
+                new ERC1967Proxy(
+                    address(l1RewardManagerImpl), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+                )
+            )
+        );
+
+        L2RewardManager l2RewardManagerImpl = new L2RewardManager(everclearBridge, address(l1RewardManagerProxy));
+
+        UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
+            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
+        );
+
         bridgingDeployment = BridgingDeployment({
-            connext: address(new ConnextMock()),
+            connext: everclearBridge,
             xPufETH: address(xPufETHProxy),
-            xPufETHLockBox: address(xERC20Lockbox)
+            xPufETHLockBox: address(xERC20Lockbox),
+            l1RewardManager: address(l1RewardManagerProxy),
+            l2RewardManager: address(l2RewardsManagerProxy)
         });
     }
 }
