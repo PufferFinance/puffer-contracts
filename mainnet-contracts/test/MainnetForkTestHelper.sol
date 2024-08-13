@@ -233,12 +233,6 @@ contract MainnetForkTestHelper is Test {
         // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
         MockPufferOracle mockOracle = new MockPufferOracle();
 
-        IPufferVaultV3.BridgingConstructorParams memory bridgingParams = IPufferVaultV3.BridgingConstructorParams({
-            xToken: address(0xD7D2802f6b19843ac4DfE25022771FD83b5A7464),
-            lockBox: address(0xF78461CF59683af98dBec13C81dd064f4d77De48),
-            l2RewardManager: l2RewradManagerMock
-        });
-
         pufferVaultNonBlocking = new PufferVaultV3Tests(
             _ST_ETH,
             _WETH,
@@ -246,8 +240,7 @@ contract MainnetForkTestHelper is Test {
             _EIGEN_STETH_STRATEGY,
             _EIGEN_STRATEGY_MANAGER,
             mockOracle,
-            _EIGEN_DELEGATION_MANGER,
-            bridgingParams
+            _EIGEN_DELEGATION_MANGER
         );
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
