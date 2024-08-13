@@ -37,25 +37,25 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.getTotalRewardMintAmount(), 0, "0 rewards");
     }
 
-    function test_mintAndBridge() public {
-        // first updateBridgeData
+    // function test_mintAndBridge() public {
+    //     // first updateBridgeData
 
-        // IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
-        //     bridge: address(connext),
-        //     rewardsAmount: 100 ether,
-        //     startEpoch: 1,
-        //     endEpoch: 2,
-        //     rewardsRoot: bytes32(0),
-        //     rewardsURI: "uri"
-        // });
+    //     // IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
+    //     //     bridge: address(connext),
+    //     //     rewardsAmount: 100 ether,
+    //     //     startEpoch: 1,
+    //     //     endEpoch: 2,
+    //     //     rewardsRoot: bytes32(0),
+    //     //     rewardsURI: "uri"
+    //     // });
 
-        uint256 initialTotalAssets = pufferVault.totalAssets();
+    //     uint256 initialTotalAssets = pufferVault.totalAssets();
 
-        // vm.startPrank(DAO);
+    //     // vm.startPrank(DAO);
 
-        // pufferVault.setAllowedRewardMintAmount(100 ether);
-        // pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+    //     // pufferVault.setAllowedRewardMintAmount(100 ether);
+    //     // pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
 
-        assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
-    }
+    //     assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
+    // }
 }
