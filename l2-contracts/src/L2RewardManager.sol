@@ -285,8 +285,6 @@ contract L2RewardManager is
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
-        //@todo look at the last interval, if its unlocked / prevent changing the delay to lower value
-
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
