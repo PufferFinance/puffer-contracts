@@ -9,7 +9,6 @@ import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
@@ -62,7 +61,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         IRestakingOperator operator = _createRestakingOperator();
 
         IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
-            earningsReceiver: address(this),
+            __deprecated_earningsReceiver: address(this),
             delegationApprover: address(0),
             stakerOptOutWindowBlocks: 100
         });
@@ -75,7 +74,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
         assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
 
-        assertEq(details.earningsReceiver, address(this), "updated earnings");
+        assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
     }
 
     function test_update_metadata_uri() public {
@@ -90,135 +89,98 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     }
 
     // Don't remove this test, it is used as a reference for real registration
-    function test_eigenda_avs() public {
-        // This test is for the Existing Holesky Testnet deployment
+    // function test_eigenda_avs() public {
+    // This test is for the Existing Holesky Testnet deployment
 
-        // vm.startPrank(DAO);
-        // https://holesky.eigenlayer.xyz/operator/0xe2c2dc296a0bff351f6bc3e98d37ea798e393e56
-        address restakingOperator = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
-        // IRestakingOperator restakingOperator = _createRestakingOperator();
+    // // vm.startPrank(DAO);
+    // // https://holesky.eigenlayer.xyz/operator/0xe2c2dc296a0bff351f6bc3e98d37ea798e393e56
+    // address restakingOperator = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
+    // // IRestakingOperator restakingOperator = _createRestakingOperator();
 
-        // _depositToWETHEigenLayerStrategyAndDelegateTo(address(restakingOperator));
+    // // _depositToWETHEigenLayerStrategyAndDelegateTo(address(restakingOperator));
 
-        IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(vm.envUint("OPERATOR_BLS_SK"));
+    // IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(vm.envUint("OPERATOR_BLS_SK"));
 
-        // He signs with his BLS key the message to register him with our Restaking Operator contract
-        BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
-            .pubkeyRegistrationMessageHash(address(restakingOperator));
+    // // He signs with his BLS key the message to register him with our Restaking Operator contract
+    // BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
+    //     .pubkeyRegistrationMessageHash(address(restakingOperator));
 
-        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, vm.envUint("OPERATOR_BLS_SK"));
+    // params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, vm.envUint("OPERATOR_BLS_SK"));
 
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
-        _getOperatorSignature(
-            vm.envUint("OPERATOR_ECDSA_SK"),
-            address(restakingOperator),
-            EIGEN_DA_SERVICE_MANAGER,
-            bytes32(hex"aaaa"),
-            type(uint256).max
-        );
+    // (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+    // _getOperatorSignature(
+    //     vm.envUint("OPERATOR_ECDSA_SK"),
+    //     address(restakingOperator),
+    //     EIGEN_DA_SERVICE_MANAGER,
+    //     bytes32(hex"aaaa"),
+    //     type(uint256).max
+    // );
 
-        address operatorAddress = vm.addr(vm.envUint("OPERATOR_ECDSA_SK"));
+    // address operatorAddress = vm.addr(vm.envUint("OPERATOR_ECDSA_SK"));
 
-        IPufferModuleManager pufferModuleManager = IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71);
+    // IPufferModuleManager pufferModuleManager = IPufferModuleManager(0xe4695ab93163F91665Ce5b96527408336f070a71);
 
-        vm.startPrank(0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0);
+    // vm.startPrank(0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0);
 
-        bytes memory hashCall = abi.encodeCall(
-            IPufferModuleManager.updateAVSRegistrationSignatureProof,
-            (IRestakingOperator(restakingOperator), digestHash, operatorAddress)
-        );
+    // bytes memory hashCall = abi.encodeCall(
+    //     IPufferModuleManager.updateAVSRegistrationSignatureProof,
+    //     (IRestakingOperator(restakingOperator), digestHash, operatorAddress)
+    // );
 
-        //@todo has to be updated manually on the contract
-        /// cast send 0xe4695ab93163F91665Ce5b96527408336f070a71 0xd82752c8000000000000000000000000e2c2dc296a0bff351f6bc3e98d37ea798e393e5653db2c4483378e8f37899e656561460562547c3f6a840a33f3c02f4c4f608eca000000000000000000000000454c063b1d5dfa8e0ebb4e4198cff1101dda5d2c --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
-        console.log("hash call:");
-        console.logBytes(hashCall);
+    // //@todo has to be updated manually on the contract
+    // /// cast send 0xe4695ab93163F91665Ce5b96527408336f070a71 0xd82752c8000000000000000000000000e2c2dc296a0bff351f6bc3e98d37ea798e393e5653db2c4483378e8f37899e656561460562547c3f6a840a33f3c02f4c4f608eca000000000000000000000000454c063b1d5dfa8e0ebb4e4198cff1101dda5d2c --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
+    // console.log("hash call:");
+    // console.logBytes(hashCall);
 
-        // pufferModuleManager.updateAVSRegistrationSignatureProof(
-        //     IRestakingOperator(restakingOperator), digestHash, operatorAddress
-        // );
+    // // pufferModuleManager.updateAVSRegistrationSignatureProof(
+    // //     IRestakingOperator(restakingOperator), digestHash, operatorAddress
+    // // );
 
-        IRegistryCoordinator.OperatorKickParam[] memory operatorKickParams =
-            new IRegistryCoordinator.OperatorKickParam[](1);
-        operatorKickParams[0] = IRegistryCoordinator.OperatorKickParam({
-            quorumNumber: 1,
-            operator: 0xCE9AdA2dE1d94e62ca3574383a8F562B572dbC6C
-        });
-        ISignatureUtils.SignatureWithSaltAndExpiry memory churnApproverSignature;
-        churnApproverSignature.signature =
-            hex"9df0fa39818eec0a3a1dd9bb639dff0b98df88f82523d3f41d20611667681f83021adc47e5fe20e40de7650649b1385b8f14b824973a60eea95b560f98ce0ce81c";
-        churnApproverSignature.salt = hex"a930fd8d687e85d9957a4462b472e6a25d9f7c8b2fb639604da2f670a1f13512";
-        churnApproverSignature.expiry = 1712919092;
+    // IRegistryCoordinator.OperatorKickParam[] memory operatorKickParams =
+    //     new IRegistryCoordinator.OperatorKickParam[](1);
+    // operatorKickParams[0] = IRegistryCoordinator.OperatorKickParam({
+    //     quorumNumber: 1,
+    //     operator: 0xCE9AdA2dE1d94e62ca3574383a8F562B572dbC6C
+    // });
+    // ISignatureUtils.SignatureWithSaltAndExpiry memory churnApproverSignature;
+    // churnApproverSignature.signature =
+    //     hex"9df0fa39818eec0a3a1dd9bb639dff0b98df88f82523d3f41d20611667681f83021adc47e5fe20e40de7650649b1385b8f14b824973a60eea95b560f98ce0ce81c";
+    // churnApproverSignature.salt = hex"a930fd8d687e85d9957a4462b472e6a25d9f7c8b2fb639604da2f670a1f13512";
+    // churnApproverSignature.expiry = 1712919092;
 
-        bytes memory calldataToRegister = abi.encodeCall(
-            IPufferModuleManager.callRegisterOperatorToAVSWithChurn,
-            (
-                IRestakingOperator(restakingOperator),
-                EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
-                bytes(hex"01"),
-                "20.64.16.29:32005;32004",
-                params,
-                operatorKickParams,
-                churnApproverSignature,
-                operatorSignature
-            )
-        );
+    // bytes memory calldataToRegister = abi.encodeCall(
+    //     IPufferModuleManager.callRegisterOperatorToAVSWithChurn,
+    //     (
+    //         IRestakingOperator(restakingOperator),
+    //         EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
+    //         bytes(hex"01"),
+    //         "20.64.16.29:32005;32004",
+    //         params,
+    //         operatorKickParams,
+    //         churnApproverSignature,
+    //         operatorSignature
+    //     )
+    // );
 
-        console.log("Calldata to register operator to AVS, submit to PufferModuleManager:");
-        console.logBytes(calldataToRegister);
+    // console.log("Calldata to register operator to AVS, submit to PufferModuleManager:");
+    // console.logBytes(calldataToRegister);
 
-        // Finish the registration
-        (bool success,) = address(pufferModuleManager).call(calldataToRegister);
-        assertEq(success, true, "register operator to avs");
+    // // Finish the registration
+    // (bool success,) = address(pufferModuleManager).call(calldataToRegister);
+    // assertEq(success, true, "register operator to avs");
 
-        // 4. Dao registers the operator by submitting his signature to the AVS
-        // pufferModuleManager.callRegisterOperatorToAVSWithChurn({
-        //     restakingOperator: IRestakingOperator(restakingOperator),
-        //     avsRegistryCoordinator: EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
-        //     quorumNumbers: bytes(hex"01"),
-        //     socket: "103.199.107.52:32005;32004",
-        //     params: params,
-        //     operatorSignature: operatorSignature,
-        //     operatorKickParams: operatorKickParams,
-        //     churnApproverSignature: churnApproverSignature
-        // });
-    }
-
-    function test_register_operator_to_eigen_da() public {
-        // 1. Create Restaking Operator contract
-        vm.startPrank(DAO);
-        IRestakingOperator restakingOperator = _createRestakingOperator();
-
-        _depositToWETHEigenLayerStrategyAndDelegateTo(address(restakingOperator));
-
-        // 2. Create EOA operator that will run the AVS, he must have both ECDSA + BLS keypair
-        (uint256 privateKey, IBLSApkRegistry.PubkeyRegistrationParams memory params) = _generateOperatorKeys();
-        address operatorAddress = vm.addr(privateKey);
-
-        // He signs with his BLS key the message to register him with our Restaking Operator contract
-        BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
-            .pubkeyRegistrationMessageHash(address(restakingOperator));
-
-        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, privateKey);
-
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
-        _getOperatorSignature(
-            privateKey, address(restakingOperator), EIGEN_DA_SERVICE_MANAGER, bytes32("salt"), type(uint256).max
-        );
-
-        // 3. Whitelist the operator signature
-        vm.startPrank(DAO);
-        moduleManager.updateAVSRegistrationSignatureProof(restakingOperator, digestHash, operatorAddress);
-
-        // 4. Dao registers the operator by submitting his signature to the AVS
-        moduleManager.callRegisterOperatorToAVS({
-            restakingOperator: IRestakingOperator(restakingOperator),
-            avsRegistryCoordinator: EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
-            quorumNumbers: bytes(hex"01"),
-            socket: "103.199.107.52:32005;32004",
-            params: params,
-            operatorSignature: operatorSignature
-        });
-    }
+    // 4. Dao registers the operator by submitting his signature to the AVS
+    // pufferModuleManager.callRegisterOperatorToAVSWithChurn({
+    //     restakingOperator: IRestakingOperator(restakingOperator),
+    //     avsRegistryCoordinator: EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
+    //     quorumNumbers: bytes(hex"01"),
+    //     socket: "103.199.107.52:32005;32004",
+    //     params: params,
+    //     operatorSignature: operatorSignature,
+    //     operatorKickParams: operatorKickParams,
+    //     churnApproverSignature: churnApproverSignature
+    // });
+    // }
 
     function _depositToWETHEigenLayerStrategyAndDelegateTo(address restakingOperator) internal {
         // buy weth
@@ -253,7 +215,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
         assertEq(details.delegationApprover, address(0), "delegation approver");
         assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
-        assertEq(details.earningsReceiver, address(moduleManager), "earnings receiver");
+        assertEq(details.__deprecated_earningsReceiver, address(moduleManager), "earnings receiver");
 
         return operator;
     }

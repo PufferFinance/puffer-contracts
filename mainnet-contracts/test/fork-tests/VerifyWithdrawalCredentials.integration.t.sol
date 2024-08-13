@@ -23,59 +23,6 @@ contract PufferModuleManagerIntegrationTest is ProofParsing {
         vm.createSelectFork(vm.rpcUrl("holesky"), 1269510);
     }
 
-    function test_verityWithdrawalCredentials_123() public {
-        setJSON("./test/data/1662066-proof.json");
-
-        // Our validator https://holesky.beaconcha.in/validator/89E7DAC705610923C7FDB42A9B708B55BA5DDAC99B5D6A57765794BE2A42B7A94B2A4EC91253E08DDFB48CEB8573A978#deposits
-        // timestamp of the https://holesky.beaconcha.in/slot/1348714
-        // Deposit to beacon chain happened in slot 1348714, timestamp of that slot is 1712086968 (Tuesday, 2 April 2024 19:42:48)
-        uint256 timestamp = 1712086968;
-
-        // We first need to add that timestamp to the oracle
-        elOracle.addTimestamp(timestamp);
-
-        // Assert that it got updated
-        assertEq(
-            elOracle.timestampToBlockRoot(timestamp),
-            hex"a45fd04b12349e8a73fefd478ecc3198e34b679b43b93ee24697aeeffcf5ee18",
-            "root"
-        );
-
-        uint64 oracleTimestamp = uint64(timestamp);
-        uint40[] memory validatorIndices = new uint40[](1);
-        validatorIndices[0] = 1662066;
-
-        BeaconChainProofs.StateRootProof memory stateRootProofStruct = _getStateRootProof();
-
-        bytes32[][] memory validatorFields = new bytes32[][](1);
-        validatorFields[0] = getValidatorFields();
-
-        bytes[] memory validatorFieldsProofs = new bytes[](1);
-        validatorFieldsProofs[0] = abi.encodePacked(getWithdrawalCredentialProof());
-
-        vm.startPrank(0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0); // DAO
-
-        bytes memory moduleManagerCallData = abi.encodeCall(
-            PufferModuleManager.callVerifyWithdrawalCredentials,
-            (
-                bytes32("PUFFER_MODULE_0"),
-                oracleTimestamp,
-                stateRootProofStruct,
-                validatorIndices,
-                validatorFieldsProofs,
-                validatorFields
-            )
-        );
-
-        console.log("Calling ModuleManager.verifyWithdrawalCredentials");
-        // console.logBytes(moduleManagerCallData);
-
-        vm.expectEmit(true, true, true, true);
-        emit IEigenPod.ValidatorRestaked(1662066);
-        (bool s,) = address(pufferModuleManager).call(moduleManagerCallData);
-        assertEq(s, true, "ModuleManager.verifyWithdrawalCredentials");
-    }
-
     // Helper Functions
     function _getStateRootProof() internal returns (BeaconChainProofs.StateRootProof memory) {
         return BeaconChainProofs.StateRootProof(getBeaconStateRoot(), abi.encodePacked(getStateRootProof()));

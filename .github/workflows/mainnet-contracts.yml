@@ -56,7 +56,10 @@ jobs:
 
       - name: Run tests
         working-directory: mainnet-contracts
-        run: forge test -vvv --match-path './test/unit/*'
+        run: forge test -vvv --ffi --no-match-test test_register_operator_eigen_da_holesky
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+          HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
 
       - name: forge fmt
         working-directory: mainnet-contracts

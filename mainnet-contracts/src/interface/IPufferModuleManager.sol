@@ -63,17 +63,6 @@ interface IPufferModuleManager {
     event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount, bytes32 withdrawalRoot);
 
     /**
-     * @notice Emitted when the verify and process withdrawals is called
-     * @param moduleName is the name of the module
-     * @param withdrawalFields are the fields of the withdrawals being proven
-     * @param validatorFields are the fields of the validators being proven
-     * @dev Signature "0x3f91dfbadd893521ffbbd43362750081af349f220002e6bfb4ffb3c00735f8ac"
-     */
-    event VerifiedAndProcessedWithdrawals(
-        bytes32 indexed moduleName, bytes32[][] validatorFields, bytes32[][] withdrawalFields
-    );
-
-    /**
      * @notice Emitted when the Restaking Operator is updated with a new metadata URI
      * @param restakingOperator is the address of the restaking operator
      * @param metadataURI is the new URI of the operator's metadata
@@ -114,20 +103,20 @@ interface IPufferModuleManager {
     event ValidatorCredentialsVerified(bytes32 indexed moduleName, uint40[] validatorIndices);
 
     /**
-     * @notice Emitted when ETH is withdrawn from EigenPod to a PufferModule
-     * @param moduleName is the name of the module
-     * @param amountToWithdraw is the amount of ETH to withdrawn
-     * @dev Signature "0xcc72a3059fae624886e4da6e0b98e575d8cb4f7ea47e3986b5b60182621b7e22"
-     */
-    event NonBeaconChainETHBalanceWithdrawn(bytes32 indexed moduleName, uint256 amountToWithdraw);
-
-    /**
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
      * @param sharesWithdrawn is the shares withdrawn
      * @dev Signature "0x46ca5934f7ca805e7fbdc05e90e3ecbea495c41e35ba48e24f053c0c3d25af1e"
      */
     event CompletedQueuedWithdrawals(bytes32 indexed moduleName, uint256 sharesWithdrawn);
+
+    /**
+     * @notice Emitted when the proof submitter is set for a Puffer Module
+     * @param moduleName is the name of the module
+     * @param proofSubmitter is the address of the proof submitter
+     * @dev Signature "0x7f89a4fee8344b6c81af28f87562de8054623bc99874a118c25adad8f83bc7ae"
+     */
+    event ProofSubmitterSet(bytes32 indexed moduleName, address indexed proofSubmitter);
 
     /**
      * @notice Emitted when the Restaking Operator is registered to an AVS
@@ -182,6 +171,12 @@ interface IPufferModuleManager {
     );
 
     /**
+     * @notice Emitted when the Restaking Operator or PufferModule sets the calimer to `claimer`
+     * @dev Signature "0x4925eafc82d0c4d67889898eeed64b18488ab19811e61620f387026dec126a28"
+     */
+    event ClaimerSet(address indexed rewardsReceiver, address indexed claimer);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -224,6 +219,18 @@ interface IPufferModuleManager {
     function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule module);
 
     /**
+     * @notice Sets proof Submitter on the Puffer Module
+     * @param moduleName The name of the module
+     * @param proofSubmitter The address of the proof submitter
+     */
+    function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external;
+
+    /**
+     * @notice Starts the checkpointing on puffer modules
+     */
+    function callStartCheckpoint(address[] calldata moduleAddresses) external;
+
+    /**
      * @notice Calls the modifyOperatorDetails function on the restaking operator
      * @param restakingOperator is the address of the restaking operator
      * @dev See IDelegationManager(EigenLayer) for more details about the other parameters
@@ -232,20 +239,6 @@ interface IPufferModuleManager {
     function callModifyOperatorDetails(
         IRestakingOperator restakingOperator,
         IDelegationManager.OperatorDetails calldata newOperatorDetails
-    ) external;
-
-    /**
-     * @notice Calls the verifyAndProcessWithdrawals function from the PufferModule `moduleName` with the given parameters
-     * @dev See IEigenPod(EigenLayer) for more details about the other parameters
-     */
-    function callVerifyAndProcessWithdrawals(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields,
-        bytes32[][] calldata withdrawalFields
     ) external;
 
     /**
@@ -279,12 +272,6 @@ interface IPufferModuleManager {
         bytes[] calldata validatorFieldsProofs,
         bytes32[][] calldata validatorFields
     ) external;
-
-    /**
-     * @notice Withdraws ETH from EigenPod to `moduleName`
-     * @param amountToWithdraw is the amount of ETH to withdraw
-     */
-    function callWithdrawNonBeaconChainETHBalanceWei(bytes32 moduleName, uint256 amountToWithdraw) external;
 
     /**
      * @notice Calls the optIntoSlashing function on the restaking operator
@@ -407,6 +394,14 @@ interface IPufferModuleManager {
         address avsRegistryCoordinator,
         string memory socket
     ) external;
+
+    /**
+     * @notice Calls the `callSetClaimerFor` function on the target module or restaking operator contract
+     * @param moduleOrReOp is the address of the target module or restaking operator contract
+     * @param claimer is the address of the claimer to be set
+     * @dev Restricted to the DAO
+     */
+    function callSetClaimerFor(address moduleOrReOp, address claimer) external;
 
     /**
      * @notice Calls the `target` contract with `customCalldata` from the Restaking Operator contract
