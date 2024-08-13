@@ -79,7 +79,7 @@ interface IL2RewardManager {
         uint256 ethToPufETHRate,
         uint256 startEpoch,
         uint256 endEpoch,
-        bytes32 intervalId,
+        bytes32 indexed intervalId,
         bytes32 rewardsRoot
     );
 
@@ -155,6 +155,11 @@ interface IL2RewardManager {
      * @notice Thrown if if the delay period is invalid
      */
     error InvalidDelayPeriod();
+
+    /**
+     * @notice Thrown if the delay period can't be set
+     */
+    error UnableToSetClaimingDelay();
 
     /**
      * @notice Thrown if the rewards interval cannot be reverted

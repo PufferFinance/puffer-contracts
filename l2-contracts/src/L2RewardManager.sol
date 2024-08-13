@@ -246,6 +246,8 @@ contract L2RewardManager is
 
         bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
 
+        $.currentRewardsInterval = intervalId;
+
         $.epochRecords[intervalId] = EpochRecord({
             ethToPufETHRate: uint64(params.ethToPufETHRate),
             startEpoch: uint72(params.startEpoch),
@@ -283,9 +285,15 @@ contract L2RewardManager is
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
-        //@todo look at the last interval, if its unlocked / prevent changing the delay to lower value
-
         RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
+        if (
+            !_isClaimingLocked($.currentRewardsInterval)
+                && ($.epochRecords[$.currentRewardsInterval].timeBridged + newDelay > block.timestamp)
+        ) {
+            revert UnableToSetClaimingDelay();
+        }
 
         emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
         $.claimingDelay = newDelay;
@@ -354,10 +362,7 @@ contract L2RewardManager is
             callData: abi.encode(epochRecord) // Encoded data to send
          });
 
-        delete $.epochRecords[intervalId].ethToPufETHRate;
-        delete $.epochRecords[intervalId].rewardRoot;
-        delete $.epochRecords[intervalId].pufETHAmount;
-        delete $.epochRecords[intervalId].ethAmount;
+        delete $.epochRecords[intervalId];
 
         emit ClaimingIntervalReverted({
             startEpoch: startEpoch,
