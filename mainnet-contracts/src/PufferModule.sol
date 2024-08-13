@@ -124,7 +124,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @inheritdoc IPufferModule
      */
-    function setProofSubmitter(address proofSubmitter) external onlyPufferProtocol {
+    function setProofSubmitter(address proofSubmitter) external onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         $.eigenPod.setProofSubmitter(proofSubmitter);
