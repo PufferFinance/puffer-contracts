@@ -92,7 +92,8 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: "Generate the coverage report using the unit and the integration tests"
+      - name: "Generate the coverage report"
+        working-directory: l2-contracts
         run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov'
 
       - name: "Upload coverage report to Codecov"
