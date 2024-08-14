@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
-import { PufferVaultV2Tests } from "../../src/PufferVaultV2Tests.sol";
+import { PufferVaultV2Tests } from "../../test/mocks/PufferVaultV2Tests.sol";
 import { PufferDepositorV2 } from "../../src/PufferDepositorV2.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";

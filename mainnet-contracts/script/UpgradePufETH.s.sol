@@ -6,8 +6,7 @@ import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
 import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-
-import { PufferVaultV3Tests } from "../src/PufferVaultV3Tests.sol";
+import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
@@ -18,12 +17,10 @@ import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
-import { IPufferVaultV3 } from "../src/interface/IPufferVaultV3.sol";
-
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
-import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
+import { BridgingDeployment } from "./DeploymentStructs.sol";
 
 /**
  * @title UpgradePufETH
