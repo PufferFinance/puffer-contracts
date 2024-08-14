@@ -101,5 +101,6 @@ jobs:
         with:
           verbose: true
           fail_ci_if_error: true
+          name: l2-contracts
           files: "./lcov.info"
           token: ${{ secrets.CODECOV_TOKEN }}
