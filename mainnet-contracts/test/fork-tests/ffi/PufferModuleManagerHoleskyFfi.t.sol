@@ -3,28 +3,19 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { PufferModule } from "../../src/PufferModule.sol";
-import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
-import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
-import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
+import { IRestakingOperator } from "src/interface/IRestakingOperator.sol";
+import { IPufferModuleManager } from "src/interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
-import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
+import { IRegistryCoordinatorExtended } from "src/interface/IRegistryCoordinatorExtended.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 interface Weth {
     function deposit() external payable;
@@ -32,7 +23,7 @@ interface Weth {
 }
 
 // PufferTestnet V1 deployment
-contract PufferModuleManagerHoleskyTestnetTest is Test {
+contract PufferModuleManagerHoleskyTestnetFFI is Test {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
 
@@ -60,81 +51,71 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     address RESTAKING_OPERATOR_BEACON = 0xa7DC88c059F57ADcE41070cEfEFd31F74649a261;
     address REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
 
-    function test_claim_undelegated_shares() public {
-        // On this block number, we have already undelegated shares from the operator on chain
-        // https://holesky.etherscan.io/tx/0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6#eventlog
-        vm.createSelectFork(vm.rpcUrl("holesky"), 1369706);
+    // This test is for the Existing Holesky Testnet deployment
+    // In order for this test to work, it is necessary to have the following environment variables set: OPERATOR_BLS_SK, OPERATOR_ECDSA_SK
+    function test_register_operator_eigen_da_holesky() public {
+        vm.createSelectFork(vm.rpcUrl("holesky"), 1401731); // (Apr-20-2024 04:50:24 AM +UTC)
+
+        (, uint256 ECDSA_SK) = makeAddrAndKey("secretEcdsa");
+        // not important key, only used in tests
+        uint256 BLS_SK = 990752502457672953874018146088155028776815267780829407860243712322774887125;
+
+        IBLSApkRegistry.PubkeyRegistrationParams memory params = _generateBlsPubkeyParams(BLS_SK);
+
+        // He signs with his BLS private key his pubkey to prove the BLS key ownership
+        BN254.G1Point memory messageHash = IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY)
+            .pubkeyRegistrationMessageHash(RESTAKING_OPERATOR_CONTRACT);
+
+        params.pubkeyRegistrationSignature = BN254.scalar_mul(messageHash, BLS_SK);
+
+        // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
+        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        _getOperatorSignature(
+            ECDSA_SK,
+            RESTAKING_OPERATOR_CONTRACT,
+            EIGEN_DA_SERVICE_MANAGER,
+            bytes32(hex"aaaabbccbbaa"), // This random salt needs to be different for every new registration
+            type(uint256).max
+        );
+
+        address operatorAddress = vm.addr(ECDSA_SK);
 
         IPufferModuleManager pufferModuleManager = IPufferModuleManager(PUFFER_MODULE_MANAGER);
 
-        // Upgrade PufferModule to a new implementation, that fixes the issue
-        PufferModule upgrade = new PufferModule({
-            protocol: PufferProtocol(payable(PUFFER_PROTOCOL_HOLESKY)),
-            eigenPodManager: EIGEN_POD_MANAGER,
-            delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: pufferModuleManager,
-            rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
-        });
-
-        // Execute Beacon upgrade
-        vm.startPrank(PUFFER_SHARED_DEV_WALLET);
-        AccessManager(ACCESS_MANAGER_HOLESKY).execute(
-            MODULE_BEACON_HOLESKY, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade))
+        bytes memory hashCall = abi.encodeCall(
+            IPufferModuleManager.updateAVSRegistrationSignatureProof,
+            (IRestakingOperator(RESTAKING_OPERATOR_CONTRACT), digestHash, operatorAddress)
         );
 
-        // Upgrade PufferModuleManager to a new fixed implementation
-        PufferModuleManager moduleManagerImplementation = new PufferModuleManager({
-            pufferModuleBeacon: MODULE_BEACON_HOLESKY,
-            restakingOperatorBeacon: RESTAKING_OPERATOR_BEACON,
-            pufferProtocol: PUFFER_PROTOCOL_HOLESKY,
-            avsContractsRegistry: new AVSContractsRegistry(ACCESS_MANAGER_HOLESKY)
-        });
+        vm.startPrank(PUFFER_SHARED_DEV_WALLET); // 'DAO' role on the Holesky testnet
+        (bool success,) = address(pufferModuleManager).call(hashCall);
+        assertEq(success, true, "updateAVSRegistrationSignatureProof failed");
 
-        // Upgrade PufferModuleManager to a new implementation
-        UUPSUpgradeable(PUFFER_MODULE_MANAGER).upgradeToAndCall(address(moduleManagerImplementation), "");
+        console.log("updateAVSRegistrationSignatureProof calldata:");
+        console.logBytes(hashCall);
+        // We first need to register that hash on our staking operator contract
+        // This can be done on chain by doing:
+        // cast send $PUFFER_MODULE_MANAGER hashCall --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
 
-        // Withdrawal data can be fetched from the transaction logs
-        // cast run 0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6 --rpc-url=$HOLESKY_RPC_URL --verbose
-        IStrategy[] memory strategies = new IStrategy[](1);
-        strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
-
-        uint256[] memory shares = new uint256[](1);
-        shares[0] = 224000000000000000000;
-
-        IDelegationManager.Withdrawal[] memory withdrawals = new IDelegationManager.Withdrawal[](1);
-        withdrawals[0] = IDelegationManager.Withdrawal({
-            staker: PUFFER_MODULE_0_HOLESKY,
-            delegatedTo: RESTAKING_OPERATOR_CONTRACT,
-            withdrawer: PUFFER_MODULE_0_HOLESKY,
-            nonce: 0,
-            startBlock: 1369340,
-            strategies: strategies,
-            shares: shares
-        });
-
-        IERC20[] memory t = new IERC20[](1);
-        t[0] = IERC20(BEACON_CHAIN_STRATEGY);
-
-        IERC20[][] memory tokens = new IERC20[][](1);
-        tokens[0] = t;
-
-        uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
-        bool[] memory receiveAsTokens = new bool[](1); // false
-
-        // At the moment the caller is the admin role, but this will be restricted to the PufferPaymaster
-        pufferModuleManager.callCompleteQueuedWithdrawals({
-            moduleName: bytes32("PUFFER_MODULE_0"),
-            withdrawals: withdrawals,
-            tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes,
-            receiveAsTokens: receiveAsTokens
-        });
-
-        ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        // Delegate again to the same operator
-        pufferModuleManager.callDelegateTo(
-            bytes32("PUFFER_MODULE_0"), RESTAKING_OPERATOR_CONTRACT, signatureWithExpiry, bytes32(0)
+        bytes memory calldataToRegister = abi.encodeCall(
+            IPufferModuleManager.callRegisterOperatorToAVS,
+            (
+                IRestakingOperator(RESTAKING_OPERATOR_CONTRACT),
+                EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
+                bytes(hex"01"),
+                "20.64.16.29:32005;32004", // Update to the correct value
+                params,
+                operatorSignature
+            )
         );
+
+        console.log("callRegisterOperatorToAVS calldata:");
+        console.logBytes(calldataToRegister);
+        // // cast send $PUFFER_MODULE_MANAGER calldataToRegister --rpc-url=$HOLESKY_RPC_URL --private-key=$PUFFER_SHARED_PK
+
+        // Finish the registration
+        (success,) = address(pufferModuleManager).call(calldataToRegister);
+        assertEq(success, true, "register operator to avs");
     }
 
     // Generates bls pubkey params from a private key
