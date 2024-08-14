@@ -98,6 +98,9 @@ jobs:
       - name: "Generate the coverage report"
         working-directory: mainnet-contracts
         run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov'
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+          HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v4"
