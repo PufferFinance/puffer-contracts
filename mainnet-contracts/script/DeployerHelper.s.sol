@@ -44,13 +44,13 @@ abstract contract DeployerHelper is Script {
 
     function _getAccessManager() internal returns (AccessManager) {
         if (block.chainid == base) {
-            accessManager = AccessManager(0x6f62c8647b7cD3830F21BF0741BAD6f4b838Cb37);
+            // accessManager = AccessManager(0x6f62c8647b7cD3830F21BF0741BAD6f4b838Cb37);
         } else if (block.chainid == mainnet) {
             accessManager = AccessManager(0x8c1686069474410E6243425f4a10177a94EBEE11);
         } else if (block.chainid == holesky) {
             accessManager = AccessManager(0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e);
         } else if (block.chainid == binance) {
-            accessManager = AccessManager(0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474);
+            // accessManager = AccessManager(0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474);
         } else if (block.chainid == sepolia) {
             accessManager = AccessManager(0xc98dFfD21F55f2eb2461E6cD7f8838DC33AEddDc);
         } else if (block.chainid == opSepolia) {
