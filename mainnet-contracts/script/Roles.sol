@@ -17,6 +17,8 @@ uint64 constant ROLE_ID_VT_PRICER = 25;
 
 // Role assigned to the Puffer Protocol
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;
+uint64 constant ROLE_ID_PUFFER_MODULE_MANAGER = 1235;
+
 uint64 constant ROLE_ID_DAO = 77;
 uint64 constant ROLE_ID_GUARDIANS = 88;
 uint64 constant ROLE_ID_PUFFER_ORACLE = 999;

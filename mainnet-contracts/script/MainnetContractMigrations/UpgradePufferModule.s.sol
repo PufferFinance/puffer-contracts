@@ -23,7 +23,7 @@ contract UpgradePufferModule is Script {
     PufferProtocol pufferProtocol = PufferProtocol(payable(0xf7b6B32492c2e13799D921E84202450131bd238B));
     address ACCESS_MANAGER = 0x8c1686069474410E6243425f4a10177a94EBEE11;
     address PUFFER_MODULE_BEACON = 0xdd38A5a7789C74fc7F64556fc772343658EEBb04;
-    PufferModuleManager pufferModuleManager = PufferModuleManager(0x9E1E4fCb49931df5743e659ad910d331735C3860);
+    PufferModuleManager pufferModuleManager = PufferModuleManager(payable(0x9E1E4fCb49931df5743e659ad910d331735C3860));
 
     // https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#deployments
     address eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;

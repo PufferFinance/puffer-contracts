@@ -146,14 +146,14 @@ contract DeployProtocolToMainnet is Script {
             protocol: PufferProtocol(payable(pufferProtocolProxy)),
             eigenPodManager: EIGEN_POD_MANAGER,
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+            moduleManager: PufferModuleManager(payable(address(moduleManagerProxy))),
             rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 
         restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             slasher: ISlasher(EIGEN_SLASHER),
-            moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+            moduleManager: PufferModuleManager(payable(address(moduleManagerProxy))),
             rewardsCoordinator: IRewardsCoordinator(address(0))
         });
 

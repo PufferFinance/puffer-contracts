@@ -20,4 +20,12 @@ interface IPufferVaultV3 is IPufferVaultV2 {
         address lockBox;
         address l2RewardManager;
     }
+
+    /**
+     * @notice Emitted when the rewards are deposited to the PufferVault
+     * @dev Signature "0x3a278b4e83c8793751d35f41b90435c742acf0dfdd54a8cbe09aa59720db93a5"
+     */
+    event UpdatedTotalRewardsAmount(
+        uint256 previousTotalRewardsAmount, uint256 newTotalRewardsAmount, uint256 depositedETHAmount
+    );
 }

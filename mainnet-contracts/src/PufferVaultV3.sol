@@ -77,12 +77,30 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         pufETHAmount = ethToPufETHRate.mulDiv(rewardsAmount, 1 ether, Math.Rounding.Floor);
 
         VaultStorage storage $ = _getPufferVaultStorage();
-        $.totalRewardMintAmount += rewardsAmount;
+
+        uint256 previousRewardsAmount = $.totalRewardMintAmount;
+        uint256 newTotalRewardsAmount = previousRewardsAmount + rewardsAmount;
+        $.totalRewardMintAmount = newTotalRewardsAmount;
+
+        emit UpdatedTotalRewardsAmount(previousRewardsAmount, newTotalRewardsAmount, 0);
 
         // msg.sender is the L1RewardManager contract
         _mint(msg.sender, pufETHAmount);
 
         return (ethToPufETHRate, pufETHAmount);
+    }
+
+    /**
+     * @notice Deposits the rewards amount to the vault and updates the total reward mint amount.
+     * @dev Restricted to PufferModuleManager
+     */
+    function depositRewards() external payable restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        uint256 previousRewardsAmount = $.totalRewardMintAmount;
+        uint256 newTotalRewardsAmount = previousRewardsAmount - msg.value;
+        $.totalRewardMintAmount = newTotalRewardsAmount;
+
+        emit UpdatedTotalRewardsAmount(previousRewardsAmount, newTotalRewardsAmount, msg.value);
     }
 
     /**
@@ -92,7 +110,12 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     function revertMintRewards(uint256 pufETHAmount, uint256 ethAmount) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        $.totalRewardMintAmount -= ethAmount;
+        uint256 previousRewardsAmount = $.totalRewardMintAmount;
+        uint256 newTotalRewardsAmount = previousRewardsAmount - ethAmount;
+        $.totalRewardMintAmount = newTotalRewardsAmount;
+
+        emit UpdatedTotalRewardsAmount(previousRewardsAmount, newTotalRewardsAmount, 0);
+
         // msg.sender is the L1RewardManager contract
         _burn(msg.sender, pufETHAmount);
     }

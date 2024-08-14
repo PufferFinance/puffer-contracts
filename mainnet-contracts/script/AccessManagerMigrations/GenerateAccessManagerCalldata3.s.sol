@@ -5,13 +5,16 @@ import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
+import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_BRIDGE,
     ROLE_ID_OPERATIONS_PAYMASTER,
-    ROLE_ID_L1_REWARD_MANAGER
+    ROLE_ID_L1_REWARD_MANAGER,
+    ROLE_ID_PUFFER_MODULE_MANAGER,
+    ROLE_ID_OPERATIONS_PAYMASTER
 } from "../../script/Roles.sol";
 
 /**
@@ -24,12 +27,13 @@ import {
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCalldata3 is Script {
-    function run(address l1RewardManagerProxy, address l1Bridge, address pufferVaultProxy)
-        public
-        pure
-        returns (bytes memory)
-    {
-        bytes[] memory calldatas = new bytes[](6);
+    function run(
+        address l1RewardManagerProxy,
+        address l1Bridge,
+        address pufferVaultProxy,
+        address pufferModuleManagerProxy
+    ) public pure returns (bytes memory) {
+        bytes[] memory calldatas = new bytes[](9);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = L1RewardManager.mintAndBridgeRewards.selector;
@@ -68,6 +72,30 @@ contract GenerateAccessManagerCalldata3 is Script {
 
         calldatas[5] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_L1_REWARD_MANAGER, l1RewardManagerProxy, 0);
+
+        bytes4[] memory pufferModuleManagerSelectors = new bytes4[](1);
+        pufferModuleManagerSelectors[0] = PufferVaultV3.depositRewards.selector;
+
+        calldatas[6] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferVaultProxy,
+            pufferModuleManagerSelectors,
+            ROLE_ID_PUFFER_MODULE_MANAGER
+        );
+
+        calldatas[7] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_PUFFER_MODULE_MANAGER, pufferModuleManagerProxy, 0
+        );
+
+        bytes4[] memory paymasterSelectorsOnModuleManager = new bytes4[](1);
+        paymasterSelectorsOnModuleManager[0] = PufferModuleManager.transferRewardsToTheVault.selector;
+
+        calldatas[8] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferModuleManagerProxy,
+            paymasterSelectorsOnModuleManager,
+            ROLE_ID_OPERATIONS_PAYMASTER
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 

@@ -10,7 +10,6 @@ import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { IPufferModule } from "../../src/interface/IPufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
 import { Unauthorized } from "../../src/Errors.sol";

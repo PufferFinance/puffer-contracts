@@ -69,7 +69,7 @@ contract IntegrationTestHelper is Test {
         vm.label(address(guardianModule), "GuardianModule");
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         vm.label(address(beacon), "PufferModuleBeacon");
-        moduleManager = PufferModuleManager(pufferDeployment.moduleManager);
+        moduleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
         vm.label(address(moduleManager), "PufferModuleManager");
     }
 

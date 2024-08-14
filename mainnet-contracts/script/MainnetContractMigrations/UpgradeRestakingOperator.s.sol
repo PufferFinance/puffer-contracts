@@ -25,7 +25,7 @@ import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoor
 contract UpgradeRestakingOperator is Script {
     address DELEGATION_MANAGER = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
     address EIGEN_SLASHER = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
-    address MODULE_MANAGER_PROXY = 0x9E1E4fCb49931df5743e659ad910d331735C3860;
+    address MODULE_MANAGER_PROXY = payable(0x9E1E4fCb49931df5743e659ad910d331735C3860);
     address MODULE_BEACON = 0xdd38A5a7789C74fc7F64556fc772343658EEBb04;
     address REWARDS_COORDINATOR = 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
     address RESTAKING_OPERATOR_BEACON = 0x6756B856Dd3843C84249a6A31850cB56dB824c4B;
@@ -40,7 +40,7 @@ contract UpgradeRestakingOperator is Script {
         RestakingOperator restakingOperatorImpl = new RestakingOperator({
             delegationManager: IDelegationManager(DELEGATION_MANAGER),
             slasher: ISlasher(EIGEN_SLASHER),
-            moduleManager: PufferModuleManager(MODULE_MANAGER_PROXY),
+            moduleManager: PufferModuleManager(payable(MODULE_MANAGER_PROXY)),
             rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
         });
 

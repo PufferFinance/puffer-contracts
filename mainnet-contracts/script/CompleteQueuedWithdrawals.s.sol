@@ -64,7 +64,7 @@ contract CompleteQueuedWithdrawals is Script {
         uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
 
         vm.startBroadcast();
-        PufferModuleManager(params.pufferModuleManager).callCompleteQueuedWithdrawals({
+        PufferModuleManager(payable(params.pufferModuleManager)).callCompleteQueuedWithdrawals({
             moduleName: params.moduleName,
             withdrawals: withdrawals,
             tokens: tokens,

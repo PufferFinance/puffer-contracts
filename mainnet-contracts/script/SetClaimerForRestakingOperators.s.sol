@@ -25,7 +25,7 @@ contract SetClaimerForRestakingOperators is BaseScript {
         require(block.chainid == 17000, "This script is only for Puffer Holesky testnet");
 
         for (uint256 i = 0; i < restakingOperators.length; i++) {
-            PufferModuleManager(PufferModuleManagerAddress).callSetClaimerFor(restakingOperators[i], CLAIMER);
+            PufferModuleManager(payable(PufferModuleManagerAddress)).callSetClaimerFor(restakingOperators[i], CLAIMER);
         }
     }
 }

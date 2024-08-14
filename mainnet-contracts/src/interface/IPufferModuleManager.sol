@@ -192,6 +192,11 @@ interface IPufferModuleManager {
     function PUFFER_PROTOCOL() external view returns (address);
 
     /**
+     * @notice Returns the Puffer Vault address
+     */
+    function PUFFER_VAULT() external view returns (address payable);
+
+    /**
      * @notice Create a new Restaking Operator
      * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
      *

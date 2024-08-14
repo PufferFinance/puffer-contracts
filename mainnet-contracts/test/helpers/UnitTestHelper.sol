@@ -185,7 +185,7 @@ contract UnitTestHelper is Test, BaseScript {
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
-        pufferModuleManager = PufferModuleManager(pufferDeployment.moduleManager);
+        pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));

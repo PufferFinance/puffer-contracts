@@ -123,7 +123,7 @@ contract DeployPuffer is BaseScript {
                 protocol: PufferProtocol(payable(proxy)),
                 eigenPodManager: eigenPodManager,
                 delegationManager: IDelegationManager(delegationManager),
-                moduleManager: PufferModuleManager(address(moduleManagerProxy)),
+                moduleManager: PufferModuleManager(payable(address(moduleManagerProxy))),
                 rewardsCoordinator: IRewardsCoordinator(rewardsCoordinator)
             });
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
@@ -131,7 +131,7 @@ contract DeployPuffer is BaseScript {
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
                 ISlasher(eigenSlasher),
-                PufferModuleManager(address(moduleManagerProxy)),
+                PufferModuleManager(payable(address(moduleManagerProxy))),
                 IRewardsCoordinator(rewardsCoordinator)
             );
 
@@ -140,13 +140,6 @@ contract DeployPuffer is BaseScript {
                 new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
 
             aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
-
-            moduleManager = new PufferModuleManager({
-                pufferModuleBeacon: address(pufferModuleBeacon),
-                restakingOperatorBeacon: address(restakingOperatorBeacon),
-                pufferProtocol: address(proxy),
-                avsContractsRegistry: aVSContractsRegistry
-            });
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
@@ -158,13 +151,21 @@ contract DeployPuffer is BaseScript {
                 beaconDepositContract: getStakingContract()
             });
         }
-        NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
-            address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
-        );
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));
 
         NoImplementation(payable(address(proxy))).upgradeToAndCall(address(pufferProtocolImpl), "");
+
+        moduleManager = new PufferModuleManager({
+            pufferModuleBeacon: address(pufferModuleBeacon),
+            restakingOperatorBeacon: address(restakingOperatorBeacon),
+            pufferProtocol: address(proxy),
+            avsContractsRegistry: aVSContractsRegistry
+        });
+
+        NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
+            address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
+        );
 
         // Initialize the Pool
         pufferProtocol.initialize({ accessManager: address(accessManager) });

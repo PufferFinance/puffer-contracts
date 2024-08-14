@@ -38,8 +38,9 @@ contract L1RewardManagerTest is UnitTestHelper {
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
 
-        bytes memory cd =
-            new GenerateAccessManagerCalldata3().run(address(l1RewardManager), address(connext), address(pufferVault));
+        bytes memory cd = new GenerateAccessManagerCalldata3().run(
+            address(l1RewardManager), address(connext), address(pufferVault), address(pufferModuleManager)
+        );
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCalldata3");
 
@@ -118,6 +119,25 @@ contract L1RewardManagerTest is UnitTestHelper {
 
         vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
         l1RewardManager.mintAndBridgeRewards(params);
+    }
+
+    function test_depositRewardsBackToTheVault() public {
+        test_MintAndBridgeRewardsSuccess();
+
+        address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
+
+        // airdrop the rewards amount to the module
+        vm.deal(module, rewardsAmount);
+
+        address[] memory modules = new address[](1);
+        modules[0] = module;
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = rewardsAmount;
+
+        pufferModuleManager.transferRewardsToTheVault(modules, amounts);
+
+        assertEq(pufferVault.getTotalRewardMintAmount(), 0, "rewards amount should be 0");
     }
 
     function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {

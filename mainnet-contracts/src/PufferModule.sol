@@ -107,6 +107,13 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _;
     }
 
+    modifier onlyPufferProtocolOrPufferModuleManager() {
+        if (msg.sender != address(PUFFER_MODULE_MANAGER) && msg.sender != address(PUFFER_PROTOCOL)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     receive() external payable { }
 
     /**
@@ -211,7 +218,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
-        onlyPufferProtocol
+        onlyPufferProtocolOrPufferModuleManager
         returns (bool success, bytes memory)
     {
         // slither-disable-next-line arbitrary-send-eth
