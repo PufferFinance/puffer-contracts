@@ -4,9 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
-import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
 import { IL1RewardManager } from "../../src/interface/IL1RewardManager.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import { L1RewardManagerStorage } from "../../src/L1RewardManagerStorage.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
@@ -17,6 +15,7 @@ import {
     ROLE_ID_L1_REWARD_MANAGER,
     ROLE_ID_OPERATIONS_PAYMASTER
 } from "../../script/Roles.sol";
+import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { GenerateAccessManagerCalldata3 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
 
 contract L1RewardManagerTest is UnitTestHelper {
@@ -79,6 +78,15 @@ contract L1RewardManagerTest is UnitTestHelper {
         _;
     }
 
+    function testRevert_updateBridgeDataInvalidBridge() public {
+        vm.startPrank(DAO);
+
+        L1RewardManagerStorage.BridgeData memory bridgeData = l1RewardManager.getBridge(address(connext));
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
+        l1RewardManager.updateBridgeData(address(0), bridgeData);
+    }
+
     function test_MintAndBridgeRewardsSuccess() public allowedDailyFrequency allowMintAmount(100 ether) {
         rewardsAmount = 100 ether;
 
@@ -96,6 +104,20 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.mintAndBridgeRewards(params);
 
         assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
+    }
+
+    function testRevert_MintAndBridgeRewardsInvalidBridge() public allowedDailyFrequency allowMintAmount(100 ether) {
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
+            bridge: address(0), // invalid bridge
+            rewardsAmount: 100 ether,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: bytes32(0),
+            rewardsURI: "uri"
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
+        l1RewardManager.mintAndBridgeRewards(params);
     }
 
     function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
@@ -143,6 +165,13 @@ contract L1RewardManagerTest is UnitTestHelper {
             pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
         );
         assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
+    }
+
+    function testRevert_invalidOriginAddress() public {
+        vm.startPrank(address(connext));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(0), 0, "");
     }
 
     function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
@@ -195,7 +224,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintAmount(newAmount);
     }
 
-    function testSetAllowedRewardMintFrequencySuccess() public allowedDailyFrequency {
+    function test_SetAllowedRewardMintFrequencySuccess() public allowedDailyFrequency {
         uint24 oldFrequency = 1 days;
         uint24 newFrequency = 2 days;
 
@@ -214,11 +243,16 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
     }
 
-    function testSetClaimerRevert() public {
+    function test_setClaimer() public {
         address newClaimer = address(0x123);
 
         vm.expectEmit(true, true, true, true);
         emit IL1RewardManager.L2RewardClaimerUpdated(address(this), newClaimer);
         l1RewardManager.setL2RewardClaimer(address(connext), newClaimer);
+    }
+
+    function testRevert_setClaimerInvalidBrige() public {
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
+        l1RewardManager.setL2RewardClaimer(address(0x1111), address(0x123));
     }
 }
