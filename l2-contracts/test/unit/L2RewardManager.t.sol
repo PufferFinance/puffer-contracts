@@ -20,6 +20,7 @@ import { XERC20Lockbox } from "mainnet-contracts/src/XERC20Lockbox.sol";
 import { xPufETH } from "mainnet-contracts/src/l2/xPufETH.sol";
 import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
+import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 
 contract PufferVaultMock is ERC20Mock {
     constructor() ERC20Mock("VaultMock", "pufETH") { }
@@ -166,6 +167,9 @@ contract L2RewardManagerTest is Test {
         vm.label(address(l1RewardManager), "l1RewardManagerProxy");
 
         accessManager.multicall(calldatas);
+
+        // set block.timestamp to non zero value
+        vm.warp(1);
     }
 
     function test_updateBridgeData() public {
@@ -421,6 +425,7 @@ contract L2RewardManagerTest is Test {
         L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(intervalId);
         assertEq(epochRecord.ethToPufETHRate, ethToPufETHRate, "ethToPufETHRate should be stored in storage correctly");
         assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored in storage correctly");
+        assertEq(l2RewardManager.isClaimingLocked(intervalId), true, "claiming should be locked");
     }
 
     function testRevert_MintAndBridgeRewardsInvalidAmount() public {
@@ -800,6 +805,29 @@ contract L2RewardManagerTest is Test {
         assertApproxEqAbs(
             (xPufETHProxy.balanceOf(charlie) * 1 ether / ethToPufETH), charlieAmount, 2, "Charlie ETH amount"
         );
+    }
+
+    function testRevert_invalidOriginSender() public {
+        vm.startPrank(address(mockBridge));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l2RewardManager.xReceive(bytes32(0), 100 ether, address(xPufETHProxy), address(0), 0, abi.encode(0));
+    }
+
+    function testRevert_setDelayPeriodIfIntervalIsLocked() public {
+        // Do the mintAndBridge tx
+        test_MintAndBridgeRewardsSuccess();
+
+        vm.warp(block.timestamp + 13 hours);
+
+        // Because the interval is locked, the delay period cannot be set
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.RelockingIntervalIsNotAllowed.selector));
+        l2RewardManager.setDelayPeriod(15 hours);
+    }
+
+    function testRevert_invalidBridgeRevertInterval() public {
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.BridgeNotAllowlisted.selector));
+        l2RewardManager.revertInterval(address(0), startEpoch, endEpoch);
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {

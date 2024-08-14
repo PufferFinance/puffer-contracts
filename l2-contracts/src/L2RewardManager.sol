@@ -116,10 +116,7 @@ contract L2RewardManager is
             _handleMintAndBridge(amount, bridgingParams.data);
         } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
             _handleSetClaimer(bridgingParams.data);
-        } else {
-            revert InvalidBridgingType();
         }
-
         // Return empty data
         return "";
     }
@@ -292,7 +289,7 @@ contract L2RewardManager is
             !_isClaimingLocked($.currentRewardsInterval)
                 && ($.epochRecords[$.currentRewardsInterval].timeBridged + newDelay > block.timestamp)
         ) {
-            revert UnableToSetClaimingDelay();
+            revert RelockingIntervalIsNotAllowed();
         }
 
         emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });

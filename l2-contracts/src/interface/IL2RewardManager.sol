@@ -147,19 +147,14 @@ interface IL2RewardManager {
     error InvalidProof();
 
     /**
-     * @notice Thrown if the tx uses invalid bridge type
-     */
-    error InvalidBridgingType();
-
-    /**
      * @notice Thrown if if the delay period is invalid
      */
     error InvalidDelayPeriod();
 
     /**
-     * @notice Thrown if the delay period can't be set
+     * @notice Thrown if the new interval would relock the claiming
      */
-    error UnableToSetClaimingDelay();
+    error RelockingIntervalIsNotAllowed();
 
     /**
      * @notice Thrown if the rewards interval cannot be reverted
