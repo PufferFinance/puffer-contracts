@@ -78,7 +78,7 @@ contract DeployL2RewardManager is DeployerHelper {
         // Load addresses for Sepolia
         _loadExistingContractsAddresses();
 
-        L2RewardManager newImplementation = new L2RewardManager(everclearBridge, address(l1ReawrdManagerProxy));
+        L2RewardManager newImplementation = new L2RewardManager(xPufETH, address(l1ReawrdManagerProxy));
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         l2RewardsManagerProxy = address(

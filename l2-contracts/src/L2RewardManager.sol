@@ -80,7 +80,7 @@ contract L2RewardManager is
             // Mark it claimed and transfer the tokens
             $.claimedRewards[claimOrders[i].intervalId][claimOrders[i].account] = true;
 
-            uint256 amountToTransfer = claimOrders[i].amount * epochRecord.ethToPufETHRate / 1 ether;
+            uint256 amountToTransfer = (claimOrders[i].amount * epochRecord.ethToPufETHRate) / 1 ether;
 
             address recipient = getRewardsClaimer(claimOrders[i].account);
 
@@ -235,7 +235,7 @@ contract L2RewardManager is
             abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
 
         // Sanity check
-        if (amount != (params.rewardsAmount * params.ethToPufETHRate / 1 ether)) {
+        if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
             revert InvalidAmount();
         }
 

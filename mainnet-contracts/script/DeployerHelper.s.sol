@@ -51,6 +51,10 @@ abstract contract DeployerHelper is Script {
             accessManager = AccessManager(0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e);
         } else if (block.chainid == binance) {
             accessManager = AccessManager(0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474);
+        } else if (block.chainid == sepolia) {
+            accessManager = AccessManager(0xc98dFfD21F55f2eb2461E6cD7f8838DC33AEddDc);
+        } else if (block.chainid == opSepolia) {
+            accessManager = AccessManager(0xccE1f605FdeeFA15b5708B87De3240196fEf0CA4);
         } else {
             accessManager = new AccessManager(deployer);
         }
@@ -65,7 +69,7 @@ abstract contract DeployerHelper is Script {
             pufferVault = 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9;
         } else if (block.chainid == sepolia) {
             // PufferVaultMock
-            pufferVault = 0x5C569716934245D9089F8fD3f5087940b0C0f8B3;
+            pufferVault = 0xd85D701A660a61D9737D05397612EF08be2cE62D;
         }
         return pufferVault;
     }
@@ -96,6 +100,11 @@ abstract contract DeployerHelper is Script {
             xPufETH = 0x23dA5F2d509cb43A59d43C108a43eDf34510eff1;
         } else if (block.chainid == binance) {
             xPufETH = 0x64274835D88F5c0215da8AADd9A5f2D2A2569381;
+        } else if (block.chainid == sepolia) {
+            lockbox = 0xC89A39742AbA9944089DD06Cc1bc994793D68684;
+            xPufETH = 0xc63b3a075269F67Dd0C4B21dedBed23E39A01aff;
+        } else if (block.chainid == opSepolia) {
+            xPufETH = 0xCcCA977cC71a8c97518b9A9b134263e83389B338;
         }
         return xPufETH;
     }
