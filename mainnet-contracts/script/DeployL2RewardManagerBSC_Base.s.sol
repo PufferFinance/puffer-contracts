@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { ROLE_ID_BRIDGE, ROLE_ID_L1_REWARD_MANAGER } from "../script/Roles.sol";
+import { ROLE_ID_BRIDGE, ROLE_ID_L1_REWARD_MANAGER, ROLE_ID_REWARD_WATCHER, PUBLIC_ROLE } from "../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { IL2RewardManager } from "l2-contracts/src/interface/IL2RewardManager.sol";
@@ -16,6 +16,7 @@ import { PufferVaultV3Mock } from "src/PufferVaultV3Mock.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { xPufETH as XPuf } from "src/l2/xPufETH.sol";
 
 /**
  * @dev
@@ -25,10 +26,15 @@ import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
  * If everything looks good, run the same command with `--broadcast --verify`
  */
 contract DeployL2RewardManagerBSC_Base is DeployerHelper {
+    uint256 MINTING_LIMIT = 100 ether;
+    uint256 BURNING_LIMIT = 100 ether;
     address l1ReawrdManagerProxy;
     address l2RewardsManagerProxy;
-    // address lockbox;
-    // address pufferVault;
+    AccessManager l1AccessManager;
+    AccessManager l2AccessManager;
+    XPuf l1xPufETHProxy;
+    XPuf l2xPufETHProxy;
+    // xPufETH xpufETHImplementation;
 
     function run() public {
         // vm.createSelectFork(vm.rpcUrl("https://rpc.tenderly.co/fork/823669ec-8e80-43ab-ba9d-0fe04599cee7"));
@@ -39,18 +45,42 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
         _loadExistingContractsAddresses();
 
         // TODO
-        // missing xpufth + roles
-        // roles for lockbox
+        // restrict `mintAndBridgeRewards` to only be callable by the guardian
+        // restrict `updateBridgeData` to only be callable by the ROLE_ID_DAO
+        // restrict `setAllowedRewardMintAmount` to only be callable by the ROLE_ID_DAO
+        // restrict `setAllowedRewardMintFrequency` to only be callable by the ROLE_ID_DAO
 
         // 0. deploy access manager
-        accessManager = new AccessManager(deployer);
+        l1AccessManager = (new AccessManager(deployer));
 
         // 1. deploy l1 vault mock
         PufferVaultV3Mock pufferVaultV3 = new PufferVaultV3Mock();
         pufferVault = address(pufferVaultV3);
 
-        // 2. deploy new LockBox contract
-        XERC20Lockbox xerc20Lockbox = new XERC20Lockbox({ xerc20: xPufETH, erc20: pufferVault });
+        // 2. deploy xPufETH
+        XPuf xpufETHImplementation = new XPuf();
+
+        l1xPufETHProxy = XPuf(
+            address(
+                new ERC1967Proxy{ salt: bytes32("XPuf") }(
+                    address(xpufETHImplementation), abi.encodeCall(XPuf.initialize, (address(l1AccessManager)))
+                )
+            )
+        );
+        vm.label(address(l1xPufETHProxy), "l1xPufETHProxy");
+
+        l1xPufETHProxy.setLimits(address(everclearBridge), MINTING_LIMIT, BURNING_LIMIT);
+        l1xPufETHProxy.setLimits(address(lockbox), MINTING_LIMIT, BURNING_LIMIT);
+
+        l1xPufETHProxy.setLockbox(lockbox);
+
+        bytes4[] memory lockBoxSelectors = new bytes4[](2);
+        lockBoxSelectors[0] = XPuf.mint.selector;
+        lockBoxSelectors[1] = XPuf.burn.selector;
+        l1AccessManager.setTargetFunctionRole(address(l1xPufETHProxy), lockBoxSelectors, l1AccessManager.PUBLIC_ROLE());
+
+        // 3. deploy new LockBox contract
+        XERC20Lockbox xerc20Lockbox = new XERC20Lockbox({ xerc20: address(l1xPufETHProxy), erc20: pufferVault });
         lockbox = address(xerc20Lockbox);
 
         address noImpl = address(new NoImplementation());
@@ -86,7 +116,7 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
 
         // For non-mainnet, the deployer can execute the upgrade
         if (block.chainid != mainnet) {
-            accessManager.multicall(calldatas);
+            l1AccessManager.multicall(calldatas);
         }
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
 
@@ -95,6 +125,10 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
 
         vm.stopBroadcast();
 
+        // ------------------------------
+        // L2 Deployments
+        // ------------------------------
+
         // Deploy stuff on L2 - Base
         // vm.createSelectFork(vm.rpcUrl("https://rpc.tenderly.co/fork/20fa915a-d22b-4100-8f7c-15a9c553445f"));
         vm.createSelectFork(vm.rpcUrl("https://virtual.base.rpc.tenderly.co/e6034964-d79e-4210-937b-7312fbc7dd8f"));
@@ -102,15 +136,26 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
         // Load addresses for Base
         _loadExistingContractsAddresses();
 
-        accessManager = new AccessManager(deployer);
+        l2AccessManager = new AccessManager(deployer);
+
+        xpufETHImplementation = new XPuf();
+
+        l2xPufETHProxy = XPuf(
+            address(
+                new ERC1967Proxy{ salt: bytes32("XPuf") }(
+                    address(xpufETHImplementation), abi.encodeCall(XPuf.initialize, (address(l2AccessManager)))
+                )
+            )
+        );
+        vm.label(address(l2xPufETHProxy), "l2xPufETHProxy");
 
         L2RewardManager newImplementation =
-            new L2RewardManager({ xPufETH: xPufETH, l1RewardManager: address(l1ReawrdManagerProxy) });
+            new L2RewardManager({ xPufETH: address(l2xPufETHProxy), l1RewardManager: address(l1ReawrdManagerProxy) });
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         l2RewardsManagerProxy = address(
             new ERC1967Proxy(
-                address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+                address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (address(l2AccessManager)))
             )
         );
         vm.makePersistent(l2RewardsManagerProxy);
@@ -119,7 +164,11 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
         vm.label(address(l2RewardsManagerProxy), "L2RewardManagerProxy");
         vm.label(address(newImplementation), "L2RewardManagerImplementation");
 
-        bytes[] memory calldatasL2 = new bytes[](2);
+        // TODO
+        // restrict `updateBridgeData` to only be callable by the ROLE_ID_DAO
+        // restrict `setDelayPeriod` to only be callable by the ROLE_ID_DAO
+
+        bytes[] memory calldatasL2 = new bytes[](6);
 
         bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
         bridgeSelectorsL2[0] = L2RewardManager.xReceive.selector;
@@ -132,9 +181,42 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
         );
         calldatasL2[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, everclearBridge, 0);
 
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = IL2RewardManager.claimRewards.selector;
+
+        calldatasL2[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardsManagerProxy), publicSelectors, PUBLIC_ROLE
+        );
+
+        bytes4[] memory rewardsWatcherSelectors = new bytes4[](3);
+        rewardsWatcherSelectors[0] = L2RewardManager.freezeAndRevertInterval.selector;
+        rewardsWatcherSelectors[1] = L2RewardManager.freezeClaimingForInterval.selector;
+        rewardsWatcherSelectors[2] = L2RewardManager.revertInterval.selector;
+        calldatasL2[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardsManagerProxy),
+            rewardsWatcherSelectors,
+            ROLE_ID_REWARD_WATCHER
+        );
+
+        calldatasL2[4] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector,
+            ROLE_ID_REWARD_WATCHER,
+            // TODO: Update the address
+            address(deployer),
+            0
+        );
+
+        calldatasL2[5] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardsManagerProxy),
+            bridgeSelectors,
+            ROLE_ID_BRIDGE
+        );
+
         // For non-mainnet, the deployer can execute the upgrade
         if (block.chainid != mainnet) {
-            accessManager.multicall(calldatasL2);
+            l2AccessManager.multicall(calldatasL2);
         }
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatasL2));
@@ -155,7 +237,7 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            XpufETH: xPufETH,
+            XpufETH: address(l1xPufETHProxy),
             pufETH: pufferVault,
             lockbox: lockbox,
             l2RewardsManager: l2RewardsManagerProxy
@@ -166,17 +248,17 @@ contract DeployL2RewardManagerBSC_Base is DeployerHelper {
         bytes memory upgradeCd = abi.encodeWithSelector(
             UUPSUpgradeable.upgradeToAndCall.selector,
             address(l1RewardManagerImpl),
-            abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
+            abi.encodeCall(L1RewardManager.initialize, (address(l1AccessManager)))
         );
 
         // // For testnet, the deployer can execute the upgrade
         UUPSUpgradeable(l1ReawrdManagerProxy).upgradeToAndCall(
-            address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
+            address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(l1AccessManager)))
         );
 
         // // For non-mainnet, the deployer can execute the upgrade
         // if (block.chainid != mainnet) {
-        //     accessManager.execute(address(l1ReawrdManagerProxy), upgradeCd);
+        //     l1AccessManager.execute(address(l1ReawrdManagerProxy), upgradeCd);
         // }
 
         console.log("Upgrade CD target", address(l1RewardManagerImpl));
