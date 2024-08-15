@@ -28,7 +28,7 @@ jobs:
 #             ignore_words_list: amountIn
 #             skip: package-lock.json,*.pdf,./.git,yarn.lock
 
-  unit-tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel previous runs
@@ -70,3 +70,43 @@ jobs:
         with:
           commit_message: "forge fmt"
           file_pattern: '*.sol'
+
+  forge-coverage:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.12.1
+      
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+          node-version: 20
+
+      - name: Branch name
+        run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+
+      - name: Install yarn
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install # will run `yarn install` command
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: "Generate the coverage report"
+        working-directory: mainnet-contracts
+        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov'
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+          HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
+
+      - name: "Upload coverage report to Codecov"
+        uses: "codecov/codecov-action@v4"
+        with:
+          verbose: true
+          fail_ci_if_error: true
+          name: mainnet-contracts
+          files: "./lcov.info"
+          token: ${{ secrets.CODECOV_TOKEN }}
