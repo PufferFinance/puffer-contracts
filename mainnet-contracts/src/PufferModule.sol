@@ -186,28 +186,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function verifyWithdrawalCredentials(
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external virtual onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        $.eigenPod.verifyWithdrawalCredentials({
-            beaconTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            validatorIndices: validatorIndices,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields
-        });
-    }
-
-    /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
-     */
     function startCheckpoint() external virtual onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
         $.eigenPod.startCheckpoint({ revertIfNoBalance: true });

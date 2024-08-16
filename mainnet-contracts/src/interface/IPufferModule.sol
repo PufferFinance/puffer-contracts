@@ -93,17 +93,6 @@ interface IPufferModule {
     function queueWithdrawals(uint256 shareAmount) external returns (bytes32[] memory);
 
     /**
-     * @notice Verifies the withdrawal credentials
-     */
-    function verifyWithdrawalCredentials(
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external;
-
-    /**
      * @notice Completes the queued withdrawals
      */
     function completeQueuedWithdrawals(

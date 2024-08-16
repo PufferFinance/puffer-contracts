@@ -84,31 +84,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function callVerifyWithdrawalCredentials(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external virtual restricted {
-        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-
-        IPufferModule(moduleAddress).verifyWithdrawalCredentials({
-            oracleTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            validatorIndices: validatorIndices,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields
-        });
-
-        emit ValidatorCredentialsVerified(moduleName, validatorIndices);
-    }
-
-    /**
      * @notice Completes queued withdrawals
      * @dev Restricted to Puffer Paymaster
      */

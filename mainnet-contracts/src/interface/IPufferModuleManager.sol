@@ -266,19 +266,6 @@ interface IPufferModuleManager {
     ) external;
 
     /**
-     * @notice Calls `verifyWithdrawalCredentials` from the PufferModule `moduleName` with the given parameters
-     * @dev See IEigenPod(EigenLayer) for more details about the other parameters
-     */
-    function callVerifyWithdrawalCredentials(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external;
-
-    /**
      * @notice Calls the optIntoSlashing function on the restaking operator
      * @param restakingOperator is the address of the restaking operator
      * @param slasher is the address of the slasher contract to opt into
