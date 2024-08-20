@@ -17,7 +17,6 @@ import { AccessManagedUpgradeable } from
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { AVSContractsRegistry } from "./AVSContractsRegistry.sol";
