@@ -154,23 +154,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callSetClaimerFor(address(operator), claimer);
     }
 
-    function test_callVerifyWithdrawalCredentials(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-        _createPufferModule(moduleName);
-
-        uint64 oracleTimestamp;
-        BeaconChainProofs.StateRootProof memory stateRootProof;
-        uint40[] memory validatorIndices;
-        bytes[] memory validatorFieldsProofs;
-        bytes32[][] memory validatorFields;
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.ValidatorCredentialsVerified(moduleName, validatorIndices);
-        pufferModuleManager.callVerifyWithdrawalCredentials(
-            moduleName, oracleTimestamp, stateRootProof, validatorIndices, validatorFieldsProofs, validatorFields
-        );
-    }
-
     function test_completeQueuedWithdrawals(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);

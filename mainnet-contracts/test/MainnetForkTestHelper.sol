@@ -4,7 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV2Tests } from "../src/PufferVaultV2Tests.sol";
+import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
+import { PufferVaultV2Tests } from "../test/mocks/PufferVaultV2Tests.sol";
+import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
@@ -56,7 +58,7 @@ contract MainnetForkTestHelper is Test {
     }
 
     PufferDepositorV2 public pufferDepositor;
-    PufferVaultV2 public pufferVault;
+    PufferVaultV3 public pufferVault;
     PufferVaultV2 public pufferVaultWithBlocking;
     // Non blocking version is required because of the foundry tests
     PufferVaultV2 public pufferVaultNonBlocking;
@@ -75,6 +77,8 @@ contract MainnetForkTestHelper is Test {
     address charlie = makeAddr("charlie");
     address dave = makeAddr("dave");
     address eve = makeAddr("eve");
+
+    address l2RewradManagerMock = makeAddr("rewardManagerMock");
 
     // Use Maker address for mainnet fork tests to get wETH
     address MAKER_VAULT = 0x2F0b23f53734252Bda2277357e97e1517d6B042A;
@@ -122,7 +126,7 @@ contract MainnetForkTestHelper is Test {
 
     function _setupLiveContracts() internal {
         pufferDepositor = PufferDepositorV2(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
-        pufferVault = PufferVaultV2(payable(0xD9A442856C234a39a81a089C06451EBAa4306a72));
+        pufferVault = PufferVaultV3(payable(0xD9A442856C234a39a81a089C06451EBAa4306a72));
         accessManager = AccessManager(payable(0x8c1686069474410E6243425f4a10177a94EBEE11));
         timelock = Timelock(payable(0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA));
 
@@ -220,6 +224,32 @@ contract MainnetForkTestHelper is Test {
             abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
         );
         require(success, "failed upgrade tx");
+
+        vm.stopPrank();
+    }
+
+    function _upgradeToMainnetV3Puffer() internal {
+        // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
+        MockPufferOracle mockOracle = new MockPufferOracle();
+
+        pufferVaultNonBlocking = new PufferVaultV3Tests(
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            mockOracle,
+            _EIGEN_DELEGATION_MANGER
+        );
+
+        // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
+        // At this time, we stop accepting stETH, and we accept only native ETH
+        PufferVaultV3 newImplementation = PufferVaultV3(payable(address(pufferVaultNonBlocking)));
+
+        vm.startPrank(address(timelock));
+        vm.expectEmit(true, true, true, true);
+        emit ERC1967Utils.Upgraded(address(newImplementation));
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
 
         vm.stopPrank();
     }

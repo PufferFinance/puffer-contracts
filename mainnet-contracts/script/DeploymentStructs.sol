@@ -33,3 +33,11 @@ struct PufferProtocolDeployment {
     address weth; // from pufETH repository (dependency)
     address timelock; // from pufETH repository (dependency)
 }
+
+struct BridgingDeployment {
+    address connext;
+    address xPufETH;
+    address xPufETHLockBox;
+    address l1RewardManager;
+    address l2RewardManager;
+}

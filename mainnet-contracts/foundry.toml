@@ -22,6 +22,7 @@ libs = ["lib"]
 auto_detect_solc = false
 # cbor_metadata = false
 # bytecode_hash = "none"
+useLiteralContent = false
 optimizer = true
 optimizer_runs = 200
 evm_version = "cancun" # is live on mainnet
@@ -41,8 +42,17 @@ bracket_spacing = true
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
 holesky="${HOLESKY_RPC_URL}"
+sepolia="${SEPOLIA_RPC_URL}"
+opsepolia ="${OP_SEPOLIA_RPC_URL}"
 
 [invariant]
 fail_on_revert=false
 depth = 110
 runs = 50
+
+[fuzz]
+runs = 100
+
+[profile.ci.fuzz]
+runs = 50000
+seed = ""

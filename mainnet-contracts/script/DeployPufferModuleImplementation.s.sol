@@ -32,7 +32,7 @@ contract DeployPufferModuleImplementation is Script {
             protocol: PufferProtocol(payable(0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD)),
             eigenPodManager: 0x30770d7E3e71112d7A6b7259542D1f680a70e315,
             delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
-            moduleManager: PufferModuleManager(0x20377c306451140119C9967Ba6D0158a05b4eD07),
+            moduleManager: PufferModuleManager(payable(0x20377c306451140119C9967Ba6D0158a05b4eD07)),
             rewardsCoordinator: IRewardsCoordinator(0xAcc1fb458a1317E886dB376Fc8141540537E68fE)
         });
 

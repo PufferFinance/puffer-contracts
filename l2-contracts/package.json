@@ -1,0 +1,48 @@
+{
+  "name": "l2-contracts",
+  "description": "",
+  "version": "1.0.0",
+  "author": {
+    "name": "Puffer Finance",
+    "url": "https://puffer.fi"
+  },
+  "dependencies": {
+    "mainnet-contracts": "*",
+    "@connext/interfaces": "^2.0.5",
+    "@openzeppelin/contracts": "5.0.1",
+    "@openzeppelin/contracts-upgradeable": "5.0.1",
+    "murky": "https://github.com/dmfxyz/murky.git"
+  },
+  "devDependencies": {
+    "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
+    "@prb/test": "0.6.4",
+    "erc4626-tests": "https://github.com/a16z/erc4626-tests#8b1d7c2",
+    "forge-std": "github:foundry-rs/forge-std#v1.8.2",
+    "solarray": "github:evmcheb/solarray#a547630",
+    "solhint": "^5.0.1"
+  },
+  "homepage": "https://puffer.fi",
+  "keywords": [
+    "blockchain",
+    "foundry",
+    "smart-contracts",
+    "solidity",
+    "web3",
+    "ethereum",
+    "puffer",
+    "puffer-finance",
+    "solidity",
+    "LRT",
+    "eigenlayer",
+    "restaking",
+    "liquid-staking"
+  ],
+  "scripts": {
+    "fmt": "forge fmt",
+    "build": "forge build",
+    "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
+    "lint": "yarn run lint:sol",
+    "test:unit": "FOUNDRY_PROFILE=dev && forge test --mp \"./test/unit/**/*.sol\" -vvv",
+    "slither": "slither ."
+  }
+}

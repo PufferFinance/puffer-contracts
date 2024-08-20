@@ -3,10 +3,11 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { Unauthorized } from "./Errors.sol";
+import { Unauthorized, InvalidAmount } from "./Errors.sol";
 import { IRestakingOperator } from "./interface/IRestakingOperator.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { PufferModule } from "./PufferModule.sol";
+import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -43,6 +44,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     address public immutable override PUFFER_PROTOCOL;
 
     /**
+     * @inheritdoc IPufferModuleManager
+     */
+    address payable public immutable override PUFFER_VAULT;
+
+    /**
      * @dev AVS contracts registry
      */
     AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
@@ -63,40 +69,18 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
+        PUFFER_VAULT = payable(address(IPufferProtocol(PUFFER_PROTOCOL).PUFFER_VAULT()));
         AVS_CONTRACTS_REGISTRY = avsContractsRegistry;
         _disableInitializers();
     }
+
+    receive() external payable { }
 
     /**
      * @notice Initializes the contract
      */
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function callVerifyWithdrawalCredentials(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external virtual restricted {
-        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-
-        IPufferModule(moduleAddress).verifyWithdrawalCredentials({
-            oracleTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            validatorIndices: validatorIndices,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields
-        });
-
-        emit ValidatorCredentialsVerified(moduleName, validatorIndices);
     }
 
     /**
@@ -150,6 +134,28 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                 )
             })
         );
+    }
+
+    /**
+     * @notice Transfers the unlocked rewards from the modules to the vault
+     * @dev Restricted to Puffer Paymaster
+     */
+    function transferRewardsToTheVault(address[] calldata modules, uint256[] calldata rewardsAmounts)
+        external
+        virtual
+        restricted
+    {
+        uint256 totalRewardsAmount;
+
+        for (uint256 i = 0; i < modules.length; i++) {
+            (bool success,) = IPufferModule(modules[i]).call(address(this), rewardsAmounts[i], "");
+            if (!success) {
+                revert InvalidAmount();
+            }
+            totalRewardsAmount += rewardsAmounts[i];
+        }
+
+        PufferVaultV3(PUFFER_VAULT).depositRewards{ value: totalRewardsAmount }();
     }
 
     /**

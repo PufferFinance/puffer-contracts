@@ -4,8 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV2Tests } from "../src/PufferVaultV2Tests.sol";
+import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
@@ -19,6 +20,7 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
+import { BridgingDeployment } from "./DeploymentStructs.sol";
 
 /**
  * @title UpgradePufETH
@@ -49,11 +51,14 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(PufferDeployment memory deployment, address pufferOracle) public broadcast {
+    function run(PufferDeployment memory deployment, BridgingDeployment memory bridgingDeployment, address pufferOracle)
+        public
+        broadcast
+    {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV2 newImplementation = new PufferVaultV2Tests(
+        PufferVaultV3 newImplementation = new PufferVaultV3Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),

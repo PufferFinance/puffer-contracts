@@ -12,7 +12,7 @@ import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
-import { PufferProtocolDeployment } from "../../script/DeploymentStructs.sol";
+import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
 import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
 import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -20,12 +20,23 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVault } from "../../src/PufferVault.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
-import "forge-std/console.sol";
+import { xPufETH } from "src/l2/xPufETH.sol";
+import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+import { L1RewardManager } from "src/L1RewardManager.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
+import { ConnextMock } from "../mocks/ConnextMock.sol";
+import {
+    ROLE_ID_DAO,
+    ROLE_ID_OPERATIONS_PAYMASTER,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_LOCKBOX
+} from "../../script/Roles.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -74,7 +85,7 @@ contract UnitTestHelper is Test, BaseScript {
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
 
     PufferDepositor public pufferDepositor;
-    PufferVaultV2 public pufferVault;
+    PufferVaultV3 public pufferVault;
     stETHMock public stETH;
     IWETH public weth;
 
@@ -91,8 +102,15 @@ contract UnitTestHelper is Test, BaseScript {
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
     ValidatorTicketPricer public validatorTicketPricer;
+    xPufETH public xpufETH;
+    XERC20Lockbox public lockBox;
+    L1RewardManager public l1RewardManager;
+    L2RewardManager public l2RewardManager;
+    ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
+    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER");
+    address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
     address public timelock;
 
     address LIQUIDITY_PROVIDER = makeAddr("LIQUIDITY_PROVIDER");
@@ -156,7 +174,10 @@ contract UnitTestHelper is Test, BaseScript {
         guardians[2] = guardian3;
 
         // Deploy everything with one script
-        PufferProtocolDeployment memory pufferDeployment = new DeployEverything().run(guardians, 1);
+        PufferProtocolDeployment memory pufferDeployment;
+        BridgingDeployment memory bridgingDeployment;
+
+        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
@@ -164,16 +185,20 @@ contract UnitTestHelper is Test, BaseScript {
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
-        pufferModuleManager = PufferModuleManager(pufferDeployment.moduleManager);
+        pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
-
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
+        xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
+        lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
+        l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
+        l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
+        connext = ConnextMock(payable(bridgingDeployment.connext));
 
         // pufETH dependencies
-        pufferVault = PufferVaultV2(payable(pufferDeployment.pufferVault));
+        pufferVault = PufferVaultV3(payable(pufferDeployment.pufferVault));
         pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));
         stETH = stETHMock(payable(pufferDeployment.stETH));
         weth = IWETH(payable(pufferDeployment.weth));
@@ -277,6 +302,7 @@ contract UnitTestHelper is Test, BaseScript {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = PufferVaultV2.transferETH.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
+
         vm.stopPrank();
 
         _depositLiquidityToPufferVault();

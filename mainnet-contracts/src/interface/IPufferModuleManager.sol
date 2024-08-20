@@ -192,6 +192,11 @@ interface IPufferModuleManager {
     function PUFFER_PROTOCOL() external view returns (address);
 
     /**
+     * @notice Returns the Puffer Vault address
+     */
+    function PUFFER_VAULT() external view returns (address payable);
+
+    /**
      * @notice Create a new Restaking Operator
      * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
      *
@@ -258,19 +263,6 @@ interface IPufferModuleManager {
         IERC20[][] calldata tokens,
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
-    ) external;
-
-    /**
-     * @notice Calls `verifyWithdrawalCredentials` from the PufferModule `moduleName` with the given parameters
-     * @dev See IEigenPod(EigenLayer) for more details about the other parameters
-     */
-    function callVerifyWithdrawalCredentials(
-        bytes32 moduleName,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
     ) external;
 
     /**

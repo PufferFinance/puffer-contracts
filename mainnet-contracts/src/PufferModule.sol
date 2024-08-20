@@ -107,6 +107,13 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         _;
     }
 
+    modifier onlyPufferProtocolOrPufferModuleManager() {
+        if (msg.sender != address(PUFFER_MODULE_MANAGER) && msg.sender != address(PUFFER_PROTOCOL)) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     receive() external payable { }
 
     /**
@@ -179,28 +186,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      * @dev Restricted to PufferModuleManager
      */
-    function verifyWithdrawalCredentials(
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        uint40[] calldata validatorIndices,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external virtual onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
-        $.eigenPod.verifyWithdrawalCredentials({
-            beaconTimestamp: oracleTimestamp,
-            stateRootProof: stateRootProof,
-            validatorIndices: validatorIndices,
-            validatorFieldsProofs: validatorFieldsProofs,
-            validatorFields: validatorFields
-        });
-    }
-
-    /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
-     */
     function startCheckpoint() external virtual onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
         $.eigenPod.startCheckpoint({ revertIfNoBalance: true });
@@ -211,7 +196,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
-        onlyPufferProtocol
+        onlyPufferProtocolOrPufferModuleManager
         returns (bool success, bytes memory)
     {
         // slither-disable-next-line arbitrary-send-eth

@@ -32,7 +32,7 @@ contract UpgradePufferModule is BaseScript {
     PufferProtocol pufferProtocol = PufferProtocol(payable(0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD));
     address ACCESS_MANAGER = 0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e;
     address PUFFER_MODULE_BEACON = 0x4B0542470935ed4b085C3AD1983E85f5623ABf89;
-    PufferModuleManager pufferModuleManager = PufferModuleManager(0x20377c306451140119C9967Ba6D0158a05b4eD07);
+    PufferModuleManager pufferModuleManager = PufferModuleManager(payable(0x20377c306451140119C9967Ba6D0158a05b4eD07));
     address eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
     IDelegationManager delegationManager = IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7);
     IRewardsCoordinator rewardsCoordinator = IRewardsCoordinator(address(0));
