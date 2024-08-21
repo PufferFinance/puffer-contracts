@@ -8,7 +8,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
  * @title Deployer Helper script
  * @notice Contains the addresses of the contracts that are already deployed
  */
-abstract contract DeployerHelper is Script {    
+abstract contract DeployerHelper is Script {
     // Chain IDs
     uint256 public mainnet = 1;
     uint256 public holesky = 1700;
