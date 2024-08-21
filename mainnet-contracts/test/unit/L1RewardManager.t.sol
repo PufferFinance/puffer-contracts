@@ -79,6 +79,10 @@ contract L1RewardManagerTest is UnitTestHelper {
         _;
     }
 
+    function test_Constructor() public {
+        new L1RewardManager(address(0), address(0), address(0), address(0));
+    }
+
     function testRevert_updateBridgeDataInvalidBridge() public {
         vm.startPrank(DAO);
 

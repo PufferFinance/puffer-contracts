@@ -15,12 +15,20 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ROLE_ID_BRIDGE, PUBLIC_ROLE, ROLE_ID_REWARD_WATCHER } from "mainnet-contracts/script/Roles.sol";
+import {
+    ROLE_ID_BRIDGE,
+    PUBLIC_ROLE,
+    ROLE_ID_DAO,
+    ROLE_ID_REWARD_WATCHER,
+    ROLE_ID_OPERATIONS_PAYMASTER
+} from "mainnet-contracts/script/Roles.sol";
 import { XERC20Lockbox } from "mainnet-contracts/src/XERC20Lockbox.sol";
 import { xPufETH } from "mainnet-contracts/src/l2/xPufETH.sol";
 import { ERC20Mock } from "mainnet-contracts/test/mocks/ERC20Mock.sol";
 import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
+import { GenerateAccessManagerCalldata3 } from
+    "mainnet-contracts/script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
 
 contract PufferVaultMock is ERC20Mock {
     constructor() ERC20Mock("VaultMock", "pufETH") { }
@@ -66,7 +74,6 @@ contract L2RewardManagerTest is Test {
     xPufETH xPufETHProxy;
 
     address l1RewardManagerProxy;
-    address l2RewardManagerProxy;
     L2RewardManager public l2RewardManager;
 
     function setUp() public {
@@ -87,6 +94,7 @@ contract L2RewardManagerTest is Test {
         l1RewardManager = L1RewardManager(address(l1RewardManagerProxy));
         vm.label(address(l1RewardManager), "l1RewardManagerProxy");
 
+        // Setup xPufETH token
         xPufETHProxy = xPufETH(
             address(
                 new ERC1967Proxy{ salt: bytes32("xPufETH") }(
@@ -96,6 +104,7 @@ contract L2RewardManagerTest is Test {
         );
         vm.label(address(xPufETHProxy), "xPufETHProxy");
 
+        // xPufETH limits & access controls
         xPufETHProxy.setLimits(address(mockBridge), type(uint104).max, type(uint104).max);
 
         bytes4[] memory lockBoxSelectors = new bytes4[](2);
@@ -132,45 +141,30 @@ contract L2RewardManagerTest is Test {
             address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
         );
 
-        bytes[] memory calldatas = new bytes[](6);
-        bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = L2RewardManager.xReceive.selector;
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l2RewardManager), bridgeSelectors, ROLE_ID_BRIDGE
+        bytes memory cd = new GenerateAccessManagerCalldata3().generateL1Calldata(
+            address(l1RewardManager), address(mockBridge), address(pufferVault), address(0)
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = IL2RewardManager.claimRewards.selector;
-        calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l2RewardManager), publicSelectors, PUBLIC_ROLE
-        );
+        (bool s,) = address(accessManager).call(cd);
+        require(s, "failed access manager 1");
 
-        calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, address(mockBridge), 0);
+        cd = new GenerateAccessManagerCalldata3().generateL2Calldata(address(l2RewardManager), address(mockBridge));
 
-        bytes4[] memory rewardsWatcherSelectors = new bytes4[](3);
-        rewardsWatcherSelectors[0] = L2RewardManager.freezeAndRevertInterval.selector;
-        rewardsWatcherSelectors[1] = L2RewardManager.freezeClaimingForInterval.selector;
-        rewardsWatcherSelectors[2] = L2RewardManager.revertInterval.selector;
-        calldatas[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(l2RewardManager),
-            rewardsWatcherSelectors,
-            ROLE_ID_REWARD_WATCHER
-        );
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed access manager 2");
 
-        calldatas[4] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_WATCHER, address(this), 0);
-
-        calldatas[5] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l1RewardManager), bridgeSelectors, ROLE_ID_BRIDGE
-        );
+        accessManager.grantRole(ROLE_ID_REWARD_WATCHER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
 
         vm.label(address(l1RewardManager), "l1RewardManagerProxy");
 
-        accessManager.multicall(calldatas);
-
         // set block.timestamp to non zero value
         vm.warp(1);
+    }
+
+    function test_Constructor() public {
+        new L2RewardManager(address(xPufETHProxy), address(l1RewardManager));
     }
 
     function test_updateBridgeData() public {
