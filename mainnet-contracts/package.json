@@ -46,6 +46,8 @@
     "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
     "lint": "yarn run lint:sol",
     "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
-    "slither": "slither ."
+    "slither": "slither .",
+    "coverage": "forge coverage --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
+    "coverage-lcov": "forge coverage --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
   }
 }

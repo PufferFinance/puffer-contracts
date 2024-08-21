@@ -49,6 +49,7 @@ contract L2RewardManagerTest is Test {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
+    address dianna = makeAddr("dianna");
 
     uint256 startEpoch = 1;
     uint256 endEpoch = 2;
@@ -716,7 +717,8 @@ contract L2RewardManagerTest is Test {
         uint256 ethToPufETH,
         uint256 aliceAmount,
         uint256 bobAmount,
-        uint256 charlieAmount
+        uint256 charlieAmount,
+        uint256 diannaAmount
     ) public {
         ethToPufETH = bound(ethToPufETH, 0.98 ether, 0.999 ether);
 
@@ -724,15 +726,17 @@ contract L2RewardManagerTest is Test {
         aliceAmount = bound(aliceAmount, 0, 3 ether);
         bobAmount = bound(bobAmount, 0, 0.1 ether);
         charlieAmount = bound(charlieAmount, 0, 5 ether);
+        diannaAmount = bound(diannaAmount, 0, 5 ether);
 
         // Build merkle proof data
-        MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
+        MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](4);
         merkleProofDatas[0] = MerkleProofData({ account: alice, amount: aliceAmount });
         merkleProofDatas[1] = MerkleProofData({ account: bob, amount: bobAmount });
         merkleProofDatas[2] = MerkleProofData({ account: charlie, amount: charlieAmount });
+        merkleProofDatas[3] = MerkleProofData({ account: dianna, amount: diannaAmount });
 
         // total reward amount calculated for merkle tree
-        rewardsAmount = aliceAmount + bobAmount + charlieAmount;
+        rewardsAmount = aliceAmount + bobAmount + charlieAmount + diannaAmount;
         rewardsRoot = _buildMerkleProof(merkleProofDatas);
 
         L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
@@ -766,12 +770,13 @@ contract L2RewardManagerTest is Test {
 
         vm.warp(block.timestamp + 5 days);
 
-        bytes32[][] memory merkleProofs = new bytes32[][](3);
+        bytes32[][] memory merkleProofs = new bytes32[][](4);
         merkleProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
         merkleProofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
         merkleProofs[2] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 2);
+        merkleProofs[3] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 3);
 
-        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](3);
+        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](4);
         claimOrders[0] = IL2RewardManager.ClaimOrder({
             intervalId: intervalId,
             account: alice,
@@ -790,13 +795,19 @@ contract L2RewardManagerTest is Test {
             amount: charlieAmount,
             merkleProof: merkleProofs[2]
         });
+        claimOrders[3] = IL2RewardManager.ClaimOrder({
+            intervalId: intervalId,
+            account: dianna,
+            amount: diannaAmount,
+            merkleProof: merkleProofs[3]
+        });
 
         l2RewardManager.claimRewards(claimOrders);
 
         // The reward manager might have some dust left
         // 2 wei rounding allowed
         assertApproxEqAbs(
-            xPufETHProxy.balanceOf(address(l2RewardManager)), 0, 2, "l2rewardManager should end with zero balance"
+            xPufETHProxy.balanceOf(address(l2RewardManager)), 0, 3, "l2rewardManager should end with zero balance"
         );
 
         // We need to upscale by *1 ether, because if the aliceBalance is very small, it rounds to 0
@@ -804,6 +815,9 @@ contract L2RewardManagerTest is Test {
         assertApproxEqAbs((xPufETHProxy.balanceOf(bob) * 1 ether / ethToPufETH), bobAmount, 2, "Bob ETH amount");
         assertApproxEqAbs(
             (xPufETHProxy.balanceOf(charlie) * 1 ether / ethToPufETH), charlieAmount, 2, "Charlie ETH amount"
+        );
+        assertApproxEqAbs(
+            (xPufETHProxy.balanceOf(dianna) * 1 ether / ethToPufETH), diannaAmount, 2, "Dianna ETH amount"
         );
     }
 
