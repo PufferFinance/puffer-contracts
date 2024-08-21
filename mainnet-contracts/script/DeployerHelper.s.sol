@@ -8,7 +8,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
  * @title Deployer Helper script
  * @notice Contains the addresses of the contracts that are already deployed
  */
-abstract contract DeployerHelper is Script {    
+abstract contract DeployerHelper is Script {
     address private _pufferVault;
     address private _validatorTicket;
     address private _pufferProtocol;
