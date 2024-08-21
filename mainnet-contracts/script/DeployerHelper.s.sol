@@ -9,17 +9,6 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
  * @notice Contains the addresses of the contracts that are already deployed
  */
 abstract contract DeployerHelper is Script {    
-    address private _pufferVault;
-    address private _validatorTicket;
-    address private _pufferProtocol;
-    address private _xPufETH;
-    address private _lockbox;
-    address private _pufferModuleManager;
-
-    address private _everclearBridge;
-
-    address private _deployer;
-
     // Chain IDs
     uint256 public mainnet = 1;
     uint256 public holesky = 1700;
@@ -30,11 +19,8 @@ abstract contract DeployerHelper is Script {
 
     function _getDeployer() internal returns (address) {
         (, address msgSender,) = vm.readCallers();
-        // Some fork / other network
-        _deployer = msgSender;
-        console.log("Deployer:", block.chainid, _deployer);
-
-        return _deployer;
+        console.log("Deployer:", block.chainid, msgSender);
+        return msgSender;
     }
 
     function _getAccessManager() internal view returns (address) {
