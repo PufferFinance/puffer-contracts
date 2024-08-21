@@ -38,7 +38,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
 
-        bytes memory cd = new GenerateAccessManagerCalldata3().run(
+        bytes memory cd = new GenerateAccessManagerCalldata3().generateL1Calldata(
             address(l1RewardManager), address(connext), address(pufferVault), address(pufferModuleManager)
         );
         (bool s,) = address(accessManager).call(cd);
