@@ -68,10 +68,8 @@ contract DeployFWR is DeployerHelper {
         vm.label(address(l2RewardManagerProxy), "L2RewardManagerProxy");
         vm.label(address(newImplementation), "L2RewardManagerImplementation");
 
-        bytes memory l2AccessManagerCalldata = generator.generateL2Calldata({
-            l2RewardManagerProxy: l2RewardManagerProxy,
-            l2Bridge: _getEverclear()
-        });
+        bytes memory l2AccessManagerCalldata =
+            generator.generateL2Calldata({ l2RewardManagerProxy: l2RewardManagerProxy, l2Bridge: _getEverclear() });
 
         console.log("L2 Access Manager Calldata");
         console.logBytes(l2AccessManagerCalldata);
