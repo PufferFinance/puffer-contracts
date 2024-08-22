@@ -91,7 +91,7 @@ contract L2RewardManager is
             $.claimedRewards[claimOrders[i].intervalId][claimOrders[i].account] = true;
 
             uint256 amountToTransfer = (claimOrders[i].amount * epochRecord.ethToPufETHRate) / 1 ether;
-            
+
             recipient = recipient == address(0) ? claimOrders[i].account : recipient;
 
             // if the custom claimer is set, then transfer the tokens to the set claimer

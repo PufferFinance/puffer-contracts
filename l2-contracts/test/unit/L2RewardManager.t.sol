@@ -896,7 +896,9 @@ contract L2RewardManagerTest is Test {
         // It will set the claimer for Alice to aliceRewardsRecipientAddress
         test_handleSetClaimer(aliceRewardsRecipientAddress);
 
-        assertEq(l2RewardManager.getRewardsClaimer(alice), aliceRewardsRecipientAddress, "Claimer should be set correctly");
+        assertEq(
+            l2RewardManager.getRewardsClaimer(alice), aliceRewardsRecipientAddress, "Claimer should be set correctly"
+        );
 
         // Now the claiming should work
         l2RewardManager.claimRewards(claimOrders);
