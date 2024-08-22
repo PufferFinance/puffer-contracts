@@ -43,12 +43,14 @@ interface IL2RewardManager {
      * @notice A record of a single order for claim function call.
      * @param intervalId The claiming interal ID (see `getIntervalId`).
      * @param amount The amount of reward to claim.
+     * @param isL1Contract The boolean indicating if the account is a smart contract on L1.
      * @param account The address of the account claiming the reward.
      * @param merkleProof The merkle proof to verify the claim.
      */
     struct ClaimOrder {
         bytes32 intervalId;
         uint256 amount;
+        bool isL1Contract;
         address account;
         bytes32[] merkleProof;
     }
@@ -165,4 +167,10 @@ interface IL2RewardManager {
      * @notice Error indicating the bridge is not allowlisted.
      */
     error BridgeNotAllowlisted();
+
+    /**
+     * @notice Thrown if the L1 address is a smart contract, but the rewards recipient on L2 is not set
+     * @dev Smart contrats might have a hard time owning the same address on L2, because of that, they need to set the rewards recipient.
+     */
+    error ClaimerNotSet(address node);
 }
