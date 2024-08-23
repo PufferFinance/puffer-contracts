@@ -56,7 +56,7 @@ contract PufferWithdrawalManager is IPufferWithdrawalManager, AccessManagedUpgra
      * @notice Requests a withdrawal of ETH
      * @param pufETHAmount the amount of pufETH to be redeemed
      */
-    function requestWithdrawal(uint256 pufETHAmount, address recipient) external returns (uint256 requestId){
+    function requestWithdrawal(uint256 pufETHAmount, address recipient) external returns (uint256 requestId) {
         toBurn[withdrawals.length % batchSize] += pufETHAmount;
 
         uint256 expectedETHAmount = pufETHAmount; // 1:1 exchange rate
@@ -83,7 +83,7 @@ contract PufferWithdrawalManager is IPufferWithdrawalManager, AccessManagedUpgra
         uint256 burnPufEThAMount = toBurn[withdrawalBatchIndex];
 
         // vault.transfer(address(this), ethAmount * newExchangeRate);
-        // vault.burn(address(this), burnPufEThAMount); 
+        // vault.burn(address(this), burnPufEThAMount);
 
         finalizedWithdrawalBatch = withdrawalBatchIndex;
 
@@ -96,8 +96,8 @@ contract PufferWithdrawalManager is IPufferWithdrawalManager, AccessManagedUpgra
         }
 
         // check the user exchange rate from the withdrawal request
-       // check the settlement exchange rate from the finalizeWithdrawals
-       // pay out using the lower 
+        // check the settlement exchange rate from the finalizeWithdrawals
+        // pay out using the lower
 
         uint256 amount = withdrawals[withdrawalIdx]; // the user is expecting original amount
         withdrawals[withdrawalIdx] = 0;
