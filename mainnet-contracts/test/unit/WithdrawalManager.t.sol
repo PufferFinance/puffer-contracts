@@ -6,11 +6,18 @@ import { WithdrawalManager } from "../../src/WithdrawalManager.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 
+/**
+ * @title WithdrawalManagerTest
+ * @dev Test contract for WithdrawalManager
+ */
 contract WithdrawalManagerTest is UnitTestHelper {
     WithdrawalManager public withdrawalManager;
 
     address[] public actors;
 
+    /**
+     * @dev Set up the test environment
+     */
     function setUp() public override {
         super.setUp();
         withdrawalManager = new WithdrawalManager(pufferVault);
@@ -35,22 +42,140 @@ contract WithdrawalManagerTest is UnitTestHelper {
         actors.push(makeAddr("james"));
     }
 
+    /**
+     * @dev Test creating deposits
+     * @param numberOfDeposits The number of deposits to create
+     */
     function test_createDeposits(uint8 numberOfDeposits) public {
         vm.assume(numberOfDeposits > 20);
 
         for (uint256 i = 0; i < numberOfDeposits; i++) {
-            uint256 depositAmount = i;
+            uint256 depositAmount = bound(i, 1 ether, 10 ether);
             address actor = actors[i % actors.length];
-            depositAmount = bound(depositAmount, 1 ether, 10 ether);
             _givePufETH(depositAmount, actor);
 
-            vm.prank(actor);
+            vm.startPrank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
-            vm.prank(actor);
             withdrawalManager.requestWithdrawals(depositAmount, actor);
+            vm.stopPrank();
         }
     }
 
+    /**
+     * @dev Fuzz test for requesting withdrawals
+     * @param pufETHAmount The amount of pufETH to withdraw
+     */
+    function test_fuzz_requestWithdrawals(uint256 pufETHAmount) public {
+        vm.assume(pufETHAmount >= 0.01 ether && pufETHAmount <= 1000 ether);
+
+        address actor = actors[0];
+        _givePufETH(pufETHAmount, actor);
+
+        vm.startPrank(actor);
+        pufferVault.approve(address(withdrawalManager), pufETHAmount);
+        withdrawalManager.requestWithdrawals(pufETHAmount, actor);
+        vm.stopPrank();
+
+        (uint128 amount, , address recipient) = withdrawalManager.withdrawals(0);
+        assertEq(uint256(amount), pufETHAmount, "Incorrect withdrawal amount");
+        assertEq(recipient, actor, "Incorrect withdrawal recipient");
+    }
+
+    /**
+     * @dev Test requesting withdrawals with minimum amount
+     */
+    function test_requestWithdrawals_minAmount() public {
+        uint256 minAmount = 0.01 ether;
+        address actor = actors[0];
+        _givePufETH(minAmount, actor);
+
+        vm.startPrank(actor);
+        pufferVault.approve(address(withdrawalManager), minAmount);
+        withdrawalManager.requestWithdrawals(minAmount, actor);
+        vm.stopPrank();
+
+        (uint128 amount, , ) = withdrawalManager.withdrawals(0);
+        assertEq(uint256(amount), minAmount, "Incorrect minimum withdrawal amount");
+    }
+
+    /**
+     * @dev Test requesting withdrawals below minimum amount
+     */
+    function test_requestWithdrawals_belowMinAmount() public {
+        uint256 belowMinAmount = 0.009 ether;
+        address actor = actors[0];
+        _givePufETH(belowMinAmount, actor);
+
+        vm.startPrank(actor);
+        pufferVault.approve(address(withdrawalManager), belowMinAmount);
+        vm.expectRevert(WithdrawalManager.WithdrawalAmountTooLow.selector);
+        withdrawalManager.requestWithdrawals(belowMinAmount, actor);
+        vm.stopPrank();
+    }
+
+    /**
+     * @dev Test finalizing withdrawals for multiple batches
+     */
+    function test_finalizeWithdrawals_multipleBatches() public {
+        uint256 batchSize = 10;
+        uint256 numBatches = 3;
+        uint256 depositAmount = 1 ether;
+
+        for (uint256 i = 0; i < batchSize * numBatches; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawals(depositAmount, actor);
+            vm.stopPrank();
+        }
+
+        withdrawalManager.finalizeWithdrawals(numBatches - 1);
+
+        assertEq(withdrawalManager.finalizedWithdrawalBatch(), numBatches - 1, "Incorrect finalized batch index");
+    }
+
+    /**
+     * @dev Test finalizing withdrawals with an incomplete batch
+     */
+    function test_finalizeWithdrawals_incompleteBatch() public {
+        uint256 batchSize = 10;
+        uint256 incompleteAmount = 9;
+        uint256 depositAmount = 1 ether;
+
+        for (uint256 i = 0; i < incompleteAmount; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawals(depositAmount, actor);
+            vm.stopPrank();
+        }
+
+        vm.expectRevert(WithdrawalManager.BatchNotFull.selector);
+        withdrawalManager.finalizeWithdrawals(0);
+    }
+
+    /**
+     * @dev Test completing a queued withdrawal that is not finalized
+     */
+    function test_completeQueuedWithdrawal_notFinalized() public {
+        uint256 depositAmount = 1 ether;
+        address actor = actors[0];
+        _givePufETH(depositAmount, actor);
+
+        vm.startPrank(actor);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawals(depositAmount, actor);
+        vm.stopPrank();
+
+        vm.expectRevert(WithdrawalManager.NotFinalized.selector);
+        withdrawalManager.completeQueuedWithdrawal(0);
+    }
+
+    /**
+     * @dev Test deposits and finalizing withdrawals
+     */
     function test_depositsAndFinalizeWithdrawals() public {
         uint256 depositAmount = 1 ether;
 
