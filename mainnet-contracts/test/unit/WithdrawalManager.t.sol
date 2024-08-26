@@ -76,7 +76,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.requestWithdrawals(pufETHAmount, actor);
         vm.stopPrank();
 
-        (uint128 amount, , address recipient) = withdrawalManager.withdrawals(0);
+        (uint128 amount,, address recipient) = withdrawalManager.withdrawals(0);
         assertEq(uint256(amount), pufETHAmount, "Incorrect withdrawal amount");
         assertEq(recipient, actor, "Incorrect withdrawal recipient");
     }
@@ -94,7 +94,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.requestWithdrawals(minAmount, actor);
         vm.stopPrank();
 
-        (uint128 amount, , ) = withdrawalManager.withdrawals(0);
+        (uint128 amount,,) = withdrawalManager.withdrawals(0);
         assertEq(uint256(amount), minAmount, "Incorrect minimum withdrawal amount");
     }
 
