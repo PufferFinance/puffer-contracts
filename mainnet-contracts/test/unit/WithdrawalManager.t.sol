@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { WithdrawalManager } from "../../src/WithdrawalManager.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { WithdrawalManager } from "src/WithdrawalManager.sol";
+import { PufferVaultV2 } from "src/PufferVaultV2.sol";
 import { ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 
 /**

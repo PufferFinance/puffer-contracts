@@ -24,7 +24,7 @@ contract WithdrawalManager {
     );
 
     PufferVaultV3 public immutable PUFFER_VAULT;
-    uint8 public constant BATCH_SIZE = 10;
+    uint256 public constant BATCH_SIZE = 10;
     uint256 public constant MIN_WITHDRAWAL_AMOUNT = 0.01 ether;
 
     struct Withdrawal {
