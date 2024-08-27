@@ -15,4 +15,3 @@ l2-contracts/cache/*
 
 .DS_Store
 .aider*
-mainnet-contracts/output/puffer.json
