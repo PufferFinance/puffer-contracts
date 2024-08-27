@@ -4,12 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVaultV3 } from "../PufferVaultV3.sol";
 
 /**
- * @title IWithdrawalManager
+ * @title IPufferWithdrawalManager
  * @author Puffer Finance
- * @notice Interface for the WithdrawalManager contract
+ * @notice Interface for the PufferWithdrawalManager contract
  * @custom:security-contact security@puffer.fi
  */
-interface IWithdrawalManager {
+interface IPufferWithdrawalManager {
     /// @notice Thrown when attempting to finalize a batch that has already been finalized
     error BatchAlreadyFinalized();
 

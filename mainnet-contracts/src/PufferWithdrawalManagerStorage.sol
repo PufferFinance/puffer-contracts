@@ -2,22 +2,27 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * @title WithdrawalManagerStorage
+ * @title PufferWithdrawalManagerStorage
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-abstract contract WithdrawalManagerStorage {
+abstract contract PufferWithdrawalManagerStorage {
+        /**
+     * @dev +-----------------------------------------------------------+
+     *      |                                                           |
+     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+     *      |                                                           |
+     *      +-----------------------------------------------------------+
+     */
     struct Withdrawal {
-        // 96bits
-        uint128 pufETHAmount; 
-        uint128 pufETHToEthExchangeRate;
-        address recipient; //160bits
+        uint128 pufETHAmount; // packed slot 0
+        uint128 pufETHToETHExchangeRate; // packed slot 0
+        address recipient; //160bits packed slot 1
     }
-
     struct WithdrawalBatch {
-        uint64 pufETHToEthExchangeRate;
-        uint96 toBurn;
-        uint96 toTransfer;
+        uint64 pufETHToETHExchangeRate; // packed slot 0
+        uint96 toBurn; // packed slot 0
+        uint96 toTransfer; // packed slot 0
     }
 
     /**
@@ -28,7 +33,7 @@ abstract contract WithdrawalManagerStorage {
      *      |                                                           |
      *      +-----------------------------------------------------------+
      */
-    struct WithdrawalManagerStorageStruct {
+    struct WithdrawalManagerStorage {
         uint256 finalizedWithdrawalBatch;
         Withdrawal[] withdrawals;
         WithdrawalBatch[] withdrawalBatches;
@@ -42,7 +47,7 @@ abstract contract WithdrawalManagerStorage {
     bytes32 private constant _WITHDRAWAL_MANAGER_STORAGE =
         0x2cc4e591e9323af22eeee6c9b0444863dad4345eb452e3c71b610fffca87e100;
 
-    function _getWithdrawalManagerStorage() internal pure returns (WithdrawalManagerStorageStruct storage $) {
+    function _getWithdrawalManagerStorage() internal pure returns (WithdrawalManagerStorage storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
             $.slot := _WITHDRAWAL_MANAGER_STORAGE

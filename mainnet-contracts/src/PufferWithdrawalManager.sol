@@ -4,19 +4,19 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { IWithdrawalManager } from "./interface/IWithdrawalManager.sol";
-import { WithdrawalManagerStorage } from "./WithdrawalManagerStorage.sol";
+import { IPufferWithdrawalManager } from "./interface/IPufferWithdrawalManager.sol";
+import { PufferWithdrawalManagerStorage } from "./PufferWithdrawalManagerStorage.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
- * @title WithdrawalManager
+ * @title PufferWithdrawalManager
  * @dev Manages the withdrawal process for the Puffer protocol
  */
-contract WithdrawalManager is
-    IWithdrawalManager,
-    WithdrawalManagerStorage,
+contract PufferWithdrawalManager is
+    IPufferWithdrawalManager,
+    PufferWithdrawalManagerStorage,
     AccessManagedUpgradeable,
     UUPSUpgradeable
 {
@@ -25,7 +25,7 @@ contract WithdrawalManager is
     uint256 public constant MIN_WITHDRAWAL_AMOUNT = 0.01 ether;
 
     /**
-     * @dev Constructor to initialize the WithdrawalManager
+     * @dev Constructor to initialize the PufferWithdrawalManager
      * @param pufferVault Address of the PufferVaultV3 contract
      */
     constructor(PufferVaultV3 pufferVault) {
@@ -43,18 +43,18 @@ contract WithdrawalManager is
     }
 
     /**
-     * @inheritdoc IWithdrawalManager
+     * @inheritdoc IPufferWithdrawalManager
      */
     function requestWithdrawals(uint128 pufETHAmount, address recipient) external {
         if (pufETHAmount < MIN_WITHDRAWAL_AMOUNT) {
             revert WithdrawalAmountTooLow();
         }
-        WithdrawalManagerStorageStruct storage $ = _getWithdrawalManagerStorage();
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
         uint256 batchIndex = $.withdrawals.length / BATCH_SIZE;
 
         if (batchIndex == $.withdrawalBatches.length) {
             // Push empty batch
-            $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToEthExchangeRate: 0 }));
+            $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
         }
 
         PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
@@ -70,7 +70,7 @@ contract WithdrawalManager is
         $.withdrawals.push(
             Withdrawal({
                 pufETHAmount: pufETHAmount,
-                pufETHToEthExchangeRate: uint128(exchangeRate),
+                pufETHToETHExchangeRate: uint128(exchangeRate),
                 recipient: recipient
             })
         );
@@ -84,7 +84,7 @@ contract WithdrawalManager is
      * @dev Restricted to the Guardian
      */
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
-        WithdrawalManagerStorageStruct storage $ = _getWithdrawalManagerStorage();
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch && withdrawalBatchIndex != 0) {
             revert BatchAlreadyFinalized();
@@ -108,7 +108,7 @@ contract WithdrawalManager is
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
-            batch.pufETHToEthExchangeRate = uint64(batchFinalizationExchangeRate);
+            batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
 
             emit BatchFinalized(i, expectedETHAmount, transferAmount, pufETHBurnAmount);
 
@@ -120,20 +120,20 @@ contract WithdrawalManager is
     }
 
     /**
-     * @inheritdoc IWithdrawalManager
+     * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external restricted {
-        WithdrawalManagerStorageStruct storage $ = _getWithdrawalManagerStorage();
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         if (withdrawalIdx < $.finalizedWithdrawalBatch * BATCH_SIZE) {
             revert NotFinalized();
         }
 
         Withdrawal memory withdrawal = $.withdrawals[withdrawalIdx];
-        uint256 batchSettlementExchangeRate = $.withdrawalBatches[withdrawalIdx / BATCH_SIZE].pufETHToEthExchangeRate;
+        uint256 batchSettlementExchangeRate = $.withdrawalBatches[withdrawalIdx / BATCH_SIZE].pufETHToETHExchangeRate;
 
-        uint256 payoutExchangeRate = Math.min(withdrawal.pufETHToEthExchangeRate, batchSettlementExchangeRate);
+        uint256 payoutExchangeRate = Math.min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate);
         uint256 payoutAmount = (uint256(withdrawal.pufETHAmount) * payoutExchangeRate) / 1 ether;
 
         // remove data for some gas savings
