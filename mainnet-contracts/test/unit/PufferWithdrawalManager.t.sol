@@ -2,17 +2,23 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { WithdrawalManager } from "src/WithdrawalManager.sol";
-import { IWithdrawalManager } from "src/interface/IWithdrawalManager.sol";
+import { PufferWithdrawalManager } from "src/PufferWithdrawalManager.sol";
+import { IPufferWithdrawalManager } from "src/interface/IPufferWithdrawalManager.sol";
 import { PufferVaultV2 } from "src/PufferVaultV2.sol";
-import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS } from "../../script/Roles.sol";
+import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, PUBLIC_ROLE } from "../../script/Roles.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+// import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
- * @title WithdrawalManagerTest
- * @dev Test contract for WithdrawalManager
+ * @title PufferWithdrawalManagerTest
+ * @dev Test contract for PufferWithdrawalManager
+ * 
+ * @dev Run the following command to execute the tests:
+ * forge test --match-path test/unit/PufferWithdrawalManager.t.sol -vvvv
  */
-contract WithdrawalManagerTest is UnitTestHelper {
-    WithdrawalManager public withdrawalManager;
+contract PufferWithdrawalManagerTest is UnitTestHelper {
+    PufferWithdrawalManager public withdrawalManager;
 
     address[] public actors;
 
@@ -21,20 +27,38 @@ contract WithdrawalManagerTest is UnitTestHelper {
      */
     function setUp() public override {
         super.setUp();
-        withdrawalManager = new WithdrawalManager(pufferVault);
-
-        vm.startPrank(timelock);
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferVaultV2.transferETH.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), selectors, ROLE_ID_PUFFER_PROTOCOL);
-        accessManager.grantRole(ROLE_ID_PUFFER_PROTOCOL, address(withdrawalManager), 0);
         
+        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManager(pufferVault)));
+
+        // deploy an ERC1967Proxy 
+        withdrawalManager = PufferWithdrawalManager(
+            (payable(
+                new ERC1967Proxy{salt: bytes32("PufferWithdrawalManager")}
+                (address(withdrawalManagerImpl), abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager)))
+            ))
+        );
+
+        vm.label(address(withdrawalManager), "PufferWithdrawalManager");
+
+        vm.startPrank(_broadcaster);
+
+        bytes[] memory calldatas = new bytes[](3);
+    calldatas[0]= abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, withdrawalManager, 0);
+
+        bytes4[] memory guardianSelectors = new bytes4[](1);
+        guardianSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
+calldatas[1] = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), guardianSelectors, ROLE_ID_GUARDIANS);
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = PufferWithdrawalManager.completeQueuedWithdrawal.selector;
+        calldatas[2] = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), publicSelectors, PUBLIC_ROLE);
+
+        accessManager.multicall(calldatas);
+
         // Grant GUARDIAN role to the test contract
         accessManager.grantRole(ROLE_ID_GUARDIANS, address(this), 0);
         vm.stopPrank();
 
-        // Initialize the WithdrawalManager
-        withdrawalManager.initialize(address(accessManager));
 
         // Initialize actors
         actors.push(makeAddr("alice"));
@@ -47,8 +71,8 @@ contract WithdrawalManagerTest is UnitTestHelper {
         actors.push(makeAddr("harry"));
         actors.push(makeAddr("isabelle"));
         actors.push(makeAddr("james"));
+    
     }
-
     /**
      * @dev Test creating deposits
      * @param numberOfDeposits The number of deposits to create
@@ -117,7 +141,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
 
         vm.startPrank(actor);
         pufferVault.approve(address(withdrawalManager), belowMinAmount);
-        vm.expectRevert(IWithdrawalManager.WithdrawalAmountTooLow.selector);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAmountTooLow.selector);
         withdrawalManager.requestWithdrawals(uint128(belowMinAmount), actor);
         vm.stopPrank();
     }
@@ -148,7 +172,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
         }
 
         // Test that the next batch cannot be completed
-        vm.expectRevert(IWithdrawalManager.NotFinalized.selector);
+        vm.expectRevert(IPufferWithdrawalManager.NotFinalized.selector);
         withdrawalManager.completeQueuedWithdrawal(batchSize * numBatches);
     }
 
@@ -169,7 +193,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
             vm.stopPrank();
         }
 
-        vm.expectRevert(abi.encodeWithSelector(IWithdrawalManager.BatchNotFull.selector));
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchNotFull.selector));
         withdrawalManager.finalizeWithdrawals(0);
     }
 
@@ -186,7 +210,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(IWithdrawalManager.NotFinalized.selector));
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.NotFinalized.selector));
         withdrawalManager.completeQueuedWithdrawal(0);
     }
 
@@ -225,7 +249,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
             vm.startPrank(actor);
 
             vm.expectEmit(true, true, true, true);
-            emit IWithdrawalManager.WithdrawalCompleted(i, depositAmount, 1 ether, actor);
+            emit IPufferWithdrawalManager.WithdrawalCompleted(i, depositAmount, 1 ether, actor);
             withdrawalManager.completeQueuedWithdrawal(i);
 
             // the users did not get any yield from the VT sale, they got paid out using the original 1:1 exchange rate
@@ -272,7 +296,7 @@ contract WithdrawalManagerTest is UnitTestHelper {
     }
 
     function test_constructor() public {
-        new WithdrawalManager(pufferVault);
+        new PufferWithdrawalManager(pufferVault);
     }
 
     function test_requestWithdrawals() public {
