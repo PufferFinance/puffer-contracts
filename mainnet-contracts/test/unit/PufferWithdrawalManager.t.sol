@@ -13,7 +13,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 /**
  * @title PufferWithdrawalManagerTest
  * @dev Test contract for PufferWithdrawalManager
- * 
+ *
  * @dev Run the following command to execute the tests:
  * forge test --match-path test/unit/PufferWithdrawalManager.t.sol -vvvv
  */
@@ -27,38 +27,56 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      */
     function setUp() public override {
         super.setUp();
-        
+
         PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManager(pufferVault)));
 
-        // deploy an ERC1967Proxy 
+        // deploy an ERC1967Proxy
         withdrawalManager = PufferWithdrawalManager(
-            (payable(
-                new ERC1967Proxy{salt: bytes32("PufferWithdrawalManager")}
-                (address(withdrawalManagerImpl), abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager)))
-            ))
+            (
+                payable(
+                    new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
+                        address(withdrawalManagerImpl),
+                        abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager))
+                    )
+                )
+            )
         );
 
         vm.label(address(withdrawalManager), "PufferWithdrawalManager");
 
         vm.startPrank(_broadcaster);
 
-        bytes[] memory calldatas = new bytes[](3);
-    calldatas[0]= abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, withdrawalManager, 0);
+        bytes[] memory calldatas = new bytes[](5);
 
         bytes4[] memory guardianSelectors = new bytes4[](1);
         guardianSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
-calldatas[1] = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), guardianSelectors, ROLE_ID_GUARDIANS);
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(withdrawalManager),
+            guardianSelectors,
+            ROLE_ID_GUARDIANS
+        );
+
+        // Grant GUARDIAN role to the test contract
+        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_GUARDIANS, address(this), 0);
 
         bytes4[] memory publicSelectors = new bytes4[](1);
         publicSelectors[0] = PufferWithdrawalManager.completeQueuedWithdrawal.selector;
-        calldatas[2] = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), publicSelectors, PUBLIC_ROLE);
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), publicSelectors, PUBLIC_ROLE
+        );
 
+        bytes4[] memory pufferselectors = new bytes4[](1);
+        pufferselectors[0] = PufferVaultV2.transferETH.selector;
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(pufferVault), pufferselectors, ROLE_ID_PUFFER_PROTOCOL
+        );
+
+        calldatas[4] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, withdrawalManager, 0);
         accessManager.multicall(calldatas);
 
-        // Grant GUARDIAN role to the test contract
-        accessManager.grantRole(ROLE_ID_GUARDIANS, address(this), 0);
         vm.stopPrank();
-
 
         // Initialize actors
         actors.push(makeAddr("alice"));
@@ -71,12 +89,12 @@ calldatas[1] = abi.encodeWithSelector(AccessManager.setTargetFunctionRole.select
         actors.push(makeAddr("harry"));
         actors.push(makeAddr("isabelle"));
         actors.push(makeAddr("james"));
-    
     }
     /**
      * @dev Test creating deposits
      * @param numberOfDeposits The number of deposits to create
      */
+
     function test_createDeposits(uint8 numberOfDeposits) public {
         vm.assume(numberOfDeposits > 20);
 
