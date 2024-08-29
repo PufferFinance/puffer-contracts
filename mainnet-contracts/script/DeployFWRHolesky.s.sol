@@ -45,9 +45,9 @@ contract DeployFWRHolesky is DeployerHelper {
         address bridge = _deployBridgeMock();
         _deployAndUpgradePufferVault();
         _deployL1RewardManagerProxy(bridge);
-        _deployAndConfigureXPufETH(bridge);
-        _deployL2RewardManager(bridge);
-        _deployAndUpgradeL1RewardManager(bridge);
+        (address xpufETHProxy, address lockbox) = _deployAndConfigureXPufETH(bridge);
+        _deployL2RewardManager(bridge, xpufETHProxy);
+        _deployAndUpgradeL1RewardManager(bridge, xpufETHProxy, lockbox);
 
         vm.stopBroadcast();
     }
@@ -89,7 +89,7 @@ contract DeployFWRHolesky is DeployerHelper {
         console.logBytes(l1AccessManagerCalldata);
     }
 
-    function _deployAndConfigureXPufETH(address bridge) internal {
+    function _deployAndConfigureXPufETH(address bridge) internal returns(address, address) {
         xPufETH xPufETHProxy = xPufETH(
             address(
                 new ERC1967Proxy{ salt: bytes32("xPufETH") }(
@@ -112,9 +112,11 @@ contract DeployFWRHolesky is DeployerHelper {
             abi.encodeWithSelector(xPufETH.setLimits.selector, bridge, type(uint104).max, type(uint104).max);
 
         AccessManager(_getAccessManager()).execute(address(xPufETHProxy), setLimitsCalldata);
+
+        return (address(xPufETHProxy), address(xERC20Lockbox));
     }
 
-    function _deployL2RewardManager(address bridge) internal {
+    function _deployL2RewardManager(address bridge, address xPufETHProxy) internal {
         L2RewardManager newImplementation = new L2RewardManager(address(xPufETHProxy), address(l1RewardManagerProxy));
 
         console.log("L2RewardManager Implementation", address(newImplementation));
@@ -140,7 +142,7 @@ contract DeployFWRHolesky is DeployerHelper {
         console.logBytes(l2AccessManagerCalldata);
     }
 
-    function _deployAndUpgradeL1RewardManager(address bridge) internal {
+    function _deployAndUpgradeL1RewardManager(address bridge, address xPufETHProxy, address xERC20Lockbox) internal {
         L1RewardManager l1ReeardManagerImpl = new L1RewardManager({
             XpufETH: address(xPufETHProxy),
             pufETH: _getPufferVault(),
