@@ -39,13 +39,24 @@ contract DeployFWRHolesky is DeployerHelper {
     address l2RewardManagerProxy;
 
     function run() public {
-        GenerateAccessManagerCalldata3 generator = new GenerateAccessManagerCalldata3();
-
-        // Holesky only
         vm.createSelectFork(vm.rpcUrl("holesky"));
-
         vm.startBroadcast();
 
+        address bridge = _deployBridgeMock();
+        _deployAndUpgradePufferVault();
+        _deployL1RewardManagerProxy(bridge);
+        _deployAndConfigureXPufETH(bridge);
+        _deployL2RewardManager(bridge);
+        _deployAndUpgradeL1RewardManager(bridge);
+
+        vm.stopBroadcast();
+    }
+
+    function _deployBridgeMock() internal returns (address) {
+        return address(new BridgeMock(_getAccessManager()));
+    }
+
+    function _deployAndUpgradePufferVault() internal {
         PufferVaultV3 protocolImplementation = new PufferVaultV3(
             IStETH(_getStETH()),
             IWETH(_getWETH()),
@@ -57,18 +68,14 @@ contract DeployFWRHolesky is DeployerHelper {
         );
 
         UUPSUpgradeable(_getPufferVault()).upgradeToAndCall(address(protocolImplementation), "");
+    }
 
-        address bridge = address(new BridgeMock(_getAccessManager()));
-
+    function _deployL1RewardManagerProxy(address bridge) internal {
         address noImpl = address(new NoImplementation());
-
-        // Deploy empty proxy
         l1RewardManagerProxy = address(new ERC1967Proxy(noImpl, ""));
-
         vm.label(address(l1RewardManagerProxy), "l1RewardManagerProxy");
 
-        // Generate L1 calldata
-        bytes memory l1AccessManagerCalldata = generator.generateL1Calldata({
+        bytes memory l1AccessManagerCalldata = new GenerateAccessManagerCalldata3().generateL1Calldata({
             l1RewardManagerProxy: l1RewardManagerProxy,
             l1Bridge: bridge,
             pufferVaultProxy: _getPufferVault(),
@@ -80,7 +87,9 @@ contract DeployFWRHolesky is DeployerHelper {
 
         console.log("L1 Access Manager Calldata");
         console.logBytes(l1AccessManagerCalldata);
+    }
 
+    function _deployAndConfigureXPufETH(address bridge) internal {
         xPufETH xPufETHProxy = xPufETH(
             address(
                 new ERC1967Proxy{ salt: bytes32("xPufETH") }(
@@ -89,7 +98,6 @@ contract DeployFWRHolesky is DeployerHelper {
             )
         );
 
-        // Lockbox stuff
         XERC20Lockbox xERC20Lockbox = new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: _getPufferVault() });
 
         bytes4[] memory publicSelectors = new bytes4[](2);
@@ -100,12 +108,14 @@ contract DeployFWRHolesky is DeployerHelper {
 
         xPufETHProxy.setLockbox(address(xERC20Lockbox));
 
-        L2RewardManager newImplementation = new L2RewardManager(address(xPufETHProxy), address(l1RewardManagerProxy));
-
         bytes memory setLimitsCalldata =
             abi.encodeWithSelector(xPufETH.setLimits.selector, bridge, type(uint104).max, type(uint104).max);
 
         AccessManager(_getAccessManager()).execute(address(xPufETHProxy), setLimitsCalldata);
+    }
+
+    function _deployL2RewardManager(address bridge) internal {
+        L2RewardManager newImplementation = new L2RewardManager(address(xPufETHProxy), address(l1RewardManagerProxy));
 
         console.log("L2RewardManager Implementation", address(newImplementation));
 
@@ -121,15 +131,16 @@ contract DeployFWRHolesky is DeployerHelper {
         vm.label(address(newImplementation), "L2RewardManagerImplementation");
 
         bytes memory l2AccessManagerCalldata =
-            generator.generateL2Calldata({ l2RewardManagerProxy: l2RewardManagerProxy, l2Bridge: bridge });
+            new GenerateAccessManagerCalldata3().generateL2Calldata({ l2RewardManagerProxy: l2RewardManagerProxy, l2Bridge: bridge });
 
-        (s,) = address(_getAccessManager()).call(l2AccessManagerCalldata);
+        (bool s,) = address(_getAccessManager()).call(l2AccessManagerCalldata);
         require(s, "failed access manager 1");
 
         console.log("L2 Access Manager Calldata");
         console.logBytes(l2AccessManagerCalldata);
+    }
 
-        // L1RewardManager
+    function _deployAndUpgradeL1RewardManager(address bridge) internal {
         L1RewardManager l1ReeardManagerImpl = new L1RewardManager({
             XpufETH: address(xPufETHProxy),
             pufETH: _getPufferVault(),
@@ -139,7 +150,6 @@ contract DeployFWRHolesky is DeployerHelper {
 
         vm.label(address(l1ReeardManagerImpl), "l1ReeardManagerImpl");
 
-        // The deployer can execute the upgrade right away because of NoImplementation contract
         UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(
             address(l1ReeardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (_getAccessManager()))
         );
@@ -148,12 +158,10 @@ contract DeployFWRHolesky is DeployerHelper {
             bridge, l1RewardManagerProxy, l2RewardManagerProxy
         );
 
-        (s,) = address(_getAccessManager()).call(bridgeAccess);
+        (bool s,) = address(_getAccessManager()).call(bridgeAccess);
         require(s, "failed access manager 2");
 
         _executeMintAndBridge(bridge, L1RewardManager(l1RewardManagerProxy));
-
-        vm.stopBroadcast();
     }
 
     function _executeMintAndBridge(address bridge, L1RewardManager l1RewardManager) internal {
