@@ -256,9 +256,9 @@ contract L2RewardManager is
         $.currentRewardsInterval = intervalId;
 
         $.epochRecords[intervalId] = EpochRecord({
-            ethToPufETHRate: uint64(params.ethToPufETHRate),
-            startEpoch: uint72(params.startEpoch),
-            endEpoch: uint72(params.endEpoch),
+            ethToPufETHRate: params.ethToPufETHRate,
+            startEpoch: uint104(params.startEpoch),
+            endEpoch: uint104(params.endEpoch),
             timeBridged: uint48(block.timestamp),
             rewardRoot: params.rewardsRoot,
             pufETHAmount: uint128(amount),
