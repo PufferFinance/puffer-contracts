@@ -934,6 +934,22 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.revertInterval(address(0), startEpoch, endEpoch);
     }
 
+    function testRevert_invalidClaimingInterval() public {
+        IL2RewardManager.ClaimOrder[] memory claimOrders = new IL2RewardManager.ClaimOrder[](1);
+        claimOrders[0] = IL2RewardManager.ClaimOrder({
+            intervalId: bytes32("invalidInterval"),
+            account: alice,
+            isL1Contract: false,
+            amount: 0,
+            merkleProof: new bytes32[](1)
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IL2RewardManager.InvalidClaimingInterval.selector, bytes32("invalidInterval"))
+        );
+        l2RewardManager.claimRewards(claimOrders);
+    }
+
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
