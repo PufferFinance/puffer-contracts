@@ -357,6 +357,15 @@ contract L2RewardManager is
 
         EpochRecord memory epochRecord = $.epochRecords[intervalId];
 
+        // We only want to revert the frozen intervals, if the interval is not frozen, we revert
+        if (epochRecord.timeBridged != 0 && epochRecord.rewardRoot != bytes32(0)) {
+            revert UnableToRevertInterval();
+        }
+
+        if (epochRecord.rewardRoot == bytes32(0)) {
+            revert UnableToRevertInterval();
+        }
+
         XPUFETH.approve(bridge, epochRecord.pufETHAmount);
 
         IBridgeInterface(bridge).xcall{ value: msg.value }({

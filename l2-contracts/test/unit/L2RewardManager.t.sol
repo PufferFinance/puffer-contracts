@@ -934,6 +934,22 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.revertInterval(address(0), startEpoch, endEpoch);
     }
 
+    function testRevert_intervalThatIsNotFrozen() public {
+        test_updateBridgeData();
+
+        test_MintAndBridgeRewardsSuccess();
+
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
+        l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
+    }
+
+    function testRevert_zeroHashInterval() public {
+        test_updateBridgeData();
+
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
+        l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
+    }
+
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
