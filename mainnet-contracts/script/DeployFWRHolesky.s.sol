@@ -17,6 +17,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { PUBLIC_ROLE } from "./Roles.sol";
 import { IL1RewardManager } from "src/interface/IL1RewardManager.sol";
 import { L1RewardManagerStorage } from "src/L1RewardManagerStorage.sol";
+import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 import { PufferVaultV3 } from "src/PufferVaultV3.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
@@ -89,7 +90,7 @@ contract DeployFWRHolesky is DeployerHelper {
         console.logBytes(l1AccessManagerCalldata);
     }
 
-    function _deployAndConfigureXPufETH(address bridge) internal returns(address, address) {
+    function _deployAndConfigureXPufETH(address bridge) internal returns (address, address) {
         xPufETH xPufETHProxy = xPufETH(
             address(
                 new ERC1967Proxy{ salt: bytes32("xPufETH") }(
@@ -132,8 +133,10 @@ contract DeployFWRHolesky is DeployerHelper {
         vm.label(address(l2RewardManagerProxy), "L2RewardManagerProxy");
         vm.label(address(newImplementation), "L2RewardManagerImplementation");
 
-        bytes memory l2AccessManagerCalldata =
-            new GenerateAccessManagerCalldata3().generateL2Calldata({ l2RewardManagerProxy: l2RewardManagerProxy, l2Bridge: bridge });
+        bytes memory l2AccessManagerCalldata = new GenerateAccessManagerCalldata3().generateL2Calldata({
+            l2RewardManagerProxy: l2RewardManagerProxy,
+            l2Bridge: bridge
+        });
 
         (bool s,) = address(_getAccessManager()).call(l2AccessManagerCalldata);
         require(s, "failed access manager 1");
@@ -164,6 +167,17 @@ contract DeployFWRHolesky is DeployerHelper {
         require(s, "failed access manager 2");
 
         _executeMintAndBridge(bridge, L1RewardManager(l1RewardManagerProxy));
+
+        _executeFreezeAndRevert(bridge, L2RewardManager(l2RewardManagerProxy));
+    }
+
+    function _executeFreezeAndRevert(address bridge, L2RewardManager l2RewardManager) internal {
+        L2RewardManagerStorage.BridgeData memory bridgeData =
+            L2RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
+
+        l2RewardManager.updateBridgeData(bridge, bridgeData);
+
+        l2RewardManager.freezeAndRevertInterval(bridge, 1, 10);
     }
 
     function _executeMintAndBridge(address bridge, L1RewardManager l1RewardManager) internal {
@@ -179,7 +193,7 @@ contract DeployFWRHolesky is DeployerHelper {
             rewardsAmount: 1 ether,
             startEpoch: 1,
             endEpoch: 10,
-            rewardsRoot: bytes32(0),
+            rewardsRoot: bytes32("1"),
             rewardsURI: "uri"
         });
 

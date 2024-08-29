@@ -45,7 +45,7 @@ contract L2RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _setClaimingDelay(12 hours);
+        _setClaimingDelay(10 minutes);
     }
 
     /**
@@ -289,9 +289,9 @@ contract L2RewardManager is
     }
 
     function _setClaimingDelay(uint256 newDelay) internal {
-        if (newDelay < 6 hours) {
-            revert InvalidDelayPeriod();
-        }
+        // if (newDelay < 6 hours) {
+        //     revert InvalidDelayPeriod();
+        // }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
