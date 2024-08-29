@@ -141,7 +141,58 @@ contract L1RewardManagerTest is UnitTestHelper {
 
         pufferModuleManager.transferRewardsToTheVault(modules, amounts);
 
-        assertEq(pufferVault.getTotalRewardMintAmount(), 0, "rewards amount should be 0");
+        uint256 amount = pufferVault.getTotalRewardMintAmount() - pufferVault.getTotalRewardDepositAmount();
+
+        assertEq(amount, 0, "total rewards amount should be 0");
+    }
+
+    // If there is a race condition, where the rewards are deposited to the vault before they are reverted
+    // The old coude would panic, this test ensures that the code does not panic
+    function test_undoMintAndBridgeRewardsRaceCondition() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // Get the initial state
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
+        uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
+
+        // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
+        test_MintAndBridgeRewardsSuccess();
+
+        // Simulate a race condition, where the rewards are deposited to the vault before they are reverted
+        address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
+        // airdrop the rewards amount to the module
+        vm.deal(module, rewardsAmount);
+        address[] memory modules = new address[](1);
+        modules[0] = module;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = rewardsAmount;
+        pufferModuleManager.transferRewardsToTheVault(modules, amounts);
+
+        // Now try tor evert the mintAndBridgeRewards, it panics
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(startEpoch),
+            endEpoch: uint72(endEpoch),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 100 ether,
+            ethAmount: 100 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
+
+        bytes memory encodedCallData = abi.encode(epochRecord);
+
+        // airdrop rewardsAmount to burner
+        deal(address(xpufETH), address(l1RewardManager), 100 ether);
+
+        vm.startPrank(address(connext));
+
+        // Simulate a call from the connext bridge
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 0, encodedCallData);
+
+        assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
+        assertEq(
+            pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
+        );
+        assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
     }
 
     function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
