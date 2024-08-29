@@ -11,7 +11,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 abstract contract DeployerHelper is Script {
     // Chain IDs
     uint256 public mainnet = 1;
-    uint256 public holesky = 1700;
+    uint256 public holesky = 17000;
     uint256 public binance = 56;
     uint256 public base = 8453;
     uint256 public sepolia = 11155111;
@@ -21,6 +21,76 @@ abstract contract DeployerHelper is Script {
         (, address msgSender,) = vm.readCallers();
         console.log("Deployer:", block.chainid, msgSender);
         return msgSender;
+    }
+
+    function _getStETH() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+        } else if (block.chainid == holesky) {
+            return 0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034;
+        }
+
+        revert("stETH not available for this chain");
+    }
+
+    function _getEigenLayerNativeETHStrategy() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x93c4b944D05dfe6df7645A86cd2206016c51564D;
+        } else if (block.chainid == holesky) {
+            return 0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3;
+        }
+
+        revert("beacon strategy not available for this chain");
+    }
+
+    function _getEigenLayerStrategyManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x858646372CC42E1A627fcE94aa7A7033e7CF075A;
+        } else if (block.chainid == holesky) {
+            return 0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6;
+        }
+
+        revert("strategy manager not available for this chain");
+    }
+
+    function _getPufferOracle() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x0BE2aE0edbeBb517541DF217EF0074FC9a9e994f;
+        } else if (block.chainid == holesky) {
+            return 0x8e043ed3F06720615685D4978770Cd5C8fe90fe3;
+        }
+
+        revert("puffer oracle not available for this chain");
+    }
+
+    function _getEigenDelegationManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
+        } else if (block.chainid == holesky) {
+            return 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+        }
+
+        revert("eigen delegation manager not available for this chain");
+    }
+
+    function _getWETH() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        } else if (block.chainid == holesky) {
+            return 0x1d181cBd1825e9eBC6AD966878D555A7215FF4F0;
+        }
+
+        revert("WETH not available for this chain");
+    }
+
+    function _getLidoWithdrawalQueue() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
+        } else if (block.chainid == holesky) {
+            return 0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50;
+        }
+
+        revert("lido withdrawal queue not available for this chain");
     }
 
     function _getAccessManager() internal view returns (address) {

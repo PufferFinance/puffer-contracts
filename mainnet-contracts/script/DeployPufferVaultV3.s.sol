@@ -104,7 +104,7 @@ contract DeployPufferVaultV3 is BaseScript {
             address(pufferVaultImplementation), abi.encodeCall(xPufETH.initialize, (address(accessManager)))
         );
 
-        bridge = new BridgeMock();
+        bridge = new BridgeMock(address(accessManager));
 
         xPufETH xpufETHImplementation = new xPufETH();
 
