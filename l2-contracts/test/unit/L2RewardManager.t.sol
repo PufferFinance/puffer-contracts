@@ -953,6 +953,13 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.revertInterval(address(0), startEpoch, endEpoch);
     }
 
+    function testRevert_callFromInvalidBridgeOrigin() public {
+        vm.startPrank(address(mockBridge));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l2RewardManager.xReceive(bytes32(0), 0, address(0), address(l1RewardManager), 4123123, "");
+    }
+
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
