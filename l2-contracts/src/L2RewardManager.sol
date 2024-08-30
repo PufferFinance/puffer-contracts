@@ -110,13 +110,21 @@ contract L2RewardManager is
      * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
      * @dev Restricted access to `ROLE_ID_BRIDGE`
      */
-    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
-        external
-        override(IXReceiver)
-        restricted
-        returns (bytes memory)
-    {
+    function xReceive(
+        bytes32,
+        uint256 amount,
+        address,
+        address originSender,
+        uint32 originDomainId,
+        bytes memory callData
+    ) external override(IXReceiver) restricted returns (bytes memory) {
         if (originSender != address(L1_REWARD_MANAGER)) {
+            revert Unauthorized();
+        }
+
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
             revert Unauthorized();
         }
 
