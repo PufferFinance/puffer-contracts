@@ -24,12 +24,12 @@ abstract contract L2RewardManagerStorage {
      *      +-----------------------------------------------------------+
      */
     struct EpochRecord {
-        uint72 startEpoch; // packed slot 0
-        uint72 endEpoch; // packed slot 0
+        uint104 startEpoch; // packed slot 0
+        uint104 endEpoch; // packed slot 0
         uint48 timeBridged; // packed slot 0
-        uint64 ethToPufETHRate; // packed slot 0
         uint128 pufETHAmount; // packed slot 1
         uint128 ethAmount; // packed slot 1
+        uint256 ethToPufETHRate; // slot 2
         bytes32 rewardRoot;
     }
 
