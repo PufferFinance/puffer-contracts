@@ -159,9 +159,14 @@ interface IL2RewardManager {
     error RelockingIntervalIsNotAllowed();
 
     /**
-     * @notice Thrown if the rewards interval cannot be reverted
+     * @notice Thrown if the rewards interval cannot be frozen
      */
     error UnableToFreezeInterval();
+
+    /**
+     * @notice Thrown if the rewards interval cannot be reverted
+     */
+    error UnableToRevertInterval();
 
     /**
      * @notice Error indicating the bridge is not allowlisted.
