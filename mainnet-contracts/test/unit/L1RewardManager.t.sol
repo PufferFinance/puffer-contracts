@@ -330,4 +330,11 @@ contract L1RewardManagerTest is UnitTestHelper {
         vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
         l1RewardManager.setL2RewardClaimer(address(0x1111), address(0x123));
     }
+
+    function testRevert_callFromInvalidBridgeOrigin() public {
+        vm.startPrank(address(connext));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 4123123, "");
+    }
 }
