@@ -42,11 +42,14 @@ interface IPufferWithdrawalManager {
 
     /**
      * @notice Emitted when a withdrawal is requested
+     * @param withdrawalIdx The index of the requested withdrawal
      * @param batchIndex The index of the batch the withdrawal is added to
      * @param pufETHAmount The amount of pufETH requested for withdrawal
      * @param recipient The address that will receive the withdrawn ETH
      */
-    event WithdrawalRequested(uint256 indexed batchIndex, uint256 pufETHAmount, address indexed recipient);
+    event WithdrawalRequested(
+        uint256 indexed withdrawalIdx, uint256 indexed batchIndex, uint256 pufETHAmount, address indexed recipient
+    );
 
     /**
      * @notice Emitted when a withdrawal batch is finalized

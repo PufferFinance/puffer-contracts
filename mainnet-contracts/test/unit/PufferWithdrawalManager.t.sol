@@ -173,7 +173,6 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         uint256 numBatches = 3;
         uint256 depositAmount = 10 ether;
 
-
         for (uint256 i = 0; i < batchSize * numBatches; i++) {
             address actor = actors[i % actors.length];
             _givePufETH(depositAmount, actor);
@@ -188,12 +187,12 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         // Test that withdrawals in finalized batches can be completed
         for (uint256 i = 0; i < batchSize * numBatches; i++) {
             vm.prank(actors[i % actors.length]);
-            withdrawalManager.completeQueuedWithdrawal(i+batchSize);
+            withdrawalManager.completeQueuedWithdrawal(i + batchSize);
         }
 
         // Test that the next batch cannot be completed
         vm.expectRevert(IPufferWithdrawalManager.NotFinalized.selector);
-        withdrawalManager.completeQueuedWithdrawal(batchSize * (numBatches+1));
+        withdrawalManager.completeQueuedWithdrawal(batchSize * (numBatches + 1));
     }
 
     /**
@@ -244,7 +243,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         // Now the withdrawal should complete successfully
         uint256 expectedPayoutAmount = depositAmount; // Since the exchange rate is 1:1
         uint256 balanceBefore = actors[1].balance;
-        
+
         // Complete the withdrawal for index 1
         withdrawalManager.completeQueuedWithdrawal(11);
         uint256 balanceAfter = actors[1].balance;
@@ -294,8 +293,8 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.expectEmit(true, true, true, true);
 
             // since the next batch starts from 10, we need to add 10 to the index
-            emit IPufferWithdrawalManager.WithdrawalCompleted(i+10, depositAmount, 1 ether, actor);
-            withdrawalManager.completeQueuedWithdrawal(i+10);
+            emit IPufferWithdrawalManager.WithdrawalCompleted(i + 10, depositAmount, 1 ether, actor);
+            withdrawalManager.completeQueuedWithdrawal(i + 10);
 
             // the users did not get any yield from the VT sale, they got paid out using the original 1:1 exchange rate
             assertEq(actor.balance, depositAmount, "actor got paid in ETH");
@@ -334,7 +333,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             address actor = actors[i % actors.length];
 
             vm.startPrank(actor);
-            withdrawalManager.completeQueuedWithdrawal(i+batchSize);
+            withdrawalManager.completeQueuedWithdrawal(i + batchSize);
 
             // the users will get less than 1 ETH because of the slashing
             assertEq(actor.balance, 0.891089108910891089 ether, "actor got paid in ETH");

@@ -41,7 +41,7 @@ contract PufferWithdrawalManager is
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
 
-           // Make the first batch empty, because the validations are weird for 0
+        // Make the first batch empty, because the validations are weird for 0
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
         for (uint256 i = 0; i < (BATCH_SIZE); ++i) {
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) })); // Reserve the first index
@@ -53,7 +53,7 @@ contract PufferWithdrawalManager is
      * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function requestWithdrawals(uint128 pufETHAmount, address recipient) external  {
+    function requestWithdrawals(uint128 pufETHAmount, address recipient) external {
         if (pufETHAmount < MIN_WITHDRAWAL_AMOUNT) {
             revert WithdrawalAmountTooLow();
         }
@@ -74,6 +74,8 @@ contract PufferWithdrawalManager is
         batch.toBurn += uint96(pufETHAmount);
         batch.toTransfer += uint96(expectedETHAmount);
 
+        uint256 withdrawalIndex = $.withdrawals.length;
+
         // Update the withdrawal
         $.withdrawals.push(
             Withdrawal({
@@ -83,7 +85,7 @@ contract PufferWithdrawalManager is
             })
         );
 
-        emit WithdrawalRequested(batchIndex, pufETHAmount, recipient);
+        emit WithdrawalRequested(withdrawalIndex, batchIndex, pufETHAmount, recipient);
     }
 
     /**
@@ -93,7 +95,7 @@ contract PufferWithdrawalManager is
      */
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
-        
+
         if (withdrawalBatchIndex * BATCH_SIZE >= $.withdrawals.length && $.withdrawals.length % BATCH_SIZE != 0) {
             revert BatchNotFull();
         }
@@ -102,9 +104,7 @@ contract PufferWithdrawalManager is
             revert BatchAlreadyFinalized();
         }
 
-
         for (uint256 i = $.finalizedWithdrawalBatch; i <= withdrawalBatchIndex;) {
-
             //@audit how can this be manipulated?
             uint256 batchFinalizationExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
 
@@ -146,7 +146,7 @@ contract PufferWithdrawalManager is
         }
 
         Withdrawal storage withdrawal = $.withdrawals[withdrawalIdx];
-        
+
         // Check if the withdrawal has already been completed
         if (withdrawal.recipient == address(0)) {
             revert WithdrawalAlreadyCompleted();
