@@ -961,7 +961,7 @@ contract L2RewardManagerTest is Test {
     }
 
     function testRevert_intervalThatIsNotFrozen() public {
-        test_updateBridgeData();
+        test_updateBridgeDataL2();
 
         test_MintAndBridgeRewardsSuccess();
 
@@ -970,7 +970,7 @@ contract L2RewardManagerTest is Test {
     }
 
     function testRevert_zeroHashInterval() public {
-        test_updateBridgeData();
+        test_updateBridgeDataL2();
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
         l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
