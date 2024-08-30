@@ -9,6 +9,8 @@ import { PufferWithdrawalManagerStorage } from "./PufferWithdrawalManagerStorage
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title PufferWithdrawalManager
@@ -54,6 +56,30 @@ contract PufferWithdrawalManager is
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function requestWithdrawals(uint128 pufETHAmount, address recipient) external {
+        PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
+        _processWithdrawalRequest(pufETHAmount, recipient);
+    }
+
+    /**
+     * @notice Request withdrawals using permit
+     * @param permitData The permit data for the withdrawal
+     * @param recipient The address to receive the withdrawn ETH
+     */
+    function requestWithdrawalsWithPermit(Permit calldata permitData, address recipient) external {
+        IERC20Permit(address(PUFFER_VAULT)).permit(
+            msg.sender, address(this), permitData.amount, permitData.deadline, permitData.v, permitData.r, permitData.s
+        );
+
+        PUFFER_VAULT.transferFrom(msg.sender, address(this), permitData.amount);
+        _processWithdrawalRequest(uint128(permitData.amount), recipient);
+    }
+
+    /**
+     * @dev Internal function to process withdrawal requests
+     * @param pufETHAmount The amount of pufETH to withdraw
+     * @param recipient The address to receive the withdrawn ETH
+     */
+    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal {
         if (pufETHAmount < MIN_WITHDRAWAL_AMOUNT) {
             revert WithdrawalAmountTooLow();
         }
@@ -64,8 +90,6 @@ contract PufferWithdrawalManager is
             // Push empty batch when the batch is full
             $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
         }
-
-        PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
 
         uint256 exchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
         uint256 expectedETHAmount = pufETHAmount * exchangeRate / 1 ether;
@@ -96,7 +120,7 @@ contract PufferWithdrawalManager is
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
-        if (withdrawalBatchIndex * BATCH_SIZE >= $.withdrawals.length && $.withdrawals.length % BATCH_SIZE != 0) {
+        if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
             revert BatchNotFull();
         }
 

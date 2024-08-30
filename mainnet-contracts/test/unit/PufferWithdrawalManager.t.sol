@@ -9,6 +9,8 @@ import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, PUBLIC_ROLE } from "../../s
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 // import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { Permit } from "../../src/structs/Permit.sol";
 
 /**
  * @title PufferWithdrawalManagerTest
@@ -349,6 +351,85 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         pufferVault.approve(address(withdrawalManager), 1 ether);
         withdrawalManager.requestWithdrawals(uint128(1 ether), address(this));
+    }
+
+    function test_requestWithdrawalsWithPermit() public {
+        uint256 privateKey = 0xA11CE;
+        address user = vm.addr(privateKey);
+
+        _givePufETH(1 ether, user);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
+
+        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
+
+        vm.prank(user);
+        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
+
+        // Verify that the withdrawal was requested
+        // You may need to add a getter function in the contract to check this
+        // or use events to verify the withdrawal request
+    }
+
+    function test_requestWithdrawalsWithPermit_ExpiredDeadline() public {
+        uint256 privateKey = 0xA11CE;
+        address user = vm.addr(privateKey);
+
+        _givePufETH(1 ether, user);
+
+        uint256 deadline = block.timestamp + 1 hours; // Valid deadline (1 hour in the future)
+        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
+
+        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
+
+        vm.warp(deadline + 1); // Move time forward to just after the deadline
+
+        vm.prank(user);
+        vm.expectRevert();
+        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
+    }
+
+    function test_requestWithdrawalsWithPermit_InvalidSignature() public {
+        uint256 privateKey = 0xA11CE;
+        address user = vm.addr(privateKey);
+
+        _givePufETH(1 ether, user);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey + 1, permitHash); // Wrong private key
+
+        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
+
+        vm.prank(user);
+        vm.expectRevert();
+        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
+    }
+
+    function _getPermitHash(address owner, address spender, uint256 value, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                IERC20Permit(address(pufferVault)).DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        owner,
+                        spender,
+                        value,
+                        nonce,
+                        deadline
+                    )
+                )
+            )
+        );
     }
 
     function _givePufETH(uint256 amount, address recipient) internal {
