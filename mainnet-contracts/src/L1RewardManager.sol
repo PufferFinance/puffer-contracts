@@ -53,6 +53,7 @@ contract L1RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+        _setAllowedRewardMintFrequency(10 hours);
     }
 
     /**
@@ -233,14 +234,7 @@ contract L1RewardManager is
      * @dev Restricted access to `ROLE_ID_DAO`
      */
     function setAllowedRewardMintFrequency(uint104 newFrequency) external restricted {
-        if (newFrequency < 6 hours) {
-            revert InvalidMintFrequency();
-        }
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
-
-        $.allowedRewardMintFrequency = newFrequency;
+        _setAllowedRewardMintFrequency(newFrequency);
     }
 
     /**
@@ -252,6 +246,17 @@ contract L1RewardManager is
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         return $.bridges[bridge];
+    }
+
+    function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {
+        if (newFrequency < 10 hours) {
+            revert InvalidMintFrequency();
+        }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
+
+        $.allowedRewardMintFrequency = newFrequency;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
