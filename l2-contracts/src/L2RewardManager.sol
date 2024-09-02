@@ -68,6 +68,10 @@ contract L2RewardManager is
 
             EpochRecord storage epochRecord = $.epochRecords[claimOrders[i].intervalId];
 
+            if (epochRecord.rewardRoot == bytes32(0)) {
+                revert InvalidClaimingInterval(claimOrders[i].intervalId);
+            }
+
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
                 revert ClaimingLocked({
                     intervalId: claimOrders[i].intervalId,
