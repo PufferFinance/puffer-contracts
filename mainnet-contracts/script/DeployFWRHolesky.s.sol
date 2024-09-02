@@ -166,27 +166,33 @@ contract DeployFWRHolesky is DeployerHelper {
         (bool s,) = address(_getAccessManager()).call(bridgeAccess);
         require(s, "failed access manager 2");
 
+        _updateBridgeData(bridge, L1RewardManager(l1RewardManagerProxy), L2RewardManager(l2RewardManagerProxy));
+
         _executeMintAndBridge(bridge, L1RewardManager(l1RewardManagerProxy));
 
         _executeFreezeAndRevert(bridge, L2RewardManager(l2RewardManagerProxy));
     }
 
     function _executeFreezeAndRevert(address bridge, L2RewardManager l2RewardManager) internal {
+        l2RewardManager.freezeAndRevertInterval(bridge, 1, 10);
+    }
+
+    function _updateBridgeData(address bridge, L1RewardManager l1RewardManager, L2RewardManager l2RewardManager)
+        internal
+    {
         L2RewardManagerStorage.BridgeData memory bridgeData =
             L2RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
 
         l2RewardManager.updateBridgeData(bridge, bridgeData);
 
-        l2RewardManager.freezeAndRevertInterval(bridge, 1, 10);
+        L1RewardManagerStorage.BridgeData memory bridgeDataL1 =
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 2 });
+
+        l1RewardManager.updateBridgeData(bridge, bridgeDataL1);
     }
 
     function _executeMintAndBridge(address bridge, L1RewardManager l1RewardManager) internal {
         l1RewardManager.setAllowedRewardMintAmount(type(uint104).max);
-
-        L1RewardManagerStorage.BridgeData memory bridgeData =
-            L1RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
-
-        l1RewardManager.updateBridgeData(bridge, bridgeData);
 
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
             bridge: bridge,
