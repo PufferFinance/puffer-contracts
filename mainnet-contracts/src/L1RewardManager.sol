@@ -71,7 +71,7 @@ contract L1RewardManager is
         IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARDS_MANAGER, // Address of the target contract on the destination chain
-            delegate: msg.sender, // Address that can revert or forceLocal on destination
+            delegate: claimer, // Address that can revert or forceLocal on destination
             asset: address(0), // Address of the token contract
             amount: 0, // We don't transfer any tokens
             slippage: 0, // No slippage
