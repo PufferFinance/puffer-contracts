@@ -159,9 +159,14 @@ interface IL2RewardManager {
     error RelockingIntervalIsNotAllowed();
 
     /**
-     * @notice Thrown if the rewards interval cannot be reverted
+     * @notice Thrown if the rewards interval cannot be frozen
      */
     error UnableToFreezeInterval();
+
+    /**
+     * @notice Thrown if the rewards interval cannot be reverted
+     */
+    error UnableToRevertInterval();
 
     /**
      * @notice Error indicating the bridge is not allowlisted.
@@ -173,4 +178,9 @@ interface IL2RewardManager {
      * @dev Smart contrats might have a hard time owning the same address on L2, because of that, they need to set the rewards recipient.
      */
     error ClaimerNotSet(address node);
+
+    /**
+     * @notice Thrown if the claiming interval is not valid
+     */
+    error InvalidClaimingInterval(bytes32 claimingInterval);
 }

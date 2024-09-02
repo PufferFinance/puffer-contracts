@@ -31,9 +31,12 @@ contract BridgeMock is AccessManaged {
         address asset,
         address delegate,
         uint256 amount,
-        uint256,
+        uint256, // slippage
         bytes calldata callData
     ) external payable restricted returns (bytes memory) {
+        // 1 == mainnet, 2 == l2
+        uint32 originId = destination == 1 ? 2 : 1;
+
         if (instantTransfer) {
             // In our case, we don't need to do any Minting or Burning of tokens
             // We just transfer the tokens from L1RewardManager to L2RewardManager
@@ -44,7 +47,7 @@ contract BridgeMock is AccessManaged {
                 amount,
                 asset,
                 msg.sender,
-                destination,
+                originId,
                 callData
             );
         } else {
