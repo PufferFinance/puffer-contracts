@@ -233,6 +233,9 @@ contract L1RewardManager is
      * @dev Restricted access to `ROLE_ID_DAO`
      */
     function setAllowedRewardMintFrequency(uint104 newFrequency) external restricted {
+        if (newFrequency < 6 hours) {
+            revert InvalidMintFrequency();
+        }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
