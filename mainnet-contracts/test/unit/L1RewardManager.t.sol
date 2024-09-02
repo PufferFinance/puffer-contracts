@@ -318,6 +318,13 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
     }
 
+    function testRevert_SetInvalidMintFrequency() public {
+        vm.startPrank(DAO);
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidMintFrequency.selector));
+        l1RewardManager.setAllowedRewardMintFrequency(1 hours);
+    }
+
     function test_setClaimer() public {
         address newClaimer = address(0x123);
 

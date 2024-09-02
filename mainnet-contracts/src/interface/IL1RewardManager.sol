@@ -67,6 +67,11 @@ interface IL1RewardManager {
     /**
      * @notice Error indicating a disallowed mint frequency.
      */
+    error InvalidMintFrequency();
+
+    /**
+     * @notice Error indicating a disallowed mint frequency.
+     */
     error NotAllowedMintFrequency();
 
     /**
