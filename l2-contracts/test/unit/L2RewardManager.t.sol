@@ -264,7 +264,10 @@ contract L2RewardManagerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidDelayPeriod.selector));
         l2RewardManager.setDelayPeriod(1 hours);
 
-        uint256 delayPeriod = 2 days;
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidDelayPeriod.selector));
+        l2RewardManager.setDelayPeriod(15 hours);
+
+        uint256 delayPeriod = 10 hours;
         l2RewardManager.setDelayPeriod(delayPeriod);
         assertEq(l2RewardManager.getClaimingDelay(), delayPeriod, "Claiming delay should be set correctly");
     }
@@ -935,17 +938,6 @@ contract L2RewardManagerTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
         l2RewardManager.xReceive(bytes32(0), 100 ether, address(xPufETHProxy), address(0), 0, abi.encode(0));
-    }
-
-    function testRevert_setDelayPeriodIfIntervalIsLocked() public {
-        // Do the mintAndBridge tx
-        test_MintAndBridgeRewardsSuccess();
-
-        vm.warp(block.timestamp + 13 hours);
-
-        // Because the interval is locked, the delay period cannot be set
-        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.RelockingIntervalIsNotAllowed.selector));
-        l2RewardManager.setDelayPeriod(15 hours);
     }
 
     function testRevert_invalidBridgeRevertInterval() public {

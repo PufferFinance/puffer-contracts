@@ -265,8 +265,6 @@ contract L2RewardManager is
 
         bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
 
-        $.currentRewardsInterval = intervalId;
-
         $.epochRecords[intervalId] = EpochRecord({
             ethToPufETHRate: params.ethToPufETHRate,
             startEpoch: uint104(params.startEpoch),
@@ -308,14 +306,6 @@ contract L2RewardManager is
             revert InvalidDelayPeriod();
         }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
-        if (
-            !_isClaimingLocked($.currentRewardsInterval)
-                && ($.epochRecords[$.currentRewardsInterval].timeBridged + newDelay > block.timestamp)
-        ) {
-            revert RelockingIntervalIsNotAllowed();
-        }
 
         emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
         $.claimingDelay = newDelay;
