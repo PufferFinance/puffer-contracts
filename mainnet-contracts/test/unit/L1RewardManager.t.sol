@@ -17,6 +17,8 @@ import {
 } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { GenerateAccessManagerCalldata3 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
+import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 
 contract L1RewardManagerTest is UnitTestHelper {
     uint256 rewardsAmount;
@@ -343,5 +345,18 @@ contract L1RewardManagerTest is UnitTestHelper {
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
         l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 4123123, "");
+    }
+
+    function test_upgrade_plugin() public {
+        Options memory opts;
+
+        opts.constructorData = abi.encode(address(0), address(pufferVault), address(0), address(l2RewardManager));
+
+        address proxy = Upgrades.deployUUPSProxy(
+            "L1RewardManager.sol", abi.encodeCall(L1RewardManager.initialize, (address(accessManager))), opts
+        );
+
+        vm.startPrank(address(timelock));
+        Upgrades.upgradeProxy(proxy, "L1RewardManagerUnsafe.sol:L1RewardManagerUnsafe", "", opts);
     }
 }

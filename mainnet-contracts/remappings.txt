@@ -15,3 +15,5 @@ rave-test/=node_modules/rave/test/
 murky/=node_modules/murky/src/
 l2-contracts/=node_modules/l2-contracts/
 mainnet-contracts/=node_modules/mainnet-contracts/
+openzeppelin-foundry-upgrades/=node_modules/openzeppelin-foundry-upgrades/src/
+solidity-stringutils/=node_modules/solidity-stringutils

@@ -10,16 +10,86 @@ import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
 import { IBridgeInterface } from "./interface/Connext/IBridgeInterface.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
+
+/**
+ * @title L1RewardManagerStorage
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
+abstract contract L1RewardManagerStorage {
+    /**
+     * @notice Parameters for setting a claimer.
+     * @param account The account setting the claimer.
+     * @param claimer The address of the new claimer.
+     */
+    struct SetClaimerParams {
+        address account;
+        address claimer;
+    }
+
+    /**
+     * @notice Parameters for minting and bridging rewards (calldata).
+     * @param rewardsAmount The amount of rewards to be bridged.
+     * @param ethToPufETHRate The exchange rate from ETH to pufETH.
+     * @param startEpoch The starting epoch for the rewards.
+     * @param endEpoch The ending epoch for the rewards.
+     * @param rewardsRoot The merkle root of the rewards.
+     * @param rewardsURI The URI for the rewards metadata.
+     */
+    struct MintAndBridgeData {
+        string rewardsURI;
+        uint256 rewardsAmount;
+        uint256 ethToPufETHRate;
+        uint256 startEpoch;
+        uint256 endEpoch;
+        bytes32 rewardsRoot;
+    }
+
+    /**
+     * @notice Data required for bridging.
+     * @param destinationDomainId The destination domain ID.
+     */
+    struct BridgeData {
+        // using struct to allow future addition to this
+        uint32 destinationDomainId;
+    }
+
+    /**
+     * @custom:storage-location erc7201:l1rewardmanager.storage
+     * @dev +-----------------------------------------------------------+
+     *      |                                                           |
+     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+     *      |                                                           |
+     *      +-----------------------------------------------------------+
+     */
+    struct RewardManagerStorage {
+        uint104 allowedRewardMintAmount;
+        uint48 lastRewardMintTimestamp;
+        uint104 allowedRewardMintFrequency;
+        mapping(address bridge => BridgeData bridgeData) bridges;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _REWARD_MANAGER_STORAGE_LOCATION =
+        0xb18045c429f6c4e33b477568e1a40f795629ac8937518d2b48a302e4c0fbb700;
+
+    function _getRewardManagerStorage() internal pure returns (RewardManagerStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            $.slot := _REWARD_MANAGER_STORAGE_LOCATION
+        }
+    }
+}
 
 /**
  * @title L1RewardManager
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
+ * @custom:oz-upgrades-from src/L1RewardManager.sol:L1RewardManager
  */
-contract L1RewardManager is
+contract L1RewardManagerUnsafe is
     IXReceiver,
     IL1RewardManager,
     L1RewardManagerStorage,
@@ -219,7 +289,6 @@ contract L1RewardManager is
         }
 
         $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
-        emit BridgeDataUpdated(bridge, bridgeData);
     }
 
     /**
@@ -242,17 +311,6 @@ contract L1RewardManager is
      */
     function setAllowedRewardMintFrequency(uint104 newFrequency) external restricted {
         _setAllowedRewardMintFrequency(newFrequency);
-    }
-
-    /**
-     * @notice Returns the bridge data for a given bridge.
-     * @param bridge The address of the bridge.
-     * @return The bridge data.
-     */
-    function getBridge(address bridge) external view returns (BridgeData memory) {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        return $.bridges[bridge];
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {
