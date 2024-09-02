@@ -55,7 +55,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
         L1RewardManagerStorage.BridgeData memory bridgeData =
-            L1RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 2 });
         l1RewardManager.updateBridgeData(address(connext), bridgeData);
 
         vm.stopPrank();
@@ -186,7 +186,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         vm.startPrank(address(connext));
 
         // Simulate a call from the connext bridge
-        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 0, encodedCallData);
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
 
         assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
         assertEq(
@@ -233,7 +233,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         vm.startPrank(address(connext));
 
         // Simulate a call from the connext bridge
-        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 0, encodedCallData);
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
 
         assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
         assertEq(
@@ -318,6 +318,13 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
     }
 
+    function testRevert_SetInvalidMintFrequency() public {
+        vm.startPrank(DAO);
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidMintFrequency.selector));
+        l1RewardManager.setAllowedRewardMintFrequency(1 hours);
+    }
+
     function test_setClaimer() public {
         address newClaimer = address(0x123);
 
@@ -329,5 +336,12 @@ contract L1RewardManagerTest is UnitTestHelper {
     function testRevert_setClaimerInvalidBrige() public {
         vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
         l1RewardManager.setL2RewardClaimer(address(0x1111), address(0x123));
+    }
+
+    function testRevert_callFromInvalidBridgeOrigin() public {
+        vm.startPrank(address(connext));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 4123123, "");
     }
 }

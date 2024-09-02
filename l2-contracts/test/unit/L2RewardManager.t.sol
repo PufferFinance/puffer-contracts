@@ -79,6 +79,12 @@ contract L2RewardManagerTest is Test {
     address l1RewardManagerProxy;
     L2RewardManager public l2RewardManager;
 
+    modifier withBridgesEnabled() {
+        test_updateBridgeDataL1();
+        test_updateBridgeDataL2();
+        _;
+    }
+
     function setUp() public {
         accessManager = new AccessManager(address(this));
 
@@ -170,7 +176,7 @@ contract L2RewardManagerTest is Test {
         new L2RewardManager(address(xPufETHProxy), address(l1RewardManager));
     }
 
-    function test_updateBridgeData() public {
+    function test_updateBridgeDataL2() public {
         L2RewardManagerStorage.BridgeData memory bridgeData =
             L2RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
 
@@ -180,9 +186,19 @@ contract L2RewardManagerTest is Test {
         l2RewardManager.updateBridgeData(address(mockBridge), bridgeData);
     }
 
+    function test_updateBridgeDataL1() public {
+        L1RewardManagerStorage.BridgeData memory bridgeData =
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 2 });
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
+        l1RewardManager.updateBridgeData(address(0), bridgeData);
+
+        l1RewardManager.updateBridgeData(address(mockBridge), bridgeData);
+    }
+
     function test_freezeInvalidInterval() public {
         // Allowlist bridge
-        test_updateBridgeData();
+        test_updateBridgeDataL2();
 
         // Non existing interval
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
@@ -201,7 +217,8 @@ contract L2RewardManagerTest is Test {
 
     function test_freezeAndRevertInterval() public {
         // Allowlist bridge
-        test_updateBridgeData();
+        test_updateBridgeDataL1();
+        test_updateBridgeDataL2();
 
         test_MintAndBridgeRewardsSuccess();
 
@@ -234,7 +251,8 @@ contract L2RewardManagerTest is Test {
     }
 
     function test_revertInterval() public {
-        test_updateBridgeData();
+        test_updateBridgeDataL2();
+        test_updateBridgeDataL1();
         test_freezeInterval();
 
         // Airdrop rewards to the lockbox so that it doesn't revert
@@ -251,7 +269,7 @@ contract L2RewardManagerTest is Test {
         assertEq(l2RewardManager.getClaimingDelay(), delayPeriod, "Claiming delay should be set correctly");
     }
 
-    function test_handleSetClaimer(address claimer) public {
+    function test_handleSetClaimer(address claimer) public withBridgesEnabled {
         vm.assume(claimer != address(0));
 
         // Assume that Alice calls setClaimer on L1
@@ -374,7 +392,7 @@ contract L2RewardManagerTest is Test {
         assertEq(xPufETHProxy.balanceOf(alice), 0, "alice should end with 0 xpufETH");
     }
 
-    function test_MintAndBridgeRewardsSuccess() public {
+    function test_MintAndBridgeRewardsSuccess() public withBridgesEnabled {
         rewardsAmount = 100 ether;
         ethToPufETHRate = 1 ether;
         rewardsRoot = keccak256(abi.encodePacked("testRoot"));
@@ -421,7 +439,7 @@ contract L2RewardManagerTest is Test {
         assertEq(l2RewardManager.isClaimingLocked(intervalId), true, "claiming should be locked");
     }
 
-    function testRevert_MintAndBridgeRewardsInvalidAmount() public {
+    function testRevert_MintAndBridgeRewardsInvalidAmount() public withBridgesEnabled {
         rewardsAmount = 100 ether;
         ethToPufETHRate = 1 ether;
         rewardsRoot = keccak256(abi.encodePacked("testRoot"));
@@ -476,7 +494,7 @@ contract L2RewardManagerTest is Test {
         );
     }
 
-    function test_claimRewardsAllCases() public {
+    function test_claimRewardsAllCases() public withBridgesEnabled {
         // Build a merkle proof for that
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
         merkleProofDatas[0] = MerkleProofData({ account: alice, isL1Contract: false, amount: 0.01308 ether });
@@ -617,7 +635,7 @@ contract L2RewardManagerTest is Test {
         assertTrue(l2RewardManager.isClaimed(intervalId, charlie));
     }
 
-    function test_claimRewardsDifferentExchangeRate() public {
+    function test_claimRewardsDifferentExchangeRate() public withBridgesEnabled {
         // The ethToPufETHRate is changed to 0.9 ether, so alice's reward should be 0.01308 * 0.9 = 0.011772
         // bob's reward should be 0.013 * 0.9 = 0.0117
         // charlie's reward should be 1 * 0.9 = 0.9
@@ -828,7 +846,7 @@ contract L2RewardManagerTest is Test {
         uint256 ethToPufETH,
         uint256 aliceAmount,
         uint256 bobAmount
-    ) public {
+    ) public withBridgesEnabled {
         ethToPufETH = bound(ethToPufETH, 0.9 ether, 0.999 ether);
 
         // Randomize the rewards amount
@@ -869,7 +887,7 @@ contract L2RewardManagerTest is Test {
             ((rewardsAmount * ethToPufETH) / 1 ether),
             address(xPufETHProxy),
             address(l1RewardManager),
-            0,
+            1,
             encodedCallData
         );
 
@@ -887,6 +905,7 @@ contract L2RewardManagerTest is Test {
             amount: aliceAmount,
             merkleProof: merkleProofs[0]
         });
+        vm.stopPrank();
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.ClaimerNotSet.selector, alice));
         l2RewardManager.claimRewards(claimOrders);
@@ -948,6 +967,29 @@ contract L2RewardManagerTest is Test {
             abi.encodeWithSelector(IL2RewardManager.InvalidClaimingInterval.selector, bytes32("invalidInterval"))
         );
         l2RewardManager.claimRewards(claimOrders);
+    }
+
+    function testRevert_callFromInvalidBridgeOrigin() public {
+        vm.startPrank(address(mockBridge));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l2RewardManager.xReceive(bytes32(0), 0, address(0), address(l1RewardManager), 4123123, "");
+    }
+
+    function testRevert_intervalThatIsNotFrozen() public {
+        test_updateBridgeDataL2();
+
+        test_MintAndBridgeRewardsSuccess();
+
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
+        l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
+    }
+
+    function testRevert_zeroHashInterval() public {
+        test_updateBridgeDataL2();
+
+        vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
+        l2RewardManager.revertInterval(address(mockBridge), startEpoch, endEpoch);
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
