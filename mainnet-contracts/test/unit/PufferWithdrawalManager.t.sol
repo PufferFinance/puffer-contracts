@@ -3,12 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferWithdrawalManager } from "src/PufferWithdrawalManager.sol";
+import { PufferWithdrawalManagerStorage } from "src/PufferWithdrawalManagerStorage.sol";
 import { IPufferWithdrawalManager } from "src/interface/IPufferWithdrawalManager.sol";
 import { PufferVaultV2 } from "src/PufferVaultV2.sol";
 import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, PUBLIC_ROLE } from "../../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 
 /**
@@ -120,18 +120,17 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     function test_fuzz_requestWithdrawals(uint256 pufETHAmount) public {
         vm.assume(pufETHAmount >= 0.01 ether && pufETHAmount <= 1000 ether);
 
-        address actor = actors[0];
-        _givePufETH(pufETHAmount, actor);
+        _givePufETH(pufETHAmount, alice);
 
-        vm.startPrank(actor);
+        vm.startPrank(alice);
         pufferVault.approve(address(withdrawalManager), pufETHAmount);
-        withdrawalManager.requestWithdrawal(uint128(pufETHAmount), actor);
+        withdrawalManager.requestWithdrawal(uint128(pufETHAmount), alice);
         vm.stopPrank();
 
-        // TODO: Use appropriate getter function or method to access withdrawal information
-        // (uint128 amount,, address recipient) = withdrawalManager.withdrawals(0);
-        // assertEq(uint256(amount), pufETHAmount, "Incorrect withdrawal amount");
-        // assertEq(recipient, actor, "Incorrect withdrawal recipient");
+        PufferWithdrawalManagerStorage.Withdrawal memory withdrawal = withdrawalManager.getWithdrawal(BATCH_SIZE);
+        assertEq(uint256(withdrawal.pufETHAmount), pufETHAmount, "Incorrect pufETH amount");
+        assertEq(uint256(withdrawal.pufETHToETHExchangeRate), 1 ether, "Incorrect exchange rate");
+        assertEq(withdrawal.recipient, alice, "Incorrect withdrawal recipient");
     }
 
     /**
