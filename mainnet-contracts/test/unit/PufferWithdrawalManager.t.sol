@@ -7,7 +7,6 @@ import { IPufferWithdrawalManager } from "src/interface/IPufferWithdrawalManager
 import { PufferVaultV2 } from "src/PufferVaultV2.sol";
 import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, PUBLIC_ROLE } from "../../script/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-// import { NoImplementation } from "mainnet-contracts/src/NoImplementation.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Permit } from "../../src/structs/Permit.sol";
@@ -30,7 +29,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 
-        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManager(pufferVault)));
+        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManager(pufferVault, weth)));
 
         // deploy an ERC1967Proxy
         withdrawalManager = PufferWithdrawalManager(
@@ -343,7 +342,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     }
 
     function test_constructor() public {
-        new PufferWithdrawalManager(pufferVault);
+        new PufferWithdrawalManager(pufferVault, weth);
     }
 
     function test_requestWithdrawals() public {

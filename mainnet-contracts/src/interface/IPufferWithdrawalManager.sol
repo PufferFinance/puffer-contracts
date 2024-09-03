@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVaultV3 } from "../PufferVaultV3.sol";
+import { Permit } from "../structs/Permit.sol";
 
 /**
  * @title IPufferWithdrawalManager
@@ -91,6 +92,14 @@ interface IPufferWithdrawalManager {
      * @param recipient Address to receive the withdrawn ETH
      */
     function requestWithdrawal(uint128 pufETHAmount, address recipient) external;
+
+    /**
+     * @notice Request withdrawals using permit
+     * @dev This function will work if the `msg.sender` has approved this contract to spend the pufETH amount
+     * @param permitData The permit data for the withdrawal
+     * @param recipient The address to receive the withdrawn ETH
+     */
+    function requestWithdrawalsWithPermit(Permit calldata permitData, address recipient) external;
 
     /**
      * @notice Complete a queued withdrawal

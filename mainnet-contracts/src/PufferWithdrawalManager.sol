@@ -12,6 +12,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Permit } from "./structs/Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IWETH } from "../src/interface/Other/IWETH.sol";
 
 /**
  * @title PufferWithdrawalManager
@@ -24,18 +25,33 @@ contract PufferWithdrawalManager is
     AccessManagedUpgradeable,
     UUPSUpgradeable
 {
-    using SafeCast for uint256; // Add this line to use SafeCast
+    using SafeCast for uint256;
 
+    /**
+     * @notice The batch size for the withdrawal manager
+     */
     PufferVaultV3 public immutable PUFFER_VAULT;
+    /**
+     * @notice The batch size for the withdrawal manager
+     */
     uint256 public constant BATCH_SIZE = 10;
+    /**
+     * @notice The minimum withdrawal amount
+     */
     uint256 public constant MIN_WITHDRAWAL_AMOUNT = 0.01 ether;
+    /**
+     * @notice The WETH contract
+     */
+    IWETH public immutable WETH;
 
     /**
      * @dev Constructor to initialize the PufferWithdrawalManager
      * @param pufferVault Address of the PufferVaultV3 contract
+     * @param weth Address of the WETH contract
      */
-    constructor(PufferVaultV3 pufferVault) {
+    constructor(PufferVaultV3 pufferVault, IWETH weth) {
         PUFFER_VAULT = pufferVault;
+        WETH = weth;
         _disableInitializers();
     }
 
@@ -57,17 +73,15 @@ contract PufferWithdrawalManager is
 
     /**
      * @inheritdoc IPufferWithdrawalManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
     function requestWithdrawal(uint128 pufETHAmount, address recipient) external {
         _processWithdrawalRequest(pufETHAmount, recipient);
     }
 
     /**
-     * @notice Request withdrawals using permit
-     * @dev This function will work if the `msg.sender` has approved this contract to spend the pufETH amount
-     * @param permitData The permit data for the withdrawal
-     * @param recipient The address to receive the withdrawn ETH
+     * @inheritdoc IPufferWithdrawalManager
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
     function requestWithdrawalsWithPermit(Permit calldata permitData, address recipient) external {
         try IERC20Permit(address(PUFFER_VAULT)).permit({
@@ -84,7 +98,85 @@ contract PufferWithdrawalManager is
     }
 
     /**
-     * @dev Internal function to process withdrawal requests
+     * @notice Finalizes the withdrawals up to the given batch index
+     * @param withdrawalBatchIndex The index of the last batch to finalize
+     * @dev Restricted to the Guardian
+     */
+    function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+
+        if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
+            revert BatchNotFull();
+        }
+
+        if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch && withdrawalBatchIndex != 0) {
+            revert BatchAlreadyFinalized();
+        }
+
+        for (uint256 i = $.finalizedWithdrawalBatch; i <= withdrawalBatchIndex; ++i) {
+            uint256 batchFinalizationExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
+
+            WithdrawalBatch storage batch = $.withdrawalBatches[i];
+            uint256 expectedETHAmount = batch.toTransfer;
+            uint256 pufETHBurnAmount = batch.toBurn;
+
+            uint256 ethAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
+            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
+
+            PUFFER_VAULT.transferETH(address(this), transferAmount);
+            PUFFER_VAULT.burn(pufETHBurnAmount);
+
+            batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
+
+            emit BatchFinalized(i, expectedETHAmount, transferAmount, pufETHBurnAmount);
+        }
+        
+        $.finalizedWithdrawalBatch = withdrawalBatchIndex;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function completeQueuedWithdrawal(uint256 withdrawalIdx) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+
+        uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
+        if (batchIndex > $.finalizedWithdrawalBatch) {
+            revert NotFinalized();
+        }
+
+        if (withdrawalIdx >= $.withdrawals.length) {
+            revert InvalidWithdrawalIndex();
+        }
+
+        Withdrawal storage withdrawal = $.withdrawals[withdrawalIdx];
+
+        // Check if the withdrawal has already been completed
+        if (withdrawal.recipient == address(0)) {
+            revert WithdrawalAlreadyCompleted();
+        }
+
+        uint256 batchSettlementExchangeRate = $.withdrawalBatches[batchIndex].pufETHToETHExchangeRate;
+
+        uint256 payoutExchangeRate = Math.min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate);
+        uint256 payoutAmount = (uint256(withdrawal.pufETHAmount) * payoutExchangeRate) / 1 ether;
+
+        address recipient = withdrawal.recipient;
+
+        // remove data for some gas savings
+        delete $.withdrawals[withdrawalIdx];
+
+        // Wrap ETH to WETH
+        WETH.deposit{ value: payoutAmount }();
+
+        // Transfer WETH to the recipient
+        WETH.transfer(recipient, payoutAmount);
+
+        emit WithdrawalCompleted(withdrawalIdx, payoutAmount, payoutExchangeRate, recipient);
+    }
+
+    /**
      * @param pufETHAmount The amount of pufETH to withdraw
      * @param recipient The address to receive the withdrawn ETH
      */
@@ -122,85 +214,6 @@ contract PufferWithdrawalManager is
         );
 
         emit WithdrawalRequested(withdrawalIndex, batchIndex, pufETHAmount, recipient);
-    }
-
-    /**
-     * @notice Finalizes the withdrawals up to the given batch index
-     * @param withdrawalBatchIndex The index of the last batch to finalize
-     * @dev Restricted to the Guardian
-     */
-    function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
-        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
-
-        if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
-            revert BatchNotFull();
-        }
-
-        if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch && withdrawalBatchIndex != 0) {
-            revert BatchAlreadyFinalized();
-        }
-
-        for (uint256 i = $.finalizedWithdrawalBatch; i <= withdrawalBatchIndex;) {
-            //@audit how can this be manipulated?
-            uint256 batchFinalizationExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
-
-            WithdrawalBatch storage batch = $.withdrawalBatches[i];
-            uint256 expectedETHAmount = batch.toTransfer;
-            uint256 pufETHBurnAmount = batch.toBurn;
-
-            uint256 ethAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
-            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
-
-            PUFFER_VAULT.transferETH(address(this), transferAmount);
-            PUFFER_VAULT.burn(pufETHBurnAmount);
-
-            batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
-
-            emit BatchFinalized(i, expectedETHAmount, transferAmount, pufETHBurnAmount);
-
-            unchecked {
-                ++i;
-            }
-        }
-        $.finalizedWithdrawalBatch = withdrawalBatchIndex;
-    }
-
-    /**
-     * @inheritdoc IPufferWithdrawalManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function completeQueuedWithdrawal(uint256 withdrawalIdx) external restricted {
-        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
-
-        uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
-        if (batchIndex > $.finalizedWithdrawalBatch) {
-            revert NotFinalized();
-        }
-
-        if (withdrawalIdx >= $.withdrawals.length) {
-            revert InvalidWithdrawalIndex();
-        }
-
-        Withdrawal storage withdrawal = $.withdrawals[withdrawalIdx];
-
-        // Check if the withdrawal has already been completed
-        if (withdrawal.recipient == address(0)) {
-            revert WithdrawalAlreadyCompleted();
-        }
-
-        uint256 batchSettlementExchangeRate = $.withdrawalBatches[batchIndex].pufETHToETHExchangeRate;
-
-        uint256 payoutExchangeRate = Math.min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate);
-        uint256 payoutAmount = (uint256(withdrawal.pufETHAmount) * payoutExchangeRate) / 1 ether;
-
-        address recipient = withdrawal.recipient;
-
-        // remove data for some gas savings
-        delete $.withdrawals[withdrawalIdx];
-
-        emit WithdrawalCompleted(withdrawalIdx, payoutAmount, payoutExchangeRate, recipient);
-
-        Address.sendValue(payable(recipient), payoutAmount);
     }
 
     /**
