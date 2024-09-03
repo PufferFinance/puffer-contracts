@@ -119,6 +119,17 @@ contract UnitTestHelper is Test, BaseScript {
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
     address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
 
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    address public charlie = makeAddr("charlie");
+    address public dianna = makeAddr("dianna");
+    address public ema = makeAddr("ema");
+    address public filip = makeAddr("filip");
+    address public george = makeAddr("george");
+    address public harry = makeAddr("harry");
+    address public isabelle = makeAddr("isabelle");
+    address public james = makeAddr("james");
+
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
         _;
