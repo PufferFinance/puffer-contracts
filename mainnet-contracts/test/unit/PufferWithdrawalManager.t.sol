@@ -82,16 +82,16 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.stopPrank();
 
         // Initialize actors
-        actors.push(makeAddr("alice"));
-        actors.push(makeAddr("bob"));
-        actors.push(makeAddr("charlie"));
-        actors.push(makeAddr("dianna"));
-        actors.push(makeAddr("ema"));
-        actors.push(makeAddr("filip"));
-        actors.push(makeAddr("george"));
-        actors.push(makeAddr("harry"));
-        actors.push(makeAddr("isabelle"));
-        actors.push(makeAddr("james"));
+        actors.push(alice);
+        actors.push(bob);
+        actors.push(charlie);
+        actors.push(dianna);
+        actors.push(ema);
+        actors.push(filip);
+        actors.push(george);
+        actors.push(harry);
+        actors.push(isabelle);
+        actors.push(james);
     }
     /**
      * @dev Test creating deposits
@@ -353,19 +353,16 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     }
 
     function test_requestWithdrawalsWithPermit() public {
-        uint256 privateKey = 0xA11CE;
-        address user = vm.addr(privateKey);
-
-        _givePufETH(1 ether, user);
+        _givePufETH(1 ether, alice);
 
         uint256 deadline = block.timestamp + 1 hours;
-        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
 
-        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
+        Permit memory permit = _signPermit(
+            _testTemps("alice", address(withdrawalManager), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
+        );
 
-        vm.prank(user);
-        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
+        vm.prank(alice);
+        withdrawalManager.requestWithdrawalsWithPermit(permit, alice);
 
         // Verify that the withdrawal was requested
         // You may need to add a getter function in the contract to check this
@@ -373,68 +370,32 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     }
 
     function test_requestWithdrawalsWithPermit_ExpiredDeadline() public {
-        uint256 privateKey = 0xA11CE;
-        address user = vm.addr(privateKey);
+        _givePufETH(1 ether, alice);
 
-        _givePufETH(1 ether, user);
+        Permit memory permit = _signPermit(
+            _testTemps("alice", address(withdrawalManager), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
+        );
 
-        uint256 deadline = block.timestamp + 1 hours; // Valid deadline (1 hour in the future)
-        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
+        vm.warp(block.timestamp + 1 days); // Move time forward to just after the deadline
 
-        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
-
-        vm.warp(deadline + 1); // Move time forward to just after the deadline
-
-        vm.prank(user);
+        vm.prank(alice);
         vm.expectRevert();
-        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
+        withdrawalManager.requestWithdrawalsWithPermit(permit, alice);
     }
 
     function test_requestWithdrawalsWithPermit_InvalidSignature() public {
-        uint256 privateKey = 0xA11CE;
-        address user = vm.addr(privateKey);
+        _givePufETH(1 ether, alice);
 
-        _givePufETH(1 ether, user);
-
-        uint256 deadline = block.timestamp + 1 hours;
-        bytes32 permitHash = _getPermitHash(user, address(withdrawalManager), 1 ether, 0, deadline);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey + 1, permitHash); // Wrong private key
-
-        Permit memory permitData = Permit({ amount: 1 ether, deadline: deadline, v: v, r: r, s: s });
-
-        vm.prank(user);
-        vm.expectRevert();
-        withdrawalManager.requestWithdrawalsWithPermit(permitData, user);
-    }
-
-    function _getPermitHash(address owner, address spender, uint256 value, uint256 nonce, uint256 deadline)
-        internal
-        view
-        returns (bytes32)
-    {
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                IERC20Permit(address(pufferVault)).DOMAIN_SEPARATOR(),
-                keccak256(
-                    abi.encode(
-                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                        owner,
-                        spender,
-                        value,
-                        nonce,
-                        deadline
-                    )
-                )
-            )
+        Permit memory permit = _signPermit(
+            _testTemps("alice", address(withdrawalManager), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
         );
-    }
 
-    function _givePufETH(uint256 amount, address recipient) internal {
-        vm.deal(address(this), amount);
-        pufferVault.depositETH{ value: amount }(address(this));
-        pufferVault.transfer(recipient, amount);
+        // corrupt the permit signature
+        permit.v = 15;
+
+        vm.prank(alice);
+        vm.expectRevert();
+        withdrawalManager.requestWithdrawalsWithPermit(permit, alice);
     }
 
     // Simulates VT sale affects the exchange rate
@@ -458,6 +419,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         }
 
         // Finalize only the first batch
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchAlreadyFinalized.selector, (0)));
         withdrawalManager.finalizeWithdrawals(0);
 
         // Try to complete the withdrawal from the second (unfinalized) batch
@@ -474,5 +436,11 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // Verify the balance change of the actor after withdrawal
         assertGt(balanceAfter, balanceBefore, "Withdrawal amount should be greater than zero");
+    }
+
+    function _givePufETH(uint256 amount, address recipient) internal {
+        vm.deal(address(this), amount);
+        pufferVault.depositETH{ value: amount }(address(this));
+        pufferVault.transfer(recipient, amount);
     }
 }

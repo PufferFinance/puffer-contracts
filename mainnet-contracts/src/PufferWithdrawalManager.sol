@@ -107,17 +107,19 @@ contract PufferWithdrawalManager is
     /**
      * @notice Finalizes the withdrawals up to the given batch index
      * @param withdrawalBatchIndex The index of the last batch to finalize
-     * @dev Restricted to the Guardian
+     * @dev Restricted access to ROLE_ID_OPERATIONS_PAYMASTER
      */
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
+        // Check if all the batches are full
         if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
             revert BatchNotFull();
         }
 
-        if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch && withdrawalBatchIndex != 0) {
-            revert BatchAlreadyFinalized();
+        // Check if the batch is already finalized
+        if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch) {
+            revert BatchAlreadyFinalized(withdrawalBatchIndex);
         }
 
         for (uint256 i = $.finalizedWithdrawalBatch; i <= withdrawalBatchIndex; ++i) {
@@ -151,10 +153,6 @@ contract PufferWithdrawalManager is
         uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
         if (batchIndex > $.finalizedWithdrawalBatch) {
             revert NotFinalized();
-        }
-
-        if (withdrawalIdx >= $.withdrawals.length) {
-            revert InvalidWithdrawalIndex();
         }
 
         Withdrawal storage withdrawal = $.withdrawals[withdrawalIdx];

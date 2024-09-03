@@ -15,17 +15,12 @@ interface IPufferWithdrawalManager {
     /**
      * @notice Thrown when attempting to finalize a batch that has already been finalized
      */
-    error BatchAlreadyFinalized();
+    error BatchAlreadyFinalized(uint256 batchIndex);
 
     /**
      * @notice Thrown when attempting to complete a withdrawal that hasn't been finalized yet
      */
     error NotFinalized();
-
-    /**
-     * @notice Thrown when attempting to complete a withdrawal that doesn't exist
-     */
-    error InvalidWithdrawalIndex();
 
     /**
      * @notice Thrown when attempting to complete a withdrawal that has already been completed
