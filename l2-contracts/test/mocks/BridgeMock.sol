@@ -11,9 +11,12 @@ contract BridgeMock {
         address asset,
         address delegate,
         uint256 amount,
-        uint256,
+        uint256, // slippage
         bytes calldata callData
     ) external payable returns (bytes memory) {
+        // 1 == mainnet, 2 == l2
+        uint32 originId = destination == 1 ? 2 : 1;
+
         IERC20(asset).transferFrom(msg.sender, to, amount);
 
         L2RewardManager(to).xReceive(
@@ -21,7 +24,7 @@ contract BridgeMock {
             amount,
             asset,
             msg.sender,
-            destination,
+            originId,
             callData
         );
 

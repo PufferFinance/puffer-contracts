@@ -24,12 +24,12 @@ abstract contract L2RewardManagerStorage {
      *      +-----------------------------------------------------------+
      */
     struct EpochRecord {
-        uint72 startEpoch; // packed slot 0
-        uint72 endEpoch; // packed slot 0
+        uint104 startEpoch; // packed slot 0
+        uint104 endEpoch; // packed slot 0
         uint48 timeBridged; // packed slot 0
-        uint64 ethToPufETHRate; // packed slot 0
         uint128 pufETHAmount; // packed slot 1
         uint128 ethAmount; // packed slot 1
+        uint256 ethToPufETHRate; // slot 2
         bytes32 rewardRoot;
     }
 
@@ -76,10 +76,6 @@ abstract contract L2RewardManagerStorage {
          * After the rewards have been bridged from L1, we will wait for this period before allowing the users to claim the rewards for that rewards interval
          */
         uint256 claimingDelay;
-        /**
-         * @notice The current or latest rewards interval set when the rewards are bridged for specific interval
-         */
-        bytes32 currentRewardsInterval;
     }
 
     // keccak256(abi.encode(uint256(keccak256("L2RewardManager.storage")) - 1)) & ~bytes32(uint256(0xff))

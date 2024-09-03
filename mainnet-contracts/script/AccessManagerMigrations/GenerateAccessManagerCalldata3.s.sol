@@ -8,13 +8,14 @@ import { console } from "forge-std/console.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
+import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_BRIDGE,
     ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_L1_REWARD_MANAGER,
     ROLE_ID_PUFFER_MODULE_MANAGER,
-    ROLE_ID_OPERATIONS_PAYMASTER
+    PUBLIC_ROLE
 } from "../../script/Roles.sol";
 
 /**
@@ -27,7 +28,7 @@ import {
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
 contract GenerateAccessManagerCalldata3 is Script {
-    function run(
+    function generateL1Calldata(
         address l1RewardManagerProxy,
         address l1Bridge,
         address pufferVaultProxy,
@@ -103,5 +104,52 @@ contract GenerateAccessManagerCalldata3 is Script {
         // console.logBytes(encodedMulticall);
 
         return encodedMulticall;
+    }
+
+    function generateL2Calldata(address l2RewardManagerProxy, address l2Bridge) public pure returns (bytes memory) {
+        bytes[] memory calldatasL2 = new bytes[](5);
+
+        bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
+        bridgeSelectorsL2[0] = L2RewardManager.xReceive.selector;
+
+        calldatasL2[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardManagerProxy),
+            bridgeSelectorsL2,
+            ROLE_ID_BRIDGE
+        );
+
+        calldatasL2[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l2Bridge, 0);
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = L2RewardManager.claimRewards.selector;
+
+        calldatasL2[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), publicSelectors, PUBLIC_ROLE
+        );
+
+        bytes4[] memory paymasterSelectors = new bytes4[](3);
+        paymasterSelectors[0] = L2RewardManager.freezeAndRevertInterval.selector;
+        paymasterSelectors[1] = L2RewardManager.freezeClaimingForInterval.selector;
+        paymasterSelectors[2] = L2RewardManager.revertInterval.selector;
+
+        calldatasL2[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(l2RewardManagerProxy),
+            paymasterSelectors,
+            ROLE_ID_OPERATIONS_PAYMASTER
+        );
+
+        bytes4[] memory daoSelectors = new bytes4[](2);
+        daoSelectors[0] = L2RewardManager.updateBridgeData.selector;
+        daoSelectors[1] = L2RewardManager.setDelayPeriod.selector;
+
+        calldatasL2[4] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
+        );
+
+        //@todo does anybody have DAO role on L2?
+
+        return abi.encodeCall(Multicall.multicall, (calldatasL2));
     }
 }
