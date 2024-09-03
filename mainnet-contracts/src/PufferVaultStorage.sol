@@ -33,6 +33,7 @@ abstract contract PufferVaultStorage {
         // 1 slot for withdrawal fee
         uint256 exitFeeBasisPoints;
         // ETH rewards amount
+        uint256 totalRewardDepositAmount;
         uint256 totalRewardMintAmount;
     }
 

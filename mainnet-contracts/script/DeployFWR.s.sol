@@ -22,10 +22,12 @@ contract DeployFWR is DeployerHelper {
     address l1RewardManagerProxy;
     address l2RewardManagerProxy;
 
+    uint256 mainnetForkNumber;
+
     function run() public {
         GenerateAccessManagerCalldata3 generator = new GenerateAccessManagerCalldata3();
 
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        mainnetForkNumber = vm.createSelectFork(vm.rpcUrl("mainnet"));
 
         vm.startBroadcast();
 
@@ -77,8 +79,8 @@ contract DeployFWR is DeployerHelper {
         // Upgrade contract on L1
         vm.stopBroadcast();
 
-        // Switch back to Fork 0
-        vm.selectFork(0);
+        // Switch back to mainnet
+        vm.selectFork(mainnetForkNumber);
         vm.startBroadcast();
 
         // L1RewardManager
