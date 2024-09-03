@@ -134,10 +134,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         paymasterSelectors[2] = L2RewardManager.revertInterval.selector;
 
         calldatasL2[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(l2RewardManagerProxy),
-            paymasterSelectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), paymasterSelectors, ROLE_ID_DAO
         );
 
         bytes4[] memory daoSelectors = new bytes4[](2);
@@ -148,7 +145,7 @@ contract GenerateAccessManagerCalldata3 is Script {
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
         );
 
-        //@todo does anybody have DAO role on L2?
+        // DAO role is assigned to OPS Multisig on Base
 
         return abi.encodeCall(Multicall.multicall, (calldatasL2));
     }
