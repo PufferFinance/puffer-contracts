@@ -16,7 +16,6 @@ import { IWETH } from "../src/interface/Other/IWETH.sol";
 
 /**
  * @title PufferWithdrawalManager
- * @dev Manages the withdrawal process for the Puffer protocol
  * @custom:security-contact security@puffer.fi
  */
 contract PufferWithdrawalManager is
@@ -112,9 +111,9 @@ contract PufferWithdrawalManager is
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
-        // Check if all the batches are full
+        // Check if all the batches that we want to finalize are full
         if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
-            revert BatchNotFull();
+            revert BatchesAreNotFull();
         }
 
         // Check if the batch is already finalized
@@ -175,10 +174,35 @@ contract PufferWithdrawalManager is
         // Wrap ETH to WETH
         WETH.deposit{ value: payoutAmount }();
 
-        // Transfer WETH to the recipient
         WETH.transfer(recipient, payoutAmount);
 
         emit WithdrawalCompleted(withdrawalIdx, payoutAmount, payoutExchangeRate, recipient);
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getFinalizedWithdrawalBatch() external view returns (uint256) {
+        return _getWithdrawalManagerStorage().finalizedWithdrawalBatch;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getWithdrawalsLength() external view returns (uint256) {
+        return _getWithdrawalManagerStorage().withdrawals.length;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getWithdrawal(uint256 withdrawalIdx) external view returns (Withdrawal memory) {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        // We don't want panic when the caller passes an invalid withdrawalIdx
+        if (withdrawalIdx >= $.withdrawals.length) {
+            return Withdrawal(0, 0, address(0));
+        }
+        return $.withdrawals[withdrawalIdx];
     }
 
     /**
@@ -227,19 +251,4 @@ contract PufferWithdrawalManager is
      * @param newImplementation The address of the new implementation
      */
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
-
-    /**
-     * @inheritdoc IPufferWithdrawalManager
-     */
-    function getFinalizedWithdrawalBatch() external view returns (uint256) {
-        return _getWithdrawalManagerStorage().finalizedWithdrawalBatch;
-    }
-
-    /**
-     * @inheritdoc IPufferWithdrawalManager
-     */
-    function getWithdrawal(uint256 withdrawalIdx) external view returns (Withdrawal memory) {
-        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
-        return $.withdrawals[withdrawalIdx];
-    }
 }

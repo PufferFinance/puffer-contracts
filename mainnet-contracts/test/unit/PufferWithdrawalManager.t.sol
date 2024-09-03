@@ -99,7 +99,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      */
 
     function test_createDeposits(uint8 numberOfDeposits) public {
-        vm.assume(numberOfDeposits > 20);
+        vm.assume(numberOfDeposits > 30);
 
         for (uint256 i = 0; i < numberOfDeposits; i++) {
             uint256 depositAmount = bound(i, 1 ether, 10 ether);
@@ -111,6 +111,11 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
             vm.stopPrank();
         }
+
+        assertEq(
+            withdrawalManager.getWithdrawalsLength(), numberOfDeposits + BATCH_SIZE, "Incorrect number of withdrawals"
+        );
+        assertEq(withdrawalManager.getFinalizedWithdrawalBatch(), 0, "finalizedWithdrawalBatch should be 0");
     }
 
     /**
@@ -138,17 +143,18 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      */
     function test_requestWithdrawal_minAmount() public {
         uint256 minAmount = 0.01 ether;
-        address actor = actors[0];
-        _givePufETH(minAmount, actor);
+        _givePufETH(minAmount, alice);
 
-        vm.startPrank(actor);
+        vm.startPrank(alice);
         pufferVault.approve(address(withdrawalManager), minAmount);
-        withdrawalManager.requestWithdrawal(uint128(minAmount), actor);
+        withdrawalManager.requestWithdrawal(uint128(minAmount), alice);
         vm.stopPrank();
 
-        // TODO: Use appropriate getter function or method to access withdrawal information
-        // (uint128 amount,,) = withdrawalManager.withdrawals(0);
-        // assertEq(uint256(amount), minAmount, "Incorrect minimum withdrawal amount");
+        PufferWithdrawalManagerStorage.Withdrawal memory withdrawal = withdrawalManager.getWithdrawal(BATCH_SIZE);
+
+        assertEq(uint256(withdrawal.pufETHAmount), minAmount, "Incorrect minimum withdrawal amount");
+        assertEq(uint256(withdrawal.pufETHToETHExchangeRate), 1 ether, "Incorrect exchange rate");
+        assertEq(withdrawal.recipient, alice, "Incorrect withdrawal recipient");
     }
 
     /**
@@ -163,7 +169,6 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         pufferVault.approve(address(withdrawalManager), belowMinAmount);
         vm.expectRevert(IPufferWithdrawalManager.WithdrawalAmountTooLow.selector);
         withdrawalManager.requestWithdrawal(uint128(belowMinAmount), actor);
-        vm.stopPrank();
     }
 
     /**
@@ -213,7 +218,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.stopPrank();
         }
 
-        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchNotFull.selector));
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchesAreNotFull.selector));
         withdrawalManager.finalizeWithdrawals(1);
     }
 
@@ -354,8 +359,6 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     function test_requestWithdrawalsWithPermit() public {
         _givePufETH(1 ether, alice);
 
-        uint256 deadline = block.timestamp + 1 hours;
-
         Permit memory permit = _signPermit(
             _testTemps("alice", address(withdrawalManager), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
         );
@@ -363,9 +366,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.prank(alice);
         withdrawalManager.requestWithdrawalsWithPermit(permit, alice);
 
-        // Verify that the withdrawal was requested
-        // You may need to add a getter function in the contract to check this
-        // or use events to verify the withdrawal request
+        assertEq(withdrawalManager.getWithdrawal(BATCH_SIZE).pufETHAmount, 1 ether, "Incorrect pufETH amount");
     }
 
     function test_requestWithdrawalsWithPermit_ExpiredDeadline() public {
@@ -395,6 +396,9 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.prank(alice);
         vm.expectRevert();
         withdrawalManager.requestWithdrawalsWithPermit(permit, alice);
+
+        // Assert that no new withdrawal was created
+        assertEq(withdrawalManager.getWithdrawal(BATCH_SIZE).pufETHAmount, 0, "New withdrawal should not be created");
     }
 
     // Simulates VT sale affects the exchange rate

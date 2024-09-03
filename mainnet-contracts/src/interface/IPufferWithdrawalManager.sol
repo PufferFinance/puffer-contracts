@@ -28,9 +28,9 @@ interface IPufferWithdrawalManager {
     error WithdrawalAlreadyCompleted();
 
     /**
-     * @notice Thrown when attempting to finalize a batch that isn't full yet
+     * @notice Thrown when attempting to finalize batches that aren't full
      */
-    error BatchNotFull();
+    error BatchesAreNotFull();
 
     /**
      * @notice Thrown when attempting to withdraw an amount below the minimum threshold
@@ -118,4 +118,10 @@ interface IPufferWithdrawalManager {
         external
         view
         returns (PufferWithdrawalManagerStorage.Withdrawal memory);
+
+    /**
+     * @notice Returns the length of the withdrawals
+     * @return The length of the withdrawals
+     */
+    function getWithdrawalsLength() external view returns (uint256);
 }
