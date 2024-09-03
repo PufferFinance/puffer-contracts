@@ -16,7 +16,6 @@ import { InvalidAmount } from "../../src/Errors.sol";
 contract PufLockerTest is UnitTestHelper {
     PufLocker public pufLocker;
     ERC20Mock public mockToken;
-    address bob = makeAddr("bob");
 
     function setUp() public override {
         super.setUp();

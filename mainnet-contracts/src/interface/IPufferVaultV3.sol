@@ -22,6 +22,18 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     }
 
     /**
+     * @notice Returns the total reward mint amount.
+     * @return The total minted rewards amount.
+     */
+    function getTotalRewardMintAmount() external view returns (uint256);
+
+    /**
+     * @notice Returns the total reward mint amount.
+     * @return The total deposited rewards amount.
+     */
+    function getTotalRewardDepositAmount() external view returns (uint256);
+
+    /**
      * @notice Emitted when the rewards are deposited to the PufferVault
      * @dev Signature "0x3a278b4e83c8793751d35f41b90435c742acf0dfdd54a8cbe09aa59720db93a5"
      */

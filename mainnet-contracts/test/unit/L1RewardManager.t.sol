@@ -38,7 +38,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
 
-        bytes memory cd = new GenerateAccessManagerCalldata3().run(
+        bytes memory cd = new GenerateAccessManagerCalldata3().generateL1Calldata(
             address(l1RewardManager), address(connext), address(pufferVault), address(pufferModuleManager)
         );
         (bool s,) = address(accessManager).call(cd);
@@ -55,7 +55,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
         L1RewardManagerStorage.BridgeData memory bridgeData =
-            L1RewardManagerStorage.BridgeData({ destinationDomainId: 1 });
+            L1RewardManagerStorage.BridgeData({ destinationDomainId: 2 });
         l1RewardManager.updateBridgeData(address(connext), bridgeData);
 
         vm.stopPrank();
@@ -77,6 +77,10 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintAmount(amount);
         vm.stopPrank();
         _;
+    }
+
+    function test_Constructor() public {
+        new L1RewardManager(address(0), address(0), address(0), address(0));
     }
 
     function testRevert_updateBridgeDataInvalidBridge() public {
@@ -137,7 +141,58 @@ contract L1RewardManagerTest is UnitTestHelper {
 
         pufferModuleManager.transferRewardsToTheVault(modules, amounts);
 
-        assertEq(pufferVault.getTotalRewardMintAmount(), 0, "rewards amount should be 0");
+        uint256 amount = pufferVault.getTotalRewardMintAmount() - pufferVault.getTotalRewardDepositAmount();
+
+        assertEq(amount, 0, "total rewards amount should be 0");
+    }
+
+    // If there is a race condition, where the rewards are deposited to the vault before they are reverted
+    // The old coude would panic, this test ensures that the code does not panic
+    function test_undoMintAndBridgeRewardsRaceCondition() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // Get the initial state
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
+        uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
+
+        // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
+        test_MintAndBridgeRewardsSuccess();
+
+        // Simulate a race condition, where the rewards are deposited to the vault before they are reverted
+        address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
+        // airdrop the rewards amount to the module
+        vm.deal(module, rewardsAmount);
+        address[] memory modules = new address[](1);
+        modules[0] = module;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = rewardsAmount;
+        pufferModuleManager.transferRewardsToTheVault(modules, amounts);
+
+        // Now try tor evert the mintAndBridgeRewards, it panics
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(startEpoch),
+            endEpoch: uint72(endEpoch),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 100 ether,
+            ethAmount: 100 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
+
+        bytes memory encodedCallData = abi.encode(epochRecord);
+
+        // airdrop rewardsAmount to burner
+        deal(address(xpufETH), address(l1RewardManager), 100 ether);
+
+        vm.startPrank(address(connext));
+
+        // Simulate a call from the connext bridge
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
+
+        assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
+        assertEq(
+            pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
+        );
+        assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
     }
 
     function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
@@ -178,7 +233,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         vm.startPrank(address(connext));
 
         // Simulate a call from the connext bridge
-        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 0, encodedCallData);
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
 
         assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
         assertEq(
@@ -263,6 +318,13 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.setAllowedRewardMintFrequency(newFrequency);
     }
 
+    function testRevert_SetInvalidMintFrequency() public {
+        vm.startPrank(DAO);
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidMintFrequency.selector));
+        l1RewardManager.setAllowedRewardMintFrequency(1 hours);
+    }
+
     function test_setClaimer() public {
         address newClaimer = address(0x123);
 
@@ -274,5 +336,12 @@ contract L1RewardManagerTest is UnitTestHelper {
     function testRevert_setClaimerInvalidBrige() public {
         vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
         l1RewardManager.setL2RewardClaimer(address(0x1111), address(0x123));
+    }
+
+    function testRevert_callFromInvalidBridgeOrigin() public {
+        vm.startPrank(address(connext));
+
+        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
+        l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 4123123, "");
     }
 }

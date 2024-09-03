@@ -65,9 +65,6 @@ contract PufferL2Staking is UnitTestHelper {
     PufLocker pufLocker;
 
     address mockMigrator;
-
-    address bob = makeAddr("bob");
-
     uint256 referralCode = 0;
 
     function setUp() public override {

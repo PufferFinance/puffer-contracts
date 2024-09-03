@@ -26,7 +26,7 @@ contract UpgradeL2RewardManager is DeployerHelper {
 
         vm.startBroadcast();
         // Load addresses for Sepolia
-        _loadExistingContractsAddresses();
+        _getDeployer();
 
         //deploy new LockBox contract if needed
         // XERC20Lockbox lockbox = new XERC20Lockbox({
@@ -36,9 +36,9 @@ contract UpgradeL2RewardManager is DeployerHelper {
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            XpufETH: xPufETH,
-            pufETH: pufferVault,
-            lockbox: address(lockbox),
+            XpufETH: _getXPufETH(),
+            pufETH: _getPufferVault(),
+            lockbox: _getLockbox(),
             l2RewardsManager: l2RewardsManagerProxy
         });
         vm.label(address(l1RewardManagerImpl), "l1RewardManagerImpl");
@@ -51,9 +51,9 @@ contract UpgradeL2RewardManager is DeployerHelper {
         vm.createSelectFork(vm.rpcUrl("opsepolia"));
         vm.startBroadcast();
         // Load addresses for Sepolia
-        _loadExistingContractsAddresses();
+        _getDeployer();
 
-        L2RewardManager newImplementation = new L2RewardManager(xPufETH, address(l1RewardManagerProxy));
+        L2RewardManager newImplementation = new L2RewardManager(_getXPufETH(), address(l1RewardManagerProxy));
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         UUPSUpgradeable(l2RewardsManagerProxy).upgradeToAndCall(address(newImplementation), "");
