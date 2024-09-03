@@ -21,10 +21,10 @@ import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.
  * use either --account (keystore) or --private-key (env)
  *
  * forge script ./script/DeployPufferVaultV3.s.sol:DeployPufferVaultV3 --force --rpc-url $RPC_URL \
-    --verify \
-    --verifier-url if deploying on tenderly \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY or $ETHERSCAN_API_KEY \
-    --broadcast
+ *     --verify \
+ *     --verifier-url if deploying on tenderly \
+ *     --etherscan-api-key $TENDERLY_ACCESS_KEY or $ETHERSCAN_API_KEY \
+ *     --broadcast
  */
 contract DeployPufferVaultV3 is DeployerHelper {
     function run() public returns (address) {

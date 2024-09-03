@@ -43,16 +43,6 @@ abstract contract DeployerHelper is Script {
         revert("stETH strategy not available for this chain");
     }
 
-    // function _getStETHStrategy() internal view returns (address) {
-    //     if (block.chainid == mainnet) {
-    //         return 0x93c4b944D05dfe6df7645A86cd2206016c51564D;
-    //     } else if (block.chainid == holesky) {
-    //         return 0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3;
-    //     }
-
-    //     revert("beacon strategy not available for this chain");
-    // }
-
     function _getEigenLayerStrategyManager() internal view returns (address) {
         if (block.chainid == mainnet) {
             return 0x858646372CC42E1A627fcE94aa7A7033e7CF075A;
