@@ -60,7 +60,17 @@ contract L2RewardManager is
 
             RewardManagerStorage storage $ = _getRewardManagerStorage();
 
+            // L1 contracts MUST set the claimer
+            address recipient = $.rewardsClaimers[claimOrders[i].account];
+            if (claimOrders[i].isL1Contract && recipient == address(0)) {
+                revert ClaimerNotSet(claimOrders[i].account);
+            }
+
             EpochRecord storage epochRecord = $.epochRecords[claimOrders[i].intervalId];
+
+            if (epochRecord.rewardRoot == bytes32(0)) {
+                revert InvalidClaimingInterval(claimOrders[i].intervalId);
+            }
 
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
                 revert ClaimingLocked({
@@ -71,8 +81,12 @@ contract L2RewardManager is
             }
 
             // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
-            // The leaf is: keccak256(abi.encode(AliceAddress, totalETHEarned))
-            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(claimOrders[i].account, claimOrders[i].amount))));
+            // The leaf is: keccak256(abi.encode(AliceAddress, isL1Contract, totalETHEarned))
+            bytes32 leaf = keccak256(
+                bytes.concat(
+                    keccak256(abi.encode(claimOrders[i].account, claimOrders[i].isL1Contract, claimOrders[i].amount))
+                )
+            );
             if (!MerkleProof.verifyCalldata(claimOrders[i].merkleProof, epochRecord.rewardRoot, leaf)) {
                 revert InvalidProof();
             }
@@ -82,7 +96,7 @@ contract L2RewardManager is
 
             uint256 amountToTransfer = (claimOrders[i].amount * epochRecord.ethToPufETHRate) / 1 ether;
 
-            address recipient = getRewardsClaimer(claimOrders[i].account);
+            recipient = recipient == address(0) ? claimOrders[i].account : recipient;
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
             XPUFETH.transfer(recipient, amountToTransfer);
@@ -100,13 +114,21 @@ contract L2RewardManager is
      * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
      * @dev Restricted access to `ROLE_ID_BRIDGE`
      */
-    function xReceive(bytes32, uint256 amount, address, address originSender, uint32, bytes memory callData)
-        external
-        override(IXReceiver)
-        restricted
-        returns (bytes memory)
-    {
+    function xReceive(
+        bytes32,
+        uint256 amount,
+        address,
+        address originSender,
+        uint32 originDomainId,
+        bytes memory callData
+    ) external override(IXReceiver) restricted returns (bytes memory) {
         if (originSender != address(L1_REWARD_MANAGER)) {
+            revert Unauthorized();
+        }
+
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
             revert Unauthorized();
         }
 
@@ -219,7 +241,7 @@ contract L2RewardManager is
      */
     function getRewardsClaimer(address account) public view returns (address) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.rewardsClaimers[account] != address(0) ? $.rewardsClaimers[account] : account;
+        return $.rewardsClaimers[account];
     }
 
     /**
@@ -243,12 +265,10 @@ contract L2RewardManager is
 
         bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
 
-        $.currentRewardsInterval = intervalId;
-
         $.epochRecords[intervalId] = EpochRecord({
-            ethToPufETHRate: uint64(params.ethToPufETHRate),
-            startEpoch: uint72(params.startEpoch),
-            endEpoch: uint72(params.endEpoch),
+            ethToPufETHRate: params.ethToPufETHRate,
+            startEpoch: uint104(params.startEpoch),
+            endEpoch: uint104(params.endEpoch),
             timeBridged: uint48(block.timestamp),
             rewardRoot: params.rewardsRoot,
             pufETHAmount: uint128(amount),
@@ -282,15 +302,10 @@ contract L2RewardManager is
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        // Revert only if the claiming is not locked and the new delayed timestamp (timeBridged+newDelay) exceedes the current timestamp
-        if (
-            !_isClaimingLocked($.currentRewardsInterval)
-                && ($.epochRecords[$.currentRewardsInterval].timeBridged + newDelay > block.timestamp)
-        ) {
-            revert RelockingIntervalIsNotAllowed();
+        if (newDelay > 12 hours) {
+            revert InvalidDelayPeriod();
         }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         emit ClaimingDelayChanged({ oldDelay: $.claimingDelay, newDelay: newDelay });
         $.claimingDelay = newDelay;
@@ -346,6 +361,15 @@ contract L2RewardManager is
         bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
 
         EpochRecord memory epochRecord = $.epochRecords[intervalId];
+
+        // We only want to revert the frozen intervals, if the interval is not frozen, we revert
+        if (epochRecord.timeBridged != 0 && epochRecord.rewardRoot != bytes32(0)) {
+            revert UnableToRevertInterval();
+        }
+
+        if (epochRecord.rewardRoot == bytes32(0)) {
+            revert UnableToRevertInterval();
+        }
 
         XPUFETH.approve(bridge, epochRecord.pufETHAmount);
 

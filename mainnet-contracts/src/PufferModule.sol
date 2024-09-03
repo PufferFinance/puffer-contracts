@@ -7,7 +7,6 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";

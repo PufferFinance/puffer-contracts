@@ -53,6 +53,7 @@ contract L1RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
+        _setAllowedRewardMintFrequency(20 hours);
     }
 
     /**
@@ -71,7 +72,7 @@ contract L1RewardManager is
         IBridgeInterface(bridge).xcall{ value: msg.value }({
             destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
             to: L2_REWARDS_MANAGER, // Address of the target contract on the destination chain
-            delegate: msg.sender, // Address that can revert or forceLocal on destination
+            delegate: claimer, // Address that can revert on destination
             asset: address(0), // Address of the token contract
             amount: 0, // We don't transfer any tokens
             slippage: 0, // No slippage
@@ -160,7 +161,7 @@ contract L1RewardManager is
      * @notice This contract receives XPufETH from the L2RewardManager via the bridge, unwraps it to pufETH and then burns the pufETH, reverting the original mintAndBridge call
      * @dev Restricted access to `ROLE_ID_BRIDGE`
      */
-    function xReceive(bytes32, uint256, address, address originSender, uint32, bytes memory callData)
+    function xReceive(bytes32, uint256, address, address originSender, uint32 originDomainId, bytes memory callData)
         external
         override(IXReceiver)
         restricted
@@ -168,6 +169,12 @@ contract L1RewardManager is
     {
         // The call must originate from the L2_REWARDS_MANAGER
         if (originSender != address(L2_REWARDS_MANAGER)) {
+            revert Unauthorized();
+        }
+
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
             revert Unauthorized();
         }
 
@@ -227,11 +234,7 @@ contract L1RewardManager is
      * @dev Restricted access to `ROLE_ID_DAO`
      */
     function setAllowedRewardMintFrequency(uint104 newFrequency) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
-
-        $.allowedRewardMintFrequency = newFrequency;
+        _setAllowedRewardMintFrequency(newFrequency);
     }
 
     /**
@@ -243,6 +246,17 @@ contract L1RewardManager is
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         return $.bridges[bridge];
+    }
+
+    function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {
+        if (newFrequency < 20 hours) {
+            revert InvalidMintFrequency();
+        }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
+
+        $.allowedRewardMintFrequency = newFrequency;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
