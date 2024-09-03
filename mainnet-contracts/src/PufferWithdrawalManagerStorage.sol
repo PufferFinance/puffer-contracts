@@ -22,7 +22,7 @@ abstract contract PufferWithdrawalManagerStorage {
     struct Withdrawal {
         uint128 pufETHAmount; // packed slot 0
         uint128 pufETHToETHExchangeRate; // packed slot 0
-        address recipient; //160bits packed slot 1
+        address recipient; // slot 1
     }
 
     /**
