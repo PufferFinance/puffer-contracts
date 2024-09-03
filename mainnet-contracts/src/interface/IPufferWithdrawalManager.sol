@@ -90,7 +90,7 @@ interface IPufferWithdrawalManager {
      * @param pufETHAmount Amount of pufETH to withdraw
      * @param recipient Address to receive the withdrawn ETH
      */
-    function requestWithdrawals(uint128 pufETHAmount, address recipient) external;
+    function requestWithdrawal(uint128 pufETHAmount, address recipient) external;
 
     /**
      * @notice Complete a queued withdrawal

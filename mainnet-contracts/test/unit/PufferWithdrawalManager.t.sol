@@ -107,7 +107,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
             vm.startPrank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
             vm.stopPrank();
         }
     }
@@ -124,7 +124,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         vm.startPrank(actor);
         pufferVault.approve(address(withdrawalManager), pufETHAmount);
-        withdrawalManager.requestWithdrawals(uint128(pufETHAmount), actor);
+        withdrawalManager.requestWithdrawal(uint128(pufETHAmount), actor);
         vm.stopPrank();
 
         // TODO: Use appropriate getter function or method to access withdrawal information
@@ -136,14 +136,14 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test requesting withdrawals with minimum amount
      */
-    function test_requestWithdrawals_minAmount() public {
+    function test_requestWithdrawal_minAmount() public {
         uint256 minAmount = 0.01 ether;
         address actor = actors[0];
         _givePufETH(minAmount, actor);
 
         vm.startPrank(actor);
         pufferVault.approve(address(withdrawalManager), minAmount);
-        withdrawalManager.requestWithdrawals(uint128(minAmount), actor);
+        withdrawalManager.requestWithdrawal(uint128(minAmount), actor);
         vm.stopPrank();
 
         // TODO: Use appropriate getter function or method to access withdrawal information
@@ -154,7 +154,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test requesting withdrawals below minimum amount
      */
-    function test_requestWithdrawals_belowMinAmount() public {
+    function test_requestWithdrawal_belowMinAmount() public {
         uint256 belowMinAmount = 0.009 ether;
         address actor = actors[0];
         _givePufETH(belowMinAmount, actor);
@@ -162,7 +162,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.startPrank(actor);
         pufferVault.approve(address(withdrawalManager), belowMinAmount);
         vm.expectRevert(IPufferWithdrawalManager.WithdrawalAmountTooLow.selector);
-        withdrawalManager.requestWithdrawals(uint128(belowMinAmount), actor);
+        withdrawalManager.requestWithdrawal(uint128(belowMinAmount), actor);
         vm.stopPrank();
     }
 
@@ -180,7 +180,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             _givePufETH(depositAmount, actor);
             vm.startPrank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
             vm.stopPrank();
         }
 
@@ -210,7 +210,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             _givePufETH(depositAmount, actor);
             vm.startPrank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
             vm.stopPrank();
         }
 
@@ -232,7 +232,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.prank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
             vm.prank(actor);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
         }
 
         // Try to complete a withdrawal without finalizing the batch
@@ -275,7 +275,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.prank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
             vm.prank(actor);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
         }
 
         assertEq(pufferVault.totalAssets(), 1010 ether, "total assets");
@@ -318,7 +318,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.prank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
             vm.prank(actor);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
         }
 
         assertEq(pufferVault.totalAssets(), 1010 ether, "total assets");
@@ -350,7 +350,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         _givePufETH(1 ether, address(this));
 
         pufferVault.approve(address(withdrawalManager), 1 ether);
-        withdrawalManager.requestWithdrawals(uint128(1 ether), address(this));
+        withdrawalManager.requestWithdrawal(uint128(1 ether), address(this));
     }
 
     function test_requestWithdrawalsWithPermit() public {
@@ -455,7 +455,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             _givePufETH(depositAmount, actor);
             vm.startPrank(actor);
             pufferVault.approve(address(withdrawalManager), depositAmount);
-            withdrawalManager.requestWithdrawals(uint128(depositAmount), actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
             vm.stopPrank();
         }
 
