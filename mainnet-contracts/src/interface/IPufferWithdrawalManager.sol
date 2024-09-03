@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVaultV3 } from "../PufferVaultV3.sol";
 import { Permit } from "../structs/Permit.sol";
+import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorage.sol";
 
 /**
  * @title IPufferWithdrawalManager
@@ -106,4 +107,20 @@ interface IPufferWithdrawalManager {
      * @param withdrawalIdx The index of the withdrawal to complete
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external;
+
+    /**
+     * @notice Returns the index of the last finalized withdrawal batch
+     * @return The index of the last finalized withdrawal batch
+     */
+    function getFinalizedWithdrawalBatch() external view returns (uint256);
+
+    /**
+     * @notice Returns the withdrawal details for a given withdrawal index
+     * @param withdrawalIdx The index of the withdrawal to retrieve
+     * @return The Withdrawal struct containing the details of the withdrawal
+     */
+    function getWithdrawal(uint256 withdrawalIdx)
+        external
+        view
+        returns (PufferWithdrawalManagerStorage.Withdrawal memory);
 }

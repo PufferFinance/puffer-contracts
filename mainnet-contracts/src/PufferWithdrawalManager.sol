@@ -29,18 +29,22 @@ contract PufferWithdrawalManager is
 
     /**
      * @notice The batch size for the withdrawal manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     PufferVaultV3 public immutable PUFFER_VAULT;
     /**
      * @notice The batch size for the withdrawal manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     uint256 public constant BATCH_SIZE = 10;
     /**
      * @notice The minimum withdrawal amount
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     uint256 public constant MIN_WITHDRAWAL_AMOUNT = 0.01 ether;
     /**
      * @notice The WETH contract
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IWETH public immutable WETH;
 
@@ -48,6 +52,7 @@ contract PufferWithdrawalManager is
      * @dev Constructor to initialize the PufferWithdrawalManager
      * @param pufferVault Address of the PufferVaultV3 contract
      * @param weth Address of the WETH contract
+     * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(PufferVaultV3 pufferVault, IWETH weth) {
         PUFFER_VAULT = pufferVault;
@@ -69,6 +74,8 @@ contract PufferWithdrawalManager is
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
         $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
+
+        $.finalizedWithdrawalBatch = 0;
     }
 
     /**
@@ -130,7 +137,7 @@ contract PufferWithdrawalManager is
 
             emit BatchFinalized(i, expectedETHAmount, transferAmount, pufETHBurnAmount);
         }
-        
+
         $.finalizedWithdrawalBatch = withdrawalBatchIndex;
     }
 
@@ -222,4 +229,19 @@ contract PufferWithdrawalManager is
      * @param newImplementation The address of the new implementation
      */
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getFinalizedWithdrawalBatch() external view returns (uint256) {
+        return _getWithdrawalManagerStorage().finalizedWithdrawalBatch;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getWithdrawal(uint256 withdrawalIdx) external view returns (Withdrawal memory) {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        return $.withdrawals[withdrawalIdx];
+    }
 }

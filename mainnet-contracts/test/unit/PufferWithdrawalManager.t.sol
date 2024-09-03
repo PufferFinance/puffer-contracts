@@ -23,6 +23,8 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
     address[] public actors;
 
+    uint256 BATCH_SIZE = 10;
+
     /**
      * @dev Set up the test environment
      */
@@ -200,7 +202,6 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * @dev Test finalizing withdrawals with an incomplete batch
      */
     function test_finalizeWithdrawals_incompleteBatch() public {
-        uint256 batchSize = 10;
         uint256 incompleteAmount = 9;
         uint256 depositAmount = 10 ether;
 
@@ -222,7 +223,6 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      */
     function test_completeQueuedWithdrawal_notFinalized() public {
         uint256 depositAmount = 10 ether;
-        uint256 BATCH_SIZE = 10;
 
         // Fill the batch
         for (uint256 i = 0; i < BATCH_SIZE; i++) {
@@ -234,23 +234,23 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
         }
 
+        assertEq(withdrawalManager.getFinalizedWithdrawalBatch(), 0, "finalizedWithdrawalBatch should be 0");
+
         // Try to complete a withdrawal without finalizing the batch
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.NotFinalized.selector));
         withdrawalManager.completeQueuedWithdrawal(11);
 
-        // Finalize the batch
         withdrawalManager.finalizeWithdrawals(1);
 
         // Now the withdrawal should complete successfully
         uint256 expectedPayoutAmount = depositAmount; // Since the exchange rate is 1:1
-        uint256 balanceBefore = actors[1].balance;
 
-        // Complete the withdrawal for index 1
-        withdrawalManager.completeQueuedWithdrawal(11);
-        uint256 balanceAfter = actors[1].balance;
+        // Complete the withdrawal for the first withdrawal batch_size + 1
+        withdrawalManager.completeQueuedWithdrawal(BATCH_SIZE + 1);
+        uint256 balanceAfter = weth.balanceOf(actors[1]);
 
         // Verify the balance change of the actor after withdrawal
-        assertEq(balanceAfter - balanceBefore, expectedPayoutAmount, "Incorrect withdrawal amount");
+        assertEq(balanceAfter, expectedPayoutAmount, "Incorrect withdrawal amount");
 
         // Try to complete the same withdrawal again
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.WithdrawalAlreadyCompleted.selector));
@@ -298,7 +298,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             withdrawalManager.completeQueuedWithdrawal(i + 10);
 
             // the users did not get any yield from the VT sale, they got paid out using the original 1:1 exchange rate
-            assertEq(actor.balance, depositAmount, "actor got paid in ETH");
+            assertEq(weth.balanceOf(actor), depositAmount, "actor got paid in ETH");
         }
     }
 
@@ -337,7 +337,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             withdrawalManager.completeQueuedWithdrawal(i + batchSize);
 
             // the users will get less than 1 ETH because of the slashing
-            assertEq(actor.balance, 0.891089108910891089 ether, "actor got paid in ETH");
+            assertEq(weth.balanceOf(actor), 0.891089108910891089 ether, "actor got paid in ETH");
         }
     }
 
@@ -444,9 +444,8 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         payable(address(pufferVault)).transfer(amount);
     }
 
-    function test_completeQueuedWithdrawal_notFinalized_SecondBatch() public {
+    function test_completeQueuedWithdrawal_SecondBatch() public {
         uint256 depositAmount = 10 ether;
-        uint256 BATCH_SIZE = 10;
 
         // Fill the first and second batch
         for (uint256 i = 0; i < BATCH_SIZE * 2; i++) {
@@ -469,9 +468,9 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.finalizeWithdrawals(1);
 
         // The withdrawal from the second batch should now complete successfully
-        uint256 balanceBefore = actors[0].balance;
+        uint256 balanceBefore = weth.balanceOf(actors[0]);
         withdrawalManager.completeQueuedWithdrawal(BATCH_SIZE);
-        uint256 balanceAfter = actors[0].balance;
+        uint256 balanceAfter = weth.balanceOf(actors[0]);
 
         // Verify the balance change of the actor after withdrawal
         assertGt(balanceAfter, balanceBefore, "Withdrawal amount should be greater than zero");
