@@ -11,6 +11,7 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
+import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
  * // Check that the simulation
@@ -21,24 +22,20 @@ import { GuardianModule } from "../src/GuardianModule.sol";
  *       `forge cache clean`
  *       forge script script/DeployVTImplementation.s.sol:DeployVTImplementation --rpc-url=$RPC_URL --private-key $PK --broadcast
  */
-contract DeployVTImplementation is Script {
-    ValidatorTicket validatorTicketImplementation;
-
-    address PUFFER_VAULT = 0xD9A442856C234a39a81a089C06451EBAa4306a72;
-    address TREASURY = 0x946Ae7b21de3B0793Bb469e263517481B74A6950;
-
-    address GUARDIAN_MODULE = 0xa95aa41bBa980Eb7a80e7bfF4F6218244C723f57;
-    address ORACLE = 0x785a54316Af8Cb61b16a82a3f60c08A18425fA86;
-
+contract DeployVTImplementation is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
         // Implementation of ValidatorTicket
+        ValidatorTicket validatorTicketImplementation;
         validatorTicketImplementation = new ValidatorTicket({
-            guardianModule: payable(address(GUARDIAN_MODULE)),
-            treasury: payable(TREASURY),
-            pufferVault: payable(PUFFER_VAULT),
-            pufferOracle: IPufferOracle(address(ORACLE))
+            guardianModule: payable(address(_getGuardianModule())),
+            treasury: payable(_getTreasury()),
+            pufferVault: payable(_getPufferVault()),
+            pufferOracle: IPufferOracle(address(_getPufferOracle()))
         });
+
+        //@todo Double check reinitialization
+        _consoleLogOrUpgradeUUPS(_getValidatorTicket(), address(validatorTicketImplementation), "", "ValidatorTicket");
     }
 }

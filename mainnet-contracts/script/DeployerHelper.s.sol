@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title Deployer Helper script
@@ -21,6 +22,121 @@ abstract contract DeployerHelper is Script {
         (, address msgSender,) = vm.readCallers();
         console.log("Deployer:", block.chainid, msgSender);
         return msgSender;
+    }
+
+    /**
+     * @dev Upgrade the implementation of the `proxyTarget` to `newImplementation` if on Holesky,
+     * otherwise log the call data.
+     */
+    function _consoleLogOrUpgradeUUPS(
+        address proxyTarget,
+        address implementation,
+        bytes memory data,
+        string memory contractName
+    ) internal {
+        vm.label(implementation, contractName);
+        console.log("Deployed", contractName, "at", implementation);
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(
+                proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
+            );
+        } else {
+            bytes memory upgradeCallData =
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));
+            console.logBytes(upgradeCallData);
+            console.log("================================================");
+        }
+    }
+
+    function _getTreasury() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x946Ae7b21de3B0793Bb469e263517481B74A6950;
+        } else if (block.chainid == holesky) {
+            return 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
+        }
+
+        revert("Treasury not available for this chain");
+    }
+
+    function _getEigenSlasher() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
+        } else if (block.chainid == holesky) {
+            return 0xcAe751b75833ef09627549868A04E32679386e7C;
+        }
+
+        revert("EigenSlasher not available for this chain");
+    }
+
+    function _getRestakingOperatorBeacon() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x6756B856Dd3843C84249a6A31850cB56dB824c4B;
+        } else if (block.chainid == holesky) {
+            return 0x99c3E46E575df251149866285DdA7DAEba875B71;
+        }
+
+        revert("RestakingOperatorBeacon not available for this chain");
+    }
+
+    function _getBeaconDepositContract() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x00000000219ab540356cBB839Cbe05303d7705Fa;
+        } else if (block.chainid == holesky) {
+            return 0x4242424242424242424242424242424242424242;
+        }
+
+        revert("BeaconDepositContract not available for this chain");
+    }
+
+    function _getGuardianModule() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x628b183F248a142A598AA2dcCCD6f7E480a7CcF2;
+        } else if (block.chainid == holesky) {
+            return 0x0910310130d1c062DEF8B807528bdac80203BC66;
+        }
+
+        revert("GuardianModule not available for this chain");
+    }
+
+    function _getPufferModuleBeacon() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0xdd38A5a7789C74fc7F64556fc772343658EEBb04;
+        } else if (block.chainid == holesky) {
+            return 0x4B0542470935ed4b085C3AD1983E85f5623ABf89;
+        }
+
+        revert("PufferModuleBeacon not available for this chain");
+    }
+
+    function _getEigenPodManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
+        } else if (block.chainid == holesky) {
+            return 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
+        }
+
+        revert("EigenPodManager not available for this chain");
+    }
+
+    function _getDelegationManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
+        } else if (block.chainid == holesky) {
+            return 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+        }
+
+        revert("DelegationManager not available for this chain");
+    }
+
+    function _getRewardsCoordinator() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
+        } else if (block.chainid == holesky) {
+            return 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+        }
+
+        revert("RewardsCoordinator not available for this chain");
     }
 
     function _getStETH() internal view returns (address) {

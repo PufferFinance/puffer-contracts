@@ -15,30 +15,35 @@ import { PufferModule } from "../src/PufferModule.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
+import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
- * forge script script/DeployPufferModuleImplementation.s.sol:DeployPufferModuleImplementation --rpc-url=$RPC_URL --private-key $PK --verify --broadcast
+ * use --account of --private-key of the deployer to deploy
+ * forge script script/DeployPufferModuleImplementation.s.sol:DeployPufferModuleImplementation --rpc-url=$RPC_URL --verify --broadcast -vvvv
  */
-contract DeployPufferModuleImplementation is Script {
-    address ACCESS_MANAGER = 0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e;
-    address PUFFER_MODULE_BEACON = 0x4B0542470935ed4b085C3AD1983E85f5623ABf89;
-
+contract DeployPufferModuleImplementation is DeployerHelper {
     function run() public {
-        require(block.chainid == 17000, "This script is only for Puffer Holesky testnet");
-
         vm.startBroadcast();
 
         PufferModule newImpl = new PufferModule({
-            protocol: PufferProtocol(payable(0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD)),
-            eigenPodManager: 0x30770d7E3e71112d7A6b7259542D1f680a70e315,
-            delegationManager: IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7),
-            moduleManager: PufferModuleManager(payable(0x20377c306451140119C9967Ba6D0158a05b4eD07)),
-            rewardsCoordinator: IRewardsCoordinator(0xAcc1fb458a1317E886dB376Fc8141540537E68fE)
+            protocol: PufferProtocol(_getPufferProtocol()),
+            eigenPodManager: _getEigenPodManager(),
+            delegationManager: IDelegationManager(_getDelegationManager()),
+            moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
         });
+
+        vm.label(address(newImpl), "PufferModuleImplementation");
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(newImpl));
 
-        // AccessManager is the owner of upgradeable beacon for restaking operator
-        AccessManager(ACCESS_MANAGER).execute(PUFFER_MODULE_BEACON, cd);
+        bytes memory calldataToExecute = abi.encodeCall(AccessManager.execute, (_getPufferModuleBeacon(), cd));
+
+        console.log("From Timelock queue a tx to accessManager");
+        console.logBytes(calldataToExecute);
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
+        }
     }
 }

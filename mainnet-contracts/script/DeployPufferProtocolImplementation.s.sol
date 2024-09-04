@@ -13,22 +13,29 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
+import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
  * forge script script/DeployPufferProtocolImplementation.s.sol:DeployPufferProtocolImplementation --rpc-url=$RPC_URL --private-key $PK
  */
-contract DeployPufferProtocolImplementation is Script {
+contract DeployPufferProtocolImplementation is DeployerHelper {
     function run() public {
-        require(block.chainid == 17000, "This script is only for Puffer Holesky testnet");
-
         vm.startBroadcast();
-        new PufferProtocol({
-            pufferVault: PufferVaultV2(payable(0x98408eadD0C7cC9AebbFB2AD2787c7473Db7A1fa)),
-            validatorTicket: ValidatorTicket(address(0xA143c6bFAff0B25B485454a9a8DB94dC469F8c3b)),
-            guardianModule: GuardianModule(payable(0xD349FdCD0e4451381bfE7cba3ac28773E176b326)),
-            moduleManager: address(0xe4695ab93163F91665Ce5b96527408336f070a71),
-            oracle: IPufferOracleV2(0xEf93AA29F627465A7f58A1F25980c90116f27b74),
-            beaconDepositContract: 0x4242424242424242424242424242424242424242
-        });
+
+        address protocolImplementation = address(
+            new PufferProtocol({
+                pufferVault: PufferVaultV2(payable(_getPufferVault())),
+                validatorTicket: ValidatorTicket(address(_getValidatorTicket())),
+                guardianModule: GuardianModule(payable(_getGuardianModule())),
+                moduleManager: _getPufferModuleManager(),
+                oracle: IPufferOracleV2(_getPufferOracle()),
+                beaconDepositContract: _getBeaconDepositContract()
+            })
+        );
+
+        //@todo Double check reinitialization
+        _consoleLogOrUpgradeUUPS(
+            _getPufferProtocol(), address(protocolImplementation), "", "PufferProtocolImplementation"
+        );
     }
 }
