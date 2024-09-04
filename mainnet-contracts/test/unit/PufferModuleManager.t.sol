@@ -6,7 +6,6 @@ import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
@@ -74,6 +73,16 @@ contract PufferModuleManagerTest is UnitTestHelper {
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
     }
 
+    function test_pufferModuleAuthorization(bytes32 moduleName) public {
+        address module = _createPufferModule(moduleName);
+
+        vm.expectRevert(Unauthorized.selector);
+        PufferModule(payable(module)).callStake("", "", "");
+
+        vm.expectRevert(Unauthorized.selector);
+        PufferModule(payable(module)).call(address(0), 0, "");
+    }
+
     function test_donation(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         (bool s,) = address(module).call{ value: 5 ether }("");
@@ -117,6 +126,68 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callUndelegate(moduleName);
 
         vm.stopPrank();
+    }
+
+    function test_setClaimerForModule(bytes32 moduleName, address claimer) public {
+        vm.assume(claimer != address(0));
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        address module = _createPufferModule(moduleName);
+
+        vm.startPrank(DAO);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet({ rewardsReceiver: address(module), claimer: claimer });
+        pufferModuleManager.callSetClaimerFor(module, claimer);
+    }
+
+    function test_setClaimerForReOp(address claimer) public {
+        vm.assume(claimer != address(0));
+
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ClaimerSet({ rewardsReceiver: address(operator), claimer: claimer });
+        pufferModuleManager.callSetClaimerFor(address(operator), claimer);
+    }
+
+    function test_setProofSubmitter(bytes32 moduleName, address proofSubmitter) public {
+        vm.assume(proofSubmitter != address(0));
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        vm.startPrank(DAO);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ProofSubmitterSet(moduleName, proofSubmitter);
+        pufferModuleManager.callSetProofSubmitter(moduleName, proofSubmitter);
+    }
+
+    function test_startCheckpoint(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+
+        vm.startPrank(DAO);
+
+        address module = _createPufferModule(moduleName);
+        address[] memory modules = new address[](1);
+        modules[0] = module;
+
+        vm.startPrank(DAO);
+
+        pufferModuleManager.callStartCheckpoint(modules);
+    }
+
+    function testRevert_createPufferModuleForbiddenName() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferModuleManager.ForbiddenModuleName.selector);
+        pufferProtocol.createPufferModule(bytes32("NO_VALIDATORS"));
+
+        vm.stopPrank();
+    }
+
+    function test_createPufferModuleUnauthrozied() public {
+        vm.expectRevert(Unauthorized.selector);
+        pufferModuleManager.createNewPufferModule(bytes32("random"));
     }
 
     function test_module_has_eigenPod(bytes32 moduleName) public {
@@ -265,6 +336,8 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        vm.assume(bytes32("NO_VALIDATORS") != moduleName);
+
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit Initializable.Initialized(1);

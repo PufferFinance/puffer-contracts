@@ -13,6 +13,8 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 /**
  * @title DeployPufferVaultV3
@@ -27,10 +29,10 @@ import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.
  *     --broadcast
  */
 contract DeployPufferVaultV3 is DeployerHelper {
-    function run() public returns (address) {
+    function run() public {
         vm.startBroadcast();
 
-        PufferVaultV3 protocolImplementation = new PufferVaultV3({
+        PufferVaultV3 pufferVaultV3Implementation = new PufferVaultV3({
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
@@ -40,8 +42,12 @@ contract DeployPufferVaultV3 is DeployerHelper {
             delegationManager: IDelegationManager(_getEigenDelegationManager())
         });
 
-        vm.label(address(protocolImplementation), "PufferVaultV3Implementation");
-
-        return address(protocolImplementation);
+        //@todo Double check reinitialization
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getPufferVault(),
+            implementation: address(pufferVaultV3Implementation),
+            data: "",
+            contractName: "PufferVaultV3Implementation"
+        });
     }
 }
