@@ -43,8 +43,11 @@ contract DeployPufferVaultV3 is DeployerHelper {
         });
 
         //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS(
-            _getPufferVault(), address(pufferVaultV3Implementation), "", "PufferVaultV3Implementation"
-        );
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getPufferVault(),
+            implementation: address(pufferVaultV3Implementation),
+            data: "",
+            contractName: "PufferVaultV3Implementation"
+        });
     }
 }

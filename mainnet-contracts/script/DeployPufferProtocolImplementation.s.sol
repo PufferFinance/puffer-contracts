@@ -34,8 +34,11 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
         );
 
         //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS(
-            _getPufferProtocol(), address(protocolImplementation), "", "PufferProtocolImplementation"
-        );
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getPufferProtocol(),
+            implementation: address(protocolImplementation),
+            data: "",
+            contractName: "PufferProtocolImplementation"
+        });
     }
 }

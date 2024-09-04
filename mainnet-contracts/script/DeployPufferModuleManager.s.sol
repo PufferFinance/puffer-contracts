@@ -25,11 +25,11 @@ contract DeployPufferModuleManager is DeployerHelper {
         });
 
         //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS(
-            _getPufferModuleManager(),
-            address(newPufferModuleManagerImplementation),
-            "",
-            "PufferModuleManagerImplementation"
-        );
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getPufferModuleManager(),
+            implementation: address(newPufferModuleManagerImplementation),
+            data: "",
+            contractName: "PufferModuleManagerImplementation"
+        });
     }
 }

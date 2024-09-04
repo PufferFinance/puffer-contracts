@@ -36,6 +36,11 @@ contract DeployVTImplementation is DeployerHelper {
         });
 
         //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS(_getValidatorTicket(), address(validatorTicketImplementation), "", "ValidatorTicket");
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getValidatorTicket(),
+            implementation: address(validatorTicketImplementation),
+            data: "",
+            contractName: "ValidatorTicketImplementation"
+        });
     }
 }
