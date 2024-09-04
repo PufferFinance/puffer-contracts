@@ -21,8 +21,10 @@ contract GenerateAccessManagerCalldata2 is Script {
     function run(address moduleManager) public pure returns (bytes memory) {
         bytes[] memory calldatas = new bytes[](1);
 
-        bytes4[] memory daoSelectors = new bytes4[](1);
+        bytes4[] memory daoSelectors = new bytes4[](3);
         daoSelectors[0] = PufferModuleManager.callSetClaimerFor.selector;
+        daoSelectors[1] = PufferModuleManager.callStartCheckpoint.selector;
+        daoSelectors[2] = PufferModuleManager.callSetProofSubmitter.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, moduleManager, daoSelectors, ROLE_ID_DAO

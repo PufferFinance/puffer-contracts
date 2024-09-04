@@ -241,14 +241,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @notice Returns the block number of when the latest rewards proof was posted
-     */
-    function getLastProofOfRewardsBlock() external view returns (uint256) {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-        return $.lastProofOfRewardsBlockNumber;
-    }
-
-    /**
      * @inheritdoc IPufferModule
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
