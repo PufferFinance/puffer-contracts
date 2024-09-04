@@ -44,6 +44,7 @@ abstract contract DeployerHelper is Script {
         } else {
             bytes memory upgradeCallData =
                 abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));
+            console.log("Queue TX From Timelock to -> ", proxyTarget);
             console.logBytes(upgradeCallData);
             console.log("================================================");
         }
@@ -127,6 +128,16 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("DelegationManager not available for this chain");
+    }
+
+    function _getAVSContractsRegistry() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x1565E55B63675c703fcC3778BD33eA97F7bE882F;
+        } else if (block.chainid == holesky) {
+            return 0x09BE86B01c1e32dCa2ebdEDb01cD5A3F798b80C5;
+        }
+
+        revert("AVSContractsRegistry not available for this chain");
     }
 
     function _getRewardsCoordinator() internal view returns (address) {
