@@ -4,8 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BaseScript } from "./BaseScript.s.sol";

@@ -16,3 +16,5 @@ l2-contracts/cache/*
 
 .DS_Store
 .aider*
+**/lcov.info
+**/broadcast/
