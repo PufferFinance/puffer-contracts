@@ -104,12 +104,12 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
     /**
      * Resource heavy test, so we restrict the number of runs
-     * forge-config: default.fuzz.runs = 3
+     * forge-config: default.fuzz.runs = 10
      * forge-config: default.fuzz.show-logs = false
-     * forge-config: ci.fuzz.runs = 3
+     * forge-config: ci.fuzz.runs = 10
      */
-    function test_createAndFinalizeWithdrawals(uint16 numberOfDeposits) public {
-        vm.assume(numberOfDeposits > 200 && numberOfDeposits < 2000);
+    function test_createAndFinalizeWithdrawals(uint8 numberOfDeposits) public {
+        vm.assume(numberOfDeposits > 200);
 
         vm.pauseGasMetering();
 

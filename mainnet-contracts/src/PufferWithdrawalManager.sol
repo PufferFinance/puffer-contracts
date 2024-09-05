@@ -32,11 +32,6 @@ contract PufferWithdrawalManager is
      */
     PufferVaultV3 public immutable PUFFER_VAULT;
     /**
-     * @notice The batch size for the withdrawal manager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    uint256 public constant BATCH_SIZE = 10;
-    /**
      * @notice The minimum withdrawal amount
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
@@ -46,6 +41,11 @@ contract PufferWithdrawalManager is
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IWETH public immutable WETH;
+    /**
+     * @notice The batch size for the withdrawal manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
+    uint256 public immutable BATCH_SIZE;
 
     /**
      * @dev Constructor to initialize the PufferWithdrawalManager
@@ -53,7 +53,8 @@ contract PufferWithdrawalManager is
      * @param weth Address of the WETH contract
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(PufferVaultV3 pufferVault, IWETH weth) {
+    constructor(uint256 batchSize, PufferVaultV3 pufferVault, IWETH weth) {
+        BATCH_SIZE = batchSize;
         PUFFER_VAULT = pufferVault;
         WETH = weth;
         _disableInitializers();
@@ -69,12 +70,13 @@ contract PufferWithdrawalManager is
 
         // Make the first `batch size` withdrawals empty, because the validations are weird for 0 batch
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
-        for (uint256 i = 0; i < (BATCH_SIZE); ++i) {
+
+        // Initially, we don't care about the multiplier, we want to skip the first batch [0]
+        for (uint256 i = 0; i < BATCH_SIZE; ++i) {
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
         $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
-
-        $.finalizedWithdrawalBatch = 0;
+        $.finalizedWithdrawalBatch = 0; // do it explicitly
     }
 
     /**
@@ -89,7 +91,7 @@ contract PufferWithdrawalManager is
      * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function requestWithdrawalsWithPermit(Permit calldata permitData, address recipient) external {
+    function requestWithdrawalWithPermit(Permit calldata permitData, address recipient) external {
         try IERC20Permit(address(PUFFER_VAULT)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -116,15 +118,19 @@ contract PufferWithdrawalManager is
             revert BatchesAreNotFull();
         }
 
+        uint256 finalizedWithdrawalBatch = $.finalizedWithdrawalBatch;
+
         // Check if the batch is already finalized
-        if (withdrawalBatchIndex <= $.finalizedWithdrawalBatch) {
+        if (withdrawalBatchIndex <= finalizedWithdrawalBatch) {
             revert BatchAlreadyFinalized(withdrawalBatchIndex);
         }
 
-        for (uint256 i = $.finalizedWithdrawalBatch; i <= withdrawalBatchIndex; ++i) {
+        // Start from the finalized batch + 1 and go up to the given batch index
+        for (uint256 i = finalizedWithdrawalBatch + 1; i <= withdrawalBatchIndex; ++i) {
             uint256 batchFinalizationExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
 
             WithdrawalBatch storage batch = $.withdrawalBatches[i];
+
             uint256 expectedETHAmount = batch.toTransfer;
             uint256 pufETHBurnAmount = batch.toBurn;
 
@@ -250,5 +256,12 @@ contract PufferWithdrawalManager is
      * Restricted access
      * @param newImplementation The address of the new implementation
      */
-    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+    function _authorizeUpgrade(address newImplementation) internal virtual override restricted {
+        PufferWithdrawalManager newImplementationContract = PufferWithdrawalManager(payable(newImplementation));
+
+        // We can only upgrade to different batch size if everything has been finalized
+        if (newImplementationContract.BATCH_SIZE() != BATCH_SIZE) {
+            revert BatchSizeCannotChange();
+        }
+    }
 }
