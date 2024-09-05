@@ -13,13 +13,16 @@ import { Generate2StepWithdrawalsCalldata } from "./AccessManagerMigrations/04_G
  * forge script script/DeployPufferWithdrawalManager.s.sol:DeployPufferWithdrawalManager --rpc-url=$RPC_URL --private-key $PK
  */
 contract DeployPufferWithdrawalManager is DeployerHelper {
+    PufferWithdrawalManager public withdrawalManager;
+    bytes public encodedCalldata;
+
     function run() public {
         vm.startBroadcast();
 
         PufferWithdrawalManager withdrawalManagerImpl =
             ((new PufferWithdrawalManager(PufferVaultV3(payable(_getPufferVault())), IWETH(_getWETH()))));
 
-        PufferWithdrawalManager withdrawalManager = PufferWithdrawalManager(
+        withdrawalManager = PufferWithdrawalManager(
             (
                 payable(
                     new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
@@ -33,7 +36,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         vm.label(address(withdrawalManager), "PufferWithdrawalManagerProxy");
         vm.label(address(withdrawalManagerImpl), "PufferWithdrawalManagerImplementation");
 
-        bytes memory encodedCalldata =
+        encodedCalldata =
             new Generate2StepWithdrawalsCalldata().run(address(withdrawalManager), address(_getPufferVault()));
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
