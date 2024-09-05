@@ -13,6 +13,11 @@ import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorag
  */
 interface IPufferWithdrawalManager {
     /**
+     * @notice Thrown when attempting to change the batch size
+     */
+    error BatchSizeCannotChange();
+
+    /**
      * @notice Thrown when attempting to finalize a batch that has already been finalized
      */
     error BatchAlreadyFinalized(uint256 batchIndex);
@@ -95,7 +100,7 @@ interface IPufferWithdrawalManager {
      * @param permitData The permit data for the withdrawal
      * @param recipient The address to receive the withdrawn ETH
      */
-    function requestWithdrawalsWithPermit(Permit calldata permitData, address recipient) external;
+    function requestWithdrawalWithPermit(Permit calldata permitData, address recipient) external;
 
     /**
      * @notice Complete a queued withdrawal

@@ -16,11 +16,13 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
     PufferWithdrawalManager public withdrawalManager;
     bytes public encodedCalldata;
 
+    uint256 public BATCH_SIZE = 10; //@todo figure out a good batch size
+
     function run() public {
         vm.startBroadcast();
 
         PufferWithdrawalManager withdrawalManagerImpl =
-            ((new PufferWithdrawalManager(PufferVaultV3(payable(_getPufferVault())), IWETH(_getWETH()))));
+            ((new PufferWithdrawalManager(BATCH_SIZE, PufferVaultV3(payable(_getPufferVault())), IWETH(_getWETH()))));
 
         withdrawalManager = PufferWithdrawalManager(
             (
