@@ -109,7 +109,7 @@ contract UnitTestHelper is Test, BaseScript {
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
-    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER");
+    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER"); // 0xA540f91Fb840381BCCf825a16A9fbDD0a19deFB1
     address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
     address public timelock;
 
@@ -188,7 +188,7 @@ contract UnitTestHelper is Test, BaseScript {
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
-        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1);
+        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);

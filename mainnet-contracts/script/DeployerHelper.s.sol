@@ -159,6 +159,18 @@ abstract contract DeployerHelper is Script {
         revert("AVSContractsRegistry not available for this chain");
     }
 
+    function _getTimelock() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // Mainnet Timelock: https://etherscan.io/address/0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA
+            return 0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA;
+        } else if (block.chainid == holesky) {
+            // Holesky Timelock: https://explorer.pops.one/address/0x829aF0B3d099a12F0aE1b806f466EF771E2C07F8
+            return 0x829aF0B3d099a12F0aE1b806f466EF771E2C07F8;
+        }
+
+        revert("Timelock not available for this chain");
+    }
+
     function _getRewardsCoordinator() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x7750d328b314EfFa365A0402CcfD489B80B0adda
@@ -181,6 +193,14 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("stETH not available for this chain");
+    }
+
+    function _getWstETH() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            return 0x8d09a4502Cc8Cf1547aD300E066060D043f6982D;
+        }
+
+        revert("WstETH not available for this chain");
     }
 
     function _getStETHStrategy() internal view returns (address) {

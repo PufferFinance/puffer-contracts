@@ -24,8 +24,9 @@ import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallD
 import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
+import { DeployerHelper } from "../script/DeployerHelper.s.sol";
 
-contract MainnetForkTestHelper is Test {
+contract MainnetForkTestHelper is Test, DeployerHelper {
     /**
      * @dev Ethereum Mainnet addresses
      */
@@ -126,16 +127,16 @@ contract MainnetForkTestHelper is Test {
 
     function _setupLiveContracts() internal {
         pufferDepositor = PufferDepositorV2(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
-        pufferVault = PufferVaultV3(payable(0xD9A442856C234a39a81a089C06451EBAa4306a72));
-        accessManager = AccessManager(payable(0x8c1686069474410E6243425f4a10177a94EBEE11));
-        timelock = Timelock(payable(0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA));
+        pufferVault = PufferVaultV3(payable(_getPufferVault()));
+        accessManager = AccessManager(payable(_getAccessManager()));
+        timelock = Timelock(payable(_getTimelock()));
 
         COMMUNITY_MULTISIG = timelock.COMMUNITY_MULTISIG();
         OPERATIONS_MULTISIG = timelock.OPERATIONS_MULTISIG();
 
         vm.label(COMMUNITY_MULTISIG, "COMMUNITY_MULTISIG");
         vm.label(OPERATIONS_MULTISIG, "OPERATIONS_MULTISIG");
-        vm.label(address(stETH), "stETH");
+        vm.label(_getStETH(), "stETH");
         vm.label(address(pufferDepositor), "PufferDepositorProxy");
         vm.label(address(pufferVault), "PufferVaultProxy");
         vm.label(address(accessManager), "AccessManager");

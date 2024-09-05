@@ -10,7 +10,8 @@ import { ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GUARDIANS, PUBLIC_ROLE } from "../../s
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Permit } from "../../src/structs/Permit.sol";
-
+import { Generate2StepWithdrawalsCalldata } from
+    "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
 /**
  * @title PufferWithdrawalManagerTest
  * @dev Test contract for PufferWithdrawalManager
@@ -18,6 +19,7 @@ import { Permit } from "../../src/structs/Permit.sol";
  * @dev Run the following command to execute the tests:
  * forge test --match-path test/unit/PufferWithdrawalManager.t.sol -vvvv
  */
+
 contract PufferWithdrawalManagerTest is UnitTestHelper {
     PufferWithdrawalManager public withdrawalManager;
 
@@ -49,35 +51,10 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         vm.startPrank(_broadcaster);
 
-        bytes[] memory calldatas = new bytes[](5);
-
-        bytes4[] memory guardianSelectors = new bytes4[](1);
-        guardianSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(withdrawalManager),
-            guardianSelectors,
-            ROLE_ID_GUARDIANS
-        );
-
-        // Grant GUARDIAN role to the test contract
-        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_GUARDIANS, address(this), 0);
-
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = PufferWithdrawalManager.completeQueuedWithdrawal.selector;
-        calldatas[2] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(withdrawalManager), publicSelectors, PUBLIC_ROLE
-        );
-
-        bytes4[] memory pufferselectors = new bytes4[](1);
-        pufferselectors[0] = PufferVaultV2.transferETH.selector;
-        calldatas[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(pufferVault), pufferselectors, ROLE_ID_PUFFER_PROTOCOL
-        );
-
-        calldatas[4] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFFER_PROTOCOL, withdrawalManager, 0);
-        accessManager.multicall(calldatas);
+        bytes memory encodedCalldata =
+            new Generate2StepWithdrawalsCalldata().run(address(withdrawalManager), address(pufferVault));
+        (bool success,) = address(accessManager).call(encodedCalldata);
+        require(success, "AccessManager.call failed");
 
         vm.stopPrank();
 
@@ -189,6 +166,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.stopPrank();
         }
 
+        vm.prank(PAYMASTER);
         withdrawalManager.finalizeWithdrawals(numBatches);
 
         // Test that withdrawals in finalized batches can be completed
@@ -218,8 +196,10 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             vm.stopPrank();
         }
 
+        vm.startPrank(PAYMASTER);
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchesAreNotFull.selector));
         withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
     }
 
     /**
@@ -244,6 +224,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.NotFinalized.selector));
         withdrawalManager.completeQueuedWithdrawal(11);
 
+        vm.startPrank(PAYMASTER);
         withdrawalManager.finalizeWithdrawals(1);
 
         // Now the withdrawal should complete successfully
@@ -288,7 +269,9 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         assertEq(pufferVault.totalAssets(), 1310 ether, "total assets");
 
+        vm.startPrank(PAYMASTER);
         withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
 
         for (uint256 i = 0; i < 10; i++) {
             address actor = actors[i % actors.length];
@@ -332,7 +315,9 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         assertEq(pufferVault.totalAssets(), 900 ether, "total assets 900");
 
         // The settlement exchange rate is now lower than the original 1:1 exchange rate
+        vm.startPrank(PAYMASTER);
         withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
 
         for (uint256 i = 0; i < 10; i++) {
             address actor = actors[i % actors.length];
@@ -423,6 +408,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // Finalize only the first batch
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchAlreadyFinalized.selector, (0)));
+        vm.startPrank(PAYMASTER);
         withdrawalManager.finalizeWithdrawals(0);
 
         // Try to complete the withdrawal from the second (unfinalized) batch
@@ -431,6 +417,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // Now finalize the second batch
         withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
 
         // The withdrawal from the second batch should now complete successfully
         uint256 balanceBefore = weth.balanceOf(actors[0]);
