@@ -39,8 +39,8 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         encodedCalldata =
             new Generate2StepWithdrawalsCalldata().run(address(withdrawalManager), address(_getPufferVault()));
 
-        console.log("Queue from Timelock -> AccessManager", _getAccessManager());
-        console.logBytes(encodedCalldata);
+        // console.log("Queue from Timelock -> AccessManager", _getAccessManager());
+        // console.logBytes(encodedCalldata);
 
         if (block.chainid == 11155111) {
             (bool success,) = address(_getAccessManager()).call(encodedCalldata);
