@@ -10,6 +10,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { Permit } from "../../src/structs/Permit.sol";
 import { Generate2StepWithdrawalsCalldata } from
     "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
+
 /**
  * @title PufferWithdrawalManagerTest
  * @dev Test contract for PufferWithdrawalManager
@@ -17,7 +18,6 @@ import { Generate2StepWithdrawalsCalldata } from
  * @dev Run the following command to execute the tests:
  * forge test --match-path test/unit/PufferWithdrawalManager.t.sol -vvvv
  */
-
 contract PufferWithdrawalManagerTest is UnitTestHelper {
     PufferWithdrawalManager public withdrawalManager;
 

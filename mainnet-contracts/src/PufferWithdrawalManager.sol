@@ -142,7 +142,12 @@ contract PufferWithdrawalManager is
 
             batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
 
-            emit BatchFinalized(i, expectedETHAmount, transferAmount, pufETHBurnAmount);
+            emit BatchFinalized({
+                batchIdx: i,
+                expectedETHAmount: expectedETHAmount,
+                actualEthAmount: transferAmount,
+                pufETHBurnAmount: pufETHBurnAmount
+            });
         }
 
         $.finalizedWithdrawalBatch = withdrawalBatchIndex;
@@ -182,7 +187,12 @@ contract PufferWithdrawalManager is
 
         WETH.transfer(recipient, payoutAmount);
 
-        emit WithdrawalCompleted(withdrawalIdx, payoutAmount, payoutExchangeRate, recipient);
+        emit WithdrawalCompleted({
+            withdrawalIdx: withdrawalIdx,
+            ethPayoutAmount: payoutAmount,
+            payoutExchangeRate: payoutExchangeRate,
+            recipient: recipient
+        });
     }
 
     /**
@@ -248,7 +258,12 @@ contract PufferWithdrawalManager is
             })
         );
 
-        emit WithdrawalRequested(withdrawalIndex, batchIndex, pufETHAmount, recipient);
+        emit WithdrawalRequested({
+            withdrawalIdx: withdrawalIndex,
+            batchIdx: batchIndex,
+            pufETHAmount: pufETHAmount,
+            recipient: recipient
+        });
     }
 
     /**
