@@ -38,8 +38,13 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         vm.label(address(withdrawalManager), "PufferWithdrawalManagerProxy");
         vm.label(address(withdrawalManagerImpl), "PufferWithdrawalManagerImplementation");
 
-        encodedCalldata =
-            new Generate2StepWithdrawalsCalldata().run(address(withdrawalManager), address(_getPufferVault()));
+        encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
+            pufferVaultProxy: _getPufferVault(),
+            pufferProtocol: _getPufferProtocol(),
+            withdrawalManagerProxy: address(withdrawalManager),
+            paymaster: _getPaymaster(),
+            withdrawalFinalizer: _getOPSMultisig()
+        });
 
         // console.log("Queue from Timelock -> AccessManager", _getAccessManager());
         // console.logBytes(encodedCalldata);

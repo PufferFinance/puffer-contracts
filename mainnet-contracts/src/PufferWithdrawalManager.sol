@@ -83,7 +83,7 @@ contract PufferWithdrawalManager is
      * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function requestWithdrawal(uint128 pufETHAmount, address recipient) external {
+    function requestWithdrawal(uint128 pufETHAmount, address recipient) external restricted {
         _processWithdrawalRequest(pufETHAmount, recipient);
     }
 
@@ -91,7 +91,7 @@ contract PufferWithdrawalManager is
      * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function requestWithdrawalWithPermit(Permit calldata permitData, address recipient) external {
+    function requestWithdrawalWithPermit(Permit calldata permitData, address recipient) external restricted {
         try IERC20Permit(address(PUFFER_VAULT)).permit({
             owner: msg.sender,
             spender: address(this),
@@ -108,7 +108,7 @@ contract PufferWithdrawalManager is
     /**
      * @notice Finalizes the withdrawals up to the given batch index
      * @param withdrawalBatchIndex The index of the last batch to finalize
-     * @dev Restricted access to ROLE_ID_OPERATIONS_PAYMASTER
+     * @dev Restricted access to ROLE_ID_WITHDRAWAL_FINALIZER
      */
     function finalizeWithdrawals(uint256 withdrawalBatchIndex) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
