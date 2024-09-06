@@ -19,6 +19,8 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
     uint256 public BATCH_SIZE = 10; //@todo figure out a good batch size
 
     function run() public {
+        Generate2StepWithdrawalsCalldata calldataGenerator = new Generate2StepWithdrawalsCalldata();
+
         vm.startBroadcast();
 
         PufferWithdrawalManager withdrawalManagerImpl =
@@ -38,7 +40,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         vm.label(address(withdrawalManager), "PufferWithdrawalManagerProxy");
         vm.label(address(withdrawalManagerImpl), "PufferWithdrawalManagerImplementation");
 
-        encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
+        encodedCalldata = calldataGenerator.run({
             pufferVaultProxy: _getPufferVault(),
             pufferProtocol: _getPufferProtocol(),
             withdrawalManagerProxy: address(withdrawalManager),
@@ -46,8 +48,8 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
             withdrawalFinalizer: _getOPSMultisig()
         });
 
-        // console.log("Queue from Timelock -> AccessManager", _getAccessManager());
-        // console.logBytes(encodedCalldata);
+        console.log("Queue from Timelock -> AccessManager", _getAccessManager());
+        console.logBytes(encodedCalldata);
 
         if (block.chainid == 11155111) {
             (bool success,) = address(_getAccessManager()).call(encodedCalldata);
