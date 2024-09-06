@@ -6,6 +6,7 @@ import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { DeployPufferWithdrawalManager } from "../../script/DeployPufferWithdrawalManager.s.sol";
 import { PufferWithdrawalManager } from "../../src/PufferWithdrawalManager.sol";
 import { IPufferWithdrawalManager } from "../../src/interface/IPufferWithdrawalManager.sol";
+import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 
 contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
     address PUFFER_WHALE_1 = 0x47de9eE11976fA9280BE85ad959D8D341c087D23;
@@ -32,7 +33,10 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         PUFFER_WHALE_10
     ];
 
+    uint256 TOTAL_ASSETS = 520332641191616015099456;
+
     PufferWithdrawalManager public withdrawalManager;
+    uint256 public batchSize;
 
     function setUp() public virtual override {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20682408);
@@ -46,6 +50,8 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
 
         withdrawalManager = dplScript.withdrawalManager();
 
+        batchSize = withdrawalManager.BATCH_SIZE();
+
         vm.startPrank(_getTimelock());
         (bool success,) = address(_getAccessManager()).call(dplScript.encodedCalldata());
         require(success, "AccessManager.call failed");
@@ -56,6 +62,133 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         assertGt(pufferVault.balanceOf(PUFFER_WHALE_1), 100 ether, "PUFFER_WHALE_1 has less than 100 ether");
     }
 
+    function test_one_user_one_batch() public {
+        vm.startPrank(PUFFER_WHALE_1);
+
+        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
+        uint256 withdrawalAmount = 1 ether;
+
+        assertEq(pufETHToETHExchangeRate, 1.019124799735076818 ether, "pufETHToETHExchangeRate");
+
+        deal(address(_WETH), PUFFER_WHALE_1, 0); // set their WETH balance to 0 for easier accounting at the end of the test
+
+        // Users request withdrawals, we record the exchange rate (1:1)
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(PUFFER_WHALE_1);
+            pufferVault.approve(address(withdrawalManager), withdrawalAmount);
+            withdrawalManager.requestWithdrawal(uint128(withdrawalAmount), PUFFER_WHALE_1);
+            vm.stopPrank();
+        }
+
+        // Finalize the batch
+        vm.startPrank(_getPaymaster());
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Complete the withdrawals
+        vm.startPrank(PUFFER_WHALE_1);
+        for (uint256 i = batchSize; i < batchSize * 2; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        // He withdrew 10 x 1 ETH, and received 10.19124799735076818 ETH
+        assertEq(
+            _WETH.balanceOf(PUFFER_WHALE_1),
+            10.19124799735076818 ether,
+            "PUFFER_WHALE_1 did receive the expected ETH amount"
+        );
+    }
+
+    // We payout using the old exchange rate (user doesn't get any rewards from the VT sale)
+    function test_one_user_one_batch_huge_vt_sale() public {
+        vm.startPrank(PUFFER_WHALE_1);
+
+        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
+        uint256 withdrawalAmount = 1 ether;
+
+        assertEq(pufETHToETHExchangeRate, 1.019124799735076818 ether, "pufETHToETHExchangeRate");
+
+        deal(address(_WETH), PUFFER_WHALE_1, 0); // set their WETH balance to 0 for easier accounting at the end of the test
+
+        // Users request withdrawals, we record the exchange rate (1:1)
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(PUFFER_WHALE_1);
+            pufferVault.approve(address(withdrawalManager), withdrawalAmount);
+            withdrawalManager.requestWithdrawal(uint128(withdrawalAmount), PUFFER_WHALE_1);
+            vm.stopPrank();
+        }
+
+        // After the user has requested the withdrawals, there is a huge VT purchase
+        vm.startPrank(0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8); // Binance hot wallet
+        ValidatorTicket(_getValidatorTicket()).purchaseValidatorTicket{ value: 1000 ether }(address(5));
+        vm.stopPrank();
+
+        assertGt(pufferVault.totalAssets(), TOTAL_ASSETS, "total assets must be bigger now");
+        assertGt(pufferVault.convertToAssets(1 ether), pufETHToETHExchangeRate, "the new exchange rate must be bigger");
+
+        // Finalize the batch
+        vm.startPrank(_getPaymaster());
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Complete the withdrawals
+        vm.startPrank(PUFFER_WHALE_1);
+        for (uint256 i = batchSize; i < batchSize * 2; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        // He withdrew 10 x 1 ETH, and received 10.19124799735076818 ETH
+        assertEq(
+            _WETH.balanceOf(PUFFER_WHALE_1),
+            10.19124799735076818 ether,
+            "PUFFER_WHALE_1 must receive the same ETH amount as he would have received if there was no VT sale"
+        );
+    }
+
+    // We payout using the old exchange rate (user doesn't get any rewards from the VT sale)
+    function test_one_user_one_huge_slashing() public {
+        vm.startPrank(PUFFER_WHALE_1);
+
+        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
+        uint256 withdrawalAmount = 1 ether;
+
+        assertEq(pufETHToETHExchangeRate, 1.019124799735076818 ether, "pufETHToETHExchangeRate");
+
+        deal(address(_WETH), PUFFER_WHALE_1, 0); // set their WETH balance to 0 for easier accounting at the end of the test
+
+        // Users request withdrawals, we record the exchange rate (1:1)
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(PUFFER_WHALE_1);
+            pufferVault.approve(address(withdrawalManager), withdrawalAmount);
+            withdrawalManager.requestWithdrawal(uint128(withdrawalAmount), PUFFER_WHALE_1);
+            vm.stopPrank();
+        }
+
+        // Simulate huge slashing, major incident
+        deal(address(pufferVault), 0);
+
+        assertLt(pufferVault.totalAssets(), TOTAL_ASSETS, "total assets must be smaller now");
+        assertLt(pufferVault.convertToAssets(1 ether), pufETHToETHExchangeRate, "the new exchange rate must be smaller");
+
+        // Finalize the batch
+        vm.startPrank(_getPaymaster());
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Complete the withdrawals
+        vm.startPrank(PUFFER_WHALE_1);
+        for (uint256 i = batchSize; i < batchSize * 2; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        // He withdrew 10 x 1 ETH, and received 9.38124713495630522 ETH
+        assertEq(
+            _WETH.balanceOf(PUFFER_WHALE_1),
+            9.38124713495630522 ether,
+            "PUFFER_WHALE_1 must receive the same ETH amount as he would have received if there was no VT sale"
+        );
+    }
+
     /**
      * This is a fork fuzz test, but restricted to low runs to not spam the RPC node.
      * forge-config: default.fuzz.runs = 3
@@ -63,7 +196,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
      * forge-config: ci.fuzz.runs = 3
      */
     function test_withdraw(uint256) public {
-        assertEq(pufferVault.totalAssets(), 520332641191616015099456, "total assets");
+        assertEq(pufferVault.totalAssets(), TOTAL_ASSETS, "total assets");
 
         // Create an array to store withdrawal amounts
         uint256[] memory withdrawalAmounts = new uint256[](10);
@@ -88,7 +221,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
             vm.stopPrank();
         }
 
-        assertEq(pufferVault.totalAssets(), 520332641191616015099456, "total assets doesn't change");
+        assertEq(pufferVault.totalAssets(), TOTAL_ASSETS, "total assets doesn't change");
 
         vm.startPrank(_getPaymaster());
         withdrawalManager.finalizeWithdrawals(1);
@@ -97,11 +230,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         // Finalize withdrawals transfers ETH from the Vault to the WithdrawalManager
         assertEq(address(withdrawalManager).balance, totalPayoutAmount, "WithdrawalManager didn't receive ETH");
 
-        assertEq(
-            pufferVault.totalAssets(),
-            (520332641191616015099456 - totalPayoutAmount),
-            "total assets of the vault decreases"
-        );
+        assertEq(pufferVault.totalAssets(), (TOTAL_ASSETS - totalPayoutAmount), "total assets of the vault decreases");
 
         // Complete withdrawals
         for (uint256 i = 0; i < 10; i++) {
