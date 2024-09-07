@@ -11,7 +11,7 @@ import { L2RewardManagerStorage } from "../L2RewardManagerStorage.sol";
 interface IL2RewardManager {
     /**
      * @notice Check if the reward has been claimed for a specific period and an account
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @param account The address of the account to check
      * @return bool indicating whether the reward has been claimed
      */
@@ -19,7 +19,7 @@ interface IL2RewardManager {
 
     /**
      * @notice Get the epoch record for a specific period
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @return EpochRecord The epoch record of exchange rate and reward root
      */
     function getEpochRecord(bytes32 intervalId) external view returns (L2RewardManagerStorage.EpochRecord memory);
@@ -41,7 +41,7 @@ interface IL2RewardManager {
 
     /**
      * @notice A record of a single order for claim function call.
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @param amount The amount of reward to claim.
      * @param isL1Contract The boolean indicating if the account is a smart contract on L1.
      * @param account The address of the account claiming the reward.
@@ -73,7 +73,7 @@ interface IL2RewardManager {
      * @param ethToPufETHRate The exchange rate from ETH to pufETH
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @param rewardsRoot The merkle root of the rewards
      */
     event RewardRootAndRatePosted(
@@ -96,7 +96,7 @@ interface IL2RewardManager {
      * @notice Event emitted when the claiming interval is reverted
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @param pufETHAmount The amount of xPufETH
      * @param rewardsRoot The merkle root of the rewards
      */
@@ -108,7 +108,7 @@ interface IL2RewardManager {
      * @notice Event emitted when rewards are claimed
      * @param account The address of the account claiming the rewards
      * @param recipient The address of the recipient of the rewards
-     * @param intervalId The claiming interal ID (see `getIntervalId`).
+     * @param intervalId The claiming internal ID (see `getIntervalId`).
      * @param amount The amount claimed
      */
     event Claimed(address indexed account, address indexed recipient, bytes32 indexed intervalId, uint256 amount);
