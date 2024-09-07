@@ -69,7 +69,7 @@ jobs:
           file_pattern: '*.sol'
 
       - name: List selectors
-        working-directory: mainnet-contracts
+        working-directory: l2-contracts
         run: |
           forge selectors list >> "$GITHUB_STEP_SUMMARY"
 
