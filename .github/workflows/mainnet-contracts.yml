@@ -71,6 +71,11 @@ jobs:
           commit_message: "forge fmt"
           file_pattern: '*.sol'
 
+      - name: List selectors
+        working-directory: mainnet-contracts
+        run: |
+          forge selectors list >> "$GITHUB_STEP_SUMMARY"
+
   forge-coverage:
     runs-on: "ubuntu-latest"
     steps:
