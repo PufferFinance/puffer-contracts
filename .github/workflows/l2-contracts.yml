@@ -45,7 +45,7 @@ jobs:
         run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
 
       - name: Install yarn
-        uses: borales/actions-yarn@v4
+        uses: borales/actions-yarn@v5
         with:
           cmd: install # will run `yarn install` command
 
@@ -85,7 +85,7 @@ jobs:
         run: echo running on branch ${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
 
       - name: Install yarn
-        uses: borales/actions-yarn@v4
+        uses: borales/actions-yarn@v5
         with:
           cmd: install # will run `yarn install` command
 
