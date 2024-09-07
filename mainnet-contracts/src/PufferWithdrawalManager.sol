@@ -114,16 +114,11 @@ contract PufferWithdrawalManager is
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         // Check if all the batches that we want to finalize are full
-        if ((withdrawalBatchIndex + 1) * BATCH_SIZE > $.withdrawals.length) {
-            revert BatchesAreNotFull();
-        }
+        require(withdrawalBatchIndex < $.withdrawals.length / BATCH_SIZE, BatchesAreNotFull());
 
         uint256 finalizedWithdrawalBatch = $.finalizedWithdrawalBatch;
 
-        // Check if the batch is already finalized
-        if (withdrawalBatchIndex <= finalizedWithdrawalBatch) {
-            revert BatchAlreadyFinalized(withdrawalBatchIndex);
-        }
+        require(withdrawalBatchIndex > finalizedWithdrawalBatch, BatchAlreadyFinalized(withdrawalBatchIndex));
 
         // Start from the finalized batch + 1 and go up to the given batch index
         for (uint256 i = finalizedWithdrawalBatch + 1; i <= withdrawalBatchIndex; ++i) {
@@ -161,16 +156,12 @@ contract PufferWithdrawalManager is
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
-        if (batchIndex > $.finalizedWithdrawalBatch) {
-            revert NotFinalized();
-        }
+        require(batchIndex <= $.finalizedWithdrawalBatch, NotFinalized());
 
         Withdrawal storage withdrawal = $.withdrawals[withdrawalIdx];
 
         // Check if the withdrawal has already been completed
-        if (withdrawal.recipient == address(0)) {
-            revert WithdrawalAlreadyCompleted();
-        }
+        require(withdrawal.recipient != address(0), WithdrawalAlreadyCompleted());
 
         uint256 batchSettlementExchangeRate = $.withdrawalBatches[batchIndex].pufETHToETHExchangeRate;
 
@@ -226,9 +217,8 @@ contract PufferWithdrawalManager is
      * @param recipient The address to receive the withdrawn ETH
      */
     function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal {
-        if (pufETHAmount < MIN_WITHDRAWAL_AMOUNT) {
-            revert WithdrawalAmountTooLow();
-        }
+        require(pufETHAmount >= MIN_WITHDRAWAL_AMOUNT, WithdrawalAmountTooLow());
+
         // Always transfer from the msg.sender
         PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
 
@@ -274,9 +264,6 @@ contract PufferWithdrawalManager is
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted {
         PufferWithdrawalManager newImplementationContract = PufferWithdrawalManager(payable(newImplementation));
 
-        // We can only upgrade to different batch size if everything has been finalized
-        if (newImplementationContract.BATCH_SIZE() != BATCH_SIZE) {
-            revert BatchSizeCannotChange();
-        }
+        require(newImplementationContract.BATCH_SIZE() == BATCH_SIZE, BatchSizeCannotChange());
     }
 }

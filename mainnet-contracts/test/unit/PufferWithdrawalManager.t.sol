@@ -229,10 +229,9 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * @dev Test finalizing withdrawals with an incomplete batch
      */
     function test_finalizeWithdrawals_incompleteBatch() public {
-        uint256 incompleteAmount = 9;
         uint256 depositAmount = 10 ether;
 
-        for (uint256 i = 0; i < incompleteAmount; i++) {
+        for (uint256 i = 0; i < (batchSize - 1); i++) {
             address actor = actors[i % actors.length];
             _givePufETH(depositAmount, actor);
             vm.startPrank(actor);
@@ -242,6 +241,8 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         }
 
         vm.startPrank(PAYMASTER);
+
+        // We are skipping over zero batch.
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchesAreNotFull.selector));
         withdrawalManager.finalizeWithdrawals(1);
         vm.stopPrank();
