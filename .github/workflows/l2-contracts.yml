@@ -10,23 +10,22 @@ on:
       - "l2-contracts/**"
 
 jobs:
-#   codespell:
-#       name: Check for spelling errors
-#       runs-on: ubuntu-latest
+  codespell:
+      name: Check for spelling errors
+      runs-on: ubuntu-latest
 
-#       steps:
-#         - name: Checkout
-#           uses: actions/checkout@v4
-#           with:
-#             fetch-depth: 0
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
-#         - name: Codespell
-#           uses: codespell-project/actions-codespell@v2.0
-#           with:
-#             check_hidden: true
-#             check_filenames: true
-#             ignore_words_list: amountIn
-#             skip: package-lock.json,*.pdf,./.git,yarn.lock
+        - name: Codespell
+          uses: codespell-project/actions-codespell@v2.0
+          with:
+            path: l2-contracts
+            check_hidden: true
+            check_filenames: true
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -54,9 +53,9 @@ jobs:
         # with: 
         #   version: nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
-      - name: Run tests
-        working-directory: l2-contracts
-        run: export FOUNDRY_PROFILE=ci && forge test -vvv --match-path './test/unit/*'
+      # - name: Run tests
+      #   working-directory: l2-contracts
+      #   run: export FOUNDRY_PROFILE=ci && forge test -vvv --match-path './test/unit/*'
 
       - name: forge fmt
         working-directory: l2-contracts
@@ -73,7 +72,7 @@ jobs:
         run: |
           forge selectors list >> "$GITHUB_STEP_SUMMARY"
 
-  forge-coverage:
+  coverage:
     runs-on: "ubuntu-latest"
     steps:
       - name: Cancel previous runs
@@ -99,7 +98,7 @@ jobs:
 
       - name: "Generate the coverage report"
         working-directory: l2-contracts
-        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov'
+        run: 'export FOUNDRY_PROFILE=ci && forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv'
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v4"
