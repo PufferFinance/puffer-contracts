@@ -64,7 +64,7 @@ contract DeployPufETHBridging is BaseScript {
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            XpufETH: address(xPufETHProxy),
+            xPufETH: address(xPufETHProxy),
             pufETH: deployment.pufferVault,
             lockbox: address(xERC20Lockbox),
             l2RewardsManager: address(l2RewardsManagerProxy)

@@ -85,7 +85,7 @@ contract DeployFWR is DeployerHelper {
 
         // L1RewardManager
         L1RewardManager l1ReeardManagerImpl = new L1RewardManager({
-            XpufETH: _getXPufETH(),
+            xPufETH: _getXPufETH(),
             pufETH: _getPufferVault(),
             lockbox: _getLockbox(),
             l2RewardsManager: l2RewardManagerProxy
