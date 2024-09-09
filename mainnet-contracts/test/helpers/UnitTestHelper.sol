@@ -109,7 +109,7 @@ contract UnitTestHelper is Test, BaseScript {
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
-    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER");
+    address public PAYMASTER = makeAddr("PUFFER_PAYMASTER"); // 0xA540f91Fb840381BCCf825a16A9fbDD0a19deFB1
     address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
     address public timelock;
 
@@ -118,6 +118,17 @@ contract UnitTestHelper is Test, BaseScript {
     // We use the same values in DeployPufETH.s.sol
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
     address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
+
+    address public alice = makeAddr("alice");
+    address public bob = makeAddr("bob");
+    address public charlie = makeAddr("charlie");
+    address public dianna = makeAddr("dianna");
+    address public ema = makeAddr("ema");
+    address public filip = makeAddr("filip");
+    address public george = makeAddr("george");
+    address public harry = makeAddr("harry");
+    address public isabelle = makeAddr("isabelle");
+    address public james = makeAddr("james");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -177,7 +188,7 @@ contract UnitTestHelper is Test, BaseScript {
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
-        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1);
+        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);

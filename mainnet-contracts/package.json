@@ -20,7 +20,7 @@
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
     "erc4626-tests": "https://github.com/a16z/erc4626-tests#8b1d7c2",
-    "forge-std": "github:foundry-rs/forge-std#v1.8.2",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.2",
     "solarray": "github:evmcheb/solarray#a547630",
     "solhint": "^5.0.1"
   },
