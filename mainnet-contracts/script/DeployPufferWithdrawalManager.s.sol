@@ -16,7 +16,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
     PufferWithdrawalManager public withdrawalManager;
     bytes public encodedCalldata;
 
-    uint256 public BATCH_SIZE = 10; //@todo figure out a good batch size
+    uint256 public BATCH_SIZE = 10; // @todo figure out a good batch size
 
     function run() public {
         Generate2StepWithdrawalsCalldata calldataGenerator = new Generate2StepWithdrawalsCalldata();
@@ -51,7 +51,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
         console.logBytes(encodedCalldata);
 
-        if (block.chainid == 11155111) {
+        if (block.chainid == holesky) {
             (bool success,) = address(_getAccessManager()).call(encodedCalldata);
             require(success, "AccessManager.call failed");
         }
