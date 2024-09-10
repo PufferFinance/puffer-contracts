@@ -325,7 +325,6 @@ abstract contract DeployerHelper is Script {
         revert("eigen delegation manager not available for this chain");
     }
 
-
     function _getLidoWithdrawalQueue() internal view returns (address) {
         if (block.chainid == mainnet) {
             return 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
