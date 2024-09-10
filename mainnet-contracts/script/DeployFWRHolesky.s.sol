@@ -62,7 +62,7 @@ contract DeployFWRHolesky is DeployerHelper {
             IStETH(_getStETH()),
             IWETH(_getWETH()),
             ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            IStrategy(_getEigenLayerNativeETHStrategy()),
+            IStrategy(_getStETHStrategy()),
             IEigenLayer(_getEigenLayerStrategyManager()),
             IPufferOracle(_getPufferOracle()),
             IDelegationManager(_getEigenDelegationManager())
