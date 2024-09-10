@@ -13,7 +13,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgrade
 abstract contract DeployerHelper is Script {
     // Chain IDs
     uint256 public mainnet = 1;
-    uint256 public holesky = 1700;
+    uint256 public holesky = 17000;
     uint256 public binance = 56;
     uint256 public base = 8453;
     uint256 public sepolia = 11155111;
