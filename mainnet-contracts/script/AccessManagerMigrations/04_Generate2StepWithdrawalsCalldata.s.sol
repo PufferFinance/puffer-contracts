@@ -22,7 +22,7 @@ contract Generate2StepWithdrawalsCalldata is Script {
         address paymaster,
         address withdrawalFinalizer
     ) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](12);
+        bytes[] memory calldatas = new bytes[](13);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
@@ -85,6 +85,12 @@ contract Generate2StepWithdrawalsCalldata is Script {
 
         calldatas[11] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFETH_BURNER, pufferProtocol, 0);
+
+        bytes4[] memory daoSelectors = new bytes4[](1);
+        daoSelectors[0] = PufferWithdrawalManager.changeMaxWithdrawalAmount.selector;
+        calldatas[12] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, withdrawalManagerProxy, daoSelectors, ROLE_ID_DAO
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
