@@ -67,9 +67,16 @@ contract PufferWithdrawalManager is
     receive() external payable { }
 
     /**
-     * @notice Modifier to mark a withdrawal request
+     * @notice Only one withdrawal request per transaction is allowed
      */
-    modifier markWithdrawalRequest() virtual {
+    modifier oneWithdrawalRequestAllowed() virtual {
+        assembly {
+            // If the deposit tracker location is set to `1`, revert with `MultipleWithdrawalsAreForbidden()`
+            if tload(_WITHDRAWAL_REQUEST_TRACKER_LOCATION) {
+                mstore(0x00, 0x0eca04b2) // Store the error signature `0x0eca04b2` for `error MultipleWithdrawalsAreForbidden()` in memory.
+                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert MultipleWithdrawalsAreForbidden()`
+            }
+        }
         assembly {
             tstore(_WITHDRAWAL_REQUEST_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
         }
@@ -230,15 +237,7 @@ contract PufferWithdrawalManager is
      * @param pufETHAmount The amount of pufETH to withdraw
      * @param recipient The address to receive the withdrawn ETH
      */
-    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal markWithdrawalRequest {
-        assembly {
-            // If the deposit tracker location is set to `1`, revert with `MultipleWithdrawalsAreForbidden()`
-            if tload(_WITHDRAWAL_REQUEST_TRACKER_LOCATION) {
-                mstore(0x00, 0x0eca04b2) // Store the error signature `0x0eca04b2` for `error MultipleWithdrawalsAreForbidden()` in memory.
-                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert MultipleWithdrawalsAreForbidden()`
-            }
-        }
-
+    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal oneWithdrawalRequestAllowed {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         require(pufETHAmount >= MIN_WITHDRAWAL_AMOUNT, WithdrawalAmountTooLow());
