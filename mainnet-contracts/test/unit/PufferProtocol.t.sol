@@ -46,10 +46,6 @@ contract PufferProtocolTest is UnitTestHelper {
     address NoRestakingModule;
     address eigenDaModule;
 
-    address alice = makeAddr("alice");
-    address bob = makeAddr("bob");
-    address charlie = makeAddr("charlie");
-    address dianna = makeAddr("dianna");
     address eve = makeAddr("eve");
 
     function setUp() public override {

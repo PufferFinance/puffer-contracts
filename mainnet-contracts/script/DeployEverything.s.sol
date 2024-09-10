@@ -26,7 +26,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold)
+    function run(address[] calldata guardians, uint256 threshold, address paymaster)
         public
         returns (PufferProtocolDeployment memory, BridgingDeployment memory)
     {
@@ -74,7 +74,7 @@ contract DeployEverything is BaseScript {
             DAO = _broadcaster;
         }
 
-        new SetupAccess().run(pufferDeployment, DAO, _broadcaster);
+        new SetupAccess().run(pufferDeployment, DAO, paymaster);
 
         _writeJson(pufferDeployment);
 

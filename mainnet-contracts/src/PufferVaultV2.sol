@@ -355,8 +355,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
     /**
      * @notice Allows the `msg.sender` to burn their (pufETH) shares
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     * @dev It is used to burn portions of Puffer validator bonds due to inactivity or slashing
+     * @dev Restricted to PufferProtocol
+     * It is used to burn portions of Puffer validator bonds due to inactivity or slashing
      * @param shares The amount of shares to burn
      */
     function burn(uint256 shares) public restricted {

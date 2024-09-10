@@ -24,16 +24,7 @@ contract IntegrationTestHelper is Test {
     IEnclaveVerifier public verifier;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-
-    function deployContracts() public virtual {
-        // see foundry.toml for the rpc urls
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 18_722_775);
-
-        address[] memory guardians = new address[](1);
-        guardians[0] = address(this);
-
-        _deployAndLabel(guardians, 1);
-    }
+    address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
 
     // custom block number
     function deployContractsHolesky(uint256 blockNumber) public virtual {
@@ -57,7 +48,8 @@ contract IntegrationTestHelper is Test {
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
-        (PufferProtocolDeployment memory pufferDeployment,) = new DeployEverything().run(guardians, threshold);
+        (PufferProtocolDeployment memory pufferDeployment,) =
+            new DeployEverything().run(guardians, threshold, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");

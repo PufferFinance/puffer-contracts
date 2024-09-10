@@ -217,7 +217,7 @@ contract L2RewardManagerTest is Test {
         // Unlock the interval
         assertEq(l2RewardManager.isClaimingLocked(intervalId), false, "claiming should be unlocked");
 
-        // We cant revert, because the interval is unlocked
+        // We can't revert, because the interval is unlocked
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
         l2RewardManager.freezeAndRevertInterval(address(mockBridge), startEpoch, endEpoch);
     }
@@ -478,7 +478,7 @@ contract L2RewardManagerTest is Test {
             address(l2RewardManager),
             address(xPufETHProxy),
             address(this),
-            0 ether, // invalid amount transfered
+            0 ether, // invalid amount transferred
             uint256(0),
             encodedCallData
         );
