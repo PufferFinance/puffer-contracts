@@ -38,9 +38,13 @@ contract L1RewardManagerTest is UnitTestHelper {
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
 
-        bytes memory cd = new GenerateAccessManagerCalldata3().generateL1Calldata(
-            address(l1RewardManager), address(connext), address(pufferVault), address(pufferModuleManager)
-        );
+        bytes memory cd = new GenerateAccessManagerCalldata3().generateL1Calldata({
+            l1RewardManagerProxy: address(l1RewardManager),
+            l1Bridge: address(connext),
+            pufferVaultProxy: address(pufferVault),
+            pufferModuleManagerProxy: address(pufferModuleManager),
+            pufferProtocolProxy: address(pufferProtocol)
+        });
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCalldata3");
 

@@ -32,9 +32,10 @@ contract GenerateAccessManagerCalldata3 is Script {
         address l1RewardManagerProxy,
         address l1Bridge,
         address pufferVaultProxy,
-        address pufferModuleManagerProxy
+        address pufferModuleManagerProxy,
+        address pufferProtocolProxy
     ) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](9);
+        bytes[] memory calldatas = new bytes[](10);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = L1RewardManager.mintAndBridgeRewards.selector;
@@ -97,6 +98,9 @@ contract GenerateAccessManagerCalldata3 is Script {
             paymasterSelectorsOnModuleManager,
             ROLE_ID_OPERATIONS_PAYMASTER
         );
+
+        calldatas[9] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_VAULT_WITHDRAWER, pufferProtocolProxy, 0);
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 

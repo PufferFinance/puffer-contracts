@@ -43,7 +43,8 @@ contract DeployFWR is DeployerHelper {
             l1RewardManagerProxy: l1RewardManagerProxy,
             l1Bridge: _getEverclear(),
             pufferVaultProxy: _getPufferVault(),
-            pufferModuleManagerProxy: _getPufferModuleManager()
+            pufferModuleManagerProxy: _getPufferModuleManager(),
+            pufferProtocolProxy: _getPufferProtocol()
         });
 
         console.log("L1 Access Manager Calldata");
