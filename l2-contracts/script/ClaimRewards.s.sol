@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import {Script} from "forge-std/Script.sol";
+import { Script } from "forge-std/Script.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { IL2RewardManager } from "l2-contracts/src/interface/IL2RewardManager.sol";
 
