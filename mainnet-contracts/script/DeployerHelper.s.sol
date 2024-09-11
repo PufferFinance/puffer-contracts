@@ -25,6 +25,11 @@ abstract contract DeployerHelper is Script {
         return msgSender;
     }
 
+    function _getDAO() internal view returns (address) {
+        // ATM Ops multisig is the DAO
+        return _getOPSMultisig();
+    }
+
     /**
      * @dev Upgrade the implementation of the `proxyTarget` to `newImplementation` if on Holesky,
      * otherwise log the call data.
