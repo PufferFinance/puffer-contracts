@@ -53,6 +53,10 @@ abstract contract PufferWithdrawalManagerStorage {
      */
     struct WithdrawalManagerStorage {
         /**
+         * @notice The maximum withdrawal amount
+         */
+        uint256 maxWithdrawalAmount;
+        /**
          * @notice The current finalized withdrawal batch
          */
         uint256 finalizedWithdrawalBatch;

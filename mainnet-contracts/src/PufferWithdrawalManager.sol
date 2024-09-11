@@ -26,6 +26,10 @@ contract PufferWithdrawalManager is
 {
     using SafeCast for uint256;
 
+    // keccak256(abi.encode(uint256(keccak256("pufferWithdrawalManager.withdrawalRequest")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 internal constant _WITHDRAWAL_REQUEST_TRACKER_LOCATION =
+        0xa4e2950800ad48b89d951842a006c666c0b29f755b9face41cad0b8d83328900;
+
     /**
      * @notice The batch size for the withdrawal manager
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -61,6 +65,23 @@ contract PufferWithdrawalManager is
     }
 
     receive() external payable { }
+
+    /**
+     * @notice Only one withdrawal request per transaction is allowed
+     */
+    modifier oneWithdrawalRequestAllowed() virtual {
+        assembly {
+            // If the deposit tracker location is set to `1`, revert with `MultipleWithdrawalsAreForbidden()`
+            if tload(_WITHDRAWAL_REQUEST_TRACKER_LOCATION) {
+                mstore(0x00, 0x0eca04b2) // Store the error signature `0x0eca04b2` for `error MultipleWithdrawalsAreForbidden()` in memory.
+                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert MultipleWithdrawalsAreForbidden()`
+            }
+        }
+        assembly {
+            tstore(_WITHDRAWAL_REQUEST_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
+        }
+        _;
+    }
 
     /**
      * @notice Initializes the contract
@@ -216,13 +237,14 @@ contract PufferWithdrawalManager is
      * @param pufETHAmount The amount of pufETH to withdraw
      * @param recipient The address to receive the withdrawn ETH
      */
-    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal {
+    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal oneWithdrawalRequestAllowed {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+
         require(pufETHAmount >= MIN_WITHDRAWAL_AMOUNT, WithdrawalAmountTooLow());
+        require(pufETHAmount <= $.maxWithdrawalAmount, WithdrawalAmountTooHigh());
 
         // Always transfer from the msg.sender
         PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
-
-        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         uint256 withdrawalIndex = $.withdrawals.length;
 
@@ -254,6 +276,25 @@ contract PufferWithdrawalManager is
             pufETHAmount: pufETHAmount,
             recipient: recipient
         });
+    }
+
+    /**
+     * @notice Changes the max withdrawal amount
+     * @param newMaxWithdrawalAmount The new max withdrawal amount
+     * @dev Restricted access to ROLE_ID_DAO
+     */
+    function changeMaxWithdrawalAmount(uint256 newMaxWithdrawalAmount) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        emit MaxWithdrawalAmountChanged($.maxWithdrawalAmount, newMaxWithdrawalAmount);
+        $.maxWithdrawalAmount = newMaxWithdrawalAmount;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     * @return The max withdrawal amount
+     */
+    function getMaxWithdrawalAmount() external view returns (uint256) {
+        return _getWithdrawalManagerStorage().maxWithdrawalAmount;
     }
 
     /**

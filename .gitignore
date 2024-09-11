@@ -18,3 +18,4 @@ l2-contracts/cache/*
 .aider*
 **/lcov.info
 **/broadcast/
+solidity-docs/
