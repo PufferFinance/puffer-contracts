@@ -59,10 +59,10 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
             pufferVaultProxy: address(pufferVault),
-            pufferProtocol: address(pufferProtocol),
             withdrawalManagerProxy: address(withdrawalManager),
             paymaster: PAYMASTER,
-            withdrawalFinalizer: DAO
+            withdrawalFinalizer: DAO,
+            pufferProtocolProxy: address(pufferProtocol)
         });
         (bool success,) = address(accessManager).call(encodedCalldata);
         require(success, "AccessManager.call failed");
