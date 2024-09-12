@@ -42,10 +42,10 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
 
         encodedCalldata = calldataGenerator.run({
             pufferVaultProxy: _getPufferVault(),
-            pufferProtocol: _getPufferProtocol(),
             withdrawalManagerProxy: address(withdrawalManager),
             paymaster: _getPaymaster(),
-            withdrawalFinalizer: _getOPSMultisig()
+            withdrawalFinalizer: _getOPSMultisig(),
+            pufferProtocolProxy: _getPufferProtocol()
         });
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());

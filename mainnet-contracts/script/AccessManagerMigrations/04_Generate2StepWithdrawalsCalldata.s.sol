@@ -17,12 +17,12 @@ import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 contract Generate2StepWithdrawalsCalldata is Script {
     function run(
         address pufferVaultProxy,
-        address pufferProtocol,
+        address pufferProtocolProxy,
         address withdrawalManagerProxy,
         address paymaster,
         address withdrawalFinalizer
     ) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](13);
+        bytes[] memory calldatas = new bytes[](14);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
@@ -83,14 +83,22 @@ contract Generate2StepWithdrawalsCalldata is Script {
         calldatas[10] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFETH_BURNER, withdrawalManagerProxy, 0);
 
-        calldatas[11] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFETH_BURNER, pufferProtocol, 0);
-
         bytes4[] memory daoSelectors = new bytes4[](1);
         daoSelectors[0] = PufferWithdrawalManager.changeMaxWithdrawalAmount.selector;
-        calldatas[12] = abi.encodeWithSelector(
+        calldatas[11] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, withdrawalManagerProxy, daoSelectors, ROLE_ID_DAO
         );
+
+        // in AccessManager contract, one selector can be assigned to only one role for a target contract
+        // see `AccessManager._setTargetFunctionRole` function
+        // creation of this new `ROLE_ID_VAULT_WITHDRAWER` and assigning the `PufferVaultV2.transferETH` selector to it
+        // would revoke that ability from the original `ROLE_ID_PUFFER_PROTOCOL`
+        // that's why we need to grant the `ROLE_ID_VAULT_WITHDRAWER` and `ROLE_ID_PUFETH_BURNER` to the pufferProtocolProxy
+        calldatas[12] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_VAULT_WITHDRAWER, pufferProtocolProxy, 0);
+
+        calldatas[13] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFETH_BURNER, pufferProtocolProxy, 0);
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
