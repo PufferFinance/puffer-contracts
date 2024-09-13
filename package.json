@@ -8,6 +8,7 @@
   "version": "1.0.0",
   "description": "Native Liquid Restaking Protocol",
   "scripts": {
+    "codespell": "codespell ./mainnet-contracts && codespell ./l2-contracts"
   },
   "keywords": [
     "ethereum",

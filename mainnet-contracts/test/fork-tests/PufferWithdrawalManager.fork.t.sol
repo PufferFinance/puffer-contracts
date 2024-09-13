@@ -7,6 +7,9 @@ import { DeployPufferWithdrawalManager } from "../../script/DeployPufferWithdraw
 import { PufferWithdrawalManager } from "../../src/PufferWithdrawalManager.sol";
 import { IPufferWithdrawalManager } from "../../src/interface/IPufferWithdrawalManager.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
+import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
+import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 
 contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
     address PUFFER_WHALE_1 = 0x47de9eE11976fA9280BE85ad959D8D341c087D23;
@@ -55,6 +58,18 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         vm.startPrank(_getTimelock());
         (bool success,) = address(_getAccessManager()).call(dplScript.encodedCalldata());
         require(success, "AccessManager.call failed");
+
+        // Upgrade to the implementation that has the overridden `markWithdrawalRequest` modifier
+        address newImpl = address(
+            new PufferWithdrawalManagerTests(
+                batchSize, PufferVaultV3(payable(address(pufferVault))), IWETH(address(_WETH))
+            )
+        );
+        withdrawalManager.upgradeToAndCall(newImpl, "");
+        vm.stopPrank();
+
+        vm.startPrank(_getDAO());
+        withdrawalManager.changeMaxWithdrawalAmount(type(uint256).max);
         vm.stopPrank();
     }
 

@@ -10,6 +10,9 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { Permit } from "../../src/structs/Permit.sol";
 import { Generate2StepWithdrawalsCalldata } from
     "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
+import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
+import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { IWETH } from "../../src/interface/Other/IWETH.sol";
 
 /**
  * @title PufferWithdrawalManagerTest
@@ -34,7 +37,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 
-        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManager(10, pufferVault, weth)));
+        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManagerTests(10, pufferVault, weth)));
 
         batchSize = withdrawalManagerImpl.BATCH_SIZE();
 
@@ -56,10 +59,10 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
             pufferVaultProxy: address(pufferVault),
-            pufferProtocol: address(pufferProtocol),
             withdrawalManagerProxy: address(withdrawalManager),
             paymaster: PAYMASTER,
-            withdrawalFinalizer: DAO
+            withdrawalFinalizer: DAO,
+            pufferProtocolProxy: address(pufferProtocol)
         });
         (bool success,) = address(accessManager).call(encodedCalldata);
         require(success, "AccessManager.call failed");
@@ -79,6 +82,13 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         actors.push(james);
     }
 
+    modifier withUnlimitedWithdrawalLimit() {
+        vm.startPrank(DAO);
+        withdrawalManager.changeMaxWithdrawalAmount(type(uint256).max);
+        vm.stopPrank();
+        _;
+    }
+
     function test_biggerBatchSizeUpgrade() public {
         vm.startPrank(address(timelock));
 
@@ -92,7 +102,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * @dev Test creating deposits
      * @param numberOfDeposits The number of deposits to create
      */
-    function test_createDeposits(uint8 numberOfDeposits) public {
+    function test_createDeposits(uint8 numberOfDeposits) public withUnlimitedWithdrawalLimit {
         vm.assume(numberOfDeposits > 30);
 
         for (uint256 i = 0; i < numberOfDeposits; i++) {
@@ -113,7 +123,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * forge-config: default.fuzz.show-logs = false
      * forge-config: ci.fuzz.runs = 10
      */
-    function test_createAndFinalizeWithdrawals(uint8 numberOfDeposits) public {
+    function test_createAndFinalizeWithdrawals(uint8 numberOfDeposits) public withUnlimitedWithdrawalLimit {
         vm.assume(numberOfDeposits > 200);
 
         vm.pauseGasMetering();
@@ -145,7 +155,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * @dev Fuzz test for requesting withdrawals
      * @param pufETHAmount The amount of pufETH to withdraw
      */
-    function test_fuzz_requestWithdrawals(uint256 pufETHAmount) public {
+    function test_fuzz_requestWithdrawals(uint256 pufETHAmount) public withUnlimitedWithdrawalLimit {
         vm.assume(pufETHAmount >= 0.01 ether && pufETHAmount <= 1000 ether);
 
         _givePufETH(pufETHAmount, alice);
@@ -164,7 +174,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test requesting withdrawals with minimum amount
      */
-    function test_requestWithdrawal_minAmount() public {
+    function test_requestWithdrawal_minAmount() public withUnlimitedWithdrawalLimit {
         uint256 minAmount = 0.01 ether;
         _givePufETH(minAmount, alice);
 
@@ -198,7 +208,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
      * @dev Test finalizing withdrawals for multiple batches
      * @dev Remember that Batch Index now starts from 1 and Withdrawals Idx from 10, so adjust accordingly
      */
-    function test_finalizeWithdrawals_multipleBatches() public {
+    function test_finalizeWithdrawals_multipleBatches() public withUnlimitedWithdrawalLimit {
         uint256 numBatches = 3;
         uint256 depositAmount = 10 ether;
 
@@ -228,7 +238,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test finalizing withdrawals with an incomplete batch
      */
-    function test_finalizeWithdrawals_incompleteBatch() public {
+    function test_finalizeWithdrawals_incompleteBatch() public withUnlimitedWithdrawalLimit {
         uint256 depositAmount = 10 ether;
 
         for (uint256 i = 0; i < (batchSize - 1); i++) {
@@ -251,7 +261,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test completing a queued withdrawal that is not finalized
      */
-    function test_completeQueuedWithdrawal_notFinalized() public {
+    function test_completeQueuedWithdrawal_notFinalized() public withUnlimitedWithdrawalLimit {
         uint256 depositAmount = 10 ether;
 
         // Fill the batch
@@ -291,7 +301,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     /**
      * @dev Test deposits and finalizing withdrawals
      */
-    function test_depositsAndFinalizeWithdrawals() public {
+    function test_depositsAndFinalizeWithdrawals() public withUnlimitedWithdrawalLimit {
         uint256 depositAmount = 1 ether;
 
         // At this point in time, the vault has 1000 ETH and the exchange rate is 1:1
@@ -335,7 +345,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         }
     }
 
-    function test_protocolSlashing() public {
+    function test_protocolSlashing() public withUnlimitedWithdrawalLimit {
         uint256 depositAmount = 1 ether;
 
         // At this point in time, the vault has 1000 ETH and the exchange rate is 1:1
@@ -379,14 +389,14 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         new PufferWithdrawalManager(10, pufferVault, weth);
     }
 
-    function test_requestWithdrawals() public {
+    function test_requestWithdrawals() public withUnlimitedWithdrawalLimit {
         _givePufETH(1 ether, address(this));
 
         pufferVault.approve(address(withdrawalManager), 1 ether);
         withdrawalManager.requestWithdrawal(uint128(1 ether), address(this));
     }
 
-    function test_requestWithdrawalsWithPermit() public {
+    function test_requestWithdrawalsWithPermit() public withUnlimitedWithdrawalLimit {
         _givePufETH(1 ether, alice);
 
         Permit memory permit = _signPermit(
@@ -442,7 +452,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function test_completeQueuedWithdrawal_SecondBatch() public {
+    function test_completeQueuedWithdrawal_SecondBatch() public withUnlimitedWithdrawalLimit {
         uint256 depositAmount = 10 ether;
 
         // Fill the first and second batch
@@ -475,6 +485,38 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // Verify the balance change of the actor after withdrawal
         assertGt(balanceAfter, balanceBefore, "Withdrawal amount should be greater than zero");
+    }
+
+    function test_changeMaxWithdrawalAmount() public {
+        uint256 newMaxWithdrawalAmount = 100 ether;
+        uint256 oldMaxWithdrawalAmount = withdrawalManager.getMaxWithdrawalAmount();
+
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferWithdrawalManager.MaxWithdrawalAmountChanged(oldMaxWithdrawalAmount, newMaxWithdrawalAmount);
+        withdrawalManager.changeMaxWithdrawalAmount(newMaxWithdrawalAmount);
+        assertEq(
+            withdrawalManager.getMaxWithdrawalAmount(), newMaxWithdrawalAmount, "Max withdrawal amount should be 100"
+        );
+    }
+
+    function testRevert_multipleWithdrawalsInTheSameTx() public withUnlimitedWithdrawalLimit {
+        // Upgrade to the real implementation
+        address newImpl = address(
+            new PufferWithdrawalManager(batchSize, PufferVaultV3(payable(address(pufferVault))), IWETH(address(weth)))
+        );
+        vm.prank(timelock);
+        withdrawalManager.upgradeToAndCall(newImpl, "");
+
+        _givePufETH(200 ether, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), type(uint256).max);
+
+        withdrawalManager.requestWithdrawal(uint128(100 ether), alice);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.MultipleWithdrawalsAreForbidden.selector));
+        withdrawalManager.requestWithdrawal(uint128(100 ether), alice);
     }
 
     function _givePufETH(uint256 ethAmount, address recipient) internal returns (uint256) {

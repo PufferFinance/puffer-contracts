@@ -13,6 +13,11 @@ import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorag
  */
 interface IPufferWithdrawalManager {
     /**
+     * @notice Thrown when attempting to request multiple withdrawals in the same transaction
+     */
+    error MultipleWithdrawalsAreForbidden();
+
+    /**
      * @notice Thrown when attempting to change the batch size
      */
     error BatchSizeCannotChange();
@@ -43,6 +48,11 @@ interface IPufferWithdrawalManager {
     error WithdrawalAmountTooLow();
 
     /**
+     * @notice Thrown when attempting to withdraw an amount above the maximum threshold
+     */
+    error WithdrawalAmountTooHigh();
+
+    /**
      * @notice Emitted when a withdrawal is requested
      * @param withdrawalIdx The index of the requested withdrawal
      * @param batchIdx The index of the batch the withdrawal is added to
@@ -63,6 +73,13 @@ interface IPufferWithdrawalManager {
     event BatchFinalized(
         uint256 indexed batchIdx, uint256 expectedETHAmount, uint256 actualEthAmount, uint256 pufETHBurnAmount
     );
+
+    /**
+     * @notice Emitted when the max withdrawal amount is changed
+     * @param oldMaxWithdrawalAmount The old max withdrawal amount
+     * @param newMaxWithdrawalAmount The new max withdrawal amount
+     */
+    event MaxWithdrawalAmountChanged(uint256 oldMaxWithdrawalAmount, uint256 newMaxWithdrawalAmount);
 
     /**
      * @notice Emitted when a withdrawal is completed
@@ -89,6 +106,7 @@ interface IPufferWithdrawalManager {
 
     /**
      * @notice Request a withdrawal of pufETH
+     * Only one withdrawal can be requested per transaction
      * @param pufETHAmount Amount of pufETH to withdraw
      * @param recipient Address to receive the withdrawn ETH
      */
@@ -96,6 +114,7 @@ interface IPufferWithdrawalManager {
 
     /**
      * @notice Request withdrawals using permit
+     * Only one withdrawal can be requested per transaction
      * @dev This function will work if the `msg.sender` has approved this contract to spend the pufETH amount
      * @param permitData The permit data for the withdrawal
      * @param recipient The address to receive the withdrawn ETH
@@ -123,6 +142,12 @@ interface IPufferWithdrawalManager {
         external
         view
         returns (PufferWithdrawalManagerStorage.Withdrawal memory);
+
+    /**
+     * @notice Returns the max withdrawal amount
+     * @return The max withdrawal amount
+     */
+    function getMaxWithdrawalAmount() external view returns (uint256);
 
     /**
      * @notice Returns the length of the withdrawals
