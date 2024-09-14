@@ -12,5 +12,10 @@ mainnet-contracts/out/*
 mainnet-contracts/cache/*
 l2-contracts/out/*
 l2-contracts/cache/*
+**/lcov.info
 
 .DS_Store
+.aider*
+**/lcov.info
+**/broadcast/
+solidity-docs/

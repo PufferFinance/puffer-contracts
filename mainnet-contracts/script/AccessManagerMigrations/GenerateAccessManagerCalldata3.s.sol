@@ -14,7 +14,7 @@ import {
     ROLE_ID_BRIDGE,
     ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_L1_REWARD_MANAGER,
-    ROLE_ID_PUFFER_MODULE_MANAGER,
+    ROLE_ID_VAULT_WITHDRAWER,
     PUBLIC_ROLE
 } from "../../script/Roles.sol";
 
@@ -81,11 +81,11 @@ contract GenerateAccessManagerCalldata3 is Script {
             AccessManager.setTargetFunctionRole.selector,
             pufferVaultProxy,
             pufferModuleManagerSelectors,
-            ROLE_ID_PUFFER_MODULE_MANAGER
+            ROLE_ID_VAULT_WITHDRAWER
         );
 
         calldatas[7] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_PUFFER_MODULE_MANAGER, pufferModuleManagerProxy, 0
+            AccessManager.grantRole.selector, ROLE_ID_VAULT_WITHDRAWER, pufferModuleManagerProxy, 0
         );
 
         bytes4[] memory paymasterSelectorsOnModuleManager = new bytes4[](1);
@@ -134,10 +134,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         paymasterSelectors[2] = L2RewardManager.revertInterval.selector;
 
         calldatasL2[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(l2RewardManagerProxy),
-            paymasterSelectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), paymasterSelectors, ROLE_ID_DAO
         );
 
         bytes4[] memory daoSelectors = new bytes4[](2);
@@ -148,7 +145,7 @@ contract GenerateAccessManagerCalldata3 is Script {
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
         );
 
-        //@todo does anybody have DAO role on L2?
+        // DAO role is assigned to OPS Multisig on Base
 
         return abi.encodeCall(Multicall.multicall, (calldatasL2));
     }

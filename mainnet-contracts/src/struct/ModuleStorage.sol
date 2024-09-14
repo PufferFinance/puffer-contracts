@@ -20,20 +20,8 @@ struct ModuleStorage {
      * @dev Owned EigenPod
      */
     IEigenPod eigenPod;
-    /**
-     * @dev Timestamp of the last claim of restaking rewards
-     */
-    uint256 lastClaimTimestamp;
-    /**
-     * @dev The last block number for when the rewards root was posted
-     */
-    uint256 lastProofOfRewardsBlockNumber;
-    /**
-     * @dev Mapping of a blockNumber and the MerkleRoot for that rewards period
-     */
-    mapping(uint256 blockNumber => bytes32 root) rewardsRoots;
-    /**
-     * @dev Mapping that stores which validators have claimed the rewards for a certain blockNumber
-     */
-    mapping(uint256 blockNumber => mapping(address node => bool claimed)) claimedRewards;
+    uint256 _deprecated_lastClaimTimestamp;
+    uint256 _deprecated_lastProofOfRewardsBlockNumber;
+    mapping(uint256 blockNumber => bytes32 root) _deprecated_rewardsRoots;
+    mapping(uint256 blockNumber => mapping(address node => bool claimed)) _deprecated_claimedRewards;
 }

@@ -35,33 +35,43 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
 
     /**
      * @dev Upgradeable contract from EigenLayer
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
 
     /**
      * @dev Upgradeable contract from EigenLayer
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
 
     /**
      * @dev Upgradeable contract from EigenLayer
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**
      * @dev Upgradeable PufferProtocol
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IPufferProtocol public immutable PUFFER_PROTOCOL;
 
     /**
      * @dev Upgradeable Puffer Module Manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
-    // keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
+    /**
+     * keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
+     */
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
 
+    /**
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
@@ -228,14 +238,6 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
-    }
-
-    /**
-     * @notice Returns the block number of when the latest rewards proof was posted
-     */
-    function getLastProofOfRewardsBlock() external view returns (uint256) {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-        return $.lastProofOfRewardsBlockNumber;
     }
 
     /**

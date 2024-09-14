@@ -76,7 +76,7 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
     }
 
     function test_SetDailyMevPayouts() public {
-        vm.prank(_broadcaster);
+        vm.prank(PAYMASTER);
         uint104 newPayouts = 1 ether; // example value
 
         validatorTicketPricer.setDailyMevPayouts(newPayouts);
@@ -88,14 +88,14 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         vm.prank(OPERATIONS_MULTISIG);
         validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newTolerance);
 
-        vm.prank(_broadcaster);
+        vm.prank(PAYMASTER);
 
         vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
         validatorTicketPricer.setDailyMevPayouts(newPayouts);
     }
 
     function test_SetDailyConsensusRewards() public {
-        vm.prank(_broadcaster);
+        vm.prank(PAYMASTER);
 
         uint104 newRewards = 1 ether; // example value
         validatorTicketPricer.setDailyConsensusRewards(newRewards);
@@ -107,14 +107,14 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         vm.prank(OPERATIONS_MULTISIG);
         validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newTolerance);
 
-        vm.prank(_broadcaster);
+        vm.prank(PAYMASTER);
 
         vm.expectRevert(abi.encodeWithSignature("InvalidValue()"));
         validatorTicketPricer.setDailyConsensusRewards(newRewards);
     }
 
     function test_SetDailyRewardsAndPostMintPrice() public {
-        vm.prank(_broadcaster);
+        vm.prank(PAYMASTER);
 
         uint104 mevPayouts = 1 ether; // example value
         uint104 consensusRewards = 1 ether; // example value

@@ -11,13 +11,15 @@ uint64 constant ROLE_ID_REWARD_WATCHER = 21;
 uint64 constant ROLE_ID_OPERATIONS_MULTISIG = 22;
 uint64 constant ROLE_ID_OPERATIONS_PAYMASTER = 23;
 uint64 constant ROLE_ID_OPERATIONS_COORDINATOR = 24;
+uint64 constant ROLE_ID_WITHDRAWAL_FINALIZER = 25;
 
 // Role assigned to validator ticket price setter
 uint64 constant ROLE_ID_VT_PRICER = 25;
 
 // Role assigned to the Puffer Protocol
 uint64 constant ROLE_ID_PUFFER_PROTOCOL = 1234;
-uint64 constant ROLE_ID_PUFFER_MODULE_MANAGER = 1235;
+uint64 constant ROLE_ID_VAULT_WITHDRAWER = 1235;
+uint64 constant ROLE_ID_PUFETH_BURNER = 1236;
 
 uint64 constant ROLE_ID_DAO = 77;
 uint64 constant ROLE_ID_GUARDIANS = 88;
