@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IPufferWithdrawalManager } from "./interface/IPufferWithdrawalManager.sol";
 import { PufferWithdrawalManagerStorage } from "./PufferWithdrawalManagerStorage.sol";
 import { AccessManagedUpgradeable } from
@@ -70,6 +69,7 @@ contract PufferWithdrawalManager is
      * @notice Only one withdrawal request per transaction is allowed
      */
     modifier oneWithdrawalRequestAllowed() virtual {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             // If the deposit tracker location is set to `1`, revert with `MultipleWithdrawalsAreForbidden()`
             if tload(_WITHDRAWAL_REQUEST_TRACKER_LOCATION) {
@@ -77,6 +77,7 @@ contract PufferWithdrawalManager is
                 revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert MultipleWithdrawalsAreForbidden()`
             }
         }
+        // solhint-disable-next-line no-inline-assembly
         assembly {
             tstore(_WITHDRAWAL_REQUEST_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
         }
