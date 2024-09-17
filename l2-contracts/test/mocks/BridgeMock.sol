@@ -40,7 +40,9 @@ contract BridgeMock is AccessManaged {
         if (instantTransfer) {
             // In our case, we don't need to do any Minting or Burning of tokens
             // We just transfer the tokens from L1RewardManager to L2RewardManager
-            IERC20(asset).transferFrom(msg.sender, to, amount);
+            if (amount != 0) {
+                IERC20(asset).transferFrom(msg.sender, to, amount);
+            }
 
             L2RewardManager(to).xReceive(
                 keccak256(abi.encodePacked(to, amount, asset, delegate, callData)), // transferId
@@ -52,7 +54,9 @@ contract BridgeMock is AccessManaged {
             );
         } else {
             // Move the tokens here
-            IERC20(asset).transferFrom(msg.sender, address(this), amount);
+            if (amount != 0) {
+                IERC20(asset).transferFrom(msg.sender, to, amount);
+            }
 
             // Queue the transfer request
             transferQueue.push(
@@ -77,7 +81,9 @@ contract BridgeMock is AccessManaged {
         TransferRequest memory request = transferQueue[queueIdx];
 
         // Execute the transfer
-        IERC20(request.asset).transferFrom(address(this), request.to, request.amount);
+        if (request.amount != 0) {
+            IERC20(request.asset).transferFrom(address(this), request.to, request.amount);
+        }
 
         L2RewardManager(request.to).xReceive(
             keccak256(abi.encodePacked(request.to, request.amount, request.asset, request.delegate, request.callData)), // transferId

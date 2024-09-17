@@ -25,6 +25,11 @@ abstract contract DeployerHelper is Script {
         return msgSender;
     }
 
+    function _getDAO() internal view returns (address) {
+        // ATM Ops multisig is the DAO
+        return _getOPSMultisig();
+    }
+
     /**
      * @dev Upgrade the implementation of the `proxyTarget` to `newImplementation` if on Holesky,
      * otherwise log the call data.
@@ -420,6 +425,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d
             return 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+            return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         }
 
         revert("OPSMultisig not available for this chain");
