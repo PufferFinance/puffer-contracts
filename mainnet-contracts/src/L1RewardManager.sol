@@ -53,7 +53,7 @@ contract L1RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _setAllowedRewardMintFrequency(10 hours);
+        _setAllowedRewardMintFrequency(20 hours);
     }
 
     /**
