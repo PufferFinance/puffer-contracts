@@ -53,7 +53,7 @@ contract L1RewardManager is
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        // _setAllowedRewardMintFrequency(10 hours);
+        _setAllowedRewardMintFrequency(10 hours);
     }
 
     /**
@@ -249,9 +249,9 @@ contract L1RewardManager is
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {
-        // if (newFrequency < 10 hours) {
-        //     revert InvalidMintFrequency();
-        // }
+        if (newFrequency < 20 hours) {
+            revert InvalidMintFrequency();
+        }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
