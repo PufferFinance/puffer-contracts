@@ -17,7 +17,9 @@ contract BridgeMock {
         // 1 == mainnet, 2 == l2
         uint32 originId = destination == 1 ? 2 : 1;
 
-        IERC20(asset).transferFrom(msg.sender, to, amount);
+        if (amount != 0) {
+            IERC20(asset).transferFrom(msg.sender, to, amount);
+        }
 
         L2RewardManager(to).xReceive(
             keccak256(abi.encodePacked(to, amount, asset, delegate, callData)), // transferId
