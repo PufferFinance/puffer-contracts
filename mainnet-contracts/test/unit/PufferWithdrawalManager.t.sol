@@ -534,6 +534,60 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         assertGt(balanceAfter, balanceBefore, "Withdrawal amount should be greater than zero");
     }
 
+    function test_finalizationExchangeRateLowerThanOneWithdrawal() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        uint256 exchangeRate = pufferVault.convertToAssets(1 ether);
+
+        assertEq(exchangeRate, 1 ether, "1:1 exchange rate");
+
+        // Leave place for one more withdrawal
+        for (uint256 i = 0; i < batchSize - 1; i++) {
+            address actor = actors[i % batchSize];
+            _givePufETH(depositAmount, actor);
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        // Simulate + 10% increase in ETH
+        deal(address(pufferVault), 1110 ether);
+        assertEq(pufferVault.convertToAssets(1 ether), 1.100099108027750247 ether, "~ 1:1.1 exchange rate");
+
+        _givePufETH(2 ether, james);
+        // James tries to withdraw 1 pufETH and his exchange rate is ~1.1
+        vm.startPrank(james);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), james);
+        vm.stopPrank();
+
+        // James idx is 19
+        assertEq(
+            withdrawalManager.getWithdrawal(19).pufETHToETHExchangeRate,
+            1.100099108027750247 ether,
+            "James exchange rate should be ~1.1"
+        );
+
+        // Manipulate the exchange rate to be lower than the one from James, but higher than the other withdrawals
+        deal(address(pufferVault), 1012 ether);
+        assertEq(pufferVault.convertToAssets(1 ether), 1.001169332125974146 ether, "~ We reset the exchange rate");
+
+        // Finalize the batch
+        // 10.011693321259741460 ETH finalization amount
+        vm.startPrank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Complete all withdrawals
+        for (uint256 i = batchSize; i < batchSize * 2; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        assertEq(pufferVault.balanceOf(address(withdrawalManager)), 0, "WithdrawalManager should have 0 pufETH");
+        assertEq(address(withdrawalManager).balance, 0, "WithdrawalManager should have 0 ETH");
+    }
+
     function testRevert_changeMaxWithdrawalAmount_belowMin() public {
         vm.startPrank(DAO);
 
