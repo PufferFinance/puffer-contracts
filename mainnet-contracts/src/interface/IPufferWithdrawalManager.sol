@@ -13,6 +13,16 @@ import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorag
  */
 interface IPufferWithdrawalManager {
     /**
+     * @notice Thrown when attempting to set a max withdrawal amount below the minimum withdrawal amount
+     */
+    error InvalidMaxWithdrawalAmount();
+
+    /**
+     * @notice Thrown when attempting to request a withdrawal to the zero address
+     */
+    error WithdrawalToZeroAddress();
+
+    /**
      * @notice Thrown when attempting to request multiple withdrawals in the same transaction
      */
     error MultipleWithdrawalsAreForbidden();

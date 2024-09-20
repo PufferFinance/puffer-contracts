@@ -242,6 +242,7 @@ contract PufferWithdrawalManager is
 
         require(pufETHAmount >= MIN_WITHDRAWAL_AMOUNT, WithdrawalAmountTooLow());
         require(pufETHAmount <= $.maxWithdrawalAmount, WithdrawalAmountTooHigh());
+        require(recipient != address(0), WithdrawalToZeroAddress());
 
         // Always transfer from the msg.sender
         PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
@@ -285,6 +286,7 @@ contract PufferWithdrawalManager is
      */
     function changeMaxWithdrawalAmount(uint256 newMaxWithdrawalAmount) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        require(newMaxWithdrawalAmount > MIN_WITHDRAWAL_AMOUNT, InvalidMaxWithdrawalAmount());
         emit MaxWithdrawalAmountChanged($.maxWithdrawalAmount, newMaxWithdrawalAmount);
         $.maxWithdrawalAmount = newMaxWithdrawalAmount;
     }

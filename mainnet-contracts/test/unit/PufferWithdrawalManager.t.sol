@@ -435,6 +435,14 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.requestWithdrawal(uint128(1 ether), address(this));
     }
 
+    function testRevert_requestWithdrawalsToZeroAddress() public withUnlimitedWithdrawalLimit {
+        _givePufETH(1 ether, address(this));
+
+        pufferVault.approve(address(withdrawalManager), 1 ether);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalToZeroAddress.selector);
+        withdrawalManager.requestWithdrawal(uint128(1 ether), address(0));
+    }
+
     function test_requestWithdrawalsWithPermit() public withUnlimitedWithdrawalLimit {
         _givePufETH(1 ether, alice);
 
@@ -524,6 +532,15 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // Verify the balance change of the actor after withdrawal
         assertGt(balanceAfter, balanceBefore, "Withdrawal amount should be greater than zero");
+    }
+
+    function testRevert_changeMaxWithdrawalAmount_belowMin() public {
+        vm.startPrank(DAO);
+
+        uint256 newMaxWithdrawalAmount = withdrawalManager.MIN_WITHDRAWAL_AMOUNT() - 1;
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.InvalidMaxWithdrawalAmount.selector));
+        withdrawalManager.changeMaxWithdrawalAmount(newMaxWithdrawalAmount);
     }
 
     function test_changeMaxWithdrawalAmount() public {
