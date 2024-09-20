@@ -1,0 +1,31 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-accounting-msgvalue-in-loop
+    languages:
+      - solidity
+    message: Use of `msg.value` in a loop
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    patterns:
+      - pattern: msg.value
+      - pattern-either:
+        - pattern-inside: |
+            while (...) { 
+              ...
+            }
+        - pattern-inside: |
+            for (...) { 
+              ...
+            }
+        - pattern-inside: |
+            do {
+              ...
+            } while (...)
+    severity: ERROR

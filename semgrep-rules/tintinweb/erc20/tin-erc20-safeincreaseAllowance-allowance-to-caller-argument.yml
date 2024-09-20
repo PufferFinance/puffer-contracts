@@ -1,0 +1,28 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-erc20-safeincreaseAllowance-allowance-to-caller-argument
+    languages:
+      - solidity
+    severity: ERROR
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    message: >
+      SafeIncreaseAllowance on caller provided beneficiary `$B.$X`. Check if
+      approval is verified to be consumed or token approval revoked before end
+      of function if beneficiary is untrusted.
+    patterns:
+      - pattern-either:
+          - pattern: SafeERC20.safeIncreaseAllowance($TOK, $B.$X, ...);
+          - pattern: SafeERC20.safeIncreaseAllowance($TOK, $B, ...);
+          - pattern: $TOK.safeIncreaseAllowance($B.$X, ...);
+          - pattern: $TOK.safeIncreaseAllowance($B, ...);
+      - pattern-inside: function $F(..., $T $B, ...){...}
+
+
