@@ -156,7 +156,7 @@ contract PufferWithdrawalManager is
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
-            batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
+            batch.pufETHToETHExchangeRate = batchFinalizationExchangeRate.toUint64();
 
             emit BatchFinalized({
                 batchIdx: i,
