@@ -10,9 +10,10 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferOracle } from "../../src/PufferOracle.sol";
 
 contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
-    address PUFFER_WHALE_1 = 0x47de9eE11976fA9280BE85ad959D8D341c087D23;
+    address PUFFER_WHALE_1 = 0x176F3DAb24a159341c0509bB36B833E7fdd0a132;
     address PUFFER_WHALE_2 = 0xCdd03A39690f1a8f63C05a90d114E9AC05A4C442;
     address PUFFER_WHALE_3 = 0xdc2389885C83CDA15d307d0528d3FE54700f2083;
     address PUFFER_WHALE_4 = 0x6910809C33D5a0C4C6e7dF6087019A6bEE9Dfc2c;
@@ -42,6 +43,17 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
     uint256 public batchSize;
 
     function setUp() public virtual override {
+        vm.label(PUFFER_WHALE_1, "PUFFER_WHALE_1");
+        vm.label(PUFFER_WHALE_2, "PUFFER_WHALE_2");
+        vm.label(PUFFER_WHALE_3, "PUFFER_WHALE_3");
+        vm.label(PUFFER_WHALE_4, "PUFFER_WHALE_4");
+        vm.label(PUFFER_WHALE_5, "PUFFER_WHALE_5");
+        vm.label(PUFFER_WHALE_6, "PUFFER_WHALE_6");
+        vm.label(PUFFER_WHALE_7, "PUFFER_WHALE_7");
+        vm.label(PUFFER_WHALE_8, "PUFFER_WHALE_8");
+        vm.label(PUFFER_WHALE_9, "PUFFER_WHALE_9");
+        vm.label(PUFFER_WHALE_10, "PUFFER_WHALE_10");
+
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20682408);
 
         // Setup contracts that are deployed to mainnet
@@ -158,6 +170,98 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
             10.19124799735076818 ether,
             "PUFFER_WHALE_1 must receive the same ETH amount as he would have received if there was no VT sale"
         );
+    }
+
+    // Simulate a frontrunning attack where an attacker requests a withdrawal before a huge batch is finalized
+    function test_frontRunningAttack() public {
+        vm.startPrank(PUFFER_WHALE_1);
+
+        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
+        assertEq(pufETHToETHExchangeRate, 1.019124799735076818 ether, "pufETHToETHExchangeRate");
+
+        deal(address(_WETH), PUFFER_WHALE_2, 0); // set their WETH balance to 0 for easier accounting at the end of the test
+
+        // Users request a withdrawal 10x1000 ETH ~ 23_577_600$
+        for (uint256 i = 0; i < batchSize; i++) {
+            vm.startPrank(PUFFER_WHALE_1);
+            pufferVault.approve(address(withdrawalManager), 1000 ether);
+            withdrawalManager.requestWithdrawal(uint128(1000 ether), PUFFER_WHALE_1);
+            vm.stopPrank();
+        }
+
+        // After the user has requested the withdrawals, there is a huge VT purchase
+        vm.startPrank(0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8); // Binance hot wallet
+        assertEq(
+            1000 ether / PufferOracle(_getPufferOracle()).getValidatorTicketPrice(), 404310, "Number of VTs purchased"
+        );
+        // ~40k VTs purchased
+        ValidatorTicket(_getValidatorTicket()).purchaseValidatorTicket{ value: 1000 ether }(address(5));
+        vm.stopPrank();
+
+        assertGt(pufferVault.convertToAssets(1 ether), pufETHToETHExchangeRate, "the new exchange rate must be bigger");
+
+        // Puffer whale 2 is an attacker who requests a 500 ETH withdrawal before the finalization that is ~1M $
+        vm.startPrank(PUFFER_WHALE_2);
+        uint256 attackerAmount = 500 ether; // The attacker would > 1M $ of capital for this attack
+        pufferVault.approve(address(withdrawalManager), attackerAmount);
+        withdrawalManager.requestWithdrawal(uint128(attackerAmount), PUFFER_WHALE_2);
+
+        // Expected WETH amount before batch 1 is finalized (10x1000 ETH)
+        uint256 attackerWETHAmount =
+            (attackerAmount + 0.01 ether * (batchSize - 1)) * pufferVault.convertToAssets(1 ether) / 1 ether;
+
+        // Finalize the batch
+        vm.startPrank(_getPaymaster());
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Whale 2 requests additional withdrawals so that we can finalize his batch as well.
+        for (uint256 i = batchSize; i < batchSize * 2 - 1; i++) {
+            vm.startPrank(PUFFER_WHALE_2);
+            pufferVault.approve(address(withdrawalManager), 0.01 ether);
+            withdrawalManager.requestWithdrawal(0.01 ether, PUFFER_WHALE_2);
+        }
+
+        // Complete the withdrawals for whale 1
+        vm.startPrank(PUFFER_WHALE_1);
+        for (uint256 i = batchSize; i < batchSize * 2; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        // Finalize the batch for whale 2
+        vm.startPrank(_getPaymaster());
+        withdrawalManager.finalizeWithdrawals(2);
+        vm.stopPrank();
+
+        // Complete the withdrawals for whale 2
+        vm.startPrank(PUFFER_WHALE_2);
+        for (uint256 i = batchSize * 2; i < batchSize * 3; i++) {
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+
+        // Attacker is in profit
+        assertGt(
+            _WETH.balanceOf(PUFFER_WHALE_2),
+            attackerWETHAmount,
+            "PUFFER_WHALE_2 must receive the same ETH amount as he would have received if there was no VT sale"
+        );
+
+        assertEq(
+            _WETH.balanceOf(PUFFER_WHALE_2),
+            510.609115107709215955 ether,
+            "PUFFER_WHALE_2 must receive the same ETH amount as he would have received if there was no VT sale"
+        );
+
+        assertEq(attackerWETHAmount, 510.609111674263143038 ether, "Expected ETH amount");
+
+        assertGt(
+            510.609115107709215955 ether, // the amount received by whale 2
+            attackerWETHAmount,
+            "PUFFER_WHALE_1 must receive the same ETH amount as he would have received if there was no VT sale"
+        );
+
+        // It is not worth real for somebody to use 500 ETH to get 3433446072917 (not considering any gas costs)
+        assertEq(_WETH.balanceOf(PUFFER_WHALE_2) - attackerWETHAmount, 3433446072917, "Attacker profit");
     }
 
     // We payout using the old exchange rate (user doesn't get any rewards from the VT sale)
