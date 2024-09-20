@@ -383,6 +383,45 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
             // the users will get less than 1 ETH because of the slashing
             assertEq(weth.balanceOf(actor), 0.891089108910891089 ether, "actor got paid in ETH");
         }
+        assertEq(pufferVault.balanceOf(address(withdrawalManager)), 0, "WithdrawalManager should have 0 ETH");
+    }
+
+    // The WithdrawalManager ends up with 0 ETH
+    function testFuzz_protocolSlashing(uint256 vaultAmount) public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // At this point in time, the vault has 1000 ETH and the exchange rate is 1:1
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "1:1 exchange rate");
+        assertEq(pufferVault.totalAssets(), 1000 ether, "total assets");
+
+        // Users request withdrawals, we record the exchange rate (1:1)
+        for (uint256 i = 0; i < 10; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+            vm.prank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            vm.prank(actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+        }
+
+        assertEq(pufferVault.totalAssets(), 1010 ether, "total assets");
+
+        // Simulate a slashing, the vault now has 900 ETH instead of 1000
+        vaultAmount = bound(vaultAmount, 100 ether, 900 ether);
+        deal(address(pufferVault), vaultAmount);
+
+        // The settlement exchange rate is now lower than the original 1:1 exchange rate
+        vm.startPrank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        for (uint256 i = batchSize; i < 10; i++) {
+            address actor = actors[i % actors.length];
+
+            vm.startPrank(actor);
+            withdrawalManager.completeQueuedWithdrawal(i);
+        }
+        assertEq(pufferVault.balanceOf(address(withdrawalManager)), 0, "WithdrawalManager should have 0 ETH");
     }
 
     function test_constructor() public {
