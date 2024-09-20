@@ -199,21 +199,24 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         vm.stopPrank();
 
         assertGt(pufferVault.convertToAssets(1 ether), pufETHToETHExchangeRate, "the new exchange rate must be bigger");
+        assertEq(pufferVault.convertToAssets(1 ether), 1.021034437149839315 ether, "new exchange rate");
 
-        // Puffer whale 2 is an attacker who requests a 500 ETH withdrawal before the finalization that is ~1M $
-        vm.startPrank(PUFFER_WHALE_2);
-        uint256 attackerAmount = 500 ether; // The attacker would > 1M $ of capital for this attack
-        pufferVault.approve(address(withdrawalManager), attackerAmount);
-        withdrawalManager.requestWithdrawal(uint128(attackerAmount), PUFFER_WHALE_2);
-
-        // Expected WETH amount before batch 1 is finalized (10x1000 ETH)
-        uint256 attackerWETHAmount =
-            (attackerAmount + 0.01 ether * (batchSize - 1)) * pufferVault.convertToAssets(1 ether) / 1 ether;
-
-        // Finalize the batch
-        vm.startPrank(_getPaymaster());
-        withdrawalManager.finalizeWithdrawals(1);
-        vm.stopPrank();
+        // This happens in the same block------- ----------------------------------------------------------------|
+        // Puffer whale 2 is an attacker who requests a 500 ETH withdrawal before the finalization that is ~1M $ |
+        vm.startPrank(PUFFER_WHALE_2); //                                                                        |
+        uint256 attackerAmount = 500 ether; // The attacker would > 1M $ of capital for this attack              |
+        pufferVault.approve(address(withdrawalManager), attackerAmount); //                                      |
+        withdrawalManager.requestWithdrawal(uint128(attackerAmount), PUFFER_WHALE_2); //                         |
+        //                                                                                                       |
+        // Expected WETH amount before batch 1 is finalized (10x1000 ETH)                                        |
+        uint256 expectedAttackerWETH = //                                                                        |
+         (attackerAmount + 0.01 ether * (batchSize - 1)) * pufferVault.convertToAssets(1 ether) / 1 ether; //    |
+        //                                                                                                       |
+        // Finalize the batch                                                                                    |
+        vm.startPrank(_getPaymaster()); //                                                                       |
+        withdrawalManager.finalizeWithdrawals(1); //                                                             |
+        vm.stopPrank(); //                                                                                       |
+        // ------------------------------------------------------------------------------------------------------|
 
         // Whale 2 requests additional withdrawals so that we can finalize his batch as well.
         for (uint256 i = batchSize; i < batchSize * 2 - 1; i++) {
@@ -242,7 +245,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         // Attacker is in profit
         assertGt(
             _WETH.balanceOf(PUFFER_WHALE_2),
-            attackerWETHAmount,
+            expectedAttackerWETH,
             "PUFFER_WHALE_2 must receive the same ETH amount as he would have received if there was no VT sale"
         );
 
@@ -252,16 +255,17 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
             "PUFFER_WHALE_2 must receive the same ETH amount as he would have received if there was no VT sale"
         );
 
-        assertEq(attackerWETHAmount, 510.609111674263143038 ether, "Expected ETH amount");
+        assertEq(expectedAttackerWETH, 510.609111674263143038 ether, "Expected ETH amount");
 
         assertGt(
             510.609115107709215955 ether, // the amount received by whale 2
-            attackerWETHAmount,
+            expectedAttackerWETH,
             "PUFFER_WHALE_1 must receive the same ETH amount as he would have received if there was no VT sale"
         );
 
-        // It is not worth real for somebody to use 500 ETH to get 3433446072917 (not considering any gas costs)
-        assertEq(_WETH.balanceOf(PUFFER_WHALE_2) - attackerWETHAmount, 3433446072917, "Attacker profit");
+        // It is not worth for somebody to use 500 ETH to get 3433446072917 wei
+        // The amount would be bigger if a bigger VT sale was made (but 1000 ETH is still a lot)
+        assertEq(_WETH.balanceOf(PUFFER_WHALE_2) - expectedAttackerWETH, 3433446072917, "Attacker profit");
     }
 
     // We payout using the old exchange rate (user doesn't get any rewards from the VT sale)
