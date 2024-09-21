@@ -159,6 +159,10 @@ contract PufferWithdrawalManager is
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
+            // If the batch is being finalized with a lower exchange amount than the expected ETH amount,
+            // then some of the requested withdrawals from the batch might have a lower exchange rate,
+            // and some of them might have a higher exchange rate than the batch finalization exchange rate.
+            // In this case, we need to return the difference to the Puffer Vault.
             batch.returnFunds = expectedETHAmount > ethAmount;
             batch.pufETHToETHExchangeRate = batchFinalizationExchangeRate.toUint64();
 
@@ -195,13 +199,18 @@ contract PufferWithdrawalManager is
 
         address recipient = withdrawal.recipient;
 
+        // Because we are using min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate)
+        // If the batch is marked as returnFunds, then we need to return the difference to the Puffer Vault
+        // This case only happens when the batch is finalized with a lower exchange amount than the expected ETH amount
+        // and a withdrawal from that batch has a higher exchange rate than the batch finalization exchange rate.
+        // In this case, we need to return the difference to the Puffer Vault.
         if (
-            withdrawal.pufETHToETHExchangeRate < batchSettlementExchangeRate
-                && $.withdrawalBatches[batchIndex].returnFunds
+            $.withdrawalBatches[batchIndex].returnFunds
+                && batchSettlementExchangeRate > withdrawal.pufETHToETHExchangeRate
         ) {
             uint256 returnAmount =
                 (uint256(withdrawal.pufETHAmount) * batchSettlementExchangeRate) / 1 ether - payoutAmount;
-            //solhint-disable-next-line avoid-low-level-calls
+            // solhint-disable-next-line avoid-low-level-calls
             (bool success,) = address(PUFFER_VAULT).call{ value: returnAmount }("");
             require(success, TransferFailed());
         }
