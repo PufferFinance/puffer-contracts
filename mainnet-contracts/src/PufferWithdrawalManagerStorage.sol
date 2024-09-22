@@ -39,8 +39,9 @@ abstract contract PufferWithdrawalManagerStorage {
      */
     struct WithdrawalBatch {
         uint64 pufETHToETHExchangeRate; // packed slot 0
-        uint96 toBurn; // packed slot 0
+        uint88 toBurn; // packed slot 0
         uint96 toTransfer; // packed slot 0
+        bool returnFunds; // packed slot 0
     }
 
     /**

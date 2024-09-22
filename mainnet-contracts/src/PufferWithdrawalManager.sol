@@ -13,6 +13,7 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { Permit } from "./structs/Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
+import { TransferFailed } from "./Errors.sol";
 
 /**
  * @title PufferWithdrawalManager
@@ -96,7 +97,9 @@ contract PufferWithdrawalManager is
         for (uint256 i = 0; i < BATCH_SIZE; ++i) {
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
-        $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
+        $.withdrawalBatches.push(
+            WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, returnFunds: false })
+        );
         $.finalizedWithdrawalBatch = 0; // do it explicitly
     }
 
@@ -156,6 +159,10 @@ contract PufferWithdrawalManager is
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
+            // If the batch is being finalized with a an exchange rate that is lower than *some* of the requested withdrawals from that batch,
+            // but higher than the other requested withdrawals from the same batch, we transfer slightly more ETH from the Puffer Vault to this contract.
+            // That extra ETH is returned to the Puffer Vault during the payout process.
+            batch.returnFunds = expectedETHAmount > ethAmount;
             batch.pufETHToETHExchangeRate = batchFinalizationExchangeRate.toUint64();
 
             emit BatchFinalized({
@@ -190,6 +197,19 @@ contract PufferWithdrawalManager is
         uint256 payoutAmount = (uint256(withdrawal.pufETHAmount) * payoutExchangeRate) / 1 ether;
 
         address recipient = withdrawal.recipient;
+
+        // Because we are using min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate)
+        // If the batch is marked as `returnFunds`, then we need to return some ETH to the Puffer Vault.
+        if (
+            $.withdrawalBatches[batchIndex].returnFunds
+                && batchSettlementExchangeRate > withdrawal.pufETHToETHExchangeRate
+        ) {
+            uint256 returnAmount =
+                (uint256(withdrawal.pufETHAmount) * batchSettlementExchangeRate) / 1 ether - payoutAmount;
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success,) = address(PUFFER_VAULT).call{ value: returnAmount }("");
+            require(success, TransferFailed());
+        }
 
         // remove data for some gas savings
         delete $.withdrawals[withdrawalIdx];
@@ -253,14 +273,16 @@ contract PufferWithdrawalManager is
 
         if (batchIndex == $.withdrawalBatches.length) {
             // Push empty batch when the previous batch is full
-            $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
+            $.withdrawalBatches.push(
+                WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, returnFunds: false })
+            );
         }
 
         uint256 pufETHToETHExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
         uint256 expectedETHAmount = pufETHAmount * pufETHToETHExchangeRate / 1 ether;
 
         WithdrawalBatch storage batch = $.withdrawalBatches[batchIndex];
-        batch.toBurn += uint96(pufETHAmount);
+        batch.toBurn += uint88(pufETHAmount);
         batch.toTransfer += uint96(expectedETHAmount);
 
         $.withdrawals.push(
