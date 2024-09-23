@@ -41,7 +41,8 @@ abstract contract PufferWithdrawalManagerStorage {
         uint64 pufETHToETHExchangeRate; // packed slot 0
         uint88 toBurn; // packed slot 0
         uint96 toTransfer; // packed slot 0
-        bool returnFunds; // packed slot 0
+        uint128 withdrawalsClaimed; // packed slot 1
+        uint128 amountClaimed; // packed slot 1
     }
 
     /**

@@ -34,10 +34,11 @@ contract Generate2StepWithdrawalsCalldata is Script {
         );
 
         // Everybody can complete queued withdrawals
-        bytes4[] memory publicSelectors = new bytes4[](3);
+        bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = PufferWithdrawalManager.completeQueuedWithdrawal.selector;
         publicSelectors[1] = PufferWithdrawalManager.requestWithdrawal.selector;
         publicSelectors[2] = PufferWithdrawalManager.requestWithdrawalWithPermit.selector;
+        publicSelectors[3] = PufferWithdrawalManager.returnExcessETHToVault.selector;
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, withdrawalManagerProxy, publicSelectors, PUBLIC_ROLE
         );
