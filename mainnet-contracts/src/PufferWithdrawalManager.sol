@@ -250,16 +250,16 @@ contract PufferWithdrawalManager is
             uint256 diff = transferAmount - batch.amountClaimed;
             totalExcessETH += diff;
 
-            // Update the amount claimed to the total toTransfer amount, so that this can't be called twice
+            // Update the amount claimed to the total toTransfer amount to prevent calling this function twice (validation line 239)
             batch.amountClaimed = batch.toTransfer;
         }
 
         if (totalExcessETH > 0) {
             (bool success,) = address(PUFFER_VAULT).call{ value: totalExcessETH }("");
             require(success, TransferFailed());
-        }
 
-        emit ExcessETHReturned(batchIndices, totalExcessETH);
+            emit ExcessETHReturned(batchIndices, totalExcessETH);
+        }
     }
 
     /**
