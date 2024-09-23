@@ -149,6 +149,13 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
             withdrawalManager.completeQueuedWithdrawal(i);
         }
+
+        uint256[] memory batches = new uint256[](1);
+        batches[0] = 1;
+
+        // If there is no excess ETH, this should revert
+        vm.expectRevert(IPufferWithdrawalManager.AlreadyReturned.selector);
+        withdrawalManager.returnExcessETHToVault(batches);
     }
 
     /**
