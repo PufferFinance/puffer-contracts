@@ -159,8 +159,11 @@ contract PufferWithdrawalManager is
             uint256 expectedETHAmount = batch.toTransfer;
             uint256 pufETHBurnAmount = batch.toBurn;
 
-            uint256 ethAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
-            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batchFinalizationExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
 
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
@@ -238,8 +241,11 @@ contract PufferWithdrawalManager is
             uint256 expectedETHAmount = batch.toTransfer;
             uint256 pufETHBurnAmount = batch.toBurn;
 
-            uint256 ethAmount = (pufETHBurnAmount * batch.pufETHToETHExchangeRate) / 1 ether;
-            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batch.pufETHToETHExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
 
             uint256 diff = transferAmount - batch.amountClaimed;
             totalExcessETH += diff;
@@ -377,5 +383,14 @@ contract PufferWithdrawalManager is
         PufferWithdrawalManager newImplementationContract = PufferWithdrawalManager(payable(newImplementation));
 
         require(newImplementationContract.BATCH_SIZE() == BATCH_SIZE, BatchSizeCannotChange());
+    }
+
+    function _calculateBatchTransferAmount(
+        uint256 pufETHBurnAmount,
+        uint256 batchFinalizationExchangeRate,
+        uint256 expectedETHAmount
+    ) internal pure returns (uint256) {
+        uint256 batchFinalizationAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
+        return Math.min(expectedETHAmount, batchFinalizationAmount);
     }
 }
