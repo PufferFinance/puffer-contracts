@@ -98,7 +98,13 @@ contract PufferWithdrawalManager is
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
         $.withdrawalBatches.push(
-            WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, returnFunds: false })
+            WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            })
         );
         $.finalizedWithdrawalBatch = 0; // do it explicitly
     }
@@ -153,16 +159,15 @@ contract PufferWithdrawalManager is
             uint256 expectedETHAmount = batch.toTransfer;
             uint256 pufETHBurnAmount = batch.toBurn;
 
-            uint256 ethAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
-            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batchFinalizationExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
 
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
-            // If the batch is being finalized with a an exchange rate that is lower than *some* of the requested withdrawals from that batch,
-            // but higher than the other requested withdrawals from the same batch, we transfer slightly more ETH from the Puffer Vault to this contract.
-            // That extra ETH is returned to the Puffer Vault during the payout process.
-            batch.returnFunds = expectedETHAmount > ethAmount;
             batch.pufETHToETHExchangeRate = batchFinalizationExchangeRate.toUint64();
 
             emit BatchFinalized({
@@ -198,19 +203,11 @@ contract PufferWithdrawalManager is
 
         address recipient = withdrawal.recipient;
 
-        // Because we are using min(withdrawal.pufETHToETHExchangeRate, batchSettlementExchangeRate)
-        // If the batch is marked as `returnFunds`, then we need to return some ETH to the Puffer Vault.
-        if (
-            $.withdrawalBatches[batchIndex].returnFunds
-                && batchSettlementExchangeRate > withdrawal.pufETHToETHExchangeRate
-        ) {
-            uint256 returnAmount =
-                (uint256(withdrawal.pufETHAmount) * batchSettlementExchangeRate) / 1 ether - payoutAmount;
-            // solhint-disable-next-line avoid-low-level-calls
-            (bool success,) = address(PUFFER_VAULT).call{ value: returnAmount }("");
-            require(success, TransferFailed());
-        }
+        // When a withdrawal is completed, we need to update the batch's claimed withdrawals and amount claimed
+        // When all withdrawals from the batch are completed, the dust can be returned to the vault by calling `returnExcessETHToVault`
 
+        ++$.withdrawalBatches[batchIndex].withdrawalsClaimed;
+        $.withdrawalBatches[batchIndex].amountClaimed += payoutAmount.toUint128();
         // remove data for some gas savings
         delete $.withdrawals[withdrawalIdx];
 
@@ -225,6 +222,44 @@ contract PufferWithdrawalManager is
             payoutExchangeRate: payoutExchangeRate,
             recipient: recipient
         });
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function returnExcessETHToVault(uint256[] calldata batchIndices) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        uint256 totalExcessETH = 0;
+
+        for (uint256 i = 0; i < batchIndices.length; ++i) {
+            WithdrawalBatch storage batch = $.withdrawalBatches[batchIndices[i]];
+
+            require(batch.withdrawalsClaimed == BATCH_SIZE, NotAllWithdrawalsClaimed());
+            require(batch.amountClaimed != batch.toTransfer, AlreadyReturned());
+
+            uint256 expectedETHAmount = batch.toTransfer;
+            uint256 pufETHBurnAmount = batch.toBurn;
+
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batch.pufETHToETHExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
+
+            uint256 diff = transferAmount - batch.amountClaimed;
+            totalExcessETH += diff;
+
+            // Update the amount claimed to the total toTransfer amount, so that this can't be called twice
+            batch.amountClaimed = batch.toTransfer;
+        }
+
+        if (totalExcessETH > 0) {
+            (bool success,) = address(PUFFER_VAULT).call{ value: totalExcessETH }("");
+            require(success, TransferFailed());
+        }
+
+        emit ExcessETHReturned(batchIndices, totalExcessETH);
     }
 
     /**
@@ -254,6 +289,18 @@ contract PufferWithdrawalManager is
     }
 
     /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getBatch(uint256 batchIdx) external view returns (WithdrawalBatch memory) {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        // We don't want panic when the caller passes an invalid batchIdx
+        if (batchIdx >= $.withdrawalBatches.length) {
+            return WithdrawalBatch(0, 0, 0, 0, 0);
+        }
+        return $.withdrawalBatches[batchIdx];
+    }
+
+    /**
      * @param pufETHAmount The amount of pufETH to withdraw
      * @param recipient The address to receive the withdrawn ETH
      */
@@ -274,7 +321,13 @@ contract PufferWithdrawalManager is
         if (batchIndex == $.withdrawalBatches.length) {
             // Push empty batch when the previous batch is full
             $.withdrawalBatches.push(
-                WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, returnFunds: false })
+                WithdrawalBatch({
+                    toBurn: 0,
+                    toTransfer: 0,
+                    pufETHToETHExchangeRate: 0,
+                    withdrawalsClaimed: 0,
+                    amountClaimed: 0
+                })
             );
         }
 
@@ -330,5 +383,14 @@ contract PufferWithdrawalManager is
         PufferWithdrawalManager newImplementationContract = PufferWithdrawalManager(payable(newImplementation));
 
         require(newImplementationContract.BATCH_SIZE() == BATCH_SIZE, BatchSizeCannotChange());
+    }
+
+    function _calculateBatchTransferAmount(
+        uint256 pufETHBurnAmount,
+        uint256 batchFinalizationExchangeRate,
+        uint256 expectedETHAmount
+    ) internal pure returns (uint256) {
+        uint256 batchFinalizationAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
+        return Math.min(expectedETHAmount, batchFinalizationAmount);
     }
 }

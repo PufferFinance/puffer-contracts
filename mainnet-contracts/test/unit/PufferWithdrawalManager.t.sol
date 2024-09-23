@@ -579,13 +579,30 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         withdrawalManager.finalizeWithdrawals(1);
         vm.stopPrank();
 
+        // Return the dust from the batch
+        vm.startPrank(PAYMASTER);
+        uint256[] memory batches = new uint256[](1);
+        batches[0] = 1;
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.NotAllWithdrawalsClaimed.selector));
+        withdrawalManager.returnExcessETHToVault(batches);
+
         // Complete all withdrawals
         for (uint256 i = batchSize; i < batchSize * 2; i++) {
             withdrawalManager.completeQueuedWithdrawal(i);
         }
 
+        assertGt(address(withdrawalManager).balance, 0, "WithdrawalManager should have excess ETH");
+
+        // This time it should work
+        withdrawalManager.returnExcessETHToVault(batches);
+
         assertEq(pufferVault.balanceOf(address(withdrawalManager)), 0, "WithdrawalManager should have 0 pufETH");
         assertEq(address(withdrawalManager).balance, 0, "WithdrawalManager should have 0 ETH");
+
+        // Try to return excess ETH to the vault again for the same batch
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.AlreadyReturned.selector));
+        withdrawalManager.returnExcessETHToVault(batches);
     }
 
     function testRevert_changeMaxWithdrawalAmount_belowMin() public {
@@ -627,6 +644,135 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.MultipleWithdrawalsAreForbidden.selector));
         withdrawalManager.requestWithdrawal(uint128(100 ether), alice);
+    }
+
+    function test_getBatch() public withUnlimitedWithdrawalLimit {
+        // Non existent batch
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batch = withdrawalManager.getBatch(1234);
+        assertEq(batch.toBurn, 0, "toBurn should be 0");
+        assertEq(batch.toTransfer, 0, "toTransfer should be 0");
+        assertEq(batch.withdrawalsClaimed, 0, "withdrawalsClaimed should be 0");
+        assertEq(batch.amountClaimed, 0, "amountClaimed should be 0");
+
+        uint256 depositAmount = 1 ether;
+
+        // Fill the first and second batch
+        for (uint256 i = 0; i < batchSize * 2; i++) {
+            address actor = actors[i % batchSize];
+            _givePufETH(depositAmount, actor);
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        batch = withdrawalManager.getBatch(1);
+        assertEq(batch.toBurn, batchSize * depositAmount, "toBurn should be 10");
+        assertEq(batch.toTransfer, batchSize * depositAmount, "toTransfer should be 10");
+        assertEq(batch.withdrawalsClaimed, 0, "withdrawalsClaimed should be 0");
+        assertEq(batch.amountClaimed, 0, "amountClaimed should be 0");
+
+        vm.startPrank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+
+        // Complete only one withdrawal
+        withdrawalManager.completeQueuedWithdrawal(batchSize);
+
+        batch = withdrawalManager.getBatch(1);
+        assertEq(batch.toBurn, batchSize * depositAmount, "toBurn should be 10");
+        assertEq(batch.toTransfer, batchSize * depositAmount, "toTransfer should be 10");
+        assertEq(batch.withdrawalsClaimed, 1, "withdrawalsClaimed should be 1");
+        assertEq(batch.amountClaimed, depositAmount, "amountClaimed should be 1");
+    }
+
+    function test_funds_returning_edge_case() public {
+        assertEq(pufferVault.totalSupply(), 1000 ether, "totalSupply should be 1000 ETH");
+
+        vm.startPrank(address(DAO));
+        pufferVault.setDailyWithdrawalLimit(type(uint96).max);
+        vm.startPrank(address(timelock));
+        pufferVault.setExitFeeBasisPoints(0);
+
+        vm.startPrank(LIQUIDITY_PROVIDER);
+        pufferVault.withdraw(1000 ether, charlie, LIQUIDITY_PROVIDER);
+
+        // Vault should have 0 supply
+        assertEq(pufferVault.totalSupply(), 0 ether, "totalSupply should be 0 ETH");
+        assertEq(pufferVault.totalAssets(), 0 ether, "totalAssets should be 0 ETH");
+
+        // Deploy the withdrawal manager with batch size 3
+        PufferWithdrawalManager withdrawalManagerImpl = ((new PufferWithdrawalManagerTests(3, pufferVault, weth)));
+
+        batchSize = withdrawalManagerImpl.BATCH_SIZE();
+
+        // deploy an ERC1967Proxy
+        withdrawalManager = PufferWithdrawalManager(
+            (
+                payable(
+                    new ERC1967Proxy{ salt: bytes32("newManager") }(
+                        address(withdrawalManagerImpl),
+                        abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager))
+                    )
+                )
+            )
+        );
+
+        vm.label(address(withdrawalManager), "PufferWithdrawalManager");
+
+        vm.startPrank(_broadcaster);
+
+        bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
+            pufferVaultProxy: address(pufferVault),
+            withdrawalManagerProxy: address(withdrawalManager),
+            paymaster: PAYMASTER,
+            withdrawalFinalizer: DAO,
+            pufferProtocolProxy: address(pufferProtocol)
+        });
+        (bool success,) = address(accessManager).call(encodedCalldata);
+        require(success, "AccessManager.call failed");
+
+        vm.startPrank(DAO);
+        withdrawalManager.changeMaxWithdrawalAmount(type(uint256).max);
+        vm.stopPrank();
+
+        _createDeposit(1 ether, alice);
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "1:1 exchange rate");
+
+        deal(address(pufferVault), 2 ether);
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), 2 ether, 1, "1:2 exchange rate");
+
+        _createDeposit(1 ether, bob);
+
+        deal(address(pufferVault), 4.5 ether);
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), 3 ether, 2, "1:3 exchange rate");
+        _createDeposit(1 ether, charlie);
+
+        // Set the exchange rate to 2 before the finalization
+        deal(address(pufferVault), 3.666666666666666666 ether);
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), 2 ether, 1, "1:2 exchange rate batch finalization");
+
+        vm.prank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+
+        vm.prank(alice);
+        withdrawalManager.completeQueuedWithdrawal(3);
+        withdrawalManager.completeQueuedWithdrawal(4);
+        withdrawalManager.completeQueuedWithdrawal(5);
+
+        uint256[] memory batchIndices = new uint256[](1);
+        batchIndices[0] = 1;
+        vm.expectEmit(true, true, true, true);
+        emit IPufferWithdrawalManager.ExcessETHReturned(batchIndices, 333333333333333333);
+        withdrawalManager.returnExcessETHToVault(batchIndices);
+
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batch = withdrawalManager.getBatch(1);
+        assertEq(batch.withdrawalsClaimed, 3, "withdrawalsClaimed should be 3");
+        assertEq(batch.amountClaimed, batch.toTransfer, "amountClaimed == toTransfer");
+
+        assertEq(pufferVault.balanceOf(address(withdrawalManager)), 0, "WithdrawalManager should have 0 pufETH");
+
+        assertEq(address(withdrawalManager).balance, 0, "WithdrawalManager should have 0 ETH");
     }
 
     function _givePufETH(uint256 ethAmount, address recipient) internal returns (uint256) {
