@@ -183,7 +183,7 @@ contract PufferWithdrawalManager is
 
     /**
      * @inheritdoc IPufferWithdrawalManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted access to ROLE_ID_WITHDRAWAL_FINALIZER
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
@@ -226,7 +226,7 @@ contract PufferWithdrawalManager is
 
     /**
      * @inheritdoc IPufferWithdrawalManager
-     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted access to ROLE_ID_OPERATIONS_MULTISIG
      */
     function returnExcessETHToVault(uint256[] calldata batchIndices) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();

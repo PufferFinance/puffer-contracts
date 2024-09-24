@@ -153,6 +153,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         uint256[] memory batches = new uint256[](1);
         batches[0] = 1;
 
+        vm.startPrank(OPERATIONS_MULTISIG);
         // If there is no excess ETH, this should revert
         vm.expectRevert(IPufferWithdrawalManager.AlreadyReturned.selector);
         withdrawalManager.returnExcessETHToVault(batches);
@@ -587,10 +588,10 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         vm.stopPrank();
 
         // Return the dust from the batch
-        vm.startPrank(PAYMASTER);
         uint256[] memory batches = new uint256[](1);
         batches[0] = 1;
 
+        vm.startPrank(OPERATIONS_MULTISIG);
         vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.NotAllWithdrawalsClaimed.selector));
         withdrawalManager.returnExcessETHToVault(batches);
 
