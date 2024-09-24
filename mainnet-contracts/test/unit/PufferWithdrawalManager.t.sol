@@ -771,6 +771,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         uint256[] memory batchIndices = new uint256[](1);
         batchIndices[0] = 1;
         vm.expectEmit(true, true, true, true);
+        vm.startPrank(OPERATIONS_MULTISIG);
         emit IPufferWithdrawalManager.ExcessETHReturned(batchIndices, 333333333333333333);
         withdrawalManager.returnExcessETHToVault(batchIndices);
 
