@@ -16,7 +16,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
     PufferWithdrawalManager public withdrawalManager;
     bytes public encodedCalldata;
 
-    uint256 public BATCH_SIZE = 10; // @todo figure out a good batch size
+    uint256 public BATCH_SIZE = 10;
 
     function run() public {
         Generate2StepWithdrawalsCalldata calldataGenerator = new Generate2StepWithdrawalsCalldata();

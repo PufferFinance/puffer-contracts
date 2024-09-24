@@ -18,3 +18,9 @@ error InvalidAddress();
  * @dev Signature "0x2c5211c6"
  */
 error InvalidAmount();
+
+/**
+ * @notice Thrown when transfer fails
+ * @dev Signature "0x90b8ec18"
+ */
+error TransferFailed();

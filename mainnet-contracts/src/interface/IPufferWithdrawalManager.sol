@@ -13,6 +13,16 @@ import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorag
  */
 interface IPufferWithdrawalManager {
     /**
+     * @notice Thrown when attempting to set a max withdrawal amount below the minimum withdrawal amount
+     */
+    error InvalidMaxWithdrawalAmount();
+
+    /**
+     * @notice Thrown when attempting to request a withdrawal to the zero address
+     */
+    error WithdrawalToZeroAddress();
+
+    /**
      * @notice Thrown when attempting to request multiple withdrawals in the same transaction
      */
     error MultipleWithdrawalsAreForbidden();
@@ -31,6 +41,16 @@ interface IPufferWithdrawalManager {
      * @notice Thrown when attempting to complete a withdrawal that hasn't been finalized yet
      */
     error NotFinalized();
+
+    /**
+     * @notice Thrown when attempting to return excess ETH to the vault but not all withdrawals from that batch have been claimed
+     */
+    error NotAllWithdrawalsClaimed();
+
+    /**
+     * @notice Thrown when attempting to return excess ETH to the vault but the batch has already been returned
+     */
+    error AlreadyReturned();
 
     /**
      * @notice Thrown when attempting to complete a withdrawal that has already been completed
@@ -93,6 +113,13 @@ interface IPufferWithdrawalManager {
     );
 
     /**
+     * @notice Emitted when excess ETH is returned to the vault
+     * @param batchIndices The indices of the batches from which excess ETH was returned
+     * @param totalExcessETH The total amount of excess ETH returned to the vault
+     */
+    event ExcessETHReturned(uint256[] batchIndices, uint256 totalExcessETH);
+
+    /**
      * @notice Returns the address of the PufferVaultV3 contract
      * @return The address of the PufferVaultV3 contract
      */
@@ -128,6 +155,13 @@ interface IPufferWithdrawalManager {
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external;
 
     /**
+     * @notice Returns the excess ETH transferred from the Vault to the WithdrawalManager
+     * This can happen if there is a discrepancy between the expected ETH amount and the actual ETH amount withdrawn because of the pufETH:ETH exchange rate.
+     * @param batchIndices The indices of the batches to return the dust from
+     */
+    function returnExcessETHToVault(uint256[] calldata batchIndices) external;
+
+    /**
      * @notice Returns the index of the last finalized withdrawal batch
      * @return The index of the last finalized withdrawal batch
      */
@@ -154,4 +188,11 @@ interface IPufferWithdrawalManager {
      * @return The length of the withdrawals
      */
     function getWithdrawalsLength() external view returns (uint256);
+
+    /**
+     * @notice Returns the batch details for a given batch index
+     * @param batchIdx The index of the batch to retrieve
+     * @return The WithdrawalBatch struct containing the details of the batch
+     */
+    function getBatch(uint256 batchIdx) external view returns (PufferWithdrawalManagerStorage.WithdrawalBatch memory);
 }
