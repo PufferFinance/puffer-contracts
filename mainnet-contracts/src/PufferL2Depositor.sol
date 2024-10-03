@@ -163,7 +163,13 @@ contract PufferL2Depositor is IPufferL2Depositor, AccessManaged {
             pufToken.deposit(depositor, account, amount);
         }
 
-        emit DepositedToken(token, msg.sender, account, amount, referralCode);
+        emit DepositedToken({
+            token: token,
+            depositor: msg.sender,
+            account: account,
+            tokenAmount: amount,
+            referralCode: referralCode
+        });
     }
 
     function _addNewToken(address token) internal {

@@ -364,6 +364,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // The excess is the rewards amount for that Node Operator
             uint256 transferAmount =
                 validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
+            //solhint-disable-next-line avoid-low-level-calls
             (bool success,) = IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
             if (!success) {
                 revert Failed();
@@ -843,7 +844,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
-        $.moduleLimits[moduleName].numberOfRegisteredValidators -= 1;
+        --$.moduleLimits[moduleName].numberOfRegisteredValidators;
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
     }
 

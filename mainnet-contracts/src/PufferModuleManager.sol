@@ -104,8 +104,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         uint256 sharesWithdrawn;
 
-        for (uint256 i = 0; i < withdrawals.length; i++) {
-            for (uint256 j = 0; j < withdrawals[i].shares.length; j++) {
+        for (uint256 i = 0; i < withdrawals.length; ++i) {
+            for (uint256 j = 0; j < withdrawals[i].shares.length; ++j) {
                 sharesWithdrawn += withdrawals[i].shares[j];
             }
         }
@@ -146,7 +146,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     {
         uint256 totalRewardsAmount;
 
-        for (uint256 i = 0; i < modules.length; i++) {
+        for (uint256 i = 0; i < modules.length; ++i) {
+            //solhint-disable-next-line avoid-low-level-calls
             (bool success,) = IPufferModule(modules[i]).call(address(this), rewardsAmounts[i], "");
             if (!success) {
                 revert InvalidAmount();
@@ -362,7 +363,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the DAO
      */
     function callStartCheckpoint(address[] calldata moduleAddresses) external virtual restricted {
-        for (uint256 i = 0; i < moduleAddresses.length; i++) {
+        for (uint256 i = 0; i < moduleAddresses.length; ++i) {
             // reverts if supplied with a duplicate module address
             IPufferModule(moduleAddresses[i]).startCheckpoint();
         }
@@ -389,7 +390,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callUpdateOperatorAVSSocket(
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
-        string memory socket
+        string calldata socket
     ) external virtual restricted {
         restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
 

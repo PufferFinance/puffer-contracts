@@ -36,7 +36,7 @@ contract UpgradeL2RewardManager is DeployerHelper {
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            XpufETH: _getXPufETH(),
+            xPufETH: _getXPufETH(),
             pufETH: _getPufferVault(),
             lockbox: _getLockbox(),
             l2RewardsManager: l2RewardsManagerProxy

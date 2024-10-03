@@ -28,7 +28,7 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
     /**
      * @dev Wallet that transferred pufETH to the PufferDepositor by mistake.
      */
-    address private constant PUFFER = 0x8A0C1e5cEA8e0F6dF341C005335E7fe5ed18A0a0;
+    address private constant _PUFFER = 0x8A0C1e5cEA8e0F6dF341C005335E7fe5ed18A0a0;
 
     /**
      * @dev The Puffer Vault contract address
@@ -46,7 +46,7 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
     function initialize() public reinitializer(2) {
         // https://etherscan.io/token/0xd9a442856c234a39a81a089c06451ebaa4306a72?a=0x4aa799c5dfc01ee7d790e3bf1a7c2257ce1dceff
         // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(PUFFER, 0.201 ether);
+        PUFFER_VAULT.transfer(_PUFFER, 0.201 ether);
     }
 
     /**

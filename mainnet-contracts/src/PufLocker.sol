@@ -5,7 +5,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { PufLockerStorage } from "./PufLockerStorage.sol";
 import { IPufLocker } from "./interface/IPufLocker.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";

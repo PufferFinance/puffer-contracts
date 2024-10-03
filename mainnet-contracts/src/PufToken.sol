@@ -128,6 +128,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
     /**
      * @inheritdoc IPufStakingPool
      */
+    // solhint-disable-next-line gas-calldata-parameters
     function migrateWithSignature(
         address depositor,
         address migratorContract,

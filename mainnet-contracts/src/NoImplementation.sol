@@ -2,17 +2,16 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Unauthorized } from "./Errors.sol";
 
 contract NoImplementation is UUPSUpgradeable {
-    address immutable upgrader;
+    address public immutable UPGRADER;
 
     constructor() {
-        upgrader = msg.sender;
+        UPGRADER = msg.sender;
     }
 
     function _authorizeUpgrade(address) internal virtual override {
-        // solhint-disable-next-line custom-errors
-        require(msg.sender == upgrader, "Unauthorized");
-        // anybody can steal this proxy
+        require(msg.sender == UPGRADER, Unauthorized());
     }
 }

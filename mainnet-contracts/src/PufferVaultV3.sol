@@ -10,8 +10,6 @@ import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.so
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
