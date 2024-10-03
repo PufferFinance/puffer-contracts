@@ -1,31 +1,89 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
-import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IStrategy } from "../../src/interface/EigenLayer/IStrategy.sol";
+import { IEigenLayer } from "../../src/interface/EigenLayer/IEigenLayer.sol";
+import { IPufferOracle } from "../../src/interface/IPufferOracle.sol";
+import { IDelegationManager } from "../../src/interface/EigenLayer/IDelegationManager.sol";
+import "forge-std/console.sol";
+
+contract V4Vault is PufferVaultV3 {
+    uint256 depositRate;
+    uint256 lastDepositTimestamp;
+    uint256 lastDepositAmount;
+
+    constructor(
+        IStETH stETH,
+        IWETH weth,
+        ILidoWithdrawalQueue lidoWithdrawalQueue,
+        IStrategy stETHStrategy,
+        IEigenLayer eigenStrategyManager,
+        IPufferOracle oracle,
+        IDelegationManager delegationManager
+    ) PufferVaultV3(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) { }
+
+    function depositRestakingRewards() public payable {
+        //@todo should be restricted to depositor contract
+        lastDepositTimestamp = block.timestamp;
+        lastDepositAmount = msg.value;
+        depositRate = msg.value / 6 hours;
+    }
+
+    function totalAssets() public view override returns (uint256) {
+        return super.totalAssets() - getUndepositedAmount();
+    }
+
+    /**
+     * @dev We deposit the ETH to the vault, but we don't account for it immediately.
+     */
+    function getUndepositedAmount() public view returns (uint256) {
+        uint256 timePassed = block.timestamp - lastDepositTimestamp;
+        uint256 totalDecayTime = 6 hours; // Fixed decay time of 6 hours
+
+        if (timePassed >= totalDecayTime) {
+            return 0;
+        }
+
+        uint256 remainingAmount = lastDepositAmount * (totalDecayTime - timePassed) / totalDecayTime;
+
+        console.log("remainingAmount", remainingAmount);
+
+        return remainingAmount;
+    }
+}
 
 contract PufferVaultV3ForkTest is MainnetForkTestHelper {
+    V4Vault v4Vault;
+
     function setUp() public virtual override {
         // Cancun upgrade
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20439896); // (Aug-02-2024 09:13:59 AM +UTC)
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20883447);
 
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
         // Upgrade to latest version
-        _upgradeToMainnetV3Puffer();
+        v4Vault = new V4Vault(
+            _ST_ETH,
+            _WETH,
+            _LIDO_WITHDRAWAL_QUEUE,
+            _EIGEN_STETH_STRATEGY,
+            _EIGEN_STRATEGY_MANAGER,
+            IPufferOracle(_getPufferOracle()),
+            _EIGEN_DELEGATION_MANGER
+        );
 
-        // vm.startPrank(OPERATIONS_MULTISIG);
-        // xpufETH.setLockbox(address(lockBox));
-        // xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
-        // pufferVault.setAllowedRewardMintFrequency(1 days);
-        // IPufferVaultV3.BridgeData memory bridgeData = IPufferVaultV3.BridgeData({ destinationDomainId: 1 });
+        vm.startPrank(_getTimelock());
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(v4Vault), "");
+        vm.stopPrank();
 
-        // pufferVault.updateBridgeData(address(connext), bridgeData);
+        v4Vault = V4Vault(payable(address(pufferVault)));
     }
 
     // Sanity check
@@ -37,25 +95,27 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.getTotalRewardMintAmount(), 0, "0 rewards");
     }
 
-    // function test_mintAndBridge() public {
-    //     // first updateBridgeData
+    function test_slow_release_of_the_rewards_from_l2() public {
+        uint256 amount = 10000 ether;
+        deal(address(this), amount);
 
-    //     // IPufferVaultV3.MintAndBridgeParams memory params = IPufferVaultV3.MintAndBridgeParams({
-    //     //     bridge: address(connext),
-    //     //     rewardsAmount: 100 ether,
-    //     //     startEpoch: 1,
-    //     //     endEpoch: 2,
-    //     //     rewardsRoot: bytes32(0),
-    //     //     rewardsURI: "uri"
-    //     // });
+        uint256 startAmount = 533405.879191302739097253 ether;
 
-    //     uint256 initialTotalAssets = pufferVault.totalAssets();
+        vm.warp(1);
+        assertEq(v4Vault.totalAssets(), startAmount, "assets before deposit");
 
-    //     // vm.startPrank(DAO);
+        // We deposit 10k ETH to the vault
+        v4Vault.depositRestakingRewards{ value: amount }();
 
-    //     // pufferVault.setAllowedRewardMintAmount(100 ether);
-    //     // pufferVault.mintAndBridgeRewards{ value: 1 ether }(params);
+        // In the same block, we don't account for it immediately
+        assertEq(v4Vault.totalAssets(), startAmount, "assets after deposit in the same block");
 
-    //     assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
-    // }
+        vm.warp(1 + 12 seconds);
+        assertEq(
+            v4Vault.totalAssets(), startAmount + 5.555555555555555556 ether, "assets after 12 increased by ~ 5.5 ether"
+        );
+
+        vm.warp(1 + 6 hours);
+        assertEq(v4Vault.totalAssets(), 533405.879191302739097253 ether + amount, "Amount is deposited after 6 hours");
+    }
 }
