@@ -357,6 +357,9 @@ contract L1RewardManagerTest is UnitTestHelper {
         );
 
         vm.startPrank(address(timelock));
+
+        // It should revert because the new implementation is not good
+        vm.expectRevert();
         Upgrades.upgradeProxy(proxy, "L1RewardManagerUnsafe.sol:L1RewardManagerUnsafe", "", opts);
     }
 }
