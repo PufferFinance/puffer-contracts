@@ -101,7 +101,7 @@ jobs:
 
       - name: "Generate the coverage report"
         working-directory: mainnet-contracts
-        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv'
+        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna|L1RewardManagerUnsafe)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv'
         env:
           ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
           HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
