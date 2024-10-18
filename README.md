@@ -53,7 +53,7 @@ For more detailed information on the contract deployments (Mainnet, Holesky, etc
 
 
 ## Audits
-- BlockSec: [pufETH V1](./audits/BlockSec-pufETH-v1.pdf), [pufETH V2 & PufferProtocol](./audits/BlockSec%20-%20pufETHV2%20&%20PufferProtocol.pdf), [Puffer L2 Staking](./audits/Blocksec%20-%20Puffer%20L2%20Staking.pdf) [Fast Path Rewards](./audits/BlockSec%20-%20Fast%20Path%20Rewards.pdf)
+- BlockSec: [pufETH V1](./audits/BlockSec-pufETH-v1.pdf), [pufETH V2 & PufferProtocol](./audits/BlockSec%20-%20pufETHV2%20&%20PufferProtocol.pdf), [Puffer L2 Staking](./audits/Blocksec%20-%20Puffer%20L2%20Staking.pdf), [Fast Path Rewards](./audits/BlockSec%20-%20Fast%20Path%20Rewards.pdf), [2 Step Withdrawals](./audits/BlockSec%20-%202-Step%20Withdrawals.pdf), [PUFFER](./audits/BlockSec%20-%20PUFFER.pdf)
 - SlowMist: [pufETH V1](./audits/SlowMist-pufETH-v1.pdf), [pufETH V2 & PufferProtocol](./audits/SlowMist%20-%20pufETHV2%20&%20PufferProtocol.pdf), [Puffer L2 Staking](./audits/SlowMist%20-%20Puffer%20L2%20Staking.pdf)
 - Nethermind: [pufETH V2 & PufferProtocol](https://github.com/NethermindEth/PublicAuditReports/blob/main/NM0202-FINAL_PUFFER.pdf)
 - Creed: [pufETH V2 & PufferProtocol](https://github.com/PufferFinance/PufferPool/blob/polish-docs/docs/audits/Creed_Puffer_Finance_Audit_April2024.pdf)

@@ -425,6 +425,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d
             return 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+            return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         }
 
         revert("OPSMultisig not available for this chain");

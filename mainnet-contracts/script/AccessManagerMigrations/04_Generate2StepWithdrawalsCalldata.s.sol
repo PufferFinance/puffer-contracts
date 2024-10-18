@@ -9,7 +9,8 @@ import {
     PUBLIC_ROLE,
     ROLE_ID_DAO,
     ROLE_ID_VAULT_WITHDRAWER,
-    ROLE_ID_PUFETH_BURNER
+    ROLE_ID_PUFETH_BURNER,
+    ROLE_ID_OPERATIONS_MULTISIG
 } from "../../script/Roles.sol";
 import { PufferWithdrawalManager } from "../../src/PufferWithdrawalManager.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
@@ -22,7 +23,7 @@ contract Generate2StepWithdrawalsCalldata is Script {
         address paymaster,
         address withdrawalFinalizer
     ) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](14);
+        bytes[] memory calldatas = new bytes[](15);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = PufferWithdrawalManager.finalizeWithdrawals.selector;
@@ -99,6 +100,15 @@ contract Generate2StepWithdrawalsCalldata is Script {
 
         calldatas[13] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_PUFETH_BURNER, pufferProtocolProxy, 0);
+
+        bytes4[] memory opsSelectors = new bytes4[](1);
+        opsSelectors[0] = PufferWithdrawalManager.returnExcessETHToVault.selector;
+        calldatas[14] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            withdrawalManagerProxy,
+            opsSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
