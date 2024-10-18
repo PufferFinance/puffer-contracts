@@ -19,6 +19,13 @@ interface IL1RewardManager {
      */
     function setL2RewardClaimer(address bridge, address claimer) external payable;
 
+    /**
+     * @notice Returns the bridge data for a given bridge.
+     * @param bridge The address of the bridge.
+     * @return The bridge data.
+     */
+    function getBridge(address bridge) external view returns (L1RewardManagerStorage.BridgeData memory);
+
     enum BridgingType {
         MintAndBridge,
         SetClaimer
