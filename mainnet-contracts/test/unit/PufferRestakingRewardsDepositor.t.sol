@@ -112,7 +112,7 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
             "Last deposit timestamp should be the current timestamp 1"
         );
 
-        // We have precission loss from the RNO rewards distribution, 4 wei is going to the Vault because of the rounding
+        // We have precision loss from the RNO rewards distribution, 4 wei is going to the Vault because of the rounding
         assertApproxEqAbs(
             pufferVault.totalAssets(), totalAssetsBefore + 91 ether, 4, "Total assets should be 91 ETH more"
         );
