@@ -6,7 +6,7 @@ import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
 import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
+import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
@@ -21,6 +21,7 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
+import { IPufferRestakingRewardsDepositor } from "../src/interface/IPufferRestakingRewardsDepositor.sol";
 
 /**
  * @title UpgradePufETH
@@ -51,21 +52,24 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(PufferDeployment memory deployment, BridgingDeployment memory bridgingDeployment, address pufferOracle)
-        public
-        broadcast
-    {
+    function run(
+        PufferDeployment memory deployment,
+        BridgingDeployment memory bridgingDeployment,
+        address pufferOracle,
+        address restakingRewardsDepositor
+    ) public broadcast {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV3 newImplementation = new PufferVaultV3Tests(
+        PufferVaultV3 newImplementation = new PufferVaultV4Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IStrategy(deployment.stETHStrategyMock),
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle),
-            _DELEGATION_MANAGER
+            _DELEGATION_MANAGER,
+            IPufferRestakingRewardsDepositor(restakingRewardsDepositor)
         );
 
         vm.expectEmit(true, true, true, true);
