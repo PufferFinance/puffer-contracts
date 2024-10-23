@@ -12,6 +12,7 @@ uint64 constant ROLE_ID_OPERATIONS_MULTISIG = 22;
 uint64 constant ROLE_ID_OPERATIONS_PAYMASTER = 23;
 uint64 constant ROLE_ID_OPERATIONS_COORDINATOR = 24;
 uint64 constant ROLE_ID_WITHDRAWAL_FINALIZER = 25;
+uint64 constant ROLE_ID_RESTAKING_REWARDS_DEPOSITOR = 26;
 
 // Role assigned to validator ticket price setter
 uint64 constant ROLE_ID_VT_PRICER = 25;

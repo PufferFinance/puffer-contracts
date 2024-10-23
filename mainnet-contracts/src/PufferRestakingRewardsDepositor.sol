@@ -106,8 +106,15 @@ contract PufferRestakingRewardsDepositor is
     }
 
     /**
+     * @inheritdoc IPufferRestakingRewardsDepositor
+     */
+    function getRewardsDistributionWindow() public view returns (uint256) {
+        return _getRestakingRewardsDepositorStorage().rewardsDistributionWindow;
+    }
+
+    /**
      * @notice Deposit restaking rewards into PufferVault.
-     * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
+     * @dev Restricted access to `ROLE_ID_RESTAKING_REWARDS_DEPOSITOR`
      */
     function depositRestakingRewards() external restricted {
         require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
@@ -122,8 +129,9 @@ contract PufferRestakingRewardsDepositor is
 
         uint256 rewardsAmount = WETH.balanceOf(address(this));
 
-        // Send treasury rewards
         uint256 treasuryRewards = (rewardsAmount * $.treasuryRewardsBps) / _BASIS_POINT_SCALE;
+
+        require(treasuryRewards > 0, NothingToDistribute());
         WETH.transfer(TREASURY, treasuryRewards);
 
         uint256 rnoRewards = (rewardsAmount * $.rNORewardsBps) / _BASIS_POINT_SCALE;

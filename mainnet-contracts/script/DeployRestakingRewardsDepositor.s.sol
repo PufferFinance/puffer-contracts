@@ -54,7 +54,10 @@ contract DeployRestakingRewardsDepositor is DeployerHelper {
         vm.label(address(restakingRewardsDepositor), "PufferRestakingRewardsDepositorProxy");
         vm.label(address(restakingRewardsDepositorImpl), "PufferRestakingRewardsDepositorImplementation");
 
-        encodedCalldata = calldataGenerator.run({ restakingRewardsDepositorProxy: address(restakingRewardsDepositor) });
+        encodedCalldata = calldataGenerator.run({
+            restakingRewardsDepositorProxy: address(restakingRewardsDepositor),
+            operationsMultisig: _getOPSMultisig()
+        });
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
         console.logBytes(encodedCalldata);

@@ -136,9 +136,9 @@ contract DeployEverything is BaseScript {
             )
         );
 
-        bytes memory accessManagerCd = new GenerateRestakingRewardsDepositorCalldata().run({
-            restakingRewardsDepositorProxy: address(restakingRewardsDepositor)
-        });
+        bytes memory accessManagerCd = new GenerateRestakingRewardsDepositorCalldata().run(
+            address(restakingRewardsDepositor), makeAddr("operationsMultisig")
+        );
 
         vm.startPrank(puffETHDeployment.timelock);
         (bool success,) = address(puffETHDeployment.accessManager).call(accessManagerCd);

@@ -28,6 +28,11 @@ interface IPufferRestakingRewardsDepositor {
     error InvalidBps();
 
     /**
+     * @notice Thrown when there is nothing to distribute.
+     */
+    error NothingToDistribute();
+
+    /**
      * @notice Distribution window cannot be changed if there are undeposited rewards.
      */
     error CannotChangeDistributionWindow();
@@ -73,4 +78,10 @@ interface IPufferRestakingRewardsDepositor {
      * @dev This is used to prevent potential sandwich attacks related to large deposits and to smooth out the restaking rewards deposits.
      */
     function getPendingDistributionAmount() external view returns (uint256);
+
+    /**
+     * @notice Get the rewards distribution window.
+     * @return The rewards distribution window in seconds.
+     */
+    function getRewardsDistributionWindow() external view returns (uint256);
 }
