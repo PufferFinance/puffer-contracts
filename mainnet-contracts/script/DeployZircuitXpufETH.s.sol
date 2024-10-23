@@ -16,11 +16,11 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  * // Check that the simulation
  * add --slow if deploying to a mainnet fork like tenderly (its buggy sometimes)
  *
- *       forge script script/DeployBaseXpufETH.s.sol:DeployBaseXpufETH --rpc-url $RPC_URL --account puffer
+ *       forge script script/DeployZircuitXpufETH.s.sol:DeployZircuitXpufETH --rpc-url $RPC_URL --account puffer
  *
  *       forge cache clean
  *
- *       forge script script/DeployBaseXpufETH.s.sol:DeployBaseXpufETH --rpc-url $RPC_URL --account puffer --broadcast
+ *       forge script script/DeployZircuitXpufETH.s.sol:DeployZircuitXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
 // api key 654F632647A7D52CBEB3CF4A20CBA5F09B
 contract DeployZircuitXpufETH is BaseScript {
