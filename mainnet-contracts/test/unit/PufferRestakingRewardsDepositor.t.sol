@@ -47,6 +47,12 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         );
     }
 
+    function testRevert_setRewardsDistributionWindow_InvalidWindow() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferRestakingRewardsDepositor.InvalidDistributionWindow.selector);
+        restakingRewardsDepositor.setRewardsDistributionWindow(15 days);
+    }
+
     function test_distributeRewards() public withRewardsDistributionWindow(1 days) {
         uint256 amount = 100 ether;
 
@@ -168,6 +174,9 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferRestakingRewardsDepositor.RestakingOperatorAdded(operators[0]);
+        restakingRewardsDepositor.addRestakingOperators(operators);
+
+        vm.expectRevert(IPufferRestakingRewardsDepositor.RestakingOperatorAlreadySet.selector);
         restakingRewardsDepositor.addRestakingOperators(operators);
 
         vm.expectEmit(true, true, true, true);

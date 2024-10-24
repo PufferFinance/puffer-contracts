@@ -38,6 +38,11 @@ interface IPufferRestakingRewardsDepositor {
     error CannotChangeDistributionWindow();
 
     /**
+     * @notice Thrown when the distribution window is invalid.
+     */
+    error InvalidDistributionWindow();
+
+    /**
      * @notice Emitted when the rewards are deposited to the PufferVault
      */
     event RestakingRewardsDeposited(uint256 amount, uint256 depositRate);

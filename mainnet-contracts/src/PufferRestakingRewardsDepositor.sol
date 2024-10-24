@@ -191,7 +191,7 @@ contract PufferRestakingRewardsDepositor is
      */
     function setRewardsDistributionWindow(uint24 newRewardsDistributionWindow) external restricted {
         require(getPendingDistributionAmount() == 0, CannotChangeDistributionWindow());
-        require(newRewardsDistributionWindow <= 3 days, "Rewards distribution window cannot be longer than 3 days"); //@todo Figure out a constraint
+        require(newRewardsDistributionWindow <= 3 days, InvalidDistributionWindow()); //@todo Figure out a constraint
 
         RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
         emit RewardsDistributionWindowChanged($.rewardsDistributionWindow, newRewardsDistributionWindow);
