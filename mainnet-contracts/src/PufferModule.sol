@@ -260,6 +260,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     /**
      * @inheritdoc IPufferModule
      */
+    // solhint-disable-next-line func-name-mixedcase
     function NAME() external view returns (bytes32) {
         ModuleStorage storage $ = _getPufferModuleStorage();
         return $.moduleName;

@@ -142,7 +142,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     function validateProvisionNode(
         uint256 pufferModuleIndex,
-        bytes memory pubKey,
+        bytes calldata pubKey,
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,

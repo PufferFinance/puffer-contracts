@@ -1,0 +1,36 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-accounting-msgvalue-in-loop-crossfunc
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    languages:
+      - solidity
+    message: (cross-function) - use of static `msg.value` in loop via func-call
+    patterns:
+        - pattern: msg.value
+        - pattern-inside: |
+            function $FUNC(...) {
+              ...
+            }
+        - pattern-inside: |
+            contract $C {
+              ...
+              function $OTHERFUNC(...){
+                ...
+                for(...){
+                  ...
+                  $FUNC(...);
+                  ...
+                }
+                ...
+              }
+              ...
+            }
+    severity: ERROR

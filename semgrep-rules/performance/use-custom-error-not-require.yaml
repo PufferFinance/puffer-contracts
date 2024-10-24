@@ -1,0 +1,18 @@
+rules:
+    -
+      id: use-custom-error-not-require
+      message: |
+        Do not use require statements with a string message, use custom errors
+      metadata:
+          references:
+          - https://soliditylang.org/blog/2024/09/04/solidity-0.8.27-release-announcement
+          category: performance
+          technology:
+          - solidity
+      patterns:
+            - pattern-either:
+                - pattern-regex: require\(\s*[^,]+\s*,\s*"[^"]*"\s*\);
+      languages: 
+      - solidity
+      severity: INFO
+    

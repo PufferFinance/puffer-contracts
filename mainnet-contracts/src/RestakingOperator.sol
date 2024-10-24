@@ -154,7 +154,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         bytes calldata quorumNumbers,
         string calldata socket,
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual onlyPufferModuleManager {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator({
             quorumNumbers: quorumNumbers,
@@ -174,8 +174,8 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         string calldata socket,
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory churnApproverSignature,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external virtual onlyPufferModuleManager {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn({
             quorumNumbers: quorumNumbers,
@@ -216,7 +216,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket)
+    function updateOperatorAVSSocket(address avsRegistryCoordinator, string calldata socket)
         external
         virtual
         onlyPufferModuleManager

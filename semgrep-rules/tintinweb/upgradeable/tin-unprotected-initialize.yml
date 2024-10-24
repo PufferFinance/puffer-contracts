@@ -1,0 +1,45 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-unprotected-initialize
+    languages:
+      - solidity
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    message: The contract's 'initialize' function might be callable by anyone (public API, no decorator, no 'msg.sender' requirement)
+    patterns:
+      - pattern: |
+            function initialize (...) {
+              ...
+            }
+      - pattern-not: |
+            function initialize (...) $D {
+              ...
+            }
+      - pattern-not: |
+            function initialize (...) internal {
+              ...
+            }
+      - pattern-not: |
+            function initialize (...) private {
+              ...
+            }
+      - pattern-not: |
+            function initialize (...) {
+                ...
+                require(msg.sender == $M);
+                ...
+              }
+      - pattern-not: |
+            function initialize (...) {
+                ...
+                require(msg.sender == $M, ...);
+                ...
+              }
+    severity: ERROR

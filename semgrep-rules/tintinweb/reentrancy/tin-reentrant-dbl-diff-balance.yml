@@ -1,0 +1,31 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-reentrant-dbl-diff-balance
+    languages:
+      - solidity
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    message: The function takes a differential snapshot of an accounts token
+                balance. If the function can be reentered inbetween the token 
+                snapshot, funds can be stolen.
+    patterns:
+      - pattern: |
+                $X.balanceOf(...);
+                ...
+                $X.balanceOf(...);
+      - pattern-not-inside: | 
+                function $F(...) nonReentrant {
+                  ...
+                }
+    severity: ERROR
+
+
+
+    
