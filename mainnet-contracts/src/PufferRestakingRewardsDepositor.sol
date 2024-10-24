@@ -29,6 +29,11 @@ contract PufferRestakingRewardsDepositor is
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**
+     * @notice The maximum rewards distribution window.
+     */
+    uint256 private constant _MAXIMUM_DISTRIBUTION_WINDOW = 7 days;
+
+    /**
      * @notice The basis point scale. (10000 bps = 100%)
      */
     uint256 private constant _BASIS_POINT_SCALE = 10000;
@@ -192,7 +197,7 @@ contract PufferRestakingRewardsDepositor is
      */
     function setRewardsDistributionWindow(uint24 newRewardsDistributionWindow) external restricted {
         require(getPendingDistributionAmount() == 0, CannotChangeDistributionWindow());
-        require(newRewardsDistributionWindow <= 3 days, InvalidDistributionWindow()); //@todo Figure out a constraint
+        require(newRewardsDistributionWindow <= _MAXIMUM_DISTRIBUTION_WINDOW, InvalidDistributionWindow());
 
         RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
         emit RewardsDistributionWindowChanged($.rewardsDistributionWindow, newRewardsDistributionWindow);
