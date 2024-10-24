@@ -65,12 +65,33 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         restakingRewardsDepositor.setRewardsDistributionWindow(1 days);
     }
 
+    function test_smallRewardsAmount() public withRewardsDistributionWindow(1 days) {
+        vm.deal(address(restakingRewardsDepositor), 1); // 1 wei
+
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        vm.expectRevert(IPufferRestakingRewardsDepositor.NothingToDistribute.selector);
+        restakingRewardsDepositor.depositRestakingRewards();
+
+        vm.deal(address(restakingRewardsDepositor), 20); // 20 wei
+        restakingRewardsDepositor.depositRestakingRewards();
+
+        // 1 wei went to the treasury
+        assertEq(
+            restakingRewardsDepositor.getPendingDistributionAmount(), 19, "Pending distribution amount should be 19"
+        );
+
+        // After half of the distribution window, the pending distribution amount is half of the total amount
+        vm.warp(block.timestamp + 12 hours);
+
+        // 19/2 = 9.5, rounded down to 9
+        assertEq(restakingRewardsDepositor.getPendingDistributionAmount(), 9, "Pending distribution amount should be 9");
+    }
+
     function test_distributeRewards() public withRewardsDistributionWindow(1 days) {
         uint256 amount = 100 ether;
 
         uint256 totalAssetsBefore = pufferVault.totalAssets();
-
-        vm.warp(1);
 
         vm.deal(address(restakingRewardsDepositor), amount);
 
@@ -197,7 +218,6 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
     }
 
     function test_depositRestakingRewardsInstantly() public {
-        vm.warp(1);
         // Deposit WETH 100 ETH to the Depositor contract
         vm.deal(address(this), 100 ether);
         weth.deposit{ value: 90 ether }();

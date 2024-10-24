@@ -45,7 +45,7 @@ interface IPufferRestakingRewardsDepositor {
     /**
      * @notice Emitted when the rewards are deposited to the PufferVault
      */
-    event RestakingRewardsDeposited(uint256 amount, uint256 depositRate);
+    event RestakingRewardsDeposited(uint256 amount);
 
     /**
      * @notice Emitted when the rewards distribution window is changed

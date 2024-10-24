@@ -97,18 +97,18 @@ contract PufferRestakingRewardsDepositor is
     function getPendingDistributionAmount() public view returns (uint256) {
         RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
 
-        uint256 rewardsDistributionTime = $.rewardsDistributionWindow;
+        uint256 rewardsDistributionWindow = $.rewardsDistributionWindow;
 
         // If the rewards distribution window is not set, return 0 to avoid division by 0
         // This also means that the deposits are instant
-        if (rewardsDistributionTime == 0) {
+        if (rewardsDistributionWindow == 0) {
             return 0;
         }
 
         uint256 timePassed = block.timestamp - $.lastDepositTimestamp;
-        uint256 remainingTime = rewardsDistributionTime - Math.min(timePassed, rewardsDistributionTime);
+        uint256 remainingTime = rewardsDistributionWindow - Math.min(timePassed, rewardsDistributionWindow);
 
-        return $.lastDepositAmount * remainingTime / rewardsDistributionTime;
+        return $.lastDepositAmount * remainingTime / rewardsDistributionWindow;
     }
 
     /**
@@ -155,7 +155,7 @@ contract PufferRestakingRewardsDepositor is
         $.lastDepositAmount = uint104(vaultRewards);
         WETH.transfer(address(PUFFER_VAULT), vaultRewards);
 
-        emit RestakingRewardsDeposited(vaultRewards, getPendingDistributionAmount());
+        emit RestakingRewardsDeposited(vaultRewards);
     }
 
     /**
