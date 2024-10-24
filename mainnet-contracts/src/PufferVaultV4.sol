@@ -12,7 +12,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPufferRestakingRewardsDepositor } from "./interface/IPufferRestakingRewardsDepositor.sol";
+import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
 
 /**
  * @title PufferVaultV4
@@ -27,7 +27,7 @@ contract PufferVaultV4 is PufferVaultV3 {
     /**
      * @notice The restaking rewards depositor contract.
      */
-    IPufferRestakingRewardsDepositor public immutable RESTAKING_REWARDS_DEPOSITOR;
+    IPufferRevenueDepositor public immutable RESTAKING_REWARDS_DEPOSITOR;
 
     /**
      * @notice Initializes the PufferVaultV3 contract.
@@ -48,9 +48,9 @@ contract PufferVaultV4 is PufferVaultV3 {
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
         IDelegationManager delegationManager,
-        IPufferRestakingRewardsDepositor restakingRewardsDepositor
+        IPufferRevenueDepositor revenueDepositor
     ) PufferVaultV3(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
-        RESTAKING_REWARDS_DEPOSITOR = restakingRewardsDepositor;
+        RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
         _disableInitializers();
     }
 

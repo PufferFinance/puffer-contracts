@@ -4,22 +4,22 @@ pragma solidity >=0.8.0 <0.9.0;
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
- * @title PufferRestakingRewardsDepositorStorage
+ * @title PufferRevenueDepositorStorage
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-abstract contract PufferRestakingRewardsDepositorStorage {
+abstract contract PufferRevenueDepositorStorage {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**
-     * @custom:storage-location erc7201:RestakingRewardsDepositor.storage
+     * @custom:storage-location erc7201:RevenueDepositor.storage
      * @dev +-----------------------------------------------------------+
      *      |                                                           |
      *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
      *      |                                                           |
      *      +-----------------------------------------------------------+
      */
-    struct RestakingRewardsDepositorStorage {
+    struct RevenueDepositorStorage {
         /**
          * @notice Restaking operators.
          */
@@ -47,21 +47,17 @@ abstract contract PufferRestakingRewardsDepositorStorage {
     }
 
     /**
-     * @dev Storage slot location for RestakingRewardsDepositorStorage
-     * @custom:storage-location erc7201:RestakingRewardsDepositor.storage
-     * keccak256(abi.encode(uint256(keccak256("RestakingRewardsDepositor.storage")) - 1)) & ~bytes32(uint256(0xff))
+     * @dev Storage slot location for RevenueDepositorStorage
+     * @custom:storage-location erc7201:RevenueDepositor.storage
+     * keccak256(abi.encode(uint256(keccak256("RevenueDepositor.storage")) - 1)) & ~bytes32(uint256(0xff))
      */
-    bytes32 private constant _RESTAKE_REWARDS_DEPOSITOR_STORAGE =
-        0xf06bc84d5dffe01f6559e934f5a062e2abca02c8f0e842bc9b567621039cd300;
+    bytes32 private constant _REVENUE_DEPOSITOR_STORAGE =
+        0x4a89cef1c30d36c0ff2c9fb23c831a9c153cf25feb747c6591cde6a5261b4000;
 
-    function _getRestakingRewardsDepositorStorage()
-        internal
-        pure
-        returns (RestakingRewardsDepositorStorage storage $)
-    {
+    function _getRevenueDepositorStorage() internal pure returns (RevenueDepositorStorage storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            $.slot := _RESTAKE_REWARDS_DEPOSITOR_STORAGE
+            $.slot := _REVENUE_DEPOSITOR_STORAGE
         }
     }
 }

@@ -9,7 +9,7 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.sol";
-import { IPufferRestakingRewardsDepositor } from "src/interface/IPufferRestakingRewardsDepositor.sol";
+import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 
 contract PufferVaultV4Tests is PufferVaultV4 {
     constructor(
@@ -20,7 +20,7 @@ contract PufferVaultV4Tests is PufferVaultV4 {
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
         IDelegationManager delegationManager,
-        IPufferRestakingRewardsDepositor restakingRewardsDepositor
+        IPufferRevenueDepositor revenueDepositor
     )
         PufferVaultV4(
             stETH,
@@ -30,7 +30,7 @@ contract PufferVaultV4Tests is PufferVaultV4 {
             eigenStrategyManager,
             oracle,
             delegationManager,
-            restakingRewardsDepositor
+            revenueDepositor
         )
     {
         _disableInitializers();

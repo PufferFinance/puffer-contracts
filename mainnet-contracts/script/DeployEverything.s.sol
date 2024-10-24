@@ -11,10 +11,10 @@ import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
 import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
-import { PufferRestakingRewardsDepositor } from "src/PufferRestakingRewardsDepositor.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { GenerateRestakingRewardsDepositorCalldata } from
-    "script/AccessManagerMigrations/05_GenerateRestakingRewardsDepositorCalldata.s.sol";
+import { GenerateRevenueDepositorCalldata } from
+    "script/AccessManagerMigrations/05_GenerateRevenueDepositorCalldata.s.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -60,10 +60,10 @@ contract DeployEverything is BaseScript {
         pufferDeployment.timelock = puffETHDeployment.timelock;
 
         BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(puffETHDeployment);
-        address restakingRewardsDepositor = _deployRestakingRewardsDepositor(puffETHDeployment);
-        pufferDeployment.restakingRewardsDepositor = restakingRewardsDepositor;
+        address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
+        pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle, restakingRewardsDepositor);
+        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle, revenueDepositor);
 
         // `anvil` in the terminal
         if (_localAnvil) {
@@ -105,9 +105,9 @@ contract DeployEverything is BaseScript {
         vm.writeJson(finalJson, "./output/puffer.json");
     }
 
-    // script/DeployRestakingRewardsDepositor.s.sol It should match the one in the script
-    function _deployRestakingRewardsDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
-        PufferRestakingRewardsDepositor restakingRewardsDepositorImpl = new PufferRestakingRewardsDepositor({
+    // script/DeployRevenueDepositor.s.sol It should match the one in the script
+    function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
             vault: address(puffETHDeployment.pufferVault),
             weth: address(puffETHDeployment.weth),
             treasury: makeAddr("Treasury")
@@ -122,13 +122,13 @@ contract DeployEverything is BaseScript {
         operatorsAddresses[5] = makeAddr("RNO6");
         operatorsAddresses[6] = makeAddr("RNO7");
 
-        PufferRestakingRewardsDepositor restakingRewardsDepositor = PufferRestakingRewardsDepositor(
+        PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
             (
                 payable(
-                    new ERC1967Proxy{ salt: bytes32("restakingRewardsDepositor") }(
-                        address(restakingRewardsDepositorImpl),
+                    new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
+                        address(revenueDepositorImpl),
                         abi.encodeCall(
-                            PufferRestakingRewardsDepositor.initialize,
+                            PufferRevenueDepositor.initialize,
                             (address(puffETHDeployment.accessManager), operatorsAddresses)
                         )
                     )
@@ -136,15 +136,14 @@ contract DeployEverything is BaseScript {
             )
         );
 
-        bytes memory accessManagerCd = new GenerateRestakingRewardsDepositorCalldata().run(
-            address(restakingRewardsDepositor), makeAddr("operationsMultisig")
-        );
+        bytes memory accessManagerCd =
+            new GenerateRevenueDepositorCalldata().run(address(revenueDepositor), makeAddr("operationsMultisig"));
 
         vm.startPrank(puffETHDeployment.timelock);
         (bool success,) = address(puffETHDeployment.accessManager).call(accessManagerCd);
         require(success, "AccessManager.call failed");
         vm.stopPrank();
 
-        return address(restakingRewardsDepositor);
+        return address(revenueDepositor);
     }
 }

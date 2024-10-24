@@ -201,7 +201,7 @@ contract DeployPuffer is BaseScript {
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything
             weth: address(0), // overwritten in DeployEverything
-            restakingRewardsDepositor: address(0) // overwritten in DeployEverything
+            revenueDepositor: address(0) // overwritten in DeployEverything
          });
     }
 

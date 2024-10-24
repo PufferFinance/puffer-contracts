@@ -27,7 +27,7 @@ import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 import { DeployerHelper } from "../script/DeployerHelper.s.sol";
-import { IPufferRestakingRewardsDepositor } from "../src/interface/IPufferRestakingRewardsDepositor.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 
 contract MainnetForkTestHelper is Test, DeployerHelper {
     /**
@@ -232,7 +232,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
             oracle: IPufferOracle(_getPufferOracle()),
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            restakingRewardsDepositor: IPufferRestakingRewardsDepositor(address(0))
+            revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking

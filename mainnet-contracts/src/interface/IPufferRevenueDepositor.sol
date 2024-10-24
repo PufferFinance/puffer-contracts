@@ -2,11 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * @title IPufferRestakingRewardsDepositor
- * @notice Interface for the PufferRestakingRewardsDepositor contract.
+ * @title IPufferRevenueDepositor
+ * @notice Interface for the PufferRevenueDepositor contract.
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferRestakingRewardsDepositor {
+interface IPufferRevenueDepositor {
     /**
      * @notice Thrown when the restaking operator is already set.
      */
@@ -43,9 +43,9 @@ interface IPufferRestakingRewardsDepositor {
     error InvalidDistributionWindow();
 
     /**
-     * @notice Emitted when the rewards are deposited to the PufferVault
+     * @notice Emitted when the revenue is deposited to the PufferVault
      */
-    event RestakingRewardsDeposited(uint256 amount);
+    event RevenueDeposited(uint256 amount);
 
     /**
      * @notice Emitted when the rewards distribution window is changed

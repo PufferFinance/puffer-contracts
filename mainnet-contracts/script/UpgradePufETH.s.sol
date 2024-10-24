@@ -21,7 +21,7 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
-import { IPufferRestakingRewardsDepositor } from "../src/interface/IPufferRestakingRewardsDepositor.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 
 /**
  * @title UpgradePufETH
@@ -56,7 +56,7 @@ contract UpgradePufETH is BaseScript {
         PufferDeployment memory deployment,
         BridgingDeployment memory bridgingDeployment,
         address pufferOracle,
-        address restakingRewardsDepositor
+        address revenueDepositor
     ) public broadcast {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
@@ -69,7 +69,7 @@ contract UpgradePufETH is BaseScript {
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle),
             _DELEGATION_MANAGER,
-            IPufferRestakingRewardsDepositor(restakingRewardsDepositor)
+            IPufferRevenueDepositor(revenueDepositor)
         );
 
         vm.expectEmit(true, true, true, true);

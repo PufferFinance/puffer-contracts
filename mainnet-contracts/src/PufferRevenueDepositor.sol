@@ -10,19 +10,19 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { PufferRestakingRewardsDepositorStorage } from "./PufferRestakingRewardsDepositorStorage.sol";
-import { IPufferRestakingRewardsDepositor } from "./interface/IPufferRestakingRewardsDepositor.sol";
+import { PufferRevenueDepositorStorage } from "./PufferRevenueDepositorStorage.sol";
+import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
 import { InvalidAddress } from "./Errors.sol";
 
 /**
- * @title PufferRestakingRewardsDepositor
- * @notice This contract is used to "slowly" deposit restaking rewards into PufferVault.
+ * @title PufferRevenueDepositor
+ * @notice This contract is used to "slowly" deposit revenue into PufferVault.
  * @dev The funds are deposited immediately but the exchange rate change doesn't happen until the rewards distribution window is over.
  * @custom:security-contact security@puffer.fi
  */
-contract PufferRestakingRewardsDepositor is
-    IPufferRestakingRewardsDepositor,
-    PufferRestakingRewardsDepositorStorage,
+contract PufferRevenueDepositor is
+    IPufferRevenueDepositor,
+    PufferRevenueDepositorStorage,
     AccessManagedUpgradeable,
     UUPSUpgradeable
 {
@@ -92,10 +92,10 @@ contract PufferRestakingRewardsDepositor is
     receive() external payable { }
 
     /**
-     * @inheritdoc IPufferRestakingRewardsDepositor
+     * @inheritdoc IPufferRevenueDepositor
      */
     function getPendingDistributionAmount() public view returns (uint256) {
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
         uint256 rewardsDistributionWindow = $.rewardsDistributionWindow;
 
@@ -112,20 +112,20 @@ contract PufferRestakingRewardsDepositor is
     }
 
     /**
-     * @inheritdoc IPufferRestakingRewardsDepositor
+     * @inheritdoc IPufferRevenueDepositor
      */
     function getRewardsDistributionWindow() public view returns (uint256) {
-        return _getRestakingRewardsDepositorStorage().rewardsDistributionWindow;
+        return _getRevenueDepositorStorage().rewardsDistributionWindow;
     }
 
     /**
-     * @notice Deposit restaking rewards into PufferVault.
+     * @notice Deposit revenue into PufferVault.
      * @dev Restricted access to `ROLE_ID_RESTAKING_REWARDS_DEPOSITOR`
      */
-    function depositRestakingRewards() external restricted {
+    function depositRevenue() external restricted {
         require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
 
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
         $.lastDepositTimestamp = uint48(block.timestamp);
 
         // Wrap any ETH sent to the contract
@@ -155,7 +155,7 @@ contract PufferRestakingRewardsDepositor is
         $.lastDepositAmount = uint104(vaultRewards);
         WETH.transfer(address(PUFFER_VAULT), vaultRewards);
 
-        emit RestakingRewardsDeposited(vaultRewards);
+        emit RevenueDeposited(vaultRewards);
     }
 
     /**
@@ -163,7 +163,7 @@ contract PufferRestakingRewardsDepositor is
      * @return The last deposit timestamp in seconds.
      */
     function getLastDepositTimestamp() public view returns (uint256) {
-        return _getRestakingRewardsDepositorStorage().lastDepositTimestamp;
+        return _getRevenueDepositorStorage().lastDepositTimestamp;
     }
 
     /**
@@ -171,7 +171,7 @@ contract PufferRestakingRewardsDepositor is
      * @return The addresses of the restaking operators.
      */
     function getRestakingOperators() external view returns (address[] memory) {
-        return _getRestakingRewardsDepositorStorage().restakingOperators.values();
+        return _getRevenueDepositorStorage().restakingOperators.values();
     }
 
     /**
@@ -179,7 +179,7 @@ contract PufferRestakingRewardsDepositor is
      * @return The RNO rewards in basis points.
      */
     function getRnoRewardsBps() external view returns (uint128) {
-        return _getRestakingRewardsDepositorStorage().rNORewardsBps;
+        return _getRevenueDepositorStorage().rNORewardsBps;
     }
 
     /**
@@ -187,7 +187,7 @@ contract PufferRestakingRewardsDepositor is
      * @return The RNO rewards in basis points.
      */
     function getTreasuryRewardsBps() external view returns (uint128) {
-        return _getRestakingRewardsDepositorStorage().treasuryRewardsBps;
+        return _getRevenueDepositorStorage().treasuryRewardsBps;
     }
 
     /**
@@ -199,7 +199,7 @@ contract PufferRestakingRewardsDepositor is
         require(getPendingDistributionAmount() == 0, CannotChangeDistributionWindow());
         require(newRewardsDistributionWindow <= _MAXIMUM_DISTRIBUTION_WINDOW, InvalidDistributionWindow());
 
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
         emit RewardsDistributionWindowChanged($.rewardsDistributionWindow, newRewardsDistributionWindow);
         $.rewardsDistributionWindow = newRewardsDistributionWindow;
     }
@@ -216,7 +216,7 @@ contract PufferRestakingRewardsDepositor is
     function _setRnoRewardsBps(uint128 newBps) internal {
         require(newBps <= _MAX_REWARDS_BPS, InvalidBps());
 
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
         emit RnoRewardsBpsChanged($.rNORewardsBps, newBps);
         $.rNORewardsBps = newBps;
@@ -234,7 +234,7 @@ contract PufferRestakingRewardsDepositor is
     function _setTreasuryRewardsBps(uint128 newBps) internal {
         require(newBps <= _MAX_REWARDS_BPS, InvalidBps());
 
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
         emit TreasuryRewardsBpsChanged($.treasuryRewardsBps, newBps);
         $.treasuryRewardsBps = newBps;
@@ -246,7 +246,7 @@ contract PufferRestakingRewardsDepositor is
      * @param operatorAddress The address of the restaking operator.
      */
     function removeRestakingOperator(address operatorAddress) external restricted {
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
         bool success = $.restakingOperators.remove(operatorAddress);
         require(success, RestakingOperatorNotSet());
@@ -263,7 +263,7 @@ contract PufferRestakingRewardsDepositor is
     }
 
     function _addRestakingOperators(address[] memory operatorsAddresses) internal {
-        RestakingRewardsDepositorStorage storage $ = _getRestakingRewardsDepositorStorage();
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
         for (uint256 i = 0; i < operatorsAddresses.length; i++) {
             require(operatorsAddresses[i] != address(0), InvalidAddress());

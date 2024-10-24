@@ -29,8 +29,7 @@ import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
-import { PufferRestakingRewardsDepositor } from "src/PufferRestakingRewardsDepositor.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
 import {
@@ -108,7 +107,7 @@ contract UnitTestHelper is Test, BaseScript {
     XERC20Lockbox public lockBox;
     L1RewardManager public l1RewardManager;
     L2RewardManager public l2RewardManager;
-    PufferRestakingRewardsDepositor public restakingRewardsDepositor;
+    PufferRevenueDepositor public revenueDepositor;
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
@@ -140,8 +139,6 @@ contract UnitTestHelper is Test, BaseScript {
     address public RNO5 = makeAddr("RNO5");
     address public RNO6 = makeAddr("RNO6");
     address public RNO7 = makeAddr("RNO7");
-
-    bytes public restakingRewardsAccessManagerCalldata;
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -220,7 +217,7 @@ contract UnitTestHelper is Test, BaseScript {
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         connext = ConnextMock(payable(bridgingDeployment.connext));
-        restakingRewardsDepositor = PufferRestakingRewardsDepositor(payable(pufferDeployment.restakingRewardsDepositor));
+        revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
 
         // pufETH dependencies
         pufferVault = PufferVaultV3(payable(pufferDeployment.pufferVault));

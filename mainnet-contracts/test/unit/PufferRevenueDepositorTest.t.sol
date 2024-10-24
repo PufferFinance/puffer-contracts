@@ -2,90 +2,86 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { IPufferRestakingRewardsDepositor } from "src/interface/IPufferRestakingRewardsDepositor.sol";
+import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 import { InvalidAddress } from "src/Errors.sol";
 
 /**
- * @title PufferRestakingRewardsDepositorTest
- * @dev Test contract for PufferRestakingRewardsDepositor
+ * @title PufferRevenueDepositorTest
+ * @dev Test contract for PufferRevenueDepositor
  *
  * @dev Run the following command to execute the tests:
- * forge test --mc PufferRestakingRewardsDepositorTest -vvvv
+ * forge test --mc PufferRevenueDepositorTest -vvvv
  */
-contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
+contract PufferRevenueDepositorTest is UnitTestHelper {
     /**
      * @dev Modifier to set the rewards distribution window for the test
      */
     modifier withRewardsDistributionWindow(uint24 newRewardsDistributionWindow) {
         vm.startPrank(DAO);
-        restakingRewardsDepositor.setRewardsDistributionWindow(newRewardsDistributionWindow);
+        revenueDepositor.setRewardsDistributionWindow(newRewardsDistributionWindow);
         _;
         vm.stopPrank();
     }
 
     function test_sanity() public view {
-        assertEq(restakingRewardsDepositor.getRnoRewardsBps(), 400, "RNO rewards bps should be 400");
-        assertEq(restakingRewardsDepositor.getTreasuryRewardsBps(), 500, "Treasury rewards bps should be 500");
-        assertEq(restakingRewardsDepositor.getRestakingOperators().length, 7, "Should have 7 restaking operators");
-        assertTrue(restakingRewardsDepositor.TREASURY() != address(0), "Treasury should not be 0");
-        assertTrue(address(restakingRewardsDepositor.WETH()) != address(0), "WETH should not be 0");
-        assertTrue(address(restakingRewardsDepositor.PUFFER_VAULT()) != address(0), "PufferVault should not be 0");
+        assertEq(revenueDepositor.getRnoRewardsBps(), 400, "RNO rewards bps should be 400");
+        assertEq(revenueDepositor.getTreasuryRewardsBps(), 500, "Treasury rewards bps should be 500");
+        assertEq(revenueDepositor.getRestakingOperators().length, 7, "Should have 7 restaking operators");
+        assertTrue(revenueDepositor.TREASURY() != address(0), "Treasury should not be 0");
+        assertTrue(address(revenueDepositor.WETH()) != address(0), "WETH should not be 0");
+        assertTrue(address(revenueDepositor.PUFFER_VAULT()) != address(0), "PufferVault should not be 0");
     }
 
     function test_setRewardsDistributionWindow() public {
-        assertEq(restakingRewardsDepositor.getRewardsDistributionWindow(), 0, "Rewards distribution window should be 0");
+        assertEq(revenueDepositor.getRewardsDistributionWindow(), 0, "Rewards distribution window should be 0");
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferRestakingRewardsDepositor.RewardsDistributionWindowChanged(0, 1 days);
-        restakingRewardsDepositor.setRewardsDistributionWindow(1 days);
+        emit IPufferRevenueDepositor.RewardsDistributionWindowChanged(0, 1 days);
+        revenueDepositor.setRewardsDistributionWindow(1 days);
 
         assertEq(
-            restakingRewardsDepositor.getRewardsDistributionWindow(),
-            1 days,
-            "Rewards distribution window should be 1 days"
+            revenueDepositor.getRewardsDistributionWindow(), 1 days, "Rewards distribution window should be 1 days"
         );
     }
 
     function testRevert_setRewardsDistributionWindow_InvalidWindow() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.InvalidDistributionWindow.selector);
-        restakingRewardsDepositor.setRewardsDistributionWindow(15 days);
+        vm.expectRevert(IPufferRevenueDepositor.InvalidDistributionWindow.selector);
+        revenueDepositor.setRewardsDistributionWindow(15 days);
     }
 
     function testRevert_setRewardsDistributionWhenAlreadyDepositing() public withRewardsDistributionWindow(1 days) {
         assertEq(block.timestamp, 1, "Timestamp should be 1");
-        deal(address(restakingRewardsDepositor), 100 ether);
+        deal(address(revenueDepositor), 100 ether);
 
         vm.startPrank(OPERATIONS_MULTISIG);
-        restakingRewardsDepositor.depositRestakingRewards();
+        revenueDepositor.depositRevenue();
 
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.CannotChangeDistributionWindow.selector);
-        restakingRewardsDepositor.setRewardsDistributionWindow(1 days);
+        vm.expectRevert(IPufferRevenueDepositor.CannotChangeDistributionWindow.selector);
+        revenueDepositor.setRewardsDistributionWindow(1 days);
     }
 
     function test_smallRewardsAmount() public withRewardsDistributionWindow(1 days) {
-        vm.deal(address(restakingRewardsDepositor), 1); // 1 wei
+        vm.deal(address(revenueDepositor), 1); // 1 wei
 
         vm.startPrank(OPERATIONS_MULTISIG);
 
-        vm.expectRevert(IPufferRestakingRewardsDepositor.NothingToDistribute.selector);
-        restakingRewardsDepositor.depositRestakingRewards();
+        vm.expectRevert(IPufferRevenueDepositor.NothingToDistribute.selector);
+        revenueDepositor.depositRevenue();
 
-        vm.deal(address(restakingRewardsDepositor), 20); // 20 wei
-        restakingRewardsDepositor.depositRestakingRewards();
+        vm.deal(address(revenueDepositor), 20); // 20 wei
+        revenueDepositor.depositRevenue();
 
         // 1 wei went to the treasury
-        assertEq(
-            restakingRewardsDepositor.getPendingDistributionAmount(), 19, "Pending distribution amount should be 19"
-        );
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 19, "Pending distribution amount should be 19");
 
         // After half of the distribution window, the pending distribution amount is half of the total amount
         vm.warp(block.timestamp + 12 hours);
 
         // 19/2 = 9.5, rounded down to 9
-        assertEq(restakingRewardsDepositor.getPendingDistributionAmount(), 9, "Pending distribution amount should be 9");
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 9, "Pending distribution amount should be 9");
     }
 
     function test_distributeRewards() public withRewardsDistributionWindow(1 days) {
@@ -93,15 +89,15 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
 
         uint256 totalAssetsBefore = pufferVault.totalAssets();
 
-        vm.deal(address(restakingRewardsDepositor), amount);
+        vm.deal(address(revenueDepositor), amount);
 
         vm.startPrank(OPERATIONS_MULTISIG);
-        restakingRewardsDepositor.depositRestakingRewards();
+        revenueDepositor.depositRevenue();
 
         // 4 Wei precision loss
         // Right away, the pending distribution amount is the amount deposited to the Vault
         assertApproxEqAbs(
-            restakingRewardsDepositor.getPendingDistributionAmount(),
+            revenueDepositor.getPendingDistributionAmount(),
             91 ether,
             4,
             "Pending distribution amount should be the amount deposited"
@@ -116,7 +112,7 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         );
         // After the distribution window, the pending distribution amount is 0
         assertApproxEqAbs(
-            restakingRewardsDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
+            revenueDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
         );
 
         vm.warp(block.timestamp + 10 days);
@@ -126,65 +122,65 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         );
         // After the distribution window, the pending distribution amount is 0
         assertApproxEqAbs(
-            restakingRewardsDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
+            revenueDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
         );
     }
 
     function testRevert_nothingToDistribute() public {
         vm.startPrank(OPERATIONS_MULTISIG);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.NothingToDistribute.selector);
-        restakingRewardsDepositor.depositRestakingRewards();
+        vm.expectRevert(IPufferRevenueDepositor.NothingToDistribute.selector);
+        revenueDepositor.depositRevenue();
     }
 
     function testRevert_vaultHasUndepositedRewards() public withRewardsDistributionWindow(1 days) {
         assertEq(block.timestamp, 1, "Timestamp should be 1");
-        deal(address(restakingRewardsDepositor), 100 ether);
+        deal(address(revenueDepositor), 100 ether);
 
         vm.startPrank(OPERATIONS_MULTISIG);
-        restakingRewardsDepositor.depositRestakingRewards();
+        revenueDepositor.depositRevenue();
 
-        deal(address(restakingRewardsDepositor), 100 ether);
+        deal(address(revenueDepositor), 100 ether);
 
-        vm.expectRevert(IPufferRestakingRewardsDepositor.VaultHasUndepositedRewards.selector);
-        restakingRewardsDepositor.depositRestakingRewards();
+        vm.expectRevert(IPufferRevenueDepositor.VaultHasUndepositedRewards.selector);
+        revenueDepositor.depositRevenue();
     }
 
     function test_setRnoRewardsBps() public {
-        uint256 oldFeeBps = restakingRewardsDepositor.getRnoRewardsBps();
+        uint256 oldFeeBps = revenueDepositor.getRnoRewardsBps();
         uint256 newFeeBps = 100;
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferRestakingRewardsDepositor.RnoRewardsBpsChanged(oldFeeBps, newFeeBps);
-        restakingRewardsDepositor.setRnoRewardsBps(uint128(newFeeBps));
+        emit IPufferRevenueDepositor.RnoRewardsBpsChanged(oldFeeBps, newFeeBps);
+        revenueDepositor.setRnoRewardsBps(uint128(newFeeBps));
     }
 
     function test_setTreasuryRewardsBps() public {
-        uint256 oldFeeBps = restakingRewardsDepositor.getTreasuryRewardsBps();
+        uint256 oldFeeBps = revenueDepositor.getTreasuryRewardsBps();
         uint256 newFeeBps = 100;
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferRestakingRewardsDepositor.TreasuryRewardsBpsChanged(oldFeeBps, newFeeBps);
-        restakingRewardsDepositor.setTreasuryRewardsBps(uint128(newFeeBps));
+        emit IPufferRevenueDepositor.TreasuryRewardsBpsChanged(oldFeeBps, newFeeBps);
+        revenueDepositor.setTreasuryRewardsBps(uint128(newFeeBps));
     }
 
     function testRevert_setRnoRewardsBps_InvalidBps() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.InvalidBps.selector);
-        restakingRewardsDepositor.setRnoRewardsBps(uint128(1001));
+        vm.expectRevert(IPufferRevenueDepositor.InvalidBps.selector);
+        revenueDepositor.setRnoRewardsBps(uint128(1001));
     }
 
     function testRevert_setTreasuryRewardsBps_InvalidBps() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.InvalidBps.selector);
-        restakingRewardsDepositor.setTreasuryRewardsBps(uint128(2000));
+        vm.expectRevert(IPufferRevenueDepositor.InvalidBps.selector);
+        revenueDepositor.setTreasuryRewardsBps(uint128(2000));
     }
 
     function testRevert_removeRestakingOperator_NotOperator() public {
         vm.startPrank(OPERATIONS_MULTISIG);
-        vm.expectRevert(IPufferRestakingRewardsDepositor.RestakingOperatorNotSet.selector);
-        restakingRewardsDepositor.removeRestakingOperator(address(1));
+        vm.expectRevert(IPufferRevenueDepositor.RestakingOperatorNotSet.selector);
+        revenueDepositor.removeRestakingOperator(address(1));
     }
 
     function testRevert_addRestakingOperators_InvalidOperatorZeroAddress() public {
@@ -194,7 +190,7 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         operators[0] = address(0);
 
         vm.expectRevert(InvalidAddress.selector);
-        restakingRewardsDepositor.addRestakingOperators(operators);
+        revenueDepositor.addRestakingOperators(operators);
     }
 
     function test_addAndRemoveRestakingOperator() public {
@@ -206,15 +202,15 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         operators[0] = newOperator;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferRestakingRewardsDepositor.RestakingOperatorAdded(operators[0]);
-        restakingRewardsDepositor.addRestakingOperators(operators);
+        emit IPufferRevenueDepositor.RestakingOperatorAdded(operators[0]);
+        revenueDepositor.addRestakingOperators(operators);
 
-        vm.expectRevert(IPufferRestakingRewardsDepositor.RestakingOperatorAlreadySet.selector);
-        restakingRewardsDepositor.addRestakingOperators(operators);
+        vm.expectRevert(IPufferRevenueDepositor.RestakingOperatorAlreadySet.selector);
+        revenueDepositor.addRestakingOperators(operators);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferRestakingRewardsDepositor.RestakingOperatorRemoved(newOperator);
-        restakingRewardsDepositor.removeRestakingOperator(newOperator);
+        emit IPufferRevenueDepositor.RestakingOperatorRemoved(newOperator);
+        revenueDepositor.removeRestakingOperator(newOperator);
     }
 
     function test_depositRestakingRewardsInstantly() public {
@@ -223,8 +219,8 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         weth.deposit{ value: 90 ether }();
 
         // Transfer 90 WETH and 10 ETH, the contract should wrap the 10 ETH
-        weth.transfer(address(restakingRewardsDepositor), 90 ether);
-        (bool success,) = address(restakingRewardsDepositor).call{ value: 10 ether }("");
+        weth.transfer(address(revenueDepositor), 90 ether);
+        (bool success,) = address(revenueDepositor).call{ value: 10 ether }("");
         require(success, "Transfer failed");
 
         uint256 totalAssetsBefore = pufferVault.totalAssets();
@@ -233,12 +229,10 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
 
         vm.startPrank(OPERATIONS_MULTISIG);
         // Trigger deposit of restaking rewards
-        restakingRewardsDepositor.depositRestakingRewards();
+        revenueDepositor.depositRevenue();
 
         assertEq(
-            restakingRewardsDepositor.getLastDepositTimestamp(),
-            1,
-            "Last deposit timestamp should be the current timestamp 1"
+            revenueDepositor.getLastDepositTimestamp(), 1, "Last deposit timestamp should be the current timestamp 1"
         );
 
         // We have precision loss from the RNO rewards distribution, 4 wei is going to the Vault because of the rounding
@@ -246,7 +240,7 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
             pufferVault.totalAssets(), totalAssetsBefore + 91 ether, 4, "Total assets should be 91 ETH more"
         );
 
-        assertEq(weth.balanceOf(address(restakingRewardsDepositor.TREASURY())), 5 ether, "Treasury should have 5 WETH");
+        assertEq(weth.balanceOf(address(revenueDepositor.TREASURY())), 5 ether, "Treasury should have 5 WETH");
         assertEq(weth.balanceOf(RNO1), 0.571428571428571428 ether, "RNO1 should have 0.571428571428571428 WETH");
         assertEq(weth.balanceOf(RNO2), 0.571428571428571428 ether, "RNO1 should have 0.571428571428571428 WETH");
         assertEq(weth.balanceOf(RNO3), 0.571428571428571428 ether, "RNO3 should have 0.571428571428571428 WETH");
