@@ -71,6 +71,7 @@ contract PufferRestakingRewardsDepositor is
 
     /**
      * @notice Initialize the contract.
+     * @param accessManager The address of the access manager.
      * @param operatorsAddresses The addresses of the restaking operators.
      */
     function initialize(address accessManager, address[] calldata operatorsAddresses) external initializer {
