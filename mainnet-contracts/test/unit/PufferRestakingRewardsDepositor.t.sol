@@ -53,6 +53,18 @@ contract PufferRestakingRewardsDepositorTest is UnitTestHelper {
         restakingRewardsDepositor.setRewardsDistributionWindow(15 days);
     }
 
+    function testRevert_setRewardsDistributionWhenAlreadyDepositing() public withRewardsDistributionWindow(1 days) {
+        assertEq(block.timestamp, 1, "Timestamp should be 1");
+        deal(address(restakingRewardsDepositor), 100 ether);
+
+        vm.startPrank(OPERATIONS_MULTISIG);
+        restakingRewardsDepositor.depositRestakingRewards();
+
+        vm.startPrank(DAO);
+        vm.expectRevert(IPufferRestakingRewardsDepositor.CannotChangeDistributionWindow.selector);
+        restakingRewardsDepositor.setRewardsDistributionWindow(1 days);
+    }
+
     function test_distributeRewards() public withRewardsDistributionWindow(1 days) {
         uint256 amount = 100 ether;
 
