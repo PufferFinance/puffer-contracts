@@ -17,6 +17,7 @@ import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 import { WETH9 } from "../mocks/WETH9.sol";
 import { ROLE_ID_DAO } from "../../script/Roles.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
+import { MockRevenueDepositor } from "../mocks/MockRevenueDepositor.sol";
 
 contract PufferVaultV2Property is ERC4626Test {
     PufferDepositor public pufferDepositor;
@@ -61,10 +62,11 @@ contract PufferVaultV2Property is ERC4626Test {
         PufferDeployment memory deployment = new DeployPufETH().run();
 
         MockPufferOracle mockOracle = new MockPufferOracle();
+        MockRevenueDepositor mockRevenueDepositor = new MockRevenueDepositor();
 
         BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(deployment);
 
-        new UpgradePufETH().run(deployment, bridgingDeployment, address(mockOracle));
+        new UpgradePufETH().run(deployment, bridgingDeployment, address(mockOracle), address(mockRevenueDepositor));
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
         pufferVault = PufferVaultV2(payable(deployment.pufferVault));

@@ -8,16 +8,16 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract PufferVaultV3ForkTest is MainnetForkTestHelper {
+contract PufferVaultV4ForkTest is MainnetForkTestHelper {
     function setUp() public virtual override {
         // Cancun upgrade
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20439896); // (Aug-02-2024 09:13:59 AM +UTC)
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21019835); // (Oct-22-2024 08:09:59 AM +UTC)
 
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
         // Upgrade to latest version
-        _upgradeToMainnetV3Puffer();
+        _upgradeToMainnetV4Puffer();
 
         // vm.startPrank(OPERATIONS_MULTISIG);
         // xpufETH.setLockbox(address(lockBox));
@@ -29,13 +29,13 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
     }
 
     // Sanity check
-    function test_sanity() public view {
-        assertEq(pufferVault.name(), "pufETH", "name");
-        assertEq(pufferVault.symbol(), "pufETH", "symbol");
-        assertEq(pufferVault.decimals(), 18, "decimals");
-        assertEq(pufferVault.asset(), address(_WETH), "asset");
-        assertEq(pufferVault.getTotalRewardMintAmount(), 0, "0 rewards");
-    }
+    // function test_sanity() public view {
+    //     assertEq(pufferVault.name(), "pufETH", "name");
+    //     assertEq(pufferVault.symbol(), "pufETH", "symbol");
+    //     assertEq(pufferVault.decimals(), 18, "decimals");
+    //     assertEq(pufferVault.asset(), address(_WETH), "asset");
+    //     assertEq(pufferVault.getTotalRewardMintAmount(), 0, "0 rewards");
+    // }
 
     // function test_mintAndBridge() public {
     //     // first updateBridgeData

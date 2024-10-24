@@ -5,8 +5,9 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
+import { PufferVaultV4 } from "../src/PufferVaultV4.sol";
 import { PufferVaultV2Tests } from "../test/mocks/PufferVaultV2Tests.sol";
-import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
+import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
@@ -15,6 +16,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
+import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 import { IWstETH } from "../src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
@@ -25,20 +27,15 @@ import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 import { DeployerHelper } from "../script/DeployerHelper.s.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 
 contract MainnetForkTestHelper is Test, DeployerHelper {
     /**
      * @dev Ethereum Mainnet addresses
      */
-    IStrategy internal constant _EIGEN_STETH_STRATEGY = IStrategy(0x93c4b944D05dfe6df7645A86cd2206016c51564D);
-    IEigenLayer internal constant _EIGEN_STRATEGY_MANAGER = IEigenLayer(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IStETH internal constant _ST_ETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
     IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IWstETH internal constant _WST_ETH = IWstETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
-    ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
-        ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
-    IDelegationManager internal constant _EIGEN_DELEGATION_MANGER =
-        IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
 
     using stdStorage for StdStorage;
 
@@ -79,14 +76,11 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     address dave = makeAddr("dave");
     address eve = makeAddr("eve");
 
-    address l2RewradManagerMock = makeAddr("rewardManagerMock");
-
     // Use Maker address for mainnet fork tests to get wETH
     address MAKER_VAULT = 0x2F0b23f53734252Bda2277357e97e1517d6B042A;
     // Use Blast deposit contract for mainnet fork tests to get stETH
     address BLAST_DEPOSIT = 0x5F6AE08B8AeB7078cf2F96AFb089D7c9f51DA47d;
 
-    address LIDO_WITHDRAWAL_QUEUE = 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
     address LIDO_ACCOUNTING_ORACLE = 0x852deD011285fe67063a08005c71a85690503Cee;
 
     // Storage slot for the Consensus Layer Balance in stETH
@@ -154,29 +148,29 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
         MockPufferOracle mockOracle = new MockPufferOracle();
 
-        pufferVaultNonBlocking = new PufferVaultV2Tests(
-            _ST_ETH,
-            _WETH,
-            _LIDO_WITHDRAWAL_QUEUE,
-            _EIGEN_STETH_STRATEGY,
-            _EIGEN_STRATEGY_MANAGER,
-            mockOracle,
-            _EIGEN_DELEGATION_MANGER
-        );
+        pufferVaultNonBlocking = new PufferVaultV2Tests({
+            stETH: IStETH(_getStETH()),
+            weth: IWETH(_getWETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            stETHStrategy: IStrategy(_getStETHStrategy()),
+            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
+            oracle: mockOracle,
+            delegationManager: IDelegationManager(_getEigenDelegationManager())
+        });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
         PufferVaultV2 newImplementation = pufferVaultNonBlocking;
 
-        pufferVaultWithBlocking = new PufferVaultV2(
-            _ST_ETH,
-            _WETH,
-            _LIDO_WITHDRAWAL_QUEUE,
-            _EIGEN_STETH_STRATEGY,
-            _EIGEN_STRATEGY_MANAGER,
-            mockOracle,
-            _EIGEN_DELEGATION_MANGER
-        );
+        pufferVaultWithBlocking = new PufferVaultV2({
+            stETH: IStETH(_getStETH()),
+            weth: IWETH(_getWETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            stETHStrategy: IStrategy(_getStETHStrategy()),
+            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
+            oracle: mockOracle,
+            delegationManager: IDelegationManager(_getEigenDelegationManager())
+        });
 
         // Community multisig can do thing instantly
         vm.startPrank(COMMUNITY_MULTISIG);
@@ -197,7 +191,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
 
         // Upgrade PufferDepositor
         PufferDepositorV2 newDepositorImplementation =
-            new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), _ST_ETH);
+            new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), IStETH(_getStETH()));
 
         upgradeCd = abi.encodeCall(
             UUPSUpgradeable.upgradeToAndCall,
@@ -229,23 +223,21 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.stopPrank();
     }
 
-    function _upgradeToMainnetV3Puffer() internal {
-        // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
-        MockPufferOracle mockOracle = new MockPufferOracle();
-
-        pufferVaultNonBlocking = new PufferVaultV3Tests(
-            _ST_ETH,
-            _WETH,
-            _LIDO_WITHDRAWAL_QUEUE,
-            _EIGEN_STETH_STRATEGY,
-            _EIGEN_STRATEGY_MANAGER,
-            mockOracle,
-            _EIGEN_DELEGATION_MANGER
-        );
+    function _upgradeToMainnetV4Puffer() internal {
+        pufferVaultNonBlocking = new PufferVaultV4Tests({
+            stETH: IStETH(_getStETH()),
+            weth: IWETH(_getWETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            stETHStrategy: IStrategy(_getStETHStrategy()),
+            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
+            oracle: IPufferOracle(_getPufferOracle()),
+            delegationManager: IDelegationManager(_getEigenDelegationManager()),
+            revenueDepositor: IPufferRevenueDepositor(address(0))
+        });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV3 newImplementation = PufferVaultV3(payable(address(pufferVaultNonBlocking)));
+        PufferVaultV4 newImplementation = PufferVaultV4(payable(address(pufferVaultNonBlocking)));
 
         vm.startPrank(address(timelock));
         vm.expectEmit(true, true, true, true);
@@ -267,7 +259,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     function _finalizeWithdrawals(uint256 requestIdFinalized) internal {
         // Alter WithdrawalRouter storage slot to mark our withdrawal requests as finalized
         vm.store(
-            LIDO_WITHDRAWAL_QUEUE,
+            _getLidoWithdrawalQueue(),
             keccak256("lido.WithdrawalQueue.lastFinalizedRequestId"),
             bytes32(uint256(requestIdFinalized))
         );

@@ -39,21 +39,31 @@ contract PufferVault is
 
     /**
      * @dev EigenLayer stETH strategy
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IStrategy internal immutable _EIGEN_STETH_STRATEGY;
+
     /**
      * @dev EigenLayer Strategy Manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+
     /**
      * @dev stETH contract
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IStETH internal immutable _ST_ETH;
+
     /**
      * @dev Lido Withdrawal Queue
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
+    /**
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor(
         IStETH stETH,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
