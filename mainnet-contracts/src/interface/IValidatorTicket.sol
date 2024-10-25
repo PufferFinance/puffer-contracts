@@ -33,6 +33,11 @@ interface IValidatorTicket {
     event DispersedETH(uint256 treasury, uint256 guardians, uint256 vault);
 
     /**
+     * @notice Emitted when the pufETH is split between treasury, guardians and the amount burned
+     */
+    event DispersedPufETH(uint256 treasury, uint256 guardians, uint256 burned);
+
+    /**
      * @notice Emitted when the protocol fee rate is changed
      * @dev Signature "0xb51bef650ff5ad43303dbe2e500a74d4fd1bdc9ae05f046bece330e82ae0ba87"
      */
@@ -51,6 +56,14 @@ interface IValidatorTicket {
      * @return Amount of VT minted
      */
     function purchaseValidatorTicket(address recipient) external payable returns (uint256);
+
+    /**
+     * @notice Purchases Validator Tickets with pufETH
+     * @param recipient The address to receive the minted VTs
+     * @param pufEthAmount The amount of pufETH to spend
+     * @return mintedAmount The amount of VTs minted
+     */
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 pufEthAmount) external returns (uint256);
 
     /**
      * @notice Retrieves the current guardians fee rate
