@@ -120,8 +120,8 @@ contract L1RewardManagerUnsafe is
     /**
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(address XpufETH, address lockbox, address pufETH, address l2RewardsManager) {
-        XPUFETH = IERC20(XpufETH);
+    constructor(address xPufETH, address lockbox, address pufETH, address l2RewardsManager) {
+        XPUFETH = IERC20(xPufETH);
         LOCKBOX = IXERC20Lockbox(lockbox);
         PUFFER_VAULT = PufferVaultV3(payable(pufETH));
         L2_REWARDS_MANAGER = l2RewardsManager;
@@ -238,7 +238,7 @@ contract L1RewardManagerUnsafe is
      * @notice This contract receives XPufETH from the L2RewardManager via the bridge, unwraps it to pufETH and then burns the pufETH, reverting the original mintAndBridge call
      * @dev Restricted access to `ROLE_ID_BRIDGE`
      */
-    function xReceive(bytes32, uint256, address, address originSender, uint32 originDomainId, bytes memory callData)
+    function xReceive(bytes32, uint256, address, address originSender, uint32 originDomainId, bytes calldata callData)
         external
         override(IXReceiver)
         restricted
@@ -282,7 +282,7 @@ contract L1RewardManagerUnsafe is
      * @param bridgeData The updated bridge data.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
-    function updateBridgeData(address bridge, BridgeData memory bridgeData) external restricted {
+    function updateBridgeData(address bridge, BridgeData calldata bridgeData) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         if (bridge == address(0)) {
             revert InvalidAddress();

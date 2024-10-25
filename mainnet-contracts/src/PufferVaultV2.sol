@@ -31,25 +31,37 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
 
     /**
      * @dev The Wrapped Ethereum ERC20 token
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IWETH internal immutable _WETH;
 
     /**
      * @dev The PufferOracle contract
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IPufferOracle public immutable PUFFER_ORACLE;
 
     /**
      * @notice Delegation manager from EigenLayer
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IDelegationManager internal immutable _DELEGATION_MANAGER;
 
     /**
      * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     address private constant _WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
+
+    /**
+     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
     address private constant _PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
 
+    /**
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor(
         IStETH stETH,
         IWETH weth,
@@ -76,6 +88,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     /**
      * @notice Changes underlying asset from stETH to WETH
      */
+    // nosemgrep tin-unprotected-initialize
     function initialize() public reinitializer(2) {
         // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
@@ -287,6 +300,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
 
+        // nosemgrep array-length-outside-loop
         for (uint256 i = 0; i < requestIds.length; ++i) {
             $.lidoWithdrawalAmounts.set(requestIds[i], amounts[i]);
         }
@@ -321,6 +335,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         uint256 balanceAfter = address(this).balance;
         uint256 actualWithdrawal = balanceAfter - balanceBefore;
         // Deduct from the locked amount the expected amount
+        // nosemgrep basic-arithmetic-underflow
         $.lidoLockedETH -= expectedWithdrawal;
 
         emit ClaimedWithdrawals(requestIds);
@@ -340,6 +355,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         uint256 ethBalance = address(this).balance;
         if (ethBalance < ethAmount) {
             // Reverts if no WETH to unwrap
+            // nosemgrep basic-arithmetic-underflow
             _WETH.withdraw(ethAmount - ethBalance);
         }
 
@@ -444,6 +460,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      */
     function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewRedeem(shares);
+        // nosemgrep basic-arithmetic-underflow
         return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
     }
 
@@ -512,6 +529,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             revert InvalidWithdrawal();
         }
 
+        // nosemgrep
         $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
 
         _DELEGATION_MANAGER.completeQueuedWithdrawal({

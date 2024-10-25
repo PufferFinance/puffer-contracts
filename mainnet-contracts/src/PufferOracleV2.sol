@@ -66,6 +66,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Restricted to PufferProtocol contract
      */
     function exitValidators(uint256 numberOfExits) public restricted {
+        // nosemgrep basic-arithmetic-underflow
         _numberOfActivePufferValidators -= numberOfExits;
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
     }

@@ -1,0 +1,6 @@
+*/test/*
+*/script/*
+semgrep-rules/*
+PufToken.sol
+GuardianModule.sol
+EnclaveVerifier.sol

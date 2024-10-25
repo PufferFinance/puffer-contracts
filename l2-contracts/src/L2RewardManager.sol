@@ -53,7 +53,7 @@ contract L2RewardManager is
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
     function claimRewards(ClaimOrder[] calldata claimOrders) external restricted {
-        for (uint256 i = 0; i < claimOrders.length; i++) {
+        for (uint256 i = 0; i < claimOrders.length; ++i) {
             if (isClaimed(claimOrders[i].intervalId, claimOrders[i].account)) {
                 revert AlreadyClaimed(claimOrders[i].intervalId, claimOrders[i].account);
             }

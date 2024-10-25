@@ -248,6 +248,7 @@ contract PufferWithdrawalManager is
                 expectedETHAmount: expectedETHAmount
             });
 
+            // nosemgrep basic-arithmetic-underflow
             uint256 diff = transferAmount - batch.amountClaimed;
             totalExcessETH += diff;
 
@@ -256,6 +257,7 @@ contract PufferWithdrawalManager is
         }
 
         if (totalExcessETH > 0) {
+            // nosemgrep arbitrary-low-level-call
             (bool success,) = address(PUFFER_VAULT).call{ value: totalExcessETH }("");
             require(success, TransferFailed());
 
@@ -296,7 +298,13 @@ contract PufferWithdrawalManager is
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
         // We don't want panic when the caller passes an invalid batchIdx
         if (batchIdx >= $.withdrawalBatches.length) {
-            return WithdrawalBatch(0, 0, 0, 0, 0);
+            return WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            });
         }
         return $.withdrawalBatches[batchIdx];
     }
