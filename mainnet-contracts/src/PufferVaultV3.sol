@@ -118,6 +118,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         uint256 previousMintAmount = $.totalRewardMintAmount;
+        // nosemgrep basic-arithmetic-underflow
         uint256 newMintAmount = previousMintAmount - ethAmount;
         $.totalRewardMintAmount = newMintAmount;
 

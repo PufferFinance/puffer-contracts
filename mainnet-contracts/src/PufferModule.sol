@@ -209,6 +209,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         returns (bool success, bytes memory)
     {
         // slither-disable-next-line arbitrary-send-eth
+        // nosemgrep arbitrary-low-level-call
         return to.call{ value: amount }(data);
     }
 

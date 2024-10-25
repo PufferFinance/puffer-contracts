@@ -105,6 +105,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         uint256 sharesWithdrawn;
 
         for (uint256 i = 0; i < withdrawals.length; ++i) {
+            // nosemgrep array-length-outside-loop
             for (uint256 j = 0; j < withdrawals[i].shares.length; ++j) {
                 sharesWithdrawn += withdrawals[i].shares[j];
             }

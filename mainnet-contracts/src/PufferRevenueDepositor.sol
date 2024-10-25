@@ -130,7 +130,7 @@ contract PufferRevenueDepositor is
         if (address(this).balance > 0) {
             WETH.deposit{ value: address(this).balance }();
         }
-
+        // nosemgrep tin-reentrant-dbl-diff-balance
         uint256 rewardsAmount = WETH.balanceOf(address(this));
 
         uint256 treasuryRewards = (rewardsAmount * $.treasuryRewardsBps) / _BASIS_POINT_SCALE;

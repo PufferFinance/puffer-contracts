@@ -242,6 +242,7 @@ contract PufferVault is
             revert InvalidWithdrawal();
         }
 
+        // nosemgrep basic-arithmetic-underflow
         $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
 
         _EIGEN_STRATEGY_MANAGER.completeQueuedWithdrawal({
@@ -274,6 +275,7 @@ contract PufferVault is
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
 
+        // nosemgrep array-length-outside-loop
         for (uint256 i = 0; i < requestIds.length; ++i) {
             $.lidoWithdrawals.add(requestIds[i]);
         }

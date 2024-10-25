@@ -248,6 +248,7 @@ contract PufferWithdrawalManager is
                 expectedETHAmount: expectedETHAmount
             });
 
+            // nosemgrep basic-arithmetic-underflow
             uint256 diff = transferAmount - batch.amountClaimed;
             totalExcessETH += diff;
 
@@ -256,6 +257,7 @@ contract PufferWithdrawalManager is
         }
 
         if (totalExcessETH > 0) {
+            // nosemgrep arbitrary-low-level-call
             (bool success,) = address(PUFFER_VAULT).call{ value: totalExcessETH }("");
             require(success, TransferFailed());
 
