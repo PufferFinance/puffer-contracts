@@ -120,7 +120,7 @@ contract PufferRevenueDepositor is
 
     /**
      * @notice Deposit revenue into PufferVault.
-     * @dev Restricted access to `ROLE_ID_RESTAKING_REWARDS_DEPOSITOR`
+     * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
      */
     function depositRevenue() external restricted {
         require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
