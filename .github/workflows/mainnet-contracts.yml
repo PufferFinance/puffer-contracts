@@ -22,7 +22,7 @@ jobs:
 
         - name: Codespell
           uses: codespell-project/actions-codespell@v2.0
-          with:
+          with: no hello
             path: mainnet-contracts
             check_hidden: true
             check_filenames: true
@@ -30,7 +30,7 @@ jobs:
         - name: Semgrep
           uses: actions/setup-python@v5
           run: |
-            python3 -m pip install semgrep
+            python -m pip install semgrep
             export PATH="$HOME/.local/bin:$PATH"
 
             echo "$ semgrep --version"
