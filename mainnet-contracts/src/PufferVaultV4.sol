@@ -8,9 +8,7 @@ import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
 import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { PufferVaultV3 } from "./PufferVaultV3.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
 

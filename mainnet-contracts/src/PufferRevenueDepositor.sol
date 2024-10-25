@@ -2,8 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferVaultV4 } from "./PufferVaultV4.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -258,14 +256,14 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
      * @param operatorsAddresses The addresses of the restaking operators.
      */
-    function addRestakingOperators(address[] memory operatorsAddresses) external restricted {
+    function addRestakingOperators(address[] calldata operatorsAddresses) external restricted {
         _addRestakingOperators(operatorsAddresses);
     }
 
-    function _addRestakingOperators(address[] memory operatorsAddresses) internal {
+    function _addRestakingOperators(address[] calldata operatorsAddresses) internal {
         RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
 
-        for (uint256 i = 0; i < operatorsAddresses.length; i++) {
+        for (uint256 i = 0; i < operatorsAddresses.length; ++i) {
             require(operatorsAddresses[i] != address(0), InvalidAddress());
             bool success = $.restakingOperators.add(operatorsAddresses[i]);
             require(success, RestakingOperatorAlreadySet());

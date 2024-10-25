@@ -8,6 +8,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Time } from "@openzeppelin/contracts/utils/types/Time.sol";
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
+//solhint-disable-next-line no-unused-import
 import { Votes } from "@openzeppelin/contracts/governance/utils/Votes.sol";
 
 /**
@@ -67,6 +68,7 @@ contract PUFFER is ERC20Votes, ERC20Permit, Pausable, Ownable {
     /**
      * @inheritdoc Votes
      */
+    // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() public view virtual override returns (string memory) {
         return "mode=timestamp";
     }

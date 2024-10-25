@@ -296,7 +296,13 @@ contract PufferWithdrawalManager is
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
         // We don't want panic when the caller passes an invalid batchIdx
         if (batchIdx >= $.withdrawalBatches.length) {
-            return WithdrawalBatch(0, 0, 0, 0, 0);
+            return WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            });
         }
         return $.withdrawalBatches[batchIdx];
     }
