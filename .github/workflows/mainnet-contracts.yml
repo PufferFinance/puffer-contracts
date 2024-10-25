@@ -28,9 +28,7 @@ jobs:
             check_filenames: true
 
         - name: Semgrep
-          run:
-          working_directory: ~/
-          command: |
+          run: |
             apk add --no-cache python3 py3-pip make
             python3 -m pip install --user semgrep==0.86.5
             export PATH="$HOME/.local/bin:$PATH"
