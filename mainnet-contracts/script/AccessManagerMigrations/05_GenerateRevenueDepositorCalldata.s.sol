@@ -27,12 +27,9 @@ contract GenerateRevenueDepositorCalldata is Script {
             (revenueDepositorProxy, revenueDepositorSelectors, ROLE_ID_REVENUE_DEPOSITOR)
         );
 
-        calldatas[2] =
-            abi.encodeCall(AccessManager.grantRole, (ROLE_ID_REVENUE_DEPOSITOR, operationsMultisig, 0));
+        calldatas[2] = abi.encodeCall(AccessManager.grantRole, (ROLE_ID_REVENUE_DEPOSITOR, operationsMultisig, 0));
 
-        calldatas[3] = abi.encodeCall(
-            AccessManager.labelRole, (ROLE_ID_REVENUE_DEPOSITOR, "Revenue Depositor")
-        );
+        calldatas[3] = abi.encodeCall(AccessManager.labelRole, (ROLE_ID_REVENUE_DEPOSITOR, "Revenue Depositor"));
 
         bytes4[] memory opsMultisigSelectors = new bytes4[](2);
         opsMultisigSelectors[0] = PufferRevenueDepositor.removeRestakingOperator.selector;
