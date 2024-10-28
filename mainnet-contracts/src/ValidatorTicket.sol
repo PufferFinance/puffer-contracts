@@ -220,16 +220,9 @@ contract ValidatorTicket is
         external
         virtual
         restricted
-        returns (uint256 pufEthUsed)
+        returns (uint256)
     {
-        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
-
-        uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
-        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
-
-        _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount, pufEthUsed);
-        return pufEthUsed;
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
     }
 
     /**
@@ -240,38 +233,38 @@ contract ValidatorTicket is
         external
         virtual
         restricted
-        returns (uint256 pufEthUsed)
+        returns (uint256)
     {
-        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
-
-        uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
-        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
-
         try IERC20Permit(address(PUFFER_VAULT)).permit({
             owner: msg.sender,
             spender: address(this),
-            value: pufEthUsed,
+            value: permitData.amount,
             deadline: permitData.deadline,
             v: permitData.v,
             r: permitData.r,
             s: permitData.s
         }) { } catch { }
 
-        _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount, pufEthUsed);
-        return pufEthUsed;
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
     }
 
     /**
      * @dev Internal function to process the purchase of Validator Tickets with pufETH
      * @param recipient The address to receive the minted VTs
      * @param vtAmount The amount of Validator Tickets to purchase
-     * @param pufEthUsed The amount of pufETH used for the purchase
+     * @return pufEthUsed The amount of pufETH used for the purchase
      */
-    function _processPurchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount, uint256 pufEthUsed)
+    function _processPurchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
         internal
+        returns (uint256 pufEthUsed)
     {
         require(recipient != address(0), RecipientIsZeroAddress());
+
+        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
+
+        uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
+        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
 
         IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthUsed);
 
@@ -281,7 +274,7 @@ contract ValidatorTicket is
         if (PUFFER_ORACLE.isOverBurstThreshold()) {
             IERC20(PUFFER_VAULT).transfer(TREASURY, pufEthUsed);
             emit DispersedPufETH({ treasury: pufEthUsed, guardians: 0, burned: 0 });
-            return;
+            return pufEthUsed;
         }
 
         ValidatorTicket storage $ = _getValidatorTicketStorage();
@@ -293,6 +286,8 @@ contract ValidatorTicket is
         PufferVaultV3(PUFFER_VAULT).burn(burnAmount);
 
         emit DispersedPufETH({ treasury: treasuryAmount, guardians: guardiansAmount, burned: burnAmount });
+
+        return pufEthUsed;
     }
 
     /**
