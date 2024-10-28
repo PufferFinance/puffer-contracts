@@ -298,15 +298,14 @@ contract ValidatorTicketTest is UnitTestHelper {
 
     function test_revert_zero_recipient() public {
         uint256 vtAmount = 10 ether;
-        
+
         vm.expectRevert(IValidatorTicket.RecipientIsZeroAddress.selector);
         validatorTicket.purchaseValidatorTicketWithPufETH(address(0), vtAmount);
-        
+
         Permit memory permit = _signPermit(
-            _testTemps("charlie", address(validatorTicket), vtAmount, block.timestamp),
-            pufferVault.DOMAIN_SEPARATOR()
+            _testTemps("charlie", address(validatorTicket), vtAmount, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
         );
-        
+
         vm.expectRevert(IValidatorTicket.RecipientIsZeroAddress.selector);
         validatorTicket.purchaseValidatorTicketWithPufETHAndPermit(address(0), vtAmount, permit);
     }
