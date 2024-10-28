@@ -213,70 +213,82 @@ contract ValidatorTicket is
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 
     /**
-     * @notice Purchases Validator Tickets with pufETH
-     * @param recipient The address to receive the minted VTs
-     * @param pufEthAmount The amount of pufETH to spend
-     * @return mintedAmount The amount of VTs minted
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function purchaseValidatorTicketWithPufETH(address recipient, uint256 pufEthAmount)
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
         external
         virtual
         restricted
-        returns (uint256 mintedAmount)
+        returns (uint256 pufEthUsed)
     {
-        return _processPurchaseValidatorTicketWithPufETH(recipient, pufEthAmount);
-    }
-
-    /**
-     * @notice Purchases Validator Tickets with pufETH using permit
-     * @param recipient The address to receive the minted VTs
-     * @param permitData The permit data for the pufETH transfer
-     * @return mintedAmount The amount of VTs minted
-     */
-    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, Permit calldata permitData)
-        external
-        virtual
-        restricted
-        returns (uint256 mintedAmount)
-    {
-        try IERC20Permit(PUFFER_VAULT).permit(
-            msg.sender, address(this), permitData.amount, permitData.deadline, permitData.v, permitData.r, permitData.s
-        ) { } catch { }
-
-        return _processPurchaseValidatorTicketWithPufETH(recipient, permitData.amount);
-    }
-
-    /**
-     * @dev Processes the purchase of Validator Tickets with pufETH
-     * @param recipient The address to receive the minted VTs
-     * @param pufEthAmount The amount of pufETH to spend
-     * @return mintedAmount The amount of VTs minted
-     */
-    function _processPurchaseValidatorTicketWithPufETH(address recipient, uint256 pufEthAmount)
-        private
-        returns (uint256 mintedAmount)
-    {
-        IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthAmount);
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
 
         uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
-        uint256 expectedETHAmount = pufEthAmount * pufETHToETHExchangeRate / 1 ether;
+        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
 
+        _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount, pufEthUsed);
+        return pufEthUsed;
+    }
+
+    /**
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        virtual
+        restricted
+        returns (uint256 pufEthUsed)
+    {
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-        mintedAmount = (expectedETHAmount * 1 ether) / mintPrice; // * 1 ether is to upscale amount to 18 decimals
+        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
 
-        _mint(recipient, mintedAmount);
+        uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
+        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
+
+        try IERC20Permit(address(PUFFER_VAULT)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: pufEthUsed,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            r: permitData.r,
+            s: permitData.s
+        }) { } catch { }
+
+        _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount, pufEthUsed);
+        return pufEthUsed;
+    }
+
+    /**
+     * @dev Internal function to process the purchase of Validator Tickets with pufETH
+     * @param recipient The address to receive the minted VTs
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @param pufEthUsed The amount of pufETH used for the purchase
+     */
+    function _processPurchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount, uint256 pufEthUsed)
+        internal
+    {
+        require(recipient != address(0), RecipientIsZeroAddress());
+
+        IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthUsed);
+
+        _mint(recipient, vtAmount);
 
         // If we are over the burst threshold, send everything to the treasury
         if (PUFFER_ORACLE.isOverBurstThreshold()) {
-            IERC20(PUFFER_VAULT).transfer(TREASURY, pufEthAmount);
-            emit DispersedPufETH({ treasury: pufEthAmount, guardians: 0, burned: 0 });
-            return mintedAmount;
+            IERC20(PUFFER_VAULT).transfer(TREASURY, pufEthUsed);
+            emit DispersedPufETH({ treasury: pufEthUsed, guardians: 0, burned: 0 });
+            return;
         }
 
-        uint256 treasuryAmount = _sendPufETH(TREASURY, pufEthAmount, $.protocolFeeRate);
-        uint256 guardiansAmount = _sendPufETH(GUARDIAN_MODULE, pufEthAmount, $.guardiansFeeRate);
-        uint256 burnAmount = pufEthAmount - (treasuryAmount + guardiansAmount);
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+
+        uint256 treasuryAmount = _sendPufETH(TREASURY, pufEthUsed, $.protocolFeeRate);
+        uint256 guardiansAmount = _sendPufETH(GUARDIAN_MODULE, pufEthUsed, $.guardiansFeeRate);
+        uint256 burnAmount = pufEthUsed - (treasuryAmount + guardiansAmount);
 
         PufferVaultV3(PUFFER_VAULT).burn(burnAmount);
 

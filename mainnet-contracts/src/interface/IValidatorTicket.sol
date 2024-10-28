@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferOracle } from "../interface/IPufferOracle.sol";
+import { Permit } from "../structs/Permit.sol";
 
 /**
  * @title IValidatorTicket
@@ -19,6 +20,11 @@ interface IValidatorTicket {
      * @dev Signature "0x5cb045db"
      */
     error InvalidData();
+
+    /**
+     * @dev Thrown when the recipient address is zero
+     */
+    error RecipientIsZeroAddress();
 
     /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
@@ -60,10 +66,23 @@ interface IValidatorTicket {
     /**
      * @notice Purchases Validator Tickets with pufETH
      * @param recipient The address to receive the minted VTs
-     * @param pufEthAmount The amount of pufETH to spend
-     * @return mintedAmount The amount of VTs minted
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @return pufEthUsed The amount of pufETH used for the purchase
      */
-    function purchaseValidatorTicketWithPufETH(address recipient, uint256 pufEthAmount) external returns (uint256);
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
+        external
+        returns (uint256 pufEthUsed);
+
+    /**
+     * @notice Purchases Validator Tickets with pufETH using permit
+     * @param recipient The address to receive the minted VTs
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @param permitData The permit data for the pufETH transfer
+     * @return pufEthUsed The amount of pufETH used for the purchase
+     */
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        returns (uint256 pufEthUsed);
 
     /**
      * @notice Retrieves the current guardians fee rate
