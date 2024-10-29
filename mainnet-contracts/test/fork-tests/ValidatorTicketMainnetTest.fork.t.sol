@@ -21,13 +21,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     address david = makeAddr("david");
     address edward = makeAddr("edward");
 
-    address[] TOKEN_HOLDERS = [
-        alice,
-        bob,
-        charlie,
-        david,
-        edward
-    ];
+    address[] TOKEN_HOLDERS = [alice, bob, charlie, david, edward];
 
     ValidatorTicket public validatorTicket;
     uint256 public constant INITIAL_PROTOCOL_FEE = 200; // 2%
@@ -57,7 +51,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         vm.stopPrank();
     }
 
-     function test_initial_state() public {
+    function test_initial_state() public {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), INITIAL_PROTOCOL_FEE);
@@ -69,9 +63,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
 
         // Check if the new function exists
         bytes4 functionSelector = bytes4(keccak256("purchaseValidatorTicketWithPufETH(address,uint256)"));
-        (bool success,) = address(validatorTicket).staticcall(
-            abi.encodeWithSelector(functionSelector, address(0), 0)
-        );
+        (bool success,) = address(validatorTicket).staticcall(abi.encodeWithSelector(functionSelector, address(0), 0));
         assertTrue(success, "purchaseValidatorTicketWithPufETH function should exist");
     }
 
@@ -81,10 +73,11 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
 
         uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
         uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
-        uint256 expectedPufEthUsed = PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
+        uint256 expectedPufEthUsed =
+            PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
 
         // Give whale some pufETH
-        deal(address(validatorTicket.PUFFER_VAULT()), recipient, expectedPufEthUsed*2);
+        deal(address(validatorTicket.PUFFER_VAULT()), recipient, expectedPufEthUsed * 2);
 
         vm.startPrank(recipient);
         IERC20(validatorTicket.PUFFER_VAULT()).approve(address(validatorTicket), expectedPufEthUsed);
@@ -142,7 +135,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
 
     function test_dao_fee_rate_changes() public {
         vm.startPrank(_getDAO());
-        
+
         // Test protocol fee rate change
         vm.expectEmit(true, true, true, true);
         emit IValidatorTicket.ProtocolFeeChanged(INITIAL_PROTOCOL_FEE, 800);
@@ -158,18 +151,17 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         vm.stopPrank();
     }
 
-      function test_purchase_validator_ticket_with_eth() public {
+    function test_purchase_validator_ticket_with_eth() public {
         uint256 amount = 10 ether;
         address recipient = alice;
-        
+
         // Get initial balances
-        (uint256 initialTreasuryBalance, uint256 initialGuardianBalance, uint256 initialVaultBalance) = 
-            _getBalances();
+        (uint256 initialTreasuryBalance, uint256 initialGuardianBalance, uint256 initialVaultBalance) = _getBalances();
 
         // Purchase VTs
         vm.deal(recipient, amount);
         vm.prank(recipient);
-        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{value: amount}(recipient);
+        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(recipient);
 
         // Verify minted amount
         uint256 expectedVTAmount = _calculateExpectedVTs(amount);
@@ -177,12 +169,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertEq(validatorTicket.balanceOf(recipient), expectedVTAmount, "VT balance should match expected");
 
         // Verify fee distributions
-        _verifyFeeDistribution(
-            amount,
-            initialTreasuryBalance,
-            initialGuardianBalance,
-            initialVaultBalance
-        );
+        _verifyFeeDistribution(amount, initialTreasuryBalance, initialGuardianBalance, initialVaultBalance);
     }
 
     function _getBalances() internal view returns (uint256, uint256, uint256) {
@@ -212,21 +199,11 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 guardianAmount = amount.mulDiv(INITIAL_GUARDIANS_FEE, 10000, Math.Rounding.Ceil);
         uint256 vaultAmount = amount - treasuryAmount - guardianAmount;
 
+        assertEq(treasury.balance - initialTreasuryBalance, treasuryAmount, "Treasury should receive correct fee");
         assertEq(
-            treasury.balance - initialTreasuryBalance,
-            treasuryAmount,
-            "Treasury should receive correct fee"
+            guardianModule.balance - initialGuardianBalance, guardianAmount, "Guardians should receive correct fee"
         );
-        assertEq(
-            guardianModule.balance - initialGuardianBalance,
-            guardianAmount,
-            "Guardians should receive correct fee"
-        );
-        assertEq(
-            vault.balance - initialVaultBalance,
-            vaultAmount,
-            "Vault should receive remaining amount"
-        );
+        assertEq(vault.balance - initialVaultBalance, vaultAmount, "Vault should receive remaining amount");
     }
 
     function test_purchase_validator_ticket_with_eth_over_burst_threshold() public {
@@ -246,7 +223,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         // Purchase VTs
         vm.deal(recipient, amount);
         vm.prank(recipient);
-        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{value: amount}(recipient);
+        uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(recipient);
 
         // Verify minted amount
         uint256 expectedVTAmount = _calculateExpectedVTs(amount);
