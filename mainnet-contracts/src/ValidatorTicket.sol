@@ -16,7 +16,6 @@ import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { IPufferVault } from "./interface/IPufferVault.sol";
 import { Permit } from "./structs/Permit.sol";
 
 /**
