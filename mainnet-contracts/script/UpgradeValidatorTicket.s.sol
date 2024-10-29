@@ -50,6 +50,13 @@ contract UpgradeValidatorTicket is DeployerHelper {
             (bool success,) = address(_getAccessManager()).call(encodedCalldata);
             console.log("AccessManager.call success", success);
             require(success, "AccessManager.call failed");
+
+            // Check if purchaseValidatorTicketWithPufETH function exists after upgrade
+            (bool functionExists,) = address(validatorTicket).call(
+                abi.encodeWithSignature("purchaseValidatorTicketWithPufETH(address,uint256)")
+            );
+            console.log("purchaseValidatorTicketWithPufETH function exists:", functionExists);
+            require(functionExists, "purchaseValidatorTicketWithPufETH function does not exist after upgrade");
         }
 
         vm.stopBroadcast();
