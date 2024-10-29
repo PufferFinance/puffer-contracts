@@ -95,8 +95,10 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         uint128 totalAmount = 0;
         Deposit[] storage userDeposits = $.deposits[msg.sender][token];
 
+        // nosemgrep array-length-outside-loop
         for (uint256 i = 0; i < depositIndexes.length; ++i) {
             uint256 index = depositIndexes[i];
+            // nosemgrep array-length-outside-loop
             if (index >= userDeposits.length) {
                 revert InvalidDepositIndex();
             }
@@ -161,6 +163,7 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         }
 
         uint256 end = start + limit > totalDeposits ? totalDeposits : start + limit;
+        // nosemgrep basic-arithmetic-underflow
         uint256 count = end - start;
 
         depositPage = new Deposit[](count);

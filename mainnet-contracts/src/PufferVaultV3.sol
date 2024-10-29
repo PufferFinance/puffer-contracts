@@ -30,6 +30,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @param eigenStrategyManager Address of the EigenLayer strategy manager contract.
      * @param oracle Address of the PufferOracle contract.
      * @param delegationManager Address of the delegation manager contract.
+     * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(
         IStETH stETH,
@@ -117,6 +118,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         VaultStorage storage $ = _getPufferVaultStorage();
 
         uint256 previousMintAmount = $.totalRewardMintAmount;
+        // nosemgrep basic-arithmetic-underflow
         uint256 newMintAmount = previousMintAmount - ethAmount;
         $.totalRewardMintAmount = newMintAmount;
 
