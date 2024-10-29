@@ -47,8 +47,9 @@ contract ValidatorTicketTest is UnitTestHelper {
         burnerSelectors[0] = PufferVaultV2.burn.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), burnerSelectors, ROLE_ID_PUFETH_BURNER);
 
-        bytes4[] memory validatorTicketPublicSelectors = new bytes4[](1);
+        bytes4[] memory validatorTicketPublicSelectors = new bytes4[](3);
         validatorTicketPublicSelectors[0] = IValidatorTicket.purchaseValidatorTicketWithPufETH.selector;
+        validatorTicketPublicSelectors[1] = IValidatorTicket.purchaseValidatorTicketWithPufETHAndPermit.selector;
 
         accessManager.setTargetFunctionRole(address(validatorTicket), validatorTicketPublicSelectors, PUBLIC_ROLE);
         accessManager.grantRole(ROLE_ID_PUFETH_BURNER, address(validatorTicket), 0);
