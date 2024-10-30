@@ -6,6 +6,9 @@ import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 import { GenerateValidatorTicketCalldata } from "./AccessManagerMigrations/05_GenerateValidatorTicketCalldata.s.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * forge script script/UpgradeValidatorTicket.s.sol:UpgradeValidatorTicket --rpc-url=$RPC_URL --private-key $PK
@@ -13,7 +16,8 @@ import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
  */
 contract UpgradeValidatorTicket is DeployerHelper {
     ValidatorTicket public validatorTicket;
-    bytes public encodedCalldata;
+    bytes public upgradeCallData;
+    bytes public accessManagerCallData;
 
     function run() public {
         GenerateValidatorTicketCalldata calldataGenerator = new GenerateValidatorTicketCalldata();
@@ -32,33 +36,29 @@ contract UpgradeValidatorTicket is DeployerHelper {
         vm.label(address(validatorTicket), "ValidatorTicketProxy");
         vm.label(address(validatorTicketImpl), "ValidatorTicketImplementation");
 
-        // Upgrade proxy
-        _consoleLogOrUpgradeUUPS({
-            proxyTarget: _getValidatorTicket(),
-            implementation: address(validatorTicketImpl),
-            data: "",
-            contractName: "ValidatorTicketImplementation"
-        });
-
-        encodedCalldata = calldataGenerator.run(address(validatorTicket));
+        // Upgrade on mainnet
+        upgradeCallData = abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(validatorTicketImpl), ""));
+        console.log("Queue TX From Timelock to -> ValidatorTicketProxy", _getValidatorTicket());
+        console.logBytes(upgradeCallData);
+        console.log("================================================");
+        accessManagerCallData = calldataGenerator.run(address(validatorTicket));
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
-        console.logBytes(encodedCalldata);
+        console.logBytes(accessManagerCallData);
 
-        // If on testnet, execute the access control changes directly
+        // If on testnet, upgrade and execute access control changes directly
         if (block.chainid == holesky) {
-            (bool success,) = address(_getAccessManager()).call(encodedCalldata);
+            // upgrade to implementation
+            AccessManager(_getAccessManager()).execute(
+                address(validatorTicket),
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(validatorTicketImpl), ""))
+            );
+
+            // execute access control changes
+            (bool success,) = address(_getAccessManager()).call(accessManagerCallData);
             console.log("AccessManager.call success", success);
             require(success, "AccessManager.call failed");
-
-            // Check if purchaseValidatorTicketWithPufETH function exists after upgrade
-            (bool functionExists,) = address(validatorTicket).call(
-                abi.encodeWithSignature("purchaseValidatorTicketWithPufETH(address,uint256)")
-            );
-            console.log("purchaseValidatorTicketWithPufETH function exists:", functionExists);
-            require(functionExists, "purchaseValidatorTicketWithPufETH function does not exist after upgrade");
         }
-
         vm.stopBroadcast();
     }
 }

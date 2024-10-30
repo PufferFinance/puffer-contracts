@@ -15,38 +15,36 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     using Math for uint256;
 
-    address alice = makeAddr("alice");
-    address bob = makeAddr("bob");
-    address charlie = makeAddr("charlie");
-    address david = makeAddr("david");
-    address edward = makeAddr("edward");
-
-    address[] TOKEN_HOLDERS = [alice, bob, charlie, david, edward];
+    address[] TOKEN_HOLDERS = [alice, bob, charlie, dave, eve];
 
     ValidatorTicket public validatorTicket;
     uint256 public constant INITIAL_PROTOCOL_FEE = 200; // 2%
     uint256 public constant INITIAL_GUARDIANS_FEE = 50; // 0.5%
 
     function setUp() public override {
-        vm.createSelectFork(vm.rpcUrl("mainnet")); // Same block as WithdrawalManager test
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 19271279);
 
         // Label accounts for better trace output
         for (uint256 i = 0; i < TOKEN_HOLDERS.length; i++) {
-            string memory name = i == 0 ? "alice" : i == 1 ? "bob" : i == 2 ? "charlie" : i == 3 ? "david" : "edward";
+            string memory name = i == 0 ? "alice" : i == 1 ? "bob" : i == 2 ? "charlie" : i == 3 ? "dave" : "eve";
             vm.label(TOKEN_HOLDERS[i], name);
         }
 
         // Setup contracts that are deployed to mainnet
         _setupLiveContracts();
 
-        // Deploy new implementation and upgrade through timelock
+        // Deploy new implementation and get upgrade call data
         UpgradeValidatorTicket upgradeScript = new UpgradeValidatorTicket();
         upgradeScript.run();
         validatorTicket = upgradeScript.validatorTicket();
+        bytes memory upgradeCallData = upgradeScript.upgradeCallData();
+        bytes memory accessManagerCallData = upgradeScript.accessManagerCallData();
 
-        // Execute access control changes through timelock
+        // Upgrade validator ticket through timelock and execute access control changes
         vm.startPrank(_getTimelock());
-        (bool success,) = address(_getAccessManager()).call(upgradeScript.encodedCalldata());
+        (bool success,) = address(validatorTicket).call(upgradeCallData);
+        require(success, "Upgrade.call failed");
+        (success,) = address(_getAccessManager()).call(accessManagerCallData);
         require(success, "AccessManager.call failed");
         vm.stopPrank();
     }
@@ -60,11 +58,6 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0));
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0));
         assertTrue(validatorTicket.TREASURY() != address(0));
-
-        // Check if the new function exists
-        bytes4 functionSelector = bytes4(keccak256("purchaseValidatorTicketWithPufETH(address,uint256)"));
-        (bool success,) = address(validatorTicket).staticcall(abi.encodeWithSelector(functionSelector, address(0), 0));
-        assertTrue(success, "purchaseValidatorTicketWithPufETH function should exist");
     }
 
     function test_purchase_validator_ticket_with_pufeth() public {
@@ -89,49 +82,49 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertEq(validatorTicket.balanceOf(recipient), vtAmount, "VT balance should match requested amount");
     }
 
-    // function test_funds_splitting_with_pufeth() public {
-    //     uint256 vtAmount = 2000 ether;
-    //     address recipient = PUFFER_WHALE_1;
-    //     address treasury = validatorTicket.TREASURY();
-    //     address guardianModule = validatorTicket.GUARDIAN_MODULE();
+    function test_funds_splitting_with_pufeth() public {
+        uint256 vtAmount = 2000 ether;
+        address recipient = dave;
+        address treasury = validatorTicket.TREASURY();
+        address guardianModule = validatorTicket.GUARDIAN_MODULE();
 
-    //     uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
-    //     uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
-    //     uint256 pufEthAmount = PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
+        uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
+        uint256 pufEthAmount = PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
 
-    //     deal(address(validatorTicket.PUFFER_VAULT()), recipient, pufEthAmount);
+        deal(address(validatorTicket.PUFFER_VAULT()), recipient, pufEthAmount);
 
-    //     uint256 initialTreasuryBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(treasury);
-    //     uint256 initialGuardianBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule);
-    //     uint256 initialBurnedAmount = IERC20(validatorTicket.PUFFER_VAULT()).totalSupply();
+        uint256 initialTreasuryBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(treasury);
+        uint256 initialGuardianBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule);
+        uint256 initialBurnedAmount = IERC20(validatorTicket.PUFFER_VAULT()).totalSupply();
 
-    //     vm.startPrank(recipient);
-    //     IERC20(validatorTicket.PUFFER_VAULT()).approve(address(validatorTicket), pufEthAmount);
-    //     uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETH(recipient, vtAmount);
-    //     vm.stopPrank();
+        vm.startPrank(recipient);
+        IERC20(validatorTicket.PUFFER_VAULT()).approve(address(validatorTicket), pufEthAmount);
+        uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETH(recipient, vtAmount);
+        vm.stopPrank();
 
-    //     uint256 expectedTreasuryAmount = pufEthAmount.mulDiv(INITIAL_PROTOCOL_FEE, 10000, Math.Rounding.Ceil);
-    //     uint256 expectedGuardianAmount = pufEthAmount.mulDiv(INITIAL_GUARDIANS_FEE, 10000, Math.Rounding.Ceil);
-    //     uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedGuardianAmount;
+        uint256 expectedTreasuryAmount = pufEthAmount.mulDiv(INITIAL_PROTOCOL_FEE, 10000, Math.Rounding.Ceil);
+        uint256 expectedGuardianAmount = pufEthAmount.mulDiv(INITIAL_GUARDIANS_FEE, 10000, Math.Rounding.Ceil);
+        uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedGuardianAmount;
 
-    //     assertEq(pufEthUsed, pufEthAmount, "PufETH used should match expected");
-    //     assertEq(validatorTicket.balanceOf(recipient), vtAmount, "Should mint requested VTs");
-    //     assertEq(
-    //         IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(treasury) - initialTreasuryBalance,
-    //         expectedTreasuryAmount,
-    //         "Treasury should receive 5% of pufETH"
-    //     );
-    //     assertEq(
-    //         IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule) - initialGuardianBalance,
-    //         expectedGuardianAmount,
-    //         "Guardians should receive 0.5% of pufETH"
-    //     );
-    //     assertEq(
-    //         initialBurnedAmount - IERC20(validatorTicket.PUFFER_VAULT()).totalSupply(),
-    //         expectedBurnAmount,
-    //         "Remaining pufETH should be burned"
-    //     );
-    // }
+        assertEq(pufEthUsed, pufEthAmount, "PufETH used should match expected");
+        assertEq(validatorTicket.balanceOf(recipient), vtAmount, "Should mint requested VTs");
+        assertEq(
+            IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(treasury) - initialTreasuryBalance,
+            expectedTreasuryAmount,
+            "Treasury should receive 5% of pufETH"
+        );
+        assertEq(
+            IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule) - initialGuardianBalance,
+            expectedGuardianAmount,
+            "Guardians should receive 0.5% of pufETH"
+        );
+        assertEq(
+            initialBurnedAmount - IERC20(validatorTicket.PUFFER_VAULT()).totalSupply(),
+            expectedBurnAmount,
+            "Remaining pufETH should be burned"
+        );
+    }
 
     function test_dao_fee_rate_changes() public {
         vm.startPrank(_getDAO());
