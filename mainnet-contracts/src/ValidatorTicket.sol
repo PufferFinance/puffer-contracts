@@ -16,7 +16,6 @@ import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { IPufferVault } from "./interface/IPufferVault.sol";
 import { Permit } from "./structs/Permit.sol";
 
 /**
@@ -132,6 +131,42 @@ contract ValidatorTicket is
     }
 
     /**
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
+        external
+        virtual
+        restricted
+        returns (uint256)
+    {
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
+    }
+
+    /**
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        virtual
+        restricted
+        returns (uint256)
+    {
+        try IERC20Permit(address(PUFFER_VAULT)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            r: permitData.r,
+            s: permitData.s
+        }) { } catch { }
+
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
+    }
+
+    /**
      * @notice Burns `amount` from the transaction sender
      * @dev Restricted to the PufferProtocol
      */
@@ -213,42 +248,6 @@ contract ValidatorTicket is
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 
     /**
-     * @inheritdoc IValidatorTicket
-     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
-     */
-    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
-        external
-        virtual
-        restricted
-        returns (uint256)
-    {
-        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
-    }
-
-    /**
-     * @inheritdoc IValidatorTicket
-     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
-     */
-    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
-        external
-        virtual
-        restricted
-        returns (uint256)
-    {
-        try IERC20Permit(address(PUFFER_VAULT)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            r: permitData.r,
-            s: permitData.s
-        }) { } catch { }
-
-        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
-    }
-
-    /**
      * @dev Internal function to process the purchase of Validator Tickets with pufETH
      * @param recipient The address to receive the minted VTs
      * @param vtAmount The amount of Validator Tickets to purchase
@@ -261,10 +260,10 @@ contract ValidatorTicket is
         require(recipient != address(0), RecipientIsZeroAddress());
 
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * mintPrice / 1 ether;
 
-        uint256 pufETHToETHExchangeRate = PufferVaultV3(PUFFER_VAULT).convertToAssets(1 ether);
-        pufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
+        uint256 requiredETH = vtAmount.mulDiv(mintPrice, 1 ether, Math.Rounding.Ceil);
+
+        pufEthUsed = PufferVaultV3(PUFFER_VAULT).convertToSharesUp(requiredETH);
 
         IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthUsed);
 

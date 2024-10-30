@@ -15,6 +15,7 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER, ROLE_ID_VAULT_WITHDRAWER } from "../../script/Roles.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import "forge-std/console.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
@@ -23,6 +24,7 @@ contract ValidatorTicketTest is UnitTestHelper {
     using ECDSA for bytes32;
     using Address for address;
     using Address for address payable;
+    using Math for uint256;
 
     address[] public actors;
 
@@ -45,8 +47,9 @@ contract ValidatorTicketTest is UnitTestHelper {
         burnerSelectors[0] = PufferVaultV2.burn.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), burnerSelectors, ROLE_ID_PUFETH_BURNER);
 
-        bytes4[] memory validatorTicketPublicSelectors = new bytes4[](1);
+        bytes4[] memory validatorTicketPublicSelectors = new bytes4[](3);
         validatorTicketPublicSelectors[0] = IValidatorTicket.purchaseValidatorTicketWithPufETH.selector;
+        validatorTicketPublicSelectors[1] = IValidatorTicket.purchaseValidatorTicketWithPufETHAndPermit.selector;
 
         accessManager.setTargetFunctionRole(address(validatorTicket), validatorTicketPublicSelectors, PUBLIC_ROLE);
         accessManager.grantRole(ROLE_ID_PUFETH_BURNER, address(validatorTicket), 0);
@@ -167,10 +170,9 @@ contract ValidatorTicketTest is UnitTestHelper {
         address recipient = actors[0];
 
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * vtPrice / 1 ether;
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
 
-        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
-        uint256 expectedPufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
+        uint256 expectedPufEthUsed = pufferVault.convertToSharesUp(requiredETH);
 
         _givePufETH(expectedPufEthUsed, recipient);
 
@@ -197,11 +199,11 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertGt(exchangeRate, 1 ether, "Now exchange rate should be greater than 1");
 
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * vtPrice / 1 ether;
-        uint256 pufEthAmount = (requiredETH * 1 ether) / exchangeRate;
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
 
-        // @todo: failing balance if pufEthAmount is topped-up? why?
-        _givePufETH(pufEthAmount * 2, recipient);
+        uint256 pufEthAmount = pufferVault.convertToSharesUp(requiredETH);
+
+        _givePufETH(pufEthAmount, recipient);
 
         vm.startPrank(recipient);
         pufferVault.approve(address(validatorTicket), pufEthAmount);
@@ -237,14 +239,8 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(recipient), vtAmount, "VT balance should match requested amount");
     }
 
-    function _givePufETH(uint256 ethAmount, address recipient) internal returns (uint256) {
-        vm.deal(address(this), ethAmount);
-
-        vm.startPrank(address(this));
-        uint256 pufETHAmount = pufferVault.depositETH{ value: ethAmount }(recipient);
-        vm.stopPrank();
-
-        return pufETHAmount;
+    function _givePufETH(uint256 pufEthAmount, address recipient) internal {
+        deal(address(pufferVault), recipient, pufEthAmount);
     }
 
     function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
@@ -258,10 +254,9 @@ contract ValidatorTicketTest is UnitTestHelper {
         address treasury = validatorTicket.TREASURY();
 
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * vtPrice / 1 ether;
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
 
-        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
-        uint256 pufEthAmount = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
+        uint256 pufEthAmount = pufferVault.convertToSharesUp(requiredETH);
 
         _givePufETH(pufEthAmount, recipient);
 
@@ -277,8 +272,8 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(pufEthUsed, pufEthAmount, "PufETH used should match expected");
         assertEq(validatorTicket.balanceOf(recipient), vtAmount, "Should mint requested VTs");
 
-        uint256 expectedTreasuryAmount = (pufEthAmount * 500) / 10000; // 5% to treasury
-        uint256 expectedGuardianAmount = (pufEthAmount * 50) / 10000; // 0.5% to guardians
+        uint256 expectedTreasuryAmount = pufEthAmount.mulDiv(500, 10000, Math.Rounding.Ceil); // 5% to treasury
+        uint256 expectedGuardianAmount = pufEthAmount.mulDiv(50, 10000, Math.Rounding.Ceil); // 0.5% to guardians
         uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedGuardianAmount;
 
         assertEq(
