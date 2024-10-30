@@ -22,7 +22,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     uint256 public constant INITIAL_GUARDIANS_FEE = 50; // 0.5%
 
     function setUp() public override {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 19271279);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21074115);
 
         // Label accounts for better trace output
         for (uint256 i = 0; i < TOKEN_HOLDERS.length; i++) {
