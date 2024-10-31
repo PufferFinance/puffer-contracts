@@ -109,28 +109,15 @@ contract DeployEverything is BaseScript {
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
             vault: address(puffETHDeployment.pufferVault),
-            weth: address(puffETHDeployment.weth),
-            treasury: makeAddr("Treasury")
+            weth: address(puffETHDeployment.weth)
         });
-
-        address[] memory operatorsAddresses = new address[](7);
-        operatorsAddresses[0] = makeAddr("RNO1");
-        operatorsAddresses[1] = makeAddr("RNO2");
-        operatorsAddresses[2] = makeAddr("RNO3");
-        operatorsAddresses[3] = makeAddr("RNO4");
-        operatorsAddresses[4] = makeAddr("RNO5");
-        operatorsAddresses[5] = makeAddr("RNO6");
-        operatorsAddresses[6] = makeAddr("RNO7");
 
         PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
             (
                 payable(
                     new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
                         address(revenueDepositorImpl),
-                        abi.encodeCall(
-                            PufferRevenueDepositor.initialize,
-                            (address(puffETHDeployment.accessManager), operatorsAddresses)
-                        )
+                        abi.encodeCall(PufferRevenueDepositor.initialize, (address(puffETHDeployment.accessManager)))
                     )
                 )
             )

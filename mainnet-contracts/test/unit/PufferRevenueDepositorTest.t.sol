@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
-import { InvalidAddress } from "src/Errors.sol";
 
 /**
  * @title PufferRevenueDepositorTest
@@ -24,10 +23,6 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
     }
 
     function test_sanity() public view {
-        assertEq(revenueDepositor.getRnoRewardsBps(), 400, "RNO rewards bps should be 400");
-        assertEq(revenueDepositor.getTreasuryRewardsBps(), 500, "Treasury rewards bps should be 500");
-        assertEq(revenueDepositor.getRestakingOperators().length, 7, "Should have 7 restaking operators");
-        assertTrue(revenueDepositor.TREASURY() != address(0), "Treasury should not be 0");
         assertTrue(address(revenueDepositor.WETH()) != address(0), "WETH should not be 0");
         assertTrue(address(revenueDepositor.PUFFER_VAULT()) != address(0), "PufferVault should not be 0");
     }
@@ -68,20 +63,14 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
         vm.startPrank(OPERATIONS_MULTISIG);
 
-        vm.expectRevert(IPufferRevenueDepositor.NothingToDistribute.selector);
         revenueDepositor.depositRevenue();
 
-        vm.deal(address(revenueDepositor), 20); // 20 wei
-        revenueDepositor.depositRevenue();
-
-        // 1 wei went to the treasury
-        assertEq(revenueDepositor.getPendingDistributionAmount(), 19, "Pending distribution amount should be 19");
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 1, "Pending distribution amount should be 1");
 
         // After half of the distribution window, the pending distribution amount is half of the total amount
         vm.warp(block.timestamp + 12 hours);
 
-        // 19/2 = 9.5, rounded down to 9
-        assertEq(revenueDepositor.getPendingDistributionAmount(), 9, "Pending distribution amount should be 9");
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 0, "Pending distribution amount should be 0");
     }
 
     function test_distributeRewards() public withRewardsDistributionWindow(1 days) {
@@ -96,34 +85,23 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
         // 4 Wei precision loss
         // Right away, the pending distribution amount is the amount deposited to the Vault
-        assertApproxEqAbs(
-            revenueDepositor.getPendingDistributionAmount(),
-            91 ether,
-            4,
-            "Pending distribution amount should be the amount deposited"
+        assertEq(
+            revenueDepositor.getPendingDistributionAmount(), 100 ether, "Pending distribution amount should be 100 ETH"
         );
 
         assertEq(pufferVault.totalAssets(), totalAssetsBefore, "PufferVault should have the same total assets");
 
         vm.warp(block.timestamp + 1 days);
 
-        assertApproxEqAbs(
-            pufferVault.totalAssets(), totalAssetsBefore + 91 ether, 4, "PufferVault should have +91 ether assets"
-        );
+        assertEq(pufferVault.totalAssets(), totalAssetsBefore + 100 ether, "PufferVault should have +100 ether assets");
         // After the distribution window, the pending distribution amount is 0
-        assertApproxEqAbs(
-            revenueDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
-        );
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 0, "Pending distribution amount should be 0");
 
         vm.warp(block.timestamp + 10 days);
 
-        assertApproxEqAbs(
-            pufferVault.totalAssets(), totalAssetsBefore + 91 ether, 4, "PufferVault should have +91 ether assets"
-        );
+        assertEq(pufferVault.totalAssets(), totalAssetsBefore + 100 ether, "PufferVault should have +100 ether assets");
         // After the distribution window, the pending distribution amount is 0
-        assertApproxEqAbs(
-            revenueDepositor.getPendingDistributionAmount(), 0, 4, "Pending distribution amount should be 0"
-        );
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 0, "Pending distribution amount should be 0");
     }
 
     function testRevert_nothingToDistribute() public {
@@ -143,74 +121,6 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
         vm.expectRevert(IPufferRevenueDepositor.VaultHasUndepositedRewards.selector);
         revenueDepositor.depositRevenue();
-    }
-
-    function test_setRnoRewardsBps() public {
-        uint256 oldFeeBps = revenueDepositor.getRnoRewardsBps();
-        uint256 newFeeBps = 100;
-
-        vm.startPrank(DAO);
-        vm.expectEmit(true, true, true, true);
-        emit IPufferRevenueDepositor.RnoRewardsBpsChanged(oldFeeBps, newFeeBps);
-        revenueDepositor.setRnoRewardsBps(uint128(newFeeBps));
-    }
-
-    function test_setTreasuryRewardsBps() public {
-        uint256 oldFeeBps = revenueDepositor.getTreasuryRewardsBps();
-        uint256 newFeeBps = 100;
-
-        vm.startPrank(DAO);
-        vm.expectEmit(true, true, true, true);
-        emit IPufferRevenueDepositor.TreasuryRewardsBpsChanged(oldFeeBps, newFeeBps);
-        revenueDepositor.setTreasuryRewardsBps(uint128(newFeeBps));
-    }
-
-    function testRevert_setRnoRewardsBps_InvalidBps() public {
-        vm.startPrank(DAO);
-        vm.expectRevert(IPufferRevenueDepositor.InvalidBps.selector);
-        revenueDepositor.setRnoRewardsBps(uint128(1001));
-    }
-
-    function testRevert_setTreasuryRewardsBps_InvalidBps() public {
-        vm.startPrank(DAO);
-        vm.expectRevert(IPufferRevenueDepositor.InvalidBps.selector);
-        revenueDepositor.setTreasuryRewardsBps(uint128(2000));
-    }
-
-    function testRevert_removeRestakingOperator_NotOperator() public {
-        vm.startPrank(OPERATIONS_MULTISIG);
-        vm.expectRevert(IPufferRevenueDepositor.RestakingOperatorNotSet.selector);
-        revenueDepositor.removeRestakingOperator(address(1));
-    }
-
-    function testRevert_addRestakingOperators_InvalidOperatorZeroAddress() public {
-        vm.startPrank(OPERATIONS_MULTISIG);
-
-        address[] memory operators = new address[](1);
-        operators[0] = address(0);
-
-        vm.expectRevert(InvalidAddress.selector);
-        revenueDepositor.addRestakingOperators(operators);
-    }
-
-    function test_addAndRemoveRestakingOperator() public {
-        vm.startPrank(OPERATIONS_MULTISIG);
-
-        address newOperator = makeAddr("operator50");
-
-        address[] memory operators = new address[](1);
-        operators[0] = newOperator;
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferRevenueDepositor.RestakingOperatorAdded(operators[0]);
-        revenueDepositor.addRestakingOperators(operators);
-
-        vm.expectRevert(IPufferRevenueDepositor.RestakingOperatorAlreadySet.selector);
-        revenueDepositor.addRestakingOperators(operators);
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferRevenueDepositor.RestakingOperatorRemoved(newOperator);
-        revenueDepositor.removeRestakingOperator(newOperator);
     }
 
     function test_depositRestakingRewardsInstantly() public {
@@ -235,18 +145,6 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
             revenueDepositor.getLastDepositTimestamp(), 1, "Last deposit timestamp should be the current timestamp 1"
         );
 
-        // We have precision loss from the RNO rewards distribution, 4 wei is going to the Vault because of the rounding
-        assertApproxEqAbs(
-            pufferVault.totalAssets(), totalAssetsBefore + 91 ether, 4, "Total assets should be 91 ETH more"
-        );
-
-        assertEq(weth.balanceOf(address(revenueDepositor.TREASURY())), 5 ether, "Treasury should have 5 WETH");
-        assertEq(weth.balanceOf(RNO1), 0.571428571428571428 ether, "RNO1 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO2), 0.571428571428571428 ether, "RNO1 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO3), 0.571428571428571428 ether, "RNO3 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO4), 0.571428571428571428 ether, "RNO4 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO5), 0.571428571428571428 ether, "RNO5 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO6), 0.571428571428571428 ether, "RNO6 should have 0.571428571428571428 WETH");
-        assertEq(weth.balanceOf(RNO7), 0.571428571428571428 ether, "RNO7 should have 0.571428571428571428 WETH");
+        assertEq(pufferVault.totalAssets(), totalAssetsBefore + 100 ether, "Total assets should be 100 ETH more");
     }
 }
