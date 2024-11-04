@@ -10,9 +10,13 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicketStorage } from "./ValidatorTicketStorage.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { PufferVaultV3 } from "./PufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { Permit } from "./structs/Permit.sol";
 
 /**
  * @title ValidatorTicket
@@ -127,6 +131,42 @@ contract ValidatorTicket is
     }
 
     /**
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
+        external
+        virtual
+        restricted
+        returns (uint256)
+    {
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
+    }
+
+    /**
+     * @inheritdoc IValidatorTicket
+     * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
+     */
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        virtual
+        restricted
+        returns (uint256)
+    {
+        try IERC20Permit(address(PUFFER_VAULT)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            r: permitData.r,
+            s: permitData.s
+        }) { } catch { }
+
+        return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
+    }
+
+    /**
      * @notice Burns `amount` from the transaction sender
      * @dev Restricted to the PufferProtocol
      */
@@ -206,4 +246,61 @@ contract ValidatorTicket is
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+
+    /**
+     * @dev Internal function to process the purchase of Validator Tickets with pufETH
+     * @param recipient The address to receive the minted VTs
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @return pufEthUsed The amount of pufETH used for the purchase
+     */
+    function _processPurchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
+        internal
+        returns (uint256 pufEthUsed)
+    {
+        require(recipient != address(0), RecipientIsZeroAddress());
+
+        uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+
+        uint256 requiredETH = vtAmount.mulDiv(mintPrice, 1 ether, Math.Rounding.Ceil);
+
+        pufEthUsed = PufferVaultV3(PUFFER_VAULT).convertToSharesUp(requiredETH);
+
+        IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthUsed);
+
+        _mint(recipient, vtAmount);
+
+        // If we are over the burst threshold, send everything to the treasury
+        if (PUFFER_ORACLE.isOverBurstThreshold()) {
+            IERC20(PUFFER_VAULT).transfer(TREASURY, pufEthUsed);
+            emit DispersedPufETH({ treasury: pufEthUsed, guardians: 0, burned: 0 });
+            return pufEthUsed;
+        }
+
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+
+        uint256 treasuryAmount = _sendPufETH(TREASURY, pufEthUsed, $.protocolFeeRate);
+        uint256 guardiansAmount = _sendPufETH(GUARDIAN_MODULE, pufEthUsed, $.guardiansFeeRate);
+        uint256 burnAmount = pufEthUsed - (treasuryAmount + guardiansAmount);
+
+        PufferVaultV3(PUFFER_VAULT).burn(burnAmount);
+
+        emit DispersedPufETH({ treasury: treasuryAmount, guardians: guardiansAmount, burned: burnAmount });
+
+        return pufEthUsed;
+    }
+
+    /**
+     * @dev Calculates the amount of pufETH to send and sends it to the recipient
+     * @param to The recipient address
+     * @param amount The total amount of pufETH
+     * @param rate The fee rate in basis points
+     * @return toSend The amount of pufETH sent
+     */
+    function _sendPufETH(address to, uint256 amount, uint256 rate) internal virtual returns (uint256 toSend) {
+        toSend = amount.mulDiv(rate, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
+
+        if (toSend != 0) {
+            IERC20(PUFFER_VAULT).transfer(to, toSend);
+        }
+    }
 }
