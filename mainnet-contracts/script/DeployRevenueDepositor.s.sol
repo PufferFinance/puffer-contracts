@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { PufferRevenueDepositor } from "../src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { GenerateRevenueDepositorCalldata } from "./AccessManagerMigrations/05_GenerateRevenueDepositorCalldata.s.sol";
+import { GenerateRevenueDepositorCalldata } from "./AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 
 /**
  * forge script script/DeployRevenueDepositor.s.sol:DeployRevenueDepositor --rpc-url=$RPC_URL --private-key $PK

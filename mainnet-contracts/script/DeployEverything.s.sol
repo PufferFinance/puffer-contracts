@@ -14,7 +14,7 @@ import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } fro
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { GenerateRevenueDepositorCalldata } from
-    "script/AccessManagerMigrations/05_GenerateRevenueDepositorCalldata.s.sol";
+    "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
 /**
