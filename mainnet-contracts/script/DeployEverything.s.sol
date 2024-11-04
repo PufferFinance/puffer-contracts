@@ -14,7 +14,8 @@ import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } fro
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { GenerateRevenueDepositorCalldata } from
-    "script/AccessManagerMigrations/05_GenerateRevenueDepositorCalldata.s.sol";
+    "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
+import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -107,30 +108,20 @@ contract DeployEverything is BaseScript {
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        MockAeraVault mockAeraVault = new MockAeraVault();
+
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
             vault: address(puffETHDeployment.pufferVault),
             weth: address(puffETHDeployment.weth),
-            treasury: makeAddr("Treasury")
+            aeraVault: address(mockAeraVault)
         });
-
-        address[] memory operatorsAddresses = new address[](7);
-        operatorsAddresses[0] = makeAddr("RNO1");
-        operatorsAddresses[1] = makeAddr("RNO2");
-        operatorsAddresses[2] = makeAddr("RNO3");
-        operatorsAddresses[3] = makeAddr("RNO4");
-        operatorsAddresses[4] = makeAddr("RNO5");
-        operatorsAddresses[5] = makeAddr("RNO6");
-        operatorsAddresses[6] = makeAddr("RNO7");
 
         PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
             (
                 payable(
                     new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
                         address(revenueDepositorImpl),
-                        abi.encodeCall(
-                            PufferRevenueDepositor.initialize,
-                            (address(puffETHDeployment.accessManager), operatorsAddresses)
-                        )
+                        abi.encodeCall(PufferRevenueDepositor.initialize, (address(puffETHDeployment.accessManager)))
                     )
                 )
             )

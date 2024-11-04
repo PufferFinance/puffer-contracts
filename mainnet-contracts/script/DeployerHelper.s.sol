@@ -432,4 +432,31 @@ abstract contract DeployerHelper is Script {
 
         revert("OPSMultisig not available for this chain");
     }
+
+    function _getAeraVault() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8
+            return 0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8;
+        }
+
+        revert("AeraVault not available for this chain");
+    }
+
+    function _getAeraAssetRegistry() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xc71C52425969286dAAd647e4088394C572d64fd9
+            return 0xc71C52425969286dAAd647e4088394C572d64fd9;
+        }
+
+        revert("AeraAssetRegistry not available for this chain");
+    }
+
+    function _getAeraVaultHooks() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x933AD39feb35793B4d6B0A543db39b033Eb5D2C1
+            return 0x933AD39feb35793B4d6B0A543db39b033Eb5D2C1;
+        }
+
+        revert("AeraVaultHooks not available for this chain");
+    }
 }

@@ -9,8 +9,9 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferRevenueDepositorStorage } from "./PufferRevenueDepositorStorage.sol";
+import { IAeraVault, AssetValue } from "./interface/Other/IAeraVault.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
-import { InvalidAddress } from "./Errors.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title PufferRevenueDepositor
@@ -32,20 +33,15 @@ contract PufferRevenueDepositor is
     uint256 private constant _MAXIMUM_DISTRIBUTION_WINDOW = 7 days;
 
     /**
-     * @notice The basis point scale. (10000 bps = 100%)
-     */
-    uint256 private constant _BASIS_POINT_SCALE = 10000;
-
-    /**
-     * @notice The maximum rewards in basis points. (10% is the max rewards amount for treasury and RNO)
-     */
-    uint256 private constant _MAX_REWARDS_BPS = 1000;
-
-    /**
      * @notice PufferVault contract.
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     PufferVaultV4 public immutable PUFFER_VAULT;
+
+    /**
+     * @notice AeraVault contract.
+     */
+    IAeraVault public immutable AERA_VAULT;
 
     /**
      * @notice WETH contract.
@@ -54,34 +50,23 @@ contract PufferRevenueDepositor is
     IWETH public immutable WETH;
 
     /**
-     * @notice Treasury contract.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    address public immutable TREASURY;
-
-    /**
      * @param vault PufferVault contract
      * @param weth WETH contract
-     * @param treasury Puffer Treasury contract
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(address vault, address weth, address treasury) {
+    constructor(address vault, address weth, address aeraVault) {
         PUFFER_VAULT = PufferVaultV4(payable(vault));
+        AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
-        TREASURY = treasury;
         _disableInitializers();
     }
 
     /**
      * @notice Initialize the contract.
      * @param accessManager The address of the access manager.
-     * @param operatorsAddresses The addresses of the restaking operators.
      */
-    function initialize(address accessManager, address[] calldata operatorsAddresses) external initializer {
+    function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _addRestakingOperators(operatorsAddresses);
-        _setTreasuryRewardsBps(500); // 5%
-        _setRnoRewardsBps(400); // 4%
     }
 
     /**
@@ -121,39 +106,7 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
      */
     function depositRevenue() external restricted {
-        require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
-
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
-        $.lastDepositTimestamp = uint48(block.timestamp);
-
-        // Wrap any ETH sent to the contract
-        if (address(this).balance > 0) {
-            WETH.deposit{ value: address(this).balance }();
-        }
-        // nosemgrep tin-reentrant-dbl-diff-balance
-        uint256 rewardsAmount = WETH.balanceOf(address(this));
-
-        uint256 treasuryRewards = (rewardsAmount * $.treasuryRewardsBps) / _BASIS_POINT_SCALE;
-
-        require(treasuryRewards > 0, NothingToDistribute());
-        WETH.transfer(TREASURY, treasuryRewards);
-
-        uint256 rnoRewards = (rewardsAmount * $.rNORewardsBps) / _BASIS_POINT_SCALE;
-
-        // Distribute RNO rewards using push pattern because it is WETH and more convenient
-        uint256 operatorCount = $.restakingOperators.length();
-        uint256 rewardPerOperator = rnoRewards / operatorCount;
-
-        for (uint256 i = 0; i < operatorCount; ++i) {
-            WETH.transfer($.restakingOperators.at(i), rewardPerOperator);
-        }
-
-        // Deposit remaining rewards to the PufferVault
-        uint256 vaultRewards = WETH.balanceOf(address(this));
-        $.lastDepositAmount = uint104(vaultRewards);
-        WETH.transfer(address(PUFFER_VAULT), vaultRewards);
-
-        emit RevenueDeposited(vaultRewards);
+        _depositRevenue();
     }
 
     /**
@@ -162,30 +115,6 @@ contract PufferRevenueDepositor is
      */
     function getLastDepositTimestamp() public view returns (uint256) {
         return _getRevenueDepositorStorage().lastDepositTimestamp;
-    }
-
-    /**
-     * @notice Get restaking operators.
-     * @return The addresses of the restaking operators.
-     */
-    function getRestakingOperators() external view returns (address[] memory) {
-        return _getRevenueDepositorStorage().restakingOperators.values();
-    }
-
-    /**
-     * @notice Get the RNO rewards basis points.
-     * @return The RNO rewards in basis points.
-     */
-    function getRnoRewardsBps() external view returns (uint128) {
-        return _getRevenueDepositorStorage().rNORewardsBps;
-    }
-
-    /**
-     * @notice Get the treasury rewards basis points.
-     * @return The RNO rewards in basis points.
-     */
-    function getTreasuryRewardsBps() external view returns (uint128) {
-        return _getRevenueDepositorStorage().treasuryRewardsBps;
     }
 
     /**
@@ -203,72 +132,52 @@ contract PufferRevenueDepositor is
     }
 
     /**
-     * @notice Set the RNO rewards basis points.
-     * @dev Restricted access to `ROLE_ID_DAO`
-     * @param newBps The new RNO rewards in basis points.
+     * @notice Withdraw WETH from AeraVault and deposit into PufferVault.
+     * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
      */
-    function setRnoRewardsBps(uint128 newBps) external restricted {
-        _setRnoRewardsBps(newBps);
-    }
+    function withdrawAndDeposit() external restricted {
+        AssetValue[] memory assets = new AssetValue[](1);
 
-    function _setRnoRewardsBps(uint128 newBps) internal {
-        require(newBps <= _MAX_REWARDS_BPS, InvalidBps());
+        assets[0] = AssetValue({ asset: IERC20(address(WETH)), value: WETH.balanceOf(address(AERA_VAULT)) });
 
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
+        // Withdraw WETH to this contract
+        AERA_VAULT.withdraw(assets);
 
-        emit RnoRewardsBpsChanged($.rNORewardsBps, newBps);
-        $.rNORewardsBps = newBps;
+        _depositRevenue();
     }
 
     /**
-     * @notice Set the treasury rewards basis points.
-     * @dev Restricted access to `ROLE_ID_DAO`
-     * @param newBps The new treasury rewards in basis points.
-     */
-    function setTreasuryRewardsBps(uint128 newBps) external restricted {
-        _setTreasuryRewardsBps(newBps);
-    }
-
-    function _setTreasuryRewardsBps(uint128 newBps) internal {
-        require(newBps <= _MAX_REWARDS_BPS, InvalidBps());
-
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
-
-        emit TreasuryRewardsBpsChanged($.treasuryRewardsBps, newBps);
-        $.treasuryRewardsBps = newBps;
-    }
-
-    /**
-     * @notice Remove restaking operator.
+     * @notice Call multiple targets with the given data.
+     * @param targets The targets to call
+     * @param data The data to call the targets with
      * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
-     * @param operatorAddress The address of the restaking operator.
      */
-    function removeRestakingOperator(address operatorAddress) external restricted {
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
-
-        bool success = $.restakingOperators.remove(operatorAddress);
-        require(success, RestakingOperatorNotSet());
-        emit RestakingOperatorRemoved(operatorAddress);
-    }
-
-    /**
-     * @notice Add new restaking operators.
-     * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
-     * @param operatorsAddresses The addresses of the restaking operators.
-     */
-    function addRestakingOperators(address[] calldata operatorsAddresses) external restricted {
-        _addRestakingOperators(operatorsAddresses);
-    }
-
-    function _addRestakingOperators(address[] calldata operatorsAddresses) internal {
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
-
-        for (uint256 i = 0; i < operatorsAddresses.length; ++i) {
-            require(operatorsAddresses[i] != address(0), InvalidAddress());
-            bool success = $.restakingOperators.add(operatorsAddresses[i]);
-            require(success, RestakingOperatorAlreadySet());
-            emit RestakingOperatorAdded(operatorsAddresses[i]);
+    function callTargets(address[] calldata targets, bytes[] calldata data) external restricted {
+        for (uint256 i = 0; i < targets.length; ++i) {
+            // nosemgrep arbitrary-low-level-call
+            (bool success,) = targets[i].call(data[i]);
+            require(success, TargetCallFailed());
         }
+    }
+
+    function _depositRevenue() internal {
+        require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
+
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
+        $.lastDepositTimestamp = uint48(block.timestamp);
+
+        // Wrap any ETH sent to the contract
+        if (address(this).balance > 0) {
+            WETH.deposit{ value: address(this).balance }();
+        }
+        // nosemgrep tin-reentrant-dbl-diff-balance
+        uint256 rewardsAmount = WETH.balanceOf(address(this));
+        require(rewardsAmount > 0, NothingToDistribute());
+
+        $.lastDepositAmount = uint104(rewardsAmount);
+        WETH.transfer(address(PUFFER_VAULT), rewardsAmount);
+
+        emit RevenueDeposited(rewardsAmount);
     }
 
     /**
