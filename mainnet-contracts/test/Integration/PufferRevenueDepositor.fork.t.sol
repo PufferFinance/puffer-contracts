@@ -98,6 +98,37 @@ contract PufferRevenueDepositorForkTest is MainnetForkTestHelper {
         );
     }
 
+    function test_deposit_revenue() public {
+        vm.startPrank(_getOPSMultisig());
+
+        uint256 wethBalance = IERC20(_getWETH()).balanceOf(_getAeraVault());
+
+        AssetValue[] memory assets = new AssetValue[](1);
+        assets[0] = AssetValue({ asset: IERC20(_getWETH()), value: wethBalance });
+
+        bytes[] memory data = new bytes[](1);
+        data[0] = abi.encodeCall(IAeraVault(_getAeraVault()).withdraw, (assets));
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(_getAeraVault());
+
+        revenueDepositor.callTargets(targets, data);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferRevenueDepositor.RevenueDeposited(wethBalance);
+        revenueDepositor.depositRevenue();
+    }
+
+    function test_withdrawAndDeposit() public {
+        vm.startPrank(_getOPSMultisig());
+
+        uint256 wethBalance = IERC20(_getWETH()).balanceOf(_getAeraVault());
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferRevenueDepositor.RevenueDeposited(wethBalance);
+        revenueDepositor.withdrawAndDeposit();
+    }
+
     // Deposit revenue from Aera Vault to Puffer Vault
     function test_deposit_weth_to_puffer_vault() public {
         vm.startPrank(_getOPSMultisig());

@@ -21,7 +21,7 @@ contract DeployRevenueDepositor is DeployerHelper {
         vm.startBroadcast();
 
         PufferRevenueDepositor revenueDepositorImpl =
-            new PufferRevenueDepositor({ vault: _getPufferVault(), weth: _getWETH() });
+            new PufferRevenueDepositor({ vault: _getPufferVault(), weth: _getWETH(), aeraVault: _getAeraVault() });
 
         revenueDepositor = PufferRevenueDepositor(
             (

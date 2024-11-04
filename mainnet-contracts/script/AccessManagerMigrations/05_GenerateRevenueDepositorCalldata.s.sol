@@ -17,8 +17,9 @@ contract GenerateRevenueDepositorCalldata is Script {
         calldatas[0] =
             abi.encodeCall(AccessManager.setTargetFunctionRole, (revenueDepositorProxy, daoSelectors, ROLE_ID_DAO));
 
-        bytes4[] memory revenueDepositorSelectors = new bytes4[](1);
+        bytes4[] memory revenueDepositorSelectors = new bytes4[](2);
         revenueDepositorSelectors[0] = PufferRevenueDepositor.depositRevenue.selector;
+        revenueDepositorSelectors[1] = PufferRevenueDepositor.withdrawAndDeposit.selector;
 
         calldatas[1] = abi.encodeCall(
             AccessManager.setTargetFunctionRole,

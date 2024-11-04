@@ -9,7 +9,9 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferRevenueDepositorStorage } from "./PufferRevenueDepositorStorage.sol";
+import { IAeraVault, AssetValue } from "./interface/Other/IAeraVault.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title PufferRevenueDepositor
@@ -37,6 +39,11 @@ contract PufferRevenueDepositor is
     PufferVaultV4 public immutable PUFFER_VAULT;
 
     /**
+     * @notice AeraVault contract.
+     */
+    IAeraVault public immutable AERA_VAULT;
+
+    /**
      * @notice WETH contract.
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
@@ -47,8 +54,9 @@ contract PufferRevenueDepositor is
      * @param weth WETH contract
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(address vault, address weth) {
+    constructor(address vault, address weth, address aeraVault) {
         PUFFER_VAULT = PufferVaultV4(payable(vault));
+        AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
         _disableInitializers();
     }
@@ -98,23 +106,7 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
      */
     function depositRevenue() external restricted {
-        require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
-
-        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
-        $.lastDepositTimestamp = uint48(block.timestamp);
-
-        // Wrap any ETH sent to the contract
-        if (address(this).balance > 0) {
-            WETH.deposit{ value: address(this).balance }();
-        }
-        // nosemgrep tin-reentrant-dbl-diff-balance
-        uint256 rewardsAmount = WETH.balanceOf(address(this));
-        require(rewardsAmount > 0, NothingToDistribute());
-
-        $.lastDepositAmount = uint104(rewardsAmount);
-        WETH.transfer(address(PUFFER_VAULT), rewardsAmount);
-
-        emit RevenueDeposited(rewardsAmount);
+        _depositRevenue();
     }
 
     /**
@@ -140,6 +132,21 @@ contract PufferRevenueDepositor is
     }
 
     /**
+     * @notice Withdraw WETH from AeraVault and deposit into PufferVault.
+     * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
+     */
+    function withdrawAndDeposit() external restricted {
+        AssetValue[] memory assets = new AssetValue[](1);
+
+        assets[0] = AssetValue({ asset: IERC20(address(WETH)), value: WETH.balanceOf(address(AERA_VAULT)) });
+
+        // Withdraw WETH to this contract
+        AERA_VAULT.withdraw(assets);
+
+        _depositRevenue();
+    }
+
+    /**
      * @notice Call multiple targets with the given data.
      * @param targets The targets to call
      * @param data The data to call the targets with
@@ -151,6 +158,26 @@ contract PufferRevenueDepositor is
             (bool success,) = targets[i].call(data[i]);
             require(success, TargetCallFailed());
         }
+    }
+
+    function _depositRevenue() internal {
+        require(getPendingDistributionAmount() == 0, VaultHasUndepositedRewards());
+
+        RevenueDepositorStorage storage $ = _getRevenueDepositorStorage();
+        $.lastDepositTimestamp = uint48(block.timestamp);
+
+        // Wrap any ETH sent to the contract
+        if (address(this).balance > 0) {
+            WETH.deposit{ value: address(this).balance }();
+        }
+        // nosemgrep tin-reentrant-dbl-diff-balance
+        uint256 rewardsAmount = WETH.balanceOf(address(this));
+        require(rewardsAmount > 0, NothingToDistribute());
+
+        $.lastDepositAmount = uint104(rewardsAmount);
+        WETH.transfer(address(PUFFER_VAULT), rewardsAmount);
+
+        emit RevenueDeposited(rewardsAmount);
     }
 
     /**

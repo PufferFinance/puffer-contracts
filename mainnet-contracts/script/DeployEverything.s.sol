@@ -15,6 +15,7 @@ import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { GenerateRevenueDepositorCalldata } from
     "script/AccessManagerMigrations/05_GenerateRevenueDepositorCalldata.s.sol";
+import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -107,9 +108,12 @@ contract DeployEverything is BaseScript {
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        MockAeraVault mockAeraVault = new MockAeraVault();
+
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
             vault: address(puffETHDeployment.pufferVault),
-            weth: address(puffETHDeployment.weth)
+            weth: address(puffETHDeployment.weth),
+            aeraVault: address(mockAeraVault)
         });
 
         PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
