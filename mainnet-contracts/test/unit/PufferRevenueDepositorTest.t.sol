@@ -3,6 +3,24 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
+import { IWETH } from "src/interface/IWETH.sol";
+import { ROLE_ID_REVENUE_DEPOSITOR } from "../../script/Roles.sol";
+
+contract AeraVaultMock {
+    IWETH public immutable WETH;
+    address public immutable REVENUE_DEPOSITOR;
+
+    constructor(address weth, address revenueDepositor) {
+        WETH = IWETH(weth);
+        REVENUE_DEPOSITOR = revenueDepositor;
+    }
+
+    // Super simplified vault mock that withdraws only WETH
+    function withdraw(uint256 amount) external {
+        require(msg.sender == REVENUE_DEPOSITOR, "Only revenue depositor (owner) can withdraw");
+        WETH.transfer(msg.sender, amount);
+    }
+}
 
 /**
  * @title PufferRevenueDepositorTest
@@ -12,6 +30,26 @@ import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.s
  * forge test --mc PufferRevenueDepositorTest -vvvv
  */
 contract PufferRevenueDepositorTest is UnitTestHelper {
+    AeraVaultMock public aeraVault;
+
+    function setUp() public override {
+        super.setUp();
+
+        aeraVault = new AeraVaultMock(address(weth), address(revenueDepositor));
+        // Deposit 1000 WETH to the AeraVault
+        deal(address(weth), address(aeraVault), 1000 ether);
+
+        vm.prank(address(timelock));
+        // Grant the revenue depositor role to the revenue depositor itesels so that we can use callTargets to withdraw & deposit in 1 tx
+        accessManager.grantRole(ROLE_ID_REVENUE_DEPOSITOR, address(revenueDepositor), 0);
+    }
+
+    function test_setup() public view {
+        assertEq(address(aeraVault.WETH()), address(weth), "WETH should be the same");
+        assertEq(weth.balanceOf(address(aeraVault)), 1000 ether, "AeraVault should have 1000 WETH");
+        assertEq(aeraVault.REVENUE_DEPOSITOR(), address(revenueDepositor), "Revenue depositor should be the same");
+    }
+
     /**
      * @dev Modifier to set the rewards distribution window for the test
      */
@@ -146,5 +184,22 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         );
 
         assertEq(pufferVault.totalAssets(), totalAssetsBefore + 100 ether, "Total assets should be 100 ETH more");
+    }
+
+    // Withdraw 100 WETH from AeraVault and deposit it into PufferVault in 1 tx
+    function test_callTargets() public {
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        address[] memory targets = new address[](2);
+        targets[0] = address(aeraVault);
+        targets[1] = address(revenueDepositor);
+
+        bytes[] memory data = new bytes[](2);
+        data[0] = abi.encodeCall(aeraVault.withdraw, (100 ether));
+        data[1] = abi.encodeCall(revenueDepositor.depositRevenue, ());
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferRevenueDepositor.RevenueDeposited(100 ether);
+        revenueDepositor.callTargets(targets, data);
     }
 }

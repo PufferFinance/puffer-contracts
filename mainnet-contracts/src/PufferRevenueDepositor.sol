@@ -140,6 +140,20 @@ contract PufferRevenueDepositor is
     }
 
     /**
+     * @notice Call multiple targets with the given data.
+     * @param targets The targets to call
+     * @param data The data to call the targets with
+     * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
+     */
+    function callTargets(address[] calldata targets, bytes[] calldata data) external restricted {
+        for (uint256 i = 0; i < targets.length; ++i) {
+            // nosemgrep arbitrary-low-level-call
+            (bool success,) = targets[i].call(data[i]);
+            require(success, TargetCallFailed());
+        }
+    }
+
+    /**
      * @dev Authorizes an upgrade to a new implementation
      * Restricted access
      * @param newImplementation The address of the new implementation

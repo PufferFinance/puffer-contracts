@@ -8,6 +8,11 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 interface IPufferRevenueDepositor {
     /**
+     * @notice Thrown when the target call fails.
+     */
+    error TargetCallFailed();
+
+    /**
      * @notice Thrown when the vault has undeposited rewards.
      */
     error VaultHasUndepositedRewards();
