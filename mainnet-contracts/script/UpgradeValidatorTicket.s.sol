@@ -28,7 +28,8 @@ contract UpgradeValidatorTicket is DeployerHelper {
             guardianModule: payable(address(_getGuardianModule())),
             treasury: payable(_getTreasury()),
             pufferVault: payable(_getPufferVault()),
-            pufferOracle: IPufferOracle(address(_getPufferOracle()))
+            pufferOracle: IPufferOracle(address(_getPufferOracle())),
+            operationsMultisig: _getOPSMultisig()
         });
 
         validatorTicket = ValidatorTicket(payable(_getValidatorTicket()));
