@@ -111,6 +111,11 @@ interface IValidatorTicket {
     function PUFFER_ORACLE() external view returns (IPufferOracle);
 
     /**
+     * @notice Returns the Operations Multisig
+     */
+    function OPERATIONS_MULTISIG() external view returns (address);
+
+    /**
      * @notice Retrieves the current protocol fee rate
      * @return The current protocol fee rate
      */

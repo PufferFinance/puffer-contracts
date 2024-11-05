@@ -32,7 +32,8 @@ contract DeployVTImplementation is DeployerHelper {
             guardianModule: payable(address(_getGuardianModule())),
             treasury: payable(_getTreasury()),
             pufferVault: payable(_getPufferVault()),
-            pufferOracle: IPufferOracle(address(_getPufferOracle()))
+            pufferOracle: IPufferOracle(address(_getPufferOracle())),
+            operationsMultisig: _getOPSMultisig()
         });
 
         //@todo Double check reinitialization

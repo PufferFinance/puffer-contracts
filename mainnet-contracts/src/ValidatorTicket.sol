@@ -55,6 +55,11 @@ contract ValidatorTicket is
     IPufferOracle public immutable override PUFFER_ORACLE;
 
     /**
+     * @inheritdoc IValidatorTicket
+     */
+    address public immutable override OPERATIONS_MULTISIG;
+
+    /**
      * @dev Basis point scale
      */
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
@@ -68,7 +73,8 @@ contract ValidatorTicket is
         address payable guardianModule,
         address payable treasury,
         address payable pufferVault,
-        IPufferOracle pufferOracle
+        IPufferOracle pufferOracle,
+        address operationsMultisig
     ) {
         if (
             guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
@@ -80,6 +86,7 @@ contract ValidatorTicket is
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = pufferVault;
         TREASURY = treasury;
+        OPERATIONS_MULTISIG = operationsMultisig;
         _disableInitializers();
     }
 
@@ -249,6 +256,9 @@ contract ValidatorTicket is
 
     /**
      * @dev Internal function to process the purchase of Validator Tickets with pufETH
+     * @notice The guardians' portion of pufETH fees is sent to the Operations Multisig since the
+     * GuardianModule cannot handle ERC20-compatible pufETH. This differs from ETH purchases where
+     * the guardians' portion goes directly to the GuardianModule.
      * @param recipient The address to receive the minted VTs
      * @param vtAmount The amount of Validator Tickets to purchase
      * @return pufEthUsed The amount of pufETH used for the purchase
@@ -279,7 +289,7 @@ contract ValidatorTicket is
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendPufETH(TREASURY, pufEthUsed, $.protocolFeeRate);
-        uint256 guardiansAmount = _sendPufETH(GUARDIAN_MODULE, pufEthUsed, $.guardiansFeeRate);
+        uint256 guardiansAmount = _sendPufETH(OPERATIONS_MULTISIG, pufEthUsed, $.guardiansFeeRate);
         uint256 burnAmount = pufEthUsed - (treasuryAmount + guardiansAmount);
 
         PufferVaultV3(PUFFER_VAULT).burn(burnAmount);
