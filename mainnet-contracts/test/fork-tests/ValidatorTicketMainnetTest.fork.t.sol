@@ -22,7 +22,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     uint256 public constant INITIAL_GUARDIANS_FEE = 50; // 0.5%
 
     function setUp() public override {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21074115);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21120959);
 
         // Label accounts for better trace output
         for (uint256 i = 0; i < TOKEN_HOLDERS.length; i++) {
@@ -58,6 +58,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0));
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0));
         assertTrue(validatorTicket.TREASURY() != address(0));
+        assertTrue(validatorTicket.OPERATIONS_MULTISIG() != address(0));
     }
 
     function test_purchase_validator_ticket_with_pufeth() public {
@@ -86,7 +87,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 vtAmount = 2000 ether;
         address recipient = dave;
         address treasury = validatorTicket.TREASURY();
-        address guardianModule = validatorTicket.GUARDIAN_MODULE();
+        address operationsMultisig = validatorTicket.OPERATIONS_MULTISIG();
 
         uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
         uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
@@ -95,7 +96,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         deal(address(validatorTicket.PUFFER_VAULT()), recipient, pufEthAmount);
 
         uint256 initialTreasuryBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(treasury);
-        uint256 initialGuardianBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule);
+        uint256 initialOperationsMultisigBalance = IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(operationsMultisig);
         uint256 initialBurnedAmount = IERC20(validatorTicket.PUFFER_VAULT()).totalSupply();
 
         vm.startPrank(recipient);
@@ -115,9 +116,9 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
             "Treasury should receive 5% of pufETH"
         );
         assertEq(
-            IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(guardianModule) - initialGuardianBalance,
+            IERC20(validatorTicket.PUFFER_VAULT()).balanceOf(operationsMultisig) - initialOperationsMultisigBalance,
             expectedGuardianAmount,
-            "Guardians should receive 0.5% of pufETH"
+            "Operations Multisig should receive 0.5% of pufETH"
         );
         assertEq(
             initialBurnedAmount - IERC20(validatorTicket.PUFFER_VAULT()).totalSupply(),
