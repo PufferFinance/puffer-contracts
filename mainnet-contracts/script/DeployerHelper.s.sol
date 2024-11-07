@@ -433,6 +433,15 @@ abstract contract DeployerHelper is Script {
         revert("OPSMultisig not available for this chain");
     }
 
+    function _getCommunityMultisig() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x446d4d6b26815f9bA78B5D454E303315D586Cb2a
+            return 0x446d4d6b26815f9bA78B5D454E303315D586Cb2a;
+        }
+
+        revert("CommunityMultisig not available for this chain");
+    }
+
     function _getAeraVault() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8
