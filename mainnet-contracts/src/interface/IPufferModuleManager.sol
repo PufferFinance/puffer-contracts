@@ -177,6 +177,14 @@ interface IPufferModuleManager {
     event ClaimerSet(address indexed rewardsReceiver, address indexed claimer);
 
     /**
+     * @notice Emitted when the Restaking Operator owner is set
+     * @param operator is the address of the restaking operator
+     * @param operatorOwner is the address of the operator owner
+     * @dev Signature "0x1d5f78a6adab7333ddcb17d18c0545de9cbf4dd50cf6122efee14600899dc7a7"
+     */
+    event OperatorOwnerSet(address indexed operator, address indexed operatorOwner);
+
+    /**
      * @notice Returns the Puffer Module beacon address
      */
     function PUFFER_MODULE_BEACON() external view returns (address);
@@ -222,6 +230,14 @@ interface IPufferModuleManager {
      * @return module The newly created Puffer module
      */
     function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule module);
+
+    /**
+     * @notice Sets the owner of a restaking operator
+     * @param operator is the address of the restaking operator
+     * @param operatorOwner is the address of the operator owner
+     * @dev Restricted to the DAO
+     */
+    function setOperatorOwner(address operator, address operatorOwner) external;
 
     /**
      * @notice Sets proof Submitter on the Puffer Module

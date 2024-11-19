@@ -116,7 +116,25 @@ interface IRestakingOperator {
     function updateOperatorAVSSocket(address avsRegistryCoordinator, string memory socket) external;
 
     /**
+     * @notice Updates the socket of the operator on EigenDA
+     * @param socket is the new socket of the operator
+     */
+    function updateOperatorEigenDASocket(string memory socket) external;
+
+    /**
      * @notice Sets the rewards claimer to `claimer` for the RestakingOperator
      */
     function callSetClaimerFor(address claimer) external;
+
+    /**
+     * @notice Sets the owner of the RestakingOperator
+     * @param operatorOwner is the address of the operator owner
+     * @dev Restricted to the PufferModuleManager
+     */
+    function setOperatorOwner(address operatorOwner) external;
+
+    /**
+     * @notice Returns the owner of the RestakingOperator
+     */
+    function operatorOwner() external view returns (address);
 }

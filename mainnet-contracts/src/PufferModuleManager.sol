@@ -137,6 +137,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Sets the owner of a restaking operator
+     * @dev Restricted to the DAO
+     */
+    function setOperatorOwner(address operator, address operatorOwner) external virtual restricted {
+        IRestakingOperator(operator).setOperatorOwner(operatorOwner);
+
+        emit OperatorOwnerSet(operator, operatorOwner);
+    }
+
+    /**
      * @notice Transfers the unlocked rewards from the modules to the vault
      * @dev Restricted to Puffer Paymaster
      */

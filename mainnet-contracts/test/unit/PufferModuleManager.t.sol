@@ -16,6 +16,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -331,6 +332,66 @@ contract PufferModuleManagerTest is UnitTestHelper {
         // Not allowlisted, revert
         vm.expectRevert();
         pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
+        vm.stopPrank();
+    }
+
+    function test_setOperatorOwner() public {
+        vm.startPrank(DAO);
+
+        // Create a new operator
+        IRestakingOperator operator = _createRestakingOperator();
+        address newOwner = makeAddr("newOwner");
+
+        // Verify initial state (no owner)
+        assertEq(operator.operatorOwner(), address(0), "initial owner should be zero address");
+
+        // Set new owner
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.OperatorOwnerSet(address(operator), newOwner);
+        pufferModuleManager.setOperatorOwner(address(operator), newOwner);
+
+        // Verify owner was set correctly
+        assertEq(operator.operatorOwner(), newOwner, "owner should be updated");
+
+        // Test changing to another owner
+        address newerOwner = makeAddr("newerOwner");
+        pufferModuleManager.setOperatorOwner(address(operator), newerOwner);
+        assertEq(operator.operatorOwner(), newerOwner, "owner should be updated to newer owner");
+
+        vm.stopPrank();
+    }
+
+    function test_setOperatorOwnerUnauthorized(address caller) public {
+        vm.assume(caller != DAO);
+
+        vm.startPrank(DAO);
+        IRestakingOperator operator = _createRestakingOperator();
+        address newOwner = makeAddr("newOwner");
+        vm.stopPrank();
+
+        // Try to call setOperatorOwner from unauthorized address
+        vm.startPrank(caller);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, caller));
+        pufferModuleManager.setOperatorOwner(address(operator), newOwner);
+        vm.stopPrank();
+    }
+
+    function test_setOperatorOwnerDirectCall() public {
+        vm.startPrank(DAO);
+
+        // Create a new operator
+        IRestakingOperator operator = _createRestakingOperator();
+        address newOwner = makeAddr("newOwner");
+
+        // Try to call setOperatorOwner directly on operator (should fail)
+        vm.expectRevert();
+        operator.setOperatorOwner(newOwner);
+
+        // Call through PufferModuleManager (should succeed)
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.OperatorOwnerSet(address(operator), newOwner);
+        pufferModuleManager.setOperatorOwner(address(operator), newOwner);
+
         vm.stopPrank();
     }
 
