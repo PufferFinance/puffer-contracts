@@ -105,9 +105,16 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
         assertEq(revenueDepositor.getPendingDistributionAmount(), 1, "Pending distribution amount should be 1");
 
-        // After half of the distribution window, the pending distribution amount is half of the total amount
+        // After half of the distribution window, the pending distribution amount should still be 1 due to rounding up
         vm.warp(block.timestamp + 12 hours);
+        assertEq(
+            revenueDepositor.getPendingDistributionAmount(),
+            1,
+            "Pending distribution amount should be 1 due to rounding up"
+        );
 
+        // Only after the full distribution window should it become 0
+        vm.warp(block.timestamp + 12 hours);
         assertEq(revenueDepositor.getPendingDistributionAmount(), 0, "Pending distribution amount should be 0");
     }
 
@@ -201,5 +208,14 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferRevenueDepositor.RevenueDeposited(100 ether);
         revenueDepositor.callTargets(targets, data);
+    }
+
+    function test_smallRewardsAmount_precisionLoss() public withRewardsDistributionWindow(1 days) {
+        vm.deal(address(revenueDepositor), 2); // 2 wei
+        vm.startPrank(OPERATIONS_MULTISIG);
+        revenueDepositor.depositRevenue();
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 2, "Pending distribution amount should be 2");
+        vm.warp(block.timestamp + 1 seconds);
+        assertEq(revenueDepositor.getPendingDistributionAmount(), 2, "Pending distribution amount should be 2");
     }
 }

@@ -26,6 +26,7 @@ contract PufferRevenueDepositor is
     UUPSUpgradeable
 {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Math for uint256;
 
     /**
      * @notice The maximum rewards distribution window.
@@ -91,7 +92,7 @@ contract PufferRevenueDepositor is
         uint256 timePassed = block.timestamp - $.lastDepositTimestamp;
         uint256 remainingTime = rewardsDistributionWindow - Math.min(timePassed, rewardsDistributionWindow);
 
-        return $.lastDepositAmount * remainingTime / rewardsDistributionWindow;
+        return Math.mulDiv(uint256($.lastDepositAmount), remainingTime, rewardsDistributionWindow, Math.Rounding.Ceil);
     }
 
     /**
