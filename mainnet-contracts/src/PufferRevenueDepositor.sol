@@ -136,9 +136,23 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_REVENUE_DEPOSITOR`
      */
     function withdrawAndDeposit() external restricted {
-        AssetValue[] memory assets = new AssetValue[](1);
+        AssetValue[] memory holdings = AERA_VAULT.holdings();
 
-        assets[0] = AssetValue({ asset: IERC20(address(WETH)), value: WETH.balanceOf(address(AERA_VAULT)) });
+        uint256 withdrawAmount;
+        for (uint256 i = 0; i < holdings.length;) {
+            if (address(holdings[i].asset) == address(WETH)) {
+                withdrawAmount = holdings[i].value;
+                break;
+            }
+            unchecked {
+                i++; // gas savings
+            }
+        }
+
+        require(withdrawAmount > 0, NothingToWithdraw());
+
+        AssetValue[] memory assets = new AssetValue[](1);
+        assets[0] = AssetValue({ asset: IERC20(address(WETH)), value: withdrawAmount });
 
         // Withdraw WETH to this contract
         AERA_VAULT.withdraw(assets);

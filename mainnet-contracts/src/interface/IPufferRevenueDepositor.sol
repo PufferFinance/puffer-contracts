@@ -23,6 +23,11 @@ interface IPufferRevenueDepositor {
     error NothingToDistribute();
 
     /**
+     * @notice Thrown when there is nothing to withdraw.
+     */
+    error NothingToWithdraw();
+
+    /**
      * @notice Distribution window cannot be changed if there are undeposited rewards.
      */
     error CannotChangeDistributionWindow();

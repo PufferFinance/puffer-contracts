@@ -4,21 +4,42 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 import { IWETH } from "src/interface/IWETH.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ROLE_ID_REVENUE_DEPOSITOR } from "../../script/Roles.sol";
+
+struct AssetValue {
+    IERC20 asset;
+    uint256 value;
+}
 
 contract AeraVaultMock {
     IWETH public immutable WETH;
-    address public immutable REVENUE_DEPOSITOR;
+    uint256 public reservedFees;
 
-    constructor(address weth, address revenueDepositor) {
+    constructor(address weth) {
         WETH = IWETH(weth);
-        REVENUE_DEPOSITOR = revenueDepositor;
     }
 
-    // Super simplified vault mock that withdraws only WETH
-    function withdraw(uint256 amount) external {
-        require(msg.sender == REVENUE_DEPOSITOR, "Only revenue depositor (owner) can withdraw");
-        WETH.transfer(msg.sender, amount);
+    function setReservedFees(uint256 _reservedFees) external {
+        reservedFees = _reservedFees;
+    }
+
+    function withdraw(AssetValue[] calldata amounts) external {
+        // Get available balance after fees
+        uint256 totalBalance = WETH.balanceOf(address(this));
+        uint256 availableBalance = totalBalance > reservedFees ? totalBalance - reservedFees : 0;
+
+        require(amounts[0].value <= availableBalance, "No WETH available to withdraw");
+
+        WETH.transfer(msg.sender, amounts[0].value);
+    }
+
+    function holdings() external view returns (AssetValue[] memory) {
+        AssetValue[] memory assetValues = new AssetValue[](1);
+        uint256 totalBalance = WETH.balanceOf(address(this));
+        uint256 availableBalance = totalBalance > reservedFees ? totalBalance - reservedFees : 0;
+        assetValues[0] = AssetValue({ asset: IERC20(address(WETH)), value: availableBalance });
+        return assetValues;
     }
 }
 
@@ -35,19 +56,26 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 
-        aeraVault = new AeraVaultMock(address(weth), address(revenueDepositor));
+        // Get the expected AeraVault address from revenueDepositor
+        address expectedVaultAddress = address(revenueDepositor.AERA_VAULT());
+
+        // Deploy mock at the expected address
+        vm.etch(expectedVaultAddress, address(new AeraVaultMock(address(weth))).code);
+        aeraVault = AeraVaultMock(expectedVaultAddress);
+
         // Deposit 1000 WETH to the AeraVault
         deal(address(weth), address(aeraVault), 1000 ether);
 
         vm.prank(address(timelock));
-        // Grant the revenue depositor role to the revenue depositor itesels so that we can use callTargets to withdraw & deposit in 1 tx
+        // Grant the revenue depositor role to the revenue depositor itself so that we can use callTargets to withdraw & deposit in 1 tx
         accessManager.grantRole(ROLE_ID_REVENUE_DEPOSITOR, address(revenueDepositor), 0);
     }
 
     function test_setup() public view {
         assertEq(address(aeraVault.WETH()), address(weth), "WETH should be the same");
         assertEq(weth.balanceOf(address(aeraVault)), 1000 ether, "AeraVault should have 1000 WETH");
-        assertEq(aeraVault.REVENUE_DEPOSITOR(), address(revenueDepositor), "Revenue depositor should be the same");
+
+        assertEq(address(revenueDepositor.AERA_VAULT()), address(aeraVault), "AeraVault should be the same");
     }
 
     /**
@@ -195,11 +223,48 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         targets[1] = address(revenueDepositor);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeCall(aeraVault.withdraw, (100 ether));
+
+        // Create withdrawal request with proper AssetValue array
+        AssetValue[] memory withdrawalAssets = new AssetValue[](1);
+        withdrawalAssets[0] = AssetValue({ asset: IERC20(address(weth)), value: 100 ether });
+
+        data[0] = abi.encodeCall(aeraVault.withdraw, (withdrawalAssets));
         data[1] = abi.encodeCall(revenueDepositor.depositRevenue, ());
 
         vm.expectEmit(true, true, true, true);
         emit IPufferRevenueDepositor.RevenueDeposited(100 ether);
         revenueDepositor.callTargets(targets, data);
+    }
+
+    function test_withdrawAndDepositWithFees() public {
+        uint256 initialAmount = 100 ether;
+        deal(address(weth), address(aeraVault), initialAmount);
+
+        // Set reserved fees in mock vault (20%)
+        uint256 reservedFees = 20 ether;
+        aeraVault.setReservedFees(reservedFees);
+
+        uint256 pufferVaultBalanceBefore = weth.balanceOf(address(pufferVault));
+
+        vm.prank(OPERATIONS_MULTISIG);
+        revenueDepositor.withdrawAndDeposit();
+
+        assertEq(
+            weth.balanceOf(address(pufferVault)) - pufferVaultBalanceBefore,
+            initialAmount - reservedFees,
+            "Should deposit available amount minus fees"
+        );
+    }
+
+    function testRevert_withdrawAndDepositAllReservedForFees() public {
+        uint256 initialAmount = 100 ether;
+        deal(address(weth), address(aeraVault), initialAmount);
+
+        // Set reserved fees to total balance
+        aeraVault.setReservedFees(initialAmount);
+
+        vm.prank(OPERATIONS_MULTISIG);
+        vm.expectRevert(IPufferRevenueDepositor.NothingToWithdraw.selector);
+        revenueDepositor.withdrawAndDeposit();
     }
 }
