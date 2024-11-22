@@ -55,6 +55,9 @@ contract PufferRevenueDepositor is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(address vault, address weth, address aeraVault) {
+        if (vault == address(0) || weth == address(0) || aeraVault == address(0)) {
+            revert InvalidAddress();
+        }
         PUFFER_VAULT = PufferVaultV4(payable(vault));
         AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
