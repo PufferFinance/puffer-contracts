@@ -153,6 +153,10 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
      */
     function callTargets(address[] calldata targets, bytes[] calldata data) external restricted {
+        if (targets.length != data.length || targets.length == 0) {
+            revert InvalidDataLength();
+        }
+
         for (uint256 i = 0; i < targets.length; ++i) {
             // nosemgrep arbitrary-low-level-call
             (bool success,) = targets[i].call(data[i]);
