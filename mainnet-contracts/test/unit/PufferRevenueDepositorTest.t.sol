@@ -5,6 +5,7 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 import { IWETH } from "src/interface/IWETH.sol";
 import { ROLE_ID_REVENUE_DEPOSITOR } from "../../script/Roles.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 
 contract AeraVaultMock {
     IWETH public immutable WETH;
@@ -201,5 +202,32 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferRevenueDepositor.RevenueDeposited(100 ether);
         revenueDepositor.callTargets(targets, data);
+    }
+
+    function testRevert_constructor_zeroAddressVault() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(0), // vault
+            address(weth),
+            address(aeraVault)
+        );
+    }
+
+    function testRevert_constructor_zeroAddressWeth() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(pufferVault),
+            address(0), // weth
+            address(aeraVault)
+        );
+    }
+
+    function testRevert_constructor_zeroAddressAeraVault() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(pufferVault),
+            address(weth),
+            address(0) // aeraVault
+        );
     }
 }
