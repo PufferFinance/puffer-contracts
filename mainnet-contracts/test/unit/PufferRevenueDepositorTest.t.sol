@@ -205,7 +205,7 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
     function testRevert_callTargets_InvalidDataLength_EmptyArrays() public {
         vm.startPrank(OPERATIONS_MULTISIG);
-        
+
         address[] memory targets = new address[](0);
         bytes[] memory data = new bytes[](0);
 
@@ -215,7 +215,7 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
     function testRevert_callTargets_InvalidDataLength_MismatchedLengths() public {
         vm.startPrank(OPERATIONS_MULTISIG);
-        
+
         address[] memory targets = new address[](2);
         bytes[] memory data = new bytes[](1);
 
