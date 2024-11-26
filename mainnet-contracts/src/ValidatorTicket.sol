@@ -78,7 +78,7 @@ contract ValidatorTicket is
     ) {
         if (
             guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
-                || address(pufferOracle) == address(0)
+                || address(pufferOracle) == address(0) || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
