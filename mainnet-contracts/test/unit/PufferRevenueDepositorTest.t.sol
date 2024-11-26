@@ -5,6 +5,7 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 import { IWETH } from "src/interface/IWETH.sol";
 import { ROLE_ID_REVENUE_DEPOSITOR } from "../../script/Roles.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 
 contract AeraVaultMock {
     IWETH public immutable WETH;
@@ -217,5 +218,52 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         assertEq(revenueDepositor.getPendingDistributionAmount(), 2, "Pending distribution amount should be 2");
         vm.warp(block.timestamp + 1 seconds);
         assertEq(revenueDepositor.getPendingDistributionAmount(), 2, "Pending distribution amount should be 2");
+    }
+
+    function testRevert_constructor_zeroAddressVault() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(0), // vault
+            address(weth),
+            address(aeraVault)
+        );
+    }
+
+    function testRevert_constructor_zeroAddressWeth() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(pufferVault),
+            address(0), // weth
+            address(aeraVault)
+        );
+    }
+
+    function testRevert_constructor_zeroAddressAeraVault() public {
+        vm.expectRevert(IPufferRevenueDepositor.InvalidAddress.selector);
+        new PufferRevenueDepositor(
+            address(pufferVault),
+            address(weth),
+            address(0) // aeraVault
+        );
+    }
+
+    function testRevert_callTargets_InvalidDataLength_EmptyArrays() public {
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        address[] memory targets = new address[](0);
+        bytes[] memory data = new bytes[](0);
+
+        vm.expectRevert(IPufferRevenueDepositor.InvalidDataLength.selector);
+        revenueDepositor.callTargets(targets, data);
+    }
+
+    function testRevert_callTargets_InvalidDataLength_MismatchedLengths() public {
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        address[] memory targets = new address[](2);
+        bytes[] memory data = new bytes[](1);
+
+        vm.expectRevert(IPufferRevenueDepositor.InvalidDataLength.selector);
+        revenueDepositor.callTargets(targets, data);
     }
 }
