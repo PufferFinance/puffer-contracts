@@ -21,18 +21,6 @@ abstract contract PufferRevenueDepositorStorage {
      */
     struct RevenueDepositorStorage {
         /**
-         * @notice Restaking operators.
-         */
-        EnumerableSet.AddressSet restakingOperators;
-        /**
-         * @notice RNO rewards in bps.
-         */
-        uint128 rNORewardsBps;
-        /**
-         * @notice Treasury rewards in bps.
-         */
-        uint128 treasuryRewardsBps;
-        /**
          * @notice Last deposit timestamp.
          */
         uint48 lastDepositTimestamp;
