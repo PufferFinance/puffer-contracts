@@ -1,0 +1,27 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-deploy-script-2-step-deploy-initialize
+    languages:
+      - solidity
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    message: (Deploy Script) $X is not initialized directly with the proxy deployment! (2 distinct transactions, frontrunnable)
+    patterns:
+      - pattern: |-
+          $X.initialize(...);
+          ...
+          vm.stopBroadcast();
+          ...
+      - pattern-inside: |-
+          ...
+          vm.startBroadcast();
+          ...
+      - focus-metavariable: $X
+    severity: ERROR

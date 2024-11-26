@@ -43,6 +43,7 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
     /**
      * @notice Returns the pufETH sent to this contract by mistake
      */
+    // nosemgrep tin-unprotected-initialize
     function initialize() public reinitializer(2) {
         // https://etherscan.io/token/0xd9a442856c234a39a81a089c06451ebaa4306a72?a=0x4aa799c5dfc01ee7d790e3bf1a7c2257ce1dceff
         // slither-disable-next-line unchecked-transfer

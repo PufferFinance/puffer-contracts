@@ -8,14 +8,25 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
-
+import { IPufferVault } from "../../src/interface/IPufferVault.sol";
+import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER, ROLE_ID_VAULT_WITHDRAWER } from "../../script/Roles.sol";
+import { Permit } from "../../src/structs/Permit.sol";
+import "forge-std/console.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
+
 contract ValidatorTicketTest is UnitTestHelper {
     using ECDSA for bytes32;
     using Address for address;
     using Address for address payable;
+    using Math for uint256;
+
+    address[] public actors;
 
     function setUp() public override {
         // Just call the parent setUp()
@@ -27,6 +38,29 @@ contract ValidatorTicketTest is UnitTestHelper {
         // In the initial deployment, the PufferOracle will supply that information
         pufferOracle = PufferOracleV2(address(new PufferOracle(address(accessManager))));
         _skipDefaultFuzzAddresses();
+        // Grant the ValidatorTicket contract the ROLE_ID_PUFETH_BURNER role
+        vm.startPrank(_broadcaster);
+        vm.label(address(validatorTicket), "ValidatorTicket");
+        console.log("validatorTicket", address(validatorTicket));
+
+        bytes4[] memory burnerSelectors = new bytes4[](1);
+        burnerSelectors[0] = PufferVaultV2.burn.selector;
+        accessManager.setTargetFunctionRole(address(pufferVault), burnerSelectors, ROLE_ID_PUFETH_BURNER);
+
+        bytes4[] memory validatorTicketPublicSelectors = new bytes4[](3);
+        validatorTicketPublicSelectors[0] = IValidatorTicket.purchaseValidatorTicketWithPufETH.selector;
+        validatorTicketPublicSelectors[1] = IValidatorTicket.purchaseValidatorTicketWithPufETHAndPermit.selector;
+
+        accessManager.setTargetFunctionRole(address(validatorTicket), validatorTicketPublicSelectors, PUBLIC_ROLE);
+        accessManager.grantRole(ROLE_ID_PUFETH_BURNER, address(validatorTicket), 0);
+        vm.stopPrank();
+
+        // Initialize actors
+        actors.push(alice);
+        actors.push(bob);
+        actors.push(charlie);
+        actors.push(dianna);
+        actors.push(ema);
     }
 
     function test_setup() public view {
@@ -129,5 +163,146 @@ contract ValidatorTicketTest is UnitTestHelper {
         validatorTicket.setProtocolFeeRate(newFeeRate);
 
         assertEq(validatorTicket.getProtocolFeeRate(), newFeeRate, "updated");
+    }
+
+    function test_purchaseValidatorTicketWithPufETH() public {
+        uint256 vtAmount = 10 ether;
+        address recipient = actors[0];
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
+
+        uint256 expectedPufEthUsed = pufferVault.convertToSharesUp(requiredETH);
+
+        _givePufETH(expectedPufEthUsed, recipient);
+
+        vm.startPrank(recipient);
+        pufferVault.approve(address(validatorTicket), expectedPufEthUsed);
+
+        uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETH(recipient, vtAmount);
+        vm.stopPrank();
+
+        assertEq(pufEthUsed, expectedPufEthUsed, "PufETH used should match expected");
+        assertEq(validatorTicket.balanceOf(recipient), vtAmount, "VT balance should match requested amount");
+    }
+
+    function test_purchaseValidatorTicketWithPufETH_exchangeRateChange() public {
+        uint256 vtAmount = 10 ether;
+        address recipient = actors[2];
+
+        uint256 exchangeRate = pufferVault.convertToAssets(1 ether);
+        assertEq(exchangeRate, 1 ether, "1:1 exchange rate");
+
+        // Simulate + 10% increase in ETH
+        deal(address(pufferVault), 1110 ether);
+        exchangeRate = pufferVault.convertToAssets(1 ether);
+        assertGt(exchangeRate, 1 ether, "Now exchange rate should be greater than 1");
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
+
+        uint256 pufEthAmount = pufferVault.convertToSharesUp(requiredETH);
+
+        _givePufETH(pufEthAmount, recipient);
+
+        vm.startPrank(recipient);
+        pufferVault.approve(address(validatorTicket), pufEthAmount);
+        uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETH(recipient, vtAmount);
+        vm.stopPrank();
+
+        assertEq(pufEthUsed, pufEthAmount, "PufETH used should match expected");
+        assertEq(validatorTicket.balanceOf(recipient), vtAmount, "VT balance should match requested amount");
+    }
+
+    function test_purchaseValidatorTicketWithPufETHAndPermit() public {
+        uint256 vtAmount = 10 ether;
+        address recipient = actors[2];
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount * vtPrice / 1 ether;
+
+        uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
+        uint256 expectedPufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
+
+        _givePufETH(expectedPufEthUsed, recipient);
+
+        // Create a permit
+        Permit memory permit = _signPermit(
+            _testTemps("charlie", address(validatorTicket), expectedPufEthUsed, block.timestamp),
+            pufferVault.DOMAIN_SEPARATOR()
+        );
+
+        vm.prank(recipient);
+        uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETHAndPermit(recipient, vtAmount, permit);
+
+        assertEq(pufEthUsed, expectedPufEthUsed, "PufETH used should match expected");
+        assertEq(validatorTicket.balanceOf(recipient), vtAmount, "VT balance should match requested amount");
+    }
+
+    function _givePufETH(uint256 pufEthAmount, address recipient) internal {
+        deal(address(pufferVault), recipient, pufEthAmount);
+    }
+
+    function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
+        // TODO: Implement signing logic here
+        permit = Permit({ amount: 10 ether, deadline: block.timestamp + 1 hours, v: 27, r: bytes32(0), s: bytes32(0) });
+    }
+
+    function test_funds_splitting_with_pufETH() public {
+        uint256 vtAmount = 2000 ether; // Want to mint 2000 VTs
+        address recipient = actors[0];
+        address treasury = validatorTicket.TREASURY();
+        address operationsMultisig = validatorTicket.OPERATIONS_MULTISIG();
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
+        uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
+
+        uint256 pufEthAmount = pufferVault.convertToSharesUp(requiredETH);
+
+        _givePufETH(pufEthAmount, recipient);
+
+        uint256 initialTreasuryBalance = pufferVault.balanceOf(treasury);
+        uint256 initialOpsMultisigBalance = pufferVault.balanceOf(operationsMultisig);
+        uint256 initialBurnedAmount = pufferVault.totalSupply();
+
+        vm.startPrank(recipient);
+        pufferVault.approve(address(validatorTicket), pufEthAmount);
+        uint256 pufEthUsed = validatorTicket.purchaseValidatorTicketWithPufETH(recipient, vtAmount);
+        vm.stopPrank();
+
+        assertEq(pufEthUsed, pufEthAmount, "PufETH used should match expected");
+        assertEq(validatorTicket.balanceOf(recipient), vtAmount, "Should mint requested VTs");
+
+        uint256 expectedTreasuryAmount = pufEthAmount.mulDiv(500, 10000, Math.Rounding.Ceil); // 5% to treasury
+        uint256 expectedGuardianAmount = pufEthAmount.mulDiv(50, 10000, Math.Rounding.Ceil); // 0.5% to guardians
+        uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedGuardianAmount;
+
+        assertEq(
+            pufferVault.balanceOf(treasury) - initialTreasuryBalance,
+            expectedTreasuryAmount,
+            "Treasury should receive 5% of pufETH"
+        );
+        assertEq(
+            pufferVault.balanceOf(operationsMultisig) - initialOpsMultisigBalance,
+            expectedGuardianAmount,
+            "Operations Multisig should receive 0.5% of pufETH"
+        );
+        assertEq(
+            initialBurnedAmount - pufferVault.totalSupply(), expectedBurnAmount, "Remaining pufETH should be burned"
+        );
+    }
+
+    function test_revert_zero_recipient() public {
+        uint256 vtAmount = 10 ether;
+
+        vm.expectRevert(IValidatorTicket.RecipientIsZeroAddress.selector);
+        validatorTicket.purchaseValidatorTicketWithPufETH(address(0), vtAmount);
+
+        Permit memory permit = _signPermit(
+            _testTemps("charlie", address(validatorTicket), vtAmount, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
+        );
+
+        vm.expectRevert(IValidatorTicket.RecipientIsZeroAddress.selector);
+        validatorTicket.purchaseValidatorTicketWithPufETHAndPermit(address(0), vtAmount, permit);
     }
 }

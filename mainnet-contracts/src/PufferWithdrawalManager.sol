@@ -12,6 +12,7 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { Permit } from "./structs/Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
+import { TransferFailed } from "./Errors.sol";
 
 /**
  * @title PufferWithdrawalManager
@@ -24,6 +25,10 @@ contract PufferWithdrawalManager is
     UUPSUpgradeable
 {
     using SafeCast for uint256;
+
+    // keccak256(abi.encode(uint256(keccak256("pufferWithdrawalManager.withdrawalRequest")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 internal constant _WITHDRAWAL_REQUEST_TRACKER_LOCATION =
+        0xa4e2950800ad48b89d951842a006c666c0b29f755b9face41cad0b8d83328900;
 
     /**
      * @notice The batch size for the withdrawal manager
@@ -62,6 +67,25 @@ contract PufferWithdrawalManager is
     receive() external payable { }
 
     /**
+     * @notice Only one withdrawal request per transaction is allowed
+     */
+    modifier oneWithdrawalRequestAllowed() virtual {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            // If the deposit tracker location is set to `1`, revert with `MultipleWithdrawalsAreForbidden()`
+            if tload(_WITHDRAWAL_REQUEST_TRACKER_LOCATION) {
+                mstore(0x00, 0x0eca04b2) // Store the error signature `0x0eca04b2` for `error MultipleWithdrawalsAreForbidden()` in memory.
+                revert(0x1c, 0x04) // Revert by returning those 4 bytes. `revert MultipleWithdrawalsAreForbidden()`
+            }
+        }
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            tstore(_WITHDRAWAL_REQUEST_TRACKER_LOCATION, 1) // Store `1` in the deposit tracker location
+        }
+        _;
+    }
+
+    /**
      * @notice Initializes the contract
      */
     function initialize(address accessManager) external initializer {
@@ -74,7 +98,15 @@ contract PufferWithdrawalManager is
         for (uint256 i = 0; i < BATCH_SIZE; ++i) {
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
-        $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
+        $.withdrawalBatches.push(
+            WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            })
+        );
         $.finalizedWithdrawalBatch = 0; // do it explicitly
     }
 
@@ -128,13 +160,16 @@ contract PufferWithdrawalManager is
             uint256 expectedETHAmount = batch.toTransfer;
             uint256 pufETHBurnAmount = batch.toBurn;
 
-            uint256 ethAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
-            uint256 transferAmount = Math.min(expectedETHAmount, ethAmount);
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batchFinalizationExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
 
             PUFFER_VAULT.transferETH(address(this), transferAmount);
             PUFFER_VAULT.burn(pufETHBurnAmount);
 
-            batch.pufETHToETHExchangeRate = uint64(batchFinalizationExchangeRate);
+            batch.pufETHToETHExchangeRate = batchFinalizationExchangeRate.toUint64();
 
             emit BatchFinalized({
                 batchIdx: i,
@@ -149,7 +184,7 @@ contract PufferWithdrawalManager is
 
     /**
      * @inheritdoc IPufferWithdrawalManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted access to ROLE_ID_WITHDRAWAL_FINALIZER
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external restricted {
         WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
@@ -169,6 +204,11 @@ contract PufferWithdrawalManager is
 
         address recipient = withdrawal.recipient;
 
+        // When a withdrawal is completed, we need to update the batch's claimed withdrawals and amount claimed
+        // When all withdrawals from the batch are completed, the dust can be returned to the vault by calling `returnExcessETHToVault`
+
+        ++$.withdrawalBatches[batchIndex].withdrawalsClaimed;
+        $.withdrawalBatches[batchIndex].amountClaimed += payoutAmount.toUint128();
         // remove data for some gas savings
         delete $.withdrawals[withdrawalIdx];
 
@@ -183,6 +223,46 @@ contract PufferWithdrawalManager is
             payoutExchangeRate: payoutExchangeRate,
             recipient: recipient
         });
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     * @dev Restricted access to ROLE_ID_OPERATIONS_MULTISIG
+     */
+    function returnExcessETHToVault(uint256[] calldata batchIndices) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        uint256 totalExcessETH = 0;
+
+        for (uint256 i = 0; i < batchIndices.length; ++i) {
+            WithdrawalBatch storage batch = $.withdrawalBatches[batchIndices[i]];
+
+            require(batch.withdrawalsClaimed == BATCH_SIZE, NotAllWithdrawalsClaimed());
+            require(batch.amountClaimed != batch.toTransfer, AlreadyReturned());
+
+            uint256 expectedETHAmount = batch.toTransfer;
+            uint256 pufETHBurnAmount = batch.toBurn;
+
+            uint256 transferAmount = _calculateBatchTransferAmount({
+                pufETHBurnAmount: pufETHBurnAmount,
+                batchFinalizationExchangeRate: batch.pufETHToETHExchangeRate,
+                expectedETHAmount: expectedETHAmount
+            });
+
+            // nosemgrep basic-arithmetic-underflow
+            uint256 diff = transferAmount - batch.amountClaimed;
+            totalExcessETH += diff;
+
+            // Update the amount claimed to the total toTransfer amount to prevent calling this function twice (validation line 239)
+            batch.amountClaimed = batch.toTransfer;
+        }
+
+        if (totalExcessETH > 0) {
+            // nosemgrep arbitrary-low-level-call
+            (bool success,) = address(PUFFER_VAULT).call{ value: totalExcessETH }("");
+            require(success, TransferFailed());
+
+            emit ExcessETHReturned(batchIndices, totalExcessETH);
+        }
     }
 
     /**
@@ -212,16 +292,36 @@ contract PufferWithdrawalManager is
     }
 
     /**
+     * @inheritdoc IPufferWithdrawalManager
+     */
+    function getBatch(uint256 batchIdx) external view returns (WithdrawalBatch memory) {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        // We don't want panic when the caller passes an invalid batchIdx
+        if (batchIdx >= $.withdrawalBatches.length) {
+            return WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            });
+        }
+        return $.withdrawalBatches[batchIdx];
+    }
+
+    /**
      * @param pufETHAmount The amount of pufETH to withdraw
      * @param recipient The address to receive the withdrawn ETH
      */
-    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal {
+    function _processWithdrawalRequest(uint128 pufETHAmount, address recipient) internal oneWithdrawalRequestAllowed {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+
         require(pufETHAmount >= MIN_WITHDRAWAL_AMOUNT, WithdrawalAmountTooLow());
+        require(pufETHAmount <= $.maxWithdrawalAmount, WithdrawalAmountTooHigh());
+        require(recipient != address(0), WithdrawalToZeroAddress());
 
         // Always transfer from the msg.sender
         PUFFER_VAULT.transferFrom(msg.sender, address(this), pufETHAmount);
-
-        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
 
         uint256 withdrawalIndex = $.withdrawals.length;
 
@@ -229,14 +329,22 @@ contract PufferWithdrawalManager is
 
         if (batchIndex == $.withdrawalBatches.length) {
             // Push empty batch when the previous batch is full
-            $.withdrawalBatches.push(WithdrawalBatch({ toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0 }));
+            $.withdrawalBatches.push(
+                WithdrawalBatch({
+                    toBurn: 0,
+                    toTransfer: 0,
+                    pufETHToETHExchangeRate: 0,
+                    withdrawalsClaimed: 0,
+                    amountClaimed: 0
+                })
+            );
         }
 
         uint256 pufETHToETHExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
         uint256 expectedETHAmount = pufETHAmount * pufETHToETHExchangeRate / 1 ether;
 
         WithdrawalBatch storage batch = $.withdrawalBatches[batchIndex];
-        batch.toBurn += uint96(pufETHAmount);
+        batch.toBurn += uint88(pufETHAmount);
         batch.toTransfer += uint96(expectedETHAmount);
 
         $.withdrawals.push(
@@ -256,6 +364,26 @@ contract PufferWithdrawalManager is
     }
 
     /**
+     * @notice Changes the max withdrawal amount
+     * @param newMaxWithdrawalAmount The new max withdrawal amount
+     * @dev Restricted access to ROLE_ID_DAO
+     */
+    function changeMaxWithdrawalAmount(uint256 newMaxWithdrawalAmount) external restricted {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+        require(newMaxWithdrawalAmount > MIN_WITHDRAWAL_AMOUNT, InvalidMaxWithdrawalAmount());
+        emit MaxWithdrawalAmountChanged($.maxWithdrawalAmount, newMaxWithdrawalAmount);
+        $.maxWithdrawalAmount = newMaxWithdrawalAmount;
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
+     * @return The max withdrawal amount
+     */
+    function getMaxWithdrawalAmount() external view returns (uint256) {
+        return _getWithdrawalManagerStorage().maxWithdrawalAmount;
+    }
+
+    /**
      * @dev Authorizes an upgrade to a new implementation
      * Restricted access
      * @param newImplementation The address of the new implementation
@@ -264,5 +392,14 @@ contract PufferWithdrawalManager is
         PufferWithdrawalManager newImplementationContract = PufferWithdrawalManager(payable(newImplementation));
 
         require(newImplementationContract.BATCH_SIZE() == BATCH_SIZE, BatchSizeCannotChange());
+    }
+
+    function _calculateBatchTransferAmount(
+        uint256 pufETHBurnAmount,
+        uint256 batchFinalizationExchangeRate,
+        uint256 expectedETHAmount
+    ) internal pure returns (uint256) {
+        uint256 batchFinalizationAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
+        return Math.min(expectedETHAmount, batchFinalizationAmount);
     }
 }

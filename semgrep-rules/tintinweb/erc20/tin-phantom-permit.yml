@@ -1,0 +1,21 @@
+#####
+#
+#   @author: github.com/tintinweb
+#   @version: 0.1
+#
+##
+rules:
+  - id: tin-erc20-phantom-permit
+    languages:
+      - solidity
+    message: Check if the underlying token.permit() reverts on error, see https://media.dedaub.com/phantom-functions-and-the-billion-dollar-no-op-c56f062ae49f
+    metadata:
+      category: security
+      references: 
+        - https://github.com/tintinweb
+    patterns:
+      - pattern: |
+            $X.permit(...);
+            ...
+            $X.safeTransferFrom(...);
+    severity: WARNING

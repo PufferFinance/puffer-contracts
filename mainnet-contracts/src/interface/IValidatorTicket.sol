@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferOracle } from "../interface/IPufferOracle.sol";
+import { Permit } from "../structs/Permit.sol";
 
 /**
  * @title IValidatorTicket
@@ -21,6 +22,11 @@ interface IValidatorTicket {
     error InvalidData();
 
     /**
+     * @dev Thrown when the recipient address is zero
+     */
+    error RecipientIsZeroAddress();
+
+    /**
      * @notice Emitted when the ETH `amount` in wei is transferred to `to` address
      * @dev Signature "0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d"
      */
@@ -31,6 +37,11 @@ interface IValidatorTicket {
      * @dev Signature "0x8476c087a9e2adf34e598e2ef90747a2824cf1bd88e16bdb0ef56d5d6bddff27"
      */
     event DispersedETH(uint256 treasury, uint256 guardians, uint256 vault);
+
+    /**
+     * @notice Emitted when the pufETH is split between treasury, guardians and the amount burned
+     */
+    event DispersedPufETH(uint256 treasury, uint256 guardians, uint256 burned);
 
     /**
      * @notice Emitted when the protocol fee rate is changed
@@ -51,6 +62,27 @@ interface IValidatorTicket {
      * @return Amount of VT minted
      */
     function purchaseValidatorTicket(address recipient) external payable returns (uint256);
+
+    /**
+     * @notice Purchases Validator Tickets with pufETH
+     * @param recipient The address to receive the minted VTs
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @return pufEthUsed The amount of pufETH used for the purchase
+     */
+    function purchaseValidatorTicketWithPufETH(address recipient, uint256 vtAmount)
+        external
+        returns (uint256 pufEthUsed);
+
+    /**
+     * @notice Purchases Validator Tickets with pufETH using permit
+     * @param recipient The address to receive the minted VTs
+     * @param vtAmount The amount of Validator Tickets to purchase
+     * @param permitData The permit data for the pufETH transfer
+     * @return pufEthUsed The amount of pufETH used for the purchase
+     */
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        returns (uint256 pufEthUsed);
 
     /**
      * @notice Retrieves the current guardians fee rate
@@ -77,6 +109,11 @@ interface IValidatorTicket {
      * @notice Returns the Puffer Oracle
      */
     function PUFFER_ORACLE() external view returns (IPufferOracle);
+
+    /**
+     * @notice Returns the Operations Multisig
+     */
+    function OPERATIONS_MULTISIG() external view returns (address);
 
     /**
      * @notice Retrieves the current protocol fee rate

@@ -62,6 +62,7 @@ contract DeployPuffer is BaseScript {
     address rewardsCoordinator;
     address eigenSlasher;
     address treasury;
+    address operationsMultisig;
 
     function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
         public
@@ -77,6 +78,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
             rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
+            operationsMultisig = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
@@ -84,6 +86,7 @@ contract DeployPuffer is BaseScript {
             rewardsCoordinator = address(new RewardsCoordinatorMock());
             eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
             treasury = address(1);
+            operationsMultisig = address(2);
         } else {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
@@ -91,6 +94,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C;
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
             rewardsCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+            operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         }
 
         operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
@@ -101,7 +105,8 @@ contract DeployPuffer is BaseScript {
             guardianModule: payable(guardiansDeployment.guardianModule),
             treasury: payable(treasury),
             pufferVault: payable(pufferVault),
-            pufferOracle: IPufferOracleV2(oracle)
+            pufferOracle: IPufferOracleV2(oracle),
+            operationsMultisig: operationsMultisig
         });
 
         NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
@@ -200,7 +205,8 @@ contract DeployPuffer is BaseScript {
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything
-            weth: address(0) // overwritten in DeployEverything
+            weth: address(0), // overwritten in DeployEverything
+            revenueDepositor: address(0) // overwritten in DeployEverything
          });
     }
 

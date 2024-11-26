@@ -65,6 +65,7 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         }
 
         // PUFFER_VAULT.deposit will revert if we get no stETH from this contract
+        // nosemgrep arbitrary-low-level-call
         (bool success, bytes memory returnData) = _1INCH_ROUTER.call{ value: msg.value }(callData);
         if (!success) {
             revert SwapFailed(address(tokenIn), amountIn);

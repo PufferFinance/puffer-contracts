@@ -11,10 +11,11 @@ import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
 import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
-import { xPufETH } from "src/l2/xPufETH.sol";
-import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
-import { ConnextMock } from "../test/mocks/ConnextMock.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { GenerateRevenueDepositorCalldata } from
+    "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
+import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -60,8 +61,10 @@ contract DeployEverything is BaseScript {
         pufferDeployment.timelock = puffETHDeployment.timelock;
 
         BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(puffETHDeployment);
+        address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
+        pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle);
+        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle, revenueDepositor);
 
         // `anvil` in the terminal
         if (_localAnvil) {
@@ -101,5 +104,37 @@ contract DeployEverything is BaseScript {
 
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/puffer.json");
+    }
+
+    // script/DeployRevenueDepositor.s.sol It should match the one in the script
+    function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        MockAeraVault mockAeraVault = new MockAeraVault();
+
+        PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
+            vault: address(puffETHDeployment.pufferVault),
+            weth: address(puffETHDeployment.weth),
+            aeraVault: address(mockAeraVault)
+        });
+
+        PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
+            (
+                payable(
+                    new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
+                        address(revenueDepositorImpl),
+                        abi.encodeCall(PufferRevenueDepositor.initialize, (address(puffETHDeployment.accessManager)))
+                    )
+                )
+            )
+        );
+
+        bytes memory accessManagerCd =
+            new GenerateRevenueDepositorCalldata().run(address(revenueDepositor), makeAddr("operationsMultisig"));
+
+        vm.startPrank(puffETHDeployment.timelock);
+        (bool success,) = address(puffETHDeployment.accessManager).call(accessManagerCd);
+        require(success, "AccessManager.call failed");
+        vm.stopPrank();
+
+        return address(revenueDepositor);
     }
 }

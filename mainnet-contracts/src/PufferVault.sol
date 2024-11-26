@@ -39,21 +39,31 @@ contract PufferVault is
 
     /**
      * @dev EigenLayer stETH strategy
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IStrategy internal immutable _EIGEN_STETH_STRATEGY;
+
     /**
      * @dev EigenLayer Strategy Manager
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IEigenLayer internal immutable _EIGEN_STRATEGY_MANAGER;
+
     /**
      * @dev stETH contract
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IStETH internal immutable _ST_ETH;
+
     /**
      * @dev Lido Withdrawal Queue
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
+    /**
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor(
         IStETH stETH,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
@@ -232,6 +242,7 @@ contract PufferVault is
             revert InvalidWithdrawal();
         }
 
+        // nosemgrep basic-arithmetic-underflow
         $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
 
         _EIGEN_STRATEGY_MANAGER.completeQueuedWithdrawal({
@@ -264,6 +275,7 @@ contract PufferVault is
         SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
         requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
 
+        // nosemgrep array-length-outside-loop
         for (uint256 i = 0; i < requestIds.length; ++i) {
             $.lidoWithdrawals.add(requestIds[i]);
         }

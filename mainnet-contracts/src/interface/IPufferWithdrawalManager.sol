@@ -13,6 +13,21 @@ import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorag
  */
 interface IPufferWithdrawalManager {
     /**
+     * @notice Thrown when attempting to set a max withdrawal amount below the minimum withdrawal amount
+     */
+    error InvalidMaxWithdrawalAmount();
+
+    /**
+     * @notice Thrown when attempting to request a withdrawal to the zero address
+     */
+    error WithdrawalToZeroAddress();
+
+    /**
+     * @notice Thrown when attempting to request multiple withdrawals in the same transaction
+     */
+    error MultipleWithdrawalsAreForbidden();
+
+    /**
      * @notice Thrown when attempting to change the batch size
      */
     error BatchSizeCannotChange();
@@ -28,6 +43,16 @@ interface IPufferWithdrawalManager {
     error NotFinalized();
 
     /**
+     * @notice Thrown when attempting to return excess ETH to the vault but not all withdrawals from that batch have been claimed
+     */
+    error NotAllWithdrawalsClaimed();
+
+    /**
+     * @notice Thrown when attempting to return excess ETH to the vault but the batch has already been returned
+     */
+    error AlreadyReturned();
+
+    /**
      * @notice Thrown when attempting to complete a withdrawal that has already been completed
      */
     error WithdrawalAlreadyCompleted();
@@ -41,6 +66,11 @@ interface IPufferWithdrawalManager {
      * @notice Thrown when attempting to withdraw an amount below the minimum threshold
      */
     error WithdrawalAmountTooLow();
+
+    /**
+     * @notice Thrown when attempting to withdraw an amount above the maximum threshold
+     */
+    error WithdrawalAmountTooHigh();
 
     /**
      * @notice Emitted when a withdrawal is requested
@@ -65,6 +95,13 @@ interface IPufferWithdrawalManager {
     );
 
     /**
+     * @notice Emitted when the max withdrawal amount is changed
+     * @param oldMaxWithdrawalAmount The old max withdrawal amount
+     * @param newMaxWithdrawalAmount The new max withdrawal amount
+     */
+    event MaxWithdrawalAmountChanged(uint256 oldMaxWithdrawalAmount, uint256 newMaxWithdrawalAmount);
+
+    /**
      * @notice Emitted when a withdrawal is completed
      * @param withdrawalIdx The index of the completed withdrawal
      * @param ethPayoutAmount The amount of ETH paid out
@@ -74,6 +111,13 @@ interface IPufferWithdrawalManager {
     event WithdrawalCompleted(
         uint256 indexed withdrawalIdx, uint256 ethPayoutAmount, uint256 payoutExchangeRate, address indexed recipient
     );
+
+    /**
+     * @notice Emitted when excess ETH is returned to the vault
+     * @param batchIndices The indices of the batches from which excess ETH was returned
+     * @param totalExcessETH The total amount of excess ETH returned to the vault
+     */
+    event ExcessETHReturned(uint256[] batchIndices, uint256 totalExcessETH);
 
     /**
      * @notice Returns the address of the PufferVaultV3 contract
@@ -89,6 +133,7 @@ interface IPufferWithdrawalManager {
 
     /**
      * @notice Request a withdrawal of pufETH
+     * Only one withdrawal can be requested per transaction
      * @param pufETHAmount Amount of pufETH to withdraw
      * @param recipient Address to receive the withdrawn ETH
      */
@@ -96,6 +141,7 @@ interface IPufferWithdrawalManager {
 
     /**
      * @notice Request withdrawals using permit
+     * Only one withdrawal can be requested per transaction
      * @dev This function will work if the `msg.sender` has approved this contract to spend the pufETH amount
      * @param permitData The permit data for the withdrawal
      * @param recipient The address to receive the withdrawn ETH
@@ -107,6 +153,13 @@ interface IPufferWithdrawalManager {
      * @param withdrawalIdx The index of the withdrawal to complete
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external;
+
+    /**
+     * @notice Returns the excess ETH transferred from the Vault to the WithdrawalManager
+     * This can happen if there is a discrepancy between the expected ETH amount and the actual ETH amount withdrawn because of the pufETH:ETH exchange rate.
+     * @param batchIndices The indices of the batches to return the dust from
+     */
+    function returnExcessETHToVault(uint256[] calldata batchIndices) external;
 
     /**
      * @notice Returns the index of the last finalized withdrawal batch
@@ -125,8 +178,21 @@ interface IPufferWithdrawalManager {
         returns (PufferWithdrawalManagerStorage.Withdrawal memory);
 
     /**
+     * @notice Returns the max withdrawal amount
+     * @return The max withdrawal amount
+     */
+    function getMaxWithdrawalAmount() external view returns (uint256);
+
+    /**
      * @notice Returns the length of the withdrawals
      * @return The length of the withdrawals
      */
     function getWithdrawalsLength() external view returns (uint256);
+
+    /**
+     * @notice Returns the batch details for a given batch index
+     * @param batchIdx The index of the batch to retrieve
+     * @return The WithdrawalBatch struct containing the details of the batch
+     */
+    function getBatch(uint256 batchIdx) external view returns (PufferWithdrawalManagerStorage.WithdrawalBatch memory);
 }

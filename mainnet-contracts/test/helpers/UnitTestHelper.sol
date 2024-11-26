@@ -29,6 +29,7 @@ import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
+import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
 import {
@@ -106,6 +107,7 @@ contract UnitTestHelper is Test, BaseScript {
     XERC20Lockbox public lockBox;
     L1RewardManager public l1RewardManager;
     L2RewardManager public l2RewardManager;
+    PufferRevenueDepositor public revenueDepositor;
     ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
@@ -129,6 +131,14 @@ contract UnitTestHelper is Test, BaseScript {
     address public harry = makeAddr("harry");
     address public isabelle = makeAddr("isabelle");
     address public james = makeAddr("james");
+
+    address public RNO1 = makeAddr("RNO1");
+    address public RNO2 = makeAddr("RNO2");
+    address public RNO3 = makeAddr("RNO3");
+    address public RNO4 = makeAddr("RNO4");
+    address public RNO5 = makeAddr("RNO5");
+    address public RNO6 = makeAddr("RNO6");
+    address public RNO7 = makeAddr("RNO7");
 
     modifier fuzzedAddress(address addr) virtual {
         vm.assume(fuzzedAddressMapping[addr] == false);
@@ -207,6 +217,7 @@ contract UnitTestHelper is Test, BaseScript {
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         connext = ConnextMock(payable(bridgingDeployment.connext));
+        revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
 
         // pufETH dependencies
         pufferVault = PufferVaultV3(payable(pufferDeployment.pufferVault));

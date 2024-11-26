@@ -25,6 +25,11 @@ abstract contract DeployerHelper is Script {
         return msgSender;
     }
 
+    function _getDAO() internal view returns (address) {
+        // ATM Ops multisig is the DAO
+        return _getOPSMultisig();
+    }
+
     /**
      * @dev Upgrade the implementation of the `proxyTarget` to `newImplementation` if on Holesky,
      * otherwise log the call data.
@@ -420,8 +425,38 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d
             return 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+            return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         }
 
         revert("OPSMultisig not available for this chain");
+    }
+
+    function _getAeraVault() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8
+            return 0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8;
+        }
+
+        revert("AeraVault not available for this chain");
+    }
+
+    function _getAeraAssetRegistry() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xc71C52425969286dAAd647e4088394C572d64fd9
+            return 0xc71C52425969286dAAd647e4088394C572d64fd9;
+        }
+
+        revert("AeraAssetRegistry not available for this chain");
+    }
+
+    function _getAeraVaultHooks() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x933AD39feb35793B4d6B0A543db39b033Eb5D2C1
+            return 0x933AD39feb35793B4d6B0A543db39b033Eb5D2C1;
+        }
+
+        revert("AeraVaultHooks not available for this chain");
     }
 }
