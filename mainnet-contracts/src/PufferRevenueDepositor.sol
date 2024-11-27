@@ -26,6 +26,7 @@ contract PufferRevenueDepositor is
     UUPSUpgradeable
 {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Math for uint256;
 
     /**
      * @notice The maximum rewards distribution window.
@@ -55,6 +56,9 @@ contract PufferRevenueDepositor is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(address vault, address weth, address aeraVault) {
+        if (vault == address(0) || weth == address(0) || aeraVault == address(0)) {
+            revert InvalidAddress();
+        }
         PUFFER_VAULT = PufferVaultV4(payable(vault));
         AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
@@ -91,7 +95,7 @@ contract PufferRevenueDepositor is
         uint256 timePassed = block.timestamp - $.lastDepositTimestamp;
         uint256 remainingTime = rewardsDistributionWindow - Math.min(timePassed, rewardsDistributionWindow);
 
-        return $.lastDepositAmount * remainingTime / rewardsDistributionWindow;
+        return Math.mulDiv(uint256($.lastDepositAmount), remainingTime, rewardsDistributionWindow, Math.Rounding.Ceil);
     }
 
     /**
@@ -153,6 +157,10 @@ contract PufferRevenueDepositor is
      * @dev Restricted access to `ROLE_ID_OPERATIONS_MULTISIG`
      */
     function callTargets(address[] calldata targets, bytes[] calldata data) external restricted {
+        if (targets.length != data.length || targets.length == 0) {
+            revert InvalidDataLength();
+        }
+
         for (uint256 i = 0; i < targets.length; ++i) {
             // nosemgrep arbitrary-low-level-call
             (bool success,) = targets[i].call(data[i]);

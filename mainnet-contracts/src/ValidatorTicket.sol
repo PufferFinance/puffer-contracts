@@ -78,7 +78,7 @@ contract ValidatorTicket is
     ) {
         if (
             guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
-                || address(pufferOracle) == address(0)
+                || address(pufferOracle) == address(0) || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
@@ -112,8 +112,6 @@ contract ValidatorTicket is
         restricted
         returns (uint256 mintedAmount)
     {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
         mintedAmount = (msg.value * 1 ether) / mintPrice; // * 1 ether is to upscale amount to 18 decimals
 
@@ -128,6 +126,8 @@ contract ValidatorTicket is
             emit DispersedETH({ treasury: msg.value, guardians: 0, vault: 0 });
             return mintedAmount;
         }
+
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
         uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
