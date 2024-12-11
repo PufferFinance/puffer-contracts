@@ -63,6 +63,7 @@ contract DeployPuffer is BaseScript {
     address eigenSlasher;
     address treasury;
     address operationsMultisig;
+    address eigenDaRegistryCoordinator;
 
     function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
         public
@@ -79,6 +80,7 @@ contract DeployPuffer is BaseScript {
             rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
             operationsMultisig = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+            eigenDaRegistryCoordinator = 0x0BAAc79acD45A023E19345c352d8a7a83C4e5656;
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
@@ -137,7 +139,8 @@ contract DeployPuffer is BaseScript {
                 IDelegationManager(delegationManager),
                 ISlasher(eigenSlasher),
                 PufferModuleManager(payable(address(moduleManagerProxy))),
-                IRewardsCoordinator(rewardsCoordinator)
+                IRewardsCoordinator(rewardsCoordinator),
+                eigenDaRegistryCoordinator
             );
 
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
