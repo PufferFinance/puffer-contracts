@@ -26,7 +26,8 @@ contract DeployRestakingOperator is DeployerHelper {
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
             slasher: ISlasher(_getEigenSlasher()),
             moduleManager: IPufferModuleManager(_getPufferModuleManager()),
-            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
+            eigenDaRegistryCoordinator: _getEigenDaRegistryCoordinator()
         });
 
         vm.label(address(restakingOperatorImplementation), "RestakingOperatorImplementation");

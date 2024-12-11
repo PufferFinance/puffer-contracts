@@ -77,12 +77,22 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         _;
     }
 
+    modifier onlyOperatorOwner() {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        if (msg.sender != $.operatorOwner) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     // We use constructor to set the immutable variables
     constructor(
         IDelegationManager delegationManager,
         ISlasher slasher,
         IPufferModuleManager moduleManager,
-        IRewardsCoordinator rewardsCoordinator
+        IRewardsCoordinator rewardsCoordinator,
+        address eigenDaRegistryCoordinator
     ) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
@@ -97,6 +107,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         EIGEN_SLASHER = slasher;
         PUFFER_MODULE_MANAGER = moduleManager;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
+        EIGEN_DA_REGISTRY_COORDINATOR = eigenDaRegistryCoordinator;
         _disableInitializers();
     }
 
@@ -230,7 +241,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the Operator owner
      */
-    function updateOperatorEigenDASocket(string calldata socket) external virtual restricted {
+    function updateOperatorEigenDASocket(string calldata socket) external virtual onlyOperatorOwner {
         IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR).updateSocket(socket);
     }
 
