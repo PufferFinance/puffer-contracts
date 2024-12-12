@@ -400,7 +400,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         // Create a new operator
         IRestakingOperator operator = _createRestakingOperator();
         address newOwner = makeAddr("newOwner");
-        
+
         // Set operator owner
         pufferModuleManager.setOperatorOwner(address(operator), newOwner);
         vm.stopPrank();

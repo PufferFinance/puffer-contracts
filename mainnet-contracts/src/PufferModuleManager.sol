@@ -143,7 +143,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function setOperatorOwner(address operator, address operatorOwner) external virtual restricted {
         IRestakingOperator(operator).setOperatorOwner(operatorOwner);
 
-        emit OperatorOwnerSet({operator: operator, operatorOwner: operatorOwner});
+        emit OperatorOwnerSet({ operator: operator, operatorOwner: operatorOwner });
     }
 
     /**
