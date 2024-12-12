@@ -83,8 +83,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         PufferModuleManager moduleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: MODULE_BEACON_HOLESKY,
             restakingOperatorBeacon: RESTAKING_OPERATOR_BEACON,
-            pufferProtocol: PUFFER_PROTOCOL_HOLESKY,
-            avsContractsRegistry: new AVSContractsRegistry(ACCESS_MANAGER_HOLESKY)
+            pufferProtocol: PUFFER_PROTOCOL_HOLESKY
         });
 
         // Upgrade PufferModuleManager to a new implementation

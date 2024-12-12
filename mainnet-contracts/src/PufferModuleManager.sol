@@ -18,7 +18,6 @@ import { IDelegationManager } from "../src/interface/EigenLayer-Slashing/IDelega
 import { IDelegationManagerTypes } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { AVSContractsRegistry } from "./AVSContractsRegistry.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IAllocationManager } from "../src/interface/EigenLayer-Slashing/IAllocationManager.sol";
 
@@ -33,8 +32,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     address public immutable PUFFER_PROTOCOL;
     address payable public immutable PUFFER_VAULT;
 
-    AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
-
     modifier onlyPufferProtocol() {
         if (msg.sender != PUFFER_PROTOCOL) {
             revert Unauthorized();
@@ -42,17 +39,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    constructor(
-        address pufferModuleBeacon,
-        address restakingOperatorBeacon,
-        address pufferProtocol,
-        AVSContractsRegistry avsContractsRegistry
-    ) {
+    constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
         PUFFER_VAULT = payable(address(IPufferProtocol(PUFFER_PROTOCOL).PUFFER_VAULT()));
-        AVS_CONTRACTS_REGISTRY = avsContractsRegistry;
         _disableInitializers();
     }
 
