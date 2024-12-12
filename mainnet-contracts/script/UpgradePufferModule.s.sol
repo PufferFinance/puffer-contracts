@@ -10,8 +10,8 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
-import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IDelegationManager } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title UpgradePufferModule

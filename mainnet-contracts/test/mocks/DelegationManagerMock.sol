@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
-import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
-import { IStrategyManager } from "src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
+import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IStrategy } from "src/interface/EigenLayer-Slashing/IStrategy.sol";
+import { ISignatureUtils } from "src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
+import { IStrategyManager } from "src/interface/EigenLayer-Slashing/IStrategyManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DelegationManagerMock {

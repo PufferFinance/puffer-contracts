@@ -1,9 +1,9 @@
 // // SPDX-License-Identifier: BUSL-1.1
 // pragma solidity >=0.8.12;
 
-// import "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
-// import "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-// import "src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
+// import "src/interface/EigenLayer-Slashing/IAllocationManager.sol";
+// import "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+// import "src/interface/EigenLayer-Slashing/IStrategyManager.sol";
 // import "test/mocks/StructuredLinkedListMock.sol";
 // import "test/mocks/PausableMock.sol";
 // import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";

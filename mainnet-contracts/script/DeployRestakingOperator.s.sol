@@ -6,10 +6,10 @@ import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
-import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IDelegationManager } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IAllocationManager } from "../src/interface/EigenLayer-Slashing/IAllocationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**

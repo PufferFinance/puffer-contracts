@@ -11,12 +11,12 @@ import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.s
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
-import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IDelegationManager } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { ISignatureUtils } from "../../src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
+import { IStrategy } from "../../src/interface/EigenLayer-Slashing/IStrategy.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
-import { IAVSDirectory } from "../../src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
-import { IRewardsCoordinator } from "../../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IAVSDirectory } from "../../src/interface/EigenLayer-Slashing/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "../../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

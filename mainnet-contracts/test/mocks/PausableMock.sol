@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.12;
 
-import "src/interface/Eigenlayer-Slashing/IPausable.sol";
+import "src/interface/EigenLayer-Slashing/IPausable.sol";
 
 /**
  * @title Adds pausability to a contract, with pausing & unpausing controlled by the `pauser` and `unpauser` of a PauserRegistry contract.
