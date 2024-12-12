@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtils } from "../interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 
 interface IRegistryCoordinatorExtended is IRegistryCoordinator {
     /**

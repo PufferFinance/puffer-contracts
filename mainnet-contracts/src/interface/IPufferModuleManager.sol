@@ -2,18 +2,17 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferModule } from "../interface/IPufferModule.sol";
-import { IRestakingOperator } from "../interface/IRestakingOperator.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
+import { IDelegationManager } from "../interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { ISignatureUtils } from "../interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
-
+import { RestakingOperator } from "src/RestakingOperator.sol";
 /**
  * @title IPufferModuleManager
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
+
 interface IPufferModuleManager {
     /**
      * @notice Thrown if the module name is not allowed
@@ -37,12 +36,10 @@ interface IPufferModuleManager {
     /**
      * @notice Emitted when the Restaking Operator is created
      * @param restakingOperator is the address of the restaking operator
-     * @param operatorDetails is the struct with new operator details
-     * @dev Signature "0xbb6c366230e589c402e164f680d07db88a6c1d4dda4dd2dcbab5528c09a6b046"
+     * @param delegationApprover is the address of the delegation approver
+     * @dev Signature "0x28682dddd8aa82d42ec7143a18beba2d09b27d4581f2f26a6afcd0da4576ae71"
      */
-    event RestakingOperatorCreated(
-        address indexed restakingOperator, IDelegationManager.OperatorDetails operatorDetails
-    );
+    event RestakingOperatorCreated(address indexed restakingOperator, address indexed delegationApprover);
 
     /**
      * @notice Emitted when the Restaking Operator is modified
@@ -50,9 +47,7 @@ interface IPufferModuleManager {
      * @param newOperatorDetails is the struct with new operator details
      * @dev Signature "0xee78237d6444cc6c9083c1ef31a82b0feac23fbdf0cf52d7b0ed66dfa5f7f9f2"
      */
-    event RestakingOperatorModified(
-        address indexed restakingOperator, IDelegationManager.OperatorDetails newOperatorDetails
-    );
+    event RestakingOperatorModified(address indexed restakingOperator, address indexed newOperatorDetails);
 
     /**
      * @notice Emitted when the Withdrawals are queued
@@ -119,58 +114,6 @@ interface IPufferModuleManager {
     event ProofSubmitterSet(bytes32 indexed moduleName, address indexed proofSubmitter);
 
     /**
-     * @notice Emitted when the Restaking Operator is registered to an AVS
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
-     * @param socket is the socket of the operator (typically an IP address)
-     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
-     */
-    event RestakingOperatorRegisteredToAVS(
-        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers, string socket
-    );
-
-    /**
-     * @notice Emitted when the Restaking Operator is registered to an AVS
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
-     * @param socket is the socket of the operator (typically an IP address)
-     * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
-     * operator registers for quorums
-     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
-     */
-    event RestakingOperatorRegisteredToAVSWithChurn(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes quorumNumbers,
-        string socket,
-        IRegistryCoordinator.OperatorKickParam[] operatorKickParams
-    );
-
-    /**
-     * @notice Emitted when the Restaking Operator is deregistered from an AVS
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
-     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
-     */
-    event RestakingOperatorDeregisteredFromAVS(
-        IRestakingOperator restakingOperator, address avsRegistryCoordinator, bytes quorumNumbers
-    );
-
-    /**
-     * @notice Emitted when the Restaking Operator AVS Socket is updated
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param socket is the new socket of the operator
-     * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
-     */
-    event RestakingOperatorAVSSocketUpdated(
-        IRestakingOperator restakingOperator, address avsRegistryCoordinator, string socket
-    );
-
-    /**
      * @notice Emitted when the Restaking Operator or PufferModule sets the calimer to `claimer`
      * @dev Signature "0x4925eafc82d0c4d67889898eeed64b18488ab19811e61620f387026dec126a28"
      */
@@ -213,7 +156,7 @@ interface IPufferModuleManager {
         string memory metadataURI,
         address delegationApprover,
         uint32 stakerOptOutWindowBlocks
-    ) external returns (IRestakingOperator module);
+    ) external returns (RestakingOperator module);
 
     /**
      * @notice Create a new Puffer module
@@ -242,7 +185,7 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function callModifyOperatorDetails(
-        IRestakingOperator restakingOperator,
+        RestakingOperator restakingOperator,
         IDelegationManager.OperatorDetails calldata newOperatorDetails
     ) external;
 
@@ -271,7 +214,7 @@ interface IPufferModuleManager {
      * @param slasher is the address of the slasher contract to opt into
      * @dev Restricted to the DAO
      */
-    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external;
+    function callOptIntoSlashing(RestakingOperator restakingOperator, address slasher) external;
 
     /**
      * @notice Calls the updateOperatorMetadataURI function on the restaking operator
@@ -279,7 +222,7 @@ interface IPufferModuleManager {
      * @param metadataURI is the URI of the operator's metadata
      * @dev Restricted to the DAO
      */
-    function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI) external;
+    function callUpdateMetadataURI(RestakingOperator restakingOperator, string calldata metadataURI) external;
 
     /**
      * @notice Calls the callDelegateTo function on the target module
@@ -311,97 +254,8 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function updateAVSRegistrationSignatureProof(
-        IRestakingOperator restakingOperator,
+        RestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer
     ) external;
-
-    /**
-     * @notice Registers msg.sender as an operator for one or more quorums. If any quorum exceeds its maximum
-     * operator capacity after the operator is registered, this method will fail.
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
-     * @param socket is the socket of the operator (typically an IP address)
-     * @param params contains the G1 & G2 public keys of the operator, and a signature proving their ownership
-     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
-     * @dev Restricted to the DAO
-     */
-    function callRegisterOperatorToAVS(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external;
-
-    /**
-     * @notice Registers msg.sender as an operator for one or more quorums. If any quorum reaches its maximum operator
-     * capacity, `operatorKickParams` is used to replace an old operator with the new one.
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being registered for
-     * @param socket is the socket of the operator (typically an IP address)
-     * @param params contains the G1 & G2 public keys of the operator, and a signature proving their ownership
-     * @param operatorKickParams used to determine which operator is removed to maintain quorum capacity as the
-     * operator registers for quorums
-     * @param churnApproverSignature is the signature of the churnApprover over the `operatorKickParams`
-     * @param operatorSignature is the signature of the operator used by the AVS to register the operator in the delegation manager
-     * @dev Restricted to the DAO
-     */
-    function callRegisterOperatorToAVSWithChurn(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external;
-
-    /**
-     * @notice Deregisters the caller from one or more quorums
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param quorumNumbers is an ordered byte array containing the quorum numbers being deregistered from
-     * @dev Restricted to the DAO
-     */
-    function callDeregisterOperatorFromAVS(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers
-    ) external;
-
-    /**
-     * @notice Updates the socket of the msg.sender given they are a registered operator
-     * @param restakingOperator is the address of the restaking operator
-     * @param avsRegistryCoordinator the avs registry coordinator address
-     * @param socket is the new socket of the operator
-     * @dev Restricted to the DAO
-     */
-    function callUpdateOperatorAVSSocket(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        string memory socket
-    ) external;
-
-    /**
-     * @notice Calls the `callSetClaimerFor` function on the target module or restaking operator contract
-     * @param moduleOrReOp is the address of the target module or restaking operator contract
-     * @param claimer is the address of the claimer to be set
-     * @dev Restricted to the DAO
-     */
-    function callSetClaimerFor(address moduleOrReOp, address claimer) external;
-
-    /**
-     * @notice Calls the `target` contract with `customCalldata` from the Restaking Operator contract
-     * @param restakingOperator is the Restaking Operator contract
-     * @param target is the address of the target contract that ReOp will call
-     * @param customCalldata is the calldata to be passed to the target contract
-     * @dev Restricted to the DAO
-     */
-    function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
-        external;
 }

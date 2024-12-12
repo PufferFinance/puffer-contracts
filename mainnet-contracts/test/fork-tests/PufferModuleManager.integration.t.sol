@@ -5,16 +5,15 @@ import "forge-std/console.sol";
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategyManager } from "../../src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
+import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IBLSApkRegistry, IRegistryCoordinator } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IAVSDirectory } from "../../src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
+import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
@@ -47,7 +46,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     function test_opt_into_slashing() public {
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         address slasher = address(1235);
 
@@ -58,7 +57,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     function test_modify_operator() public {
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
             __deprecated_earningsReceiver: address(this),
@@ -79,7 +78,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     function test_update_metadata_uri() public {
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         string memory newUri = "https://puffer.fi/updated.json";
 
@@ -95,7 +94,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     // // vm.startPrank(DAO);
     // // https://holesky.eigenlayer.xyz/operator/0xe2c2dc296a0bff351f6bc3e98d37ea798e393e56
     // address restakingOperator = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
-    // // IRestakingOperator restakingOperator = _createRestakingOperator();
+    // // RestakingOperator restakingOperator = _createRestakingOperator();
 
     // // _depositToWETHEigenLayerStrategyAndDelegateTo(address(restakingOperator));
 
@@ -124,7 +123,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     // bytes memory hashCall = abi.encodeCall(
     //     IPufferModuleManager.updateAVSRegistrationSignatureProof,
-    //     (IRestakingOperator(restakingOperator), digestHash, operatorAddress)
+    //     (RestakingOperator(restakingOperator), digestHash, operatorAddress)
     // );
 
     // //@todo has to be updated manually on the contract
@@ -133,7 +132,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     // console.logBytes(hashCall);
 
     // // pufferModuleManager.updateAVSRegistrationSignatureProof(
-    // //     IRestakingOperator(restakingOperator), digestHash, operatorAddress
+    // //     RestakingOperator(restakingOperator), digestHash, operatorAddress
     // // );
 
     // IRegistryCoordinator.OperatorKickParam[] memory operatorKickParams =
@@ -151,7 +150,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     // bytes memory calldataToRegister = abi.encodeCall(
     //     IPufferModuleManager.callRegisterOperatorToAVSWithChurn,
     //     (
-    //         IRestakingOperator(restakingOperator),
+    //         RestakingOperator(restakingOperator),
     //         EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
     //         bytes(hex"01"),
     //         "20.64.16.29:32005;32004",
@@ -171,7 +170,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     // 4. Dao registers the operator by submitting his signature to the AVS
     // pufferModuleManager.callRegisterOperatorToAVSWithChurn({
-    //     restakingOperator: IRestakingOperator(restakingOperator),
+    //     restakingOperator: RestakingOperator(restakingOperator),
     //     avsRegistryCoordinator: EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY,
     //     quorumNumbers: bytes(hex"01"),
     //     socket: "103.199.107.52:32005;32004",
@@ -204,8 +203,8 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     // Creates a new restaking operator and returns it
     // metadataURI is used as seed for create2 in EL
-    function _createRestakingOperator() internal returns (IRestakingOperator) {
-        IRestakingOperator operator = moduleManager.createNewRestakingOperator({
+    function _createRestakingOperator() internal returns (RestakingOperator) {
+        RestakingOperator operator = moduleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
             delegationApprover: address(0),
             stakerOptOutWindowBlocks: 0

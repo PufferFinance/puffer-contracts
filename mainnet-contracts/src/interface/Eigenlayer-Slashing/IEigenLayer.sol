@@ -18,6 +18,7 @@ interface IEigenLayer {
      * the data is resubmitted and the hash of the submitted data is computed by `calculateWithdrawalRoot` and checked against the
      * stored hash in order to confirm the integrity of the submitted data.
      */
+
     struct QueuedWithdrawal {
         IStrategy[] strategies;
         uint256[] shares;

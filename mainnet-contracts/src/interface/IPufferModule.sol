@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { BeaconChainProofs } from "eigenlayer/libraries/BeaconChainProofs.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { ISignatureUtils } from "../interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+// import { BeaconChainProofs } from "../interface/Eigenlayer-Slashing/BeaconChainProofs.sol";
+import { IDelegationManager } from "../interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IDelegationManagerTypes } from "../interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 /**
  * @title IPufferModule
@@ -96,9 +97,8 @@ interface IPufferModule {
      * @notice Completes the queued withdrawals
      */
     function completeQueuedWithdrawals(
-        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
     ) external;
 

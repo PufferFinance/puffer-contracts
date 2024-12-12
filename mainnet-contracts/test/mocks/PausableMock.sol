@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.12;
 
-import "eigenlayer/interfaces/IPausable.sol";
+import "src/interface/Eigenlayer-Slashing/IPausable.sol";
 
 /**
  * @title Adds pausability to a contract, with pausing & unpausing controlled by the `pauser` and `unpauser` of a PauserRegistry contract.
@@ -111,18 +111,13 @@ contract PausableMock is IPausable {
         return ((_paused & mask) == mask);
     }
 
-    /// @notice Allows the unpauser to set a new pauser registry
-    function setPauserRegistry(IPauserRegistry newPauserRegistry) external onlyUnpauser {
-        _setPauserRegistry(newPauserRegistry);
-    }
-
     /// internal function for setting pauser registry
     function _setPauserRegistry(IPauserRegistry newPauserRegistry) internal {
         require(
             address(newPauserRegistry) != address(0),
             "Pausable._setPauserRegistry: newPauserRegistry cannot be the zero address"
         );
-        emit PauserRegistrySet(pauserRegistry, newPauserRegistry);
+        // emit PauserRegistrySet(pauserRegistry, newPauserRegistry);
         pauserRegistry = newPauserRegistry;
     }
 

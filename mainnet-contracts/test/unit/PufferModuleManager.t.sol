@@ -9,12 +9,12 @@ import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.s
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { RestakingOperator } from "src/RestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 contract PufferModuleUpgrade {
@@ -144,7 +144,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.assume(claimer != address(0));
 
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ClaimerSet({ rewardsReceiver: address(operator), claimer: claimer });
@@ -214,7 +214,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         address createdModule = _createPufferModule(moduleName);
 
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ClaimerSet(address(createdModule), claimer);
@@ -245,7 +245,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(DAO);
 
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         bytes32 salt = 0xdebc2c61283b511dc62175c508bc9c6ad8ca754ba918164e6a9b19765c98006d;
         bytes32 digestHash = keccak256(
@@ -276,7 +276,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     function test_customExternalCall() public {
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         bytes memory customCalldata = abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ());
 
@@ -360,8 +360,8 @@ contract PufferModuleManagerTest is UnitTestHelper {
         root = rewardsMerkleProof.getRoot(rewardsMerkleProofData);
     }
 
-    function _createRestakingOperator() internal returns (IRestakingOperator) {
-        IRestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
+    function _createRestakingOperator() internal returns (RestakingOperator) {
+        RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
             delegationApprover: address(0),
             stakerOptOutWindowBlocks: 0

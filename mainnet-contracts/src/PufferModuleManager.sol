@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Unauthorized, InvalidAmount } from "./Errors.sol";
-import { IRestakingOperator } from "./interface/IRestakingOperator.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { PufferVaultV3 } from "./PufferVaultV3.sol";
@@ -15,11 +14,13 @@ import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { AVSContractsRegistry } from "./AVSContractsRegistry.sol";
+import { RestakingOperator } from "./RestakingOperator.sol";
+import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 
 /**
  * @title PufferModuleManager
@@ -88,7 +89,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function callCompleteQueuedWithdrawals(
         bytes32 moduleName,
-        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
@@ -106,8 +107,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         for (uint256 i = 0; i < withdrawals.length; ++i) {
             // nosemgrep array-length-outside-loop
-            for (uint256 j = 0; j < withdrawals[i].shares.length; ++j) {
-                sharesWithdrawn += withdrawals[i].shares[j];
+            for (uint256 j = 0; j < withdrawals[i].scaledShares.length; ++j) {
+                sharesWithdrawn += withdrawals[i].scaledShares[j];
             }
         }
 
@@ -115,7 +116,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the PufferProtocol
      * @param moduleName The name of the module
      */
@@ -174,7 +174,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the DAO
      */
     function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
-        // We can cast `moduleOrReOp` to IPufferModule/IRestakingOperator, uses the same function signature.
+        // We can cast `moduleOrReOp` to IPufferModule/RestakingOperator, uses the same function signature.
         IPufferModule(moduleOrReOp).callSetClaimerFor(claimer);
         emit ClaimerSet({ rewardsReceiver: moduleOrReOp, claimer: claimer });
     }
@@ -193,17 +193,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function createNewRestakingOperator(
-        string calldata metadataURI,
-        address delegationApprover,
-        uint32 stakerOptOutWindowBlocks
-    ) external virtual restricted returns (IRestakingOperator) {
-        IDelegationManager.OperatorDetails memory operatorDetails = IDelegationManager.OperatorDetails({
-            __deprecated_earningsReceiver: address(this),
-            delegationApprover: delegationApprover,
-            stakerOptOutWindowBlocks: stakerOptOutWindowBlocks
-        });
-
+    function createNewRestakingOperator(string calldata metadataURI, address delegationApprover, uint32 allocationDelay)
+        external
+        virtual
+        restricted
+        returns (RestakingOperator)
+    {
         address restakingOperator = Create2.deploy({
             amount: 0,
             salt: keccak256(abi.encode(metadataURI)),
@@ -211,14 +206,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                 type(BeaconProxy).creationCode,
                 abi.encode(
                     RESTAKING_OPERATOR_BEACON,
-                    abi.encodeCall(RestakingOperator.initialize, (authority(), operatorDetails, metadataURI))
+                    abi.encodeCall(
+                        RestakingOperator.initialize, (authority(), delegationApprover, metadataURI, allocationDelay)
+                    )
                 )
             )
         });
 
-        emit RestakingOperatorCreated(restakingOperator, operatorDetails);
+        emit RestakingOperatorCreated(restakingOperator, delegationApprover);
 
-        return IRestakingOperator(restakingOperator);
+        return RestakingOperator(restakingOperator);
     }
 
     /**
@@ -226,18 +223,19 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the DAO
      */
     function callModifyOperatorDetails(
-        IRestakingOperator restakingOperator,
-        IDelegationManager.OperatorDetails calldata newOperatorDetails
+        RestakingOperator restakingOperator,
+        address newOperatorDetails,
+        address newDelegationApprover
     ) external virtual restricted {
-        restakingOperator.modifyOperatorDetails(newOperatorDetails);
-        emit RestakingOperatorModified(address(restakingOperator), newOperatorDetails);
+        restakingOperator.modifyOperatorDetails(newOperatorDetails, newDelegationApprover);
+        emit RestakingOperatorModified(address(restakingOperator), newDelegationApprover);
     }
 
     /**
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callUpdateMetadataURI(IRestakingOperator restakingOperator, string calldata metadataURI)
+    function callUpdateMetadataURI(RestakingOperator restakingOperator, string calldata metadataURI)
         external
         virtual
         restricted
@@ -250,7 +248,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
+    function callOptIntoSlashing(RestakingOperator restakingOperator, address slasher) external virtual restricted {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
@@ -285,82 +283,31 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callRegisterOperatorToAVS(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
+        RestakingOperator restakingOperator,
+        IAllocationManager.RegisterParams calldata registrationParams
     ) external virtual restricted {
-        restakingOperator.registerOperatorToAVS({
-            avsRegistryCoordinator: avsRegistryCoordinator,
-            quorumNumbers: quorumNumbers,
-            socket: socket,
-            params: params,
-            operatorSignature: operatorSignature
-        });
+        restakingOperator.registerOperatorToAVS(registrationParams);
 
-        emit RestakingOperatorRegisteredToAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers, socket);
+        emit RestakingOperatorRegisteredToAVS(address(restakingOperator), avsRegistryCoordinator, quorumNumbers, socket);
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callRegisterOperatorToAVSWithChurn(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual restricted {
-        restakingOperator.registerOperatorToAVSWithChurn({
-            avsRegistryCoordinator: avsRegistryCoordinator,
-            quorumNumbers: quorumNumbers,
-            socket: socket,
-            params: params,
-            operatorKickParams: operatorKickParams,
-            churnApproverSignature: churnApproverSignature,
-            operatorSignature: operatorSignature
-        });
-
-        emit RestakingOperatorRegisteredToAVSWithChurn({
-            restakingOperator: restakingOperator,
-            avsRegistryCoordinator: avsRegistryCoordinator,
-            quorumNumbers: quorumNumbers,
-            socket: socket,
-            operatorKickParams: operatorKickParams
-        });
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted to the DAO
-     */
-    function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
+    function customExternalCall(RestakingOperator restakingOperator, address target, bytes calldata customCalldata)
         external
         virtual
         restricted
     {
-        // Custom external calls are only allowed to whitelisted registry coordinators
-        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target, customCalldata)) {
-            revert Unauthorized();
-        }
-
         bytes memory response = restakingOperator.customCalldataCall(target, customCalldata);
 
         emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callStartCheckpoint(address[] calldata moduleAddresses) external virtual restricted {
@@ -371,11 +318,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callDeregisterOperatorFromAVS(
-        IRestakingOperator restakingOperator,
+        RestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers
     ) external virtual restricted {
@@ -385,25 +331,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted to the DAO
-     */
-    function callUpdateOperatorAVSSocket(
-        IRestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        string calldata socket
-    ) external virtual restricted {
-        restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
-
-        emit RestakingOperatorAVSSocketUpdated(restakingOperator, avsRegistryCoordinator, socket);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function updateAVSRegistrationSignatureProof(
-        IRestakingOperator restakingOperator,
+        RestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer
     ) external virtual restricted {

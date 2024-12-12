@@ -3,12 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IEigenPodManager } from "../src/interface/EigenLayer-Slashing/IEigenPodManager.sol";
+import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategy } from "../src/interface/EigenLayer-Slashing/IStrategy.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPod } from "../src/interface/EigenLayer-Slashing/IEigenPod.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { Unauthorized } from "./Errors.sol";
@@ -16,7 +16,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
-import { IRewardsCoordinator } from "./interface/EigenLayer/IRewardsCoordinator.sol";
+import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IRewardsCoordinator } from "../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title PufferModule
@@ -156,8 +157,8 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         onlyPufferModuleManager
         returns (bytes32[] memory)
     {
-        IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
-            new IDelegationManager.QueuedWithdrawalParams[](1);
+        IDelegationManagerTypes.QueuedWithdrawalParams[] memory withdrawals =
+            new IDelegationManagerTypes.QueuedWithdrawalParams[](1);
 
         uint256[] memory shares = new uint256[](1);
         shares[0] = shareAmount;
@@ -165,9 +166,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IStrategy[] memory strategies = new IStrategy[](1);
         strategies[0] = IStrategy(_BEACON_CHAIN_STRATEGY);
 
-        withdrawals[0] = IDelegationManager.QueuedWithdrawalParams({
+        withdrawals[0] = IDelegationManagerTypes.QueuedWithdrawalParams({
             strategies: strategies,
-            shares: shares,
+            depositShares: shares,
             withdrawer: address(this)
         });
 
@@ -178,15 +179,13 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @inheritdoc IPufferModule
      */
     function completeQueuedWithdrawals(
-        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
     ) external virtual whenNotPaused onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.completeQueuedWithdrawals({
             withdrawals: withdrawals,
             tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: receiveAsTokens
         });
     }

@@ -4,9 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
-import { IRestakingOperator } from "./interface/IRestakingOperator.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -14,8 +13,8 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IRegistryCoordinator, IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IRegistryCoordinatorExtended } from "./interface/IRegistryCoordinatorExtended.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IRewardsCoordinator } from "./interface/EigenLayer/IRewardsCoordinator.sol";
+import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IRewardsCoordinator } from "./interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title RestakingOperator
@@ -23,7 +22,7 @@ import { IRewardsCoordinator } from "./interface/EigenLayer/IRewardsCoordinator.
  * @notice PufferModule
  * @custom:security-contact security@puffer.fi
  */
-contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, AccessManagedUpgradeable {
+contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable {
     using Address for address;
     // keccak256(abi.encode(uint256(keccak256("RestakingOperator.storage")) - 1)) & ~bytes32(uint256(0xff))
     // slither-disable-next-line unused-state
@@ -61,7 +60,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    ISlasher public immutable override EIGEN_SLASHER;
+    IAllocationManager public immutable override EIGEN_ALLOCATION_MANAGER;
 
     /**
      * @dev Upgradeable Puffer Module Manager
@@ -78,21 +77,21 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     // We use constructor to set the immutable variables
     constructor(
         IDelegationManager delegationManager,
-        ISlasher slasher,
+        IAllocationManager allocationManager,
         IPufferModuleManager moduleManager,
         IRewardsCoordinator rewardsCoordinator
     ) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
         }
-        if (address(slasher) == address(0)) {
+        if (address(allocationManager) == address(0)) {
             revert InvalidAddress();
         }
         if (address(moduleManager) == address(0)) {
             revert InvalidAddress();
         }
         EIGEN_DELEGATION_MANAGER = delegationManager;
-        EIGEN_SLASHER = slasher;
+        EIGEN_ALLOCATION_MANAGER = allocationManager;
         PUFFER_MODULE_MANAGER = moduleManager;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
         _disableInitializers();
@@ -100,43 +99,29 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     function initialize(
         address initialAuthority,
-        IDelegationManager.OperatorDetails calldata operatorDetails,
-        string calldata metadataURI
+        address initDelegationApprover,
+        string calldata metadataURI,
+        uint32 allocationDelay
     ) external initializer {
         __AccessManaged_init(initialAuthority);
-        EIGEN_DELEGATION_MANAGER.registerAsOperator(operatorDetails, metadataURI);
+        EIGEN_DELEGATION_MANAGER.registerAsOperator(initDelegationApprover, allocationDelay, metadataURI);
     }
 
     /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function optIntoSlashing(address slasher) external virtual onlyPufferModuleManager {
-        EIGEN_SLASHER.optIntoSlashing(slasher);
+    function modifyOperatorDetails(address newDelegationApprover) external virtual onlyPufferModuleManager {
+        EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(address(this), newDelegationApprover);
     }
 
     /**
-     * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
-     */
-    function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata newOperatorDetails)
-        external
-        virtual
-        onlyPufferModuleManager
-    {
-        EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(newOperatorDetails);
-    }
-
-    /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
     function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyPufferModuleManager {
-        EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(metadataURI);
+        EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(address(this), metadataURI);
     }
 
     /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
     function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyPufferModuleManager {
@@ -146,49 +131,28 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     }
 
     /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function registerOperatorToAVS(
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual onlyPufferModuleManager {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator({
-            quorumNumbers: quorumNumbers,
-            socket: socket,
-            params: params,
-            operatorSignature: operatorSignature
-        });
+    function registerOperatorToAVS(IAllocationManager.RegisterParams calldata registrationParams)
+        external
+        virtual
+        onlyPufferModuleManager
+    {
+        EIGEN_ALLOCATION_MANAGER.registerForOperatorSets(address(this), registrationParams);
     }
 
     /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
-    function registerOperatorToAVSWithChurn(
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers,
-        string calldata socket,
-        IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-        IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual onlyPufferModuleManager {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn({
-            quorumNumbers: quorumNumbers,
-            socket: socket,
-            params: params,
-            operatorKickParams: operatorKickParams,
-            churnApproverSignature: churnApproverSignature,
-            operatorSignature: operatorSignature
-        });
+    function deregisterOperatorFromAVS(IAllocationManager.DeregisterParams calldata deregistrationParams)
+        external
+        virtual
+        onlyPufferModuleManager
+    {
+        EIGEN_ALLOCATION_MANAGER.deregisterFromOperatorSets(deregistrationParams);
     }
 
     /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager
      */
     function customCalldataCall(address target, bytes calldata customCalldata)
@@ -201,31 +165,6 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     }
 
     /**
-     * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
-     */
-    function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
-        external
-        virtual
-        onlyPufferModuleManager
-    {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).deregisterOperator(quorumNumbers);
-    }
-
-    /**
-     * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
-     */
-    function updateOperatorAVSSocket(address avsRegistryCoordinator, string calldata socket)
-        external
-        virtual
-        onlyPufferModuleManager
-    {
-        IRegistryCoordinatorExtended(avsRegistryCoordinator).updateSocket(socket);
-    }
-
-    /**
-     * @inheritdoc IRestakingOperator
      * @dev Restricted to PufferModuleManager
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {

@@ -9,7 +9,7 @@ import { PufferVaultV2Tests } from "../../test/mocks/PufferVaultV2Tests.sol";
 import { PufferDepositorV2 } from "../../src/PufferDepositorV2.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
-import { IEigenLayer } from "../../src/interface/EigenLayer/IEigenLayer.sol";
+import { IEigenLayer } from "../../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -22,13 +22,13 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IWstETH } from "../../src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "../../src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "../../src/interface/EigenLayer/IStrategy.sol";
+import { IEigenLayer } from "../../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
+import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { Timelock } from "../../src/Timelock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
 import { Permit } from "../../src/structs/Permit.sol";
-import { IDelegationManager } from "../../src/interface/EigenLayer/IDelegationManager.sol";
+import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 /**
  * @dev PufferDepositor and PufferVault tests (v1)

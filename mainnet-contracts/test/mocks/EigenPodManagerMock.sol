@@ -2,125 +2,126 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import "eigenlayer/interfaces/IEigenPodManager.sol";
-import "eigenlayer-test/mocks/EigenPodMock.sol";
+import "src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
+import "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+
+contract EigenPodMock { }
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
-    function slasher() external pure returns (ISlasher) { }
+    /// @notice Used by the DelegationManager to remove a Staker's shares from a particular strategy when entering the withdrawal queue
+    /// @dev strategy must be beaconChainETH when talking to the EigenPodManager
+    function removeDepositShares(address staker, IStrategy strategy, uint256 depositSharesToRemove) external { }
 
-    function createPod() external returns (address) {
-        return address(new EigenPodMock());
-    }
-
-    function addShares(address, uint256) external pure returns (uint256) {
-        return 55;
-    }
-
-    function beaconChainETHStrategy() external pure returns (IStrategy) { }
-
-    function eigenPodBeacon() external pure returns (IBeacon) {
-        return IBeacon(address(99));
-    }
-
-    function ethPOS() external pure returns (IETHPOSDeposit) {
-        return IETHPOSDeposit(address(99));
-    }
-
-    function getBlockRootAtTimestamp(uint64) external pure returns (bytes32) {
-        return bytes32("asdf");
-    }
-
-    function maxPods() external pure returns (uint256) {
-        return 100;
-    }
-
-    function numPods() external pure returns (uint256) {
-        return 10;
-    }
-
-    function podOwnerShares(address) external pure returns (int256) {
-        return 5;
-    }
-
-    /**
-     * @notice the deneb hard fork timestamp used to determine which proof path to use for proving a withdrawal
-     */
-    function denebForkTimestamp() external view returns (uint64) { }
-
-    /**
-     * setting the deneb hard fork timestamp by the eigenPodManager owner
-     * @dev this function is designed to be called twice.  Once, it is set to type(uint64).max
-     * prior to the actual deneb fork timestamp being set, and then the second time it is set
-     * to the actual deneb fork timestamp.
-     */
-    function setDenebForkTimestamp(uint64 newDenebForkTimestamp) external { }
-
-    function recordBeaconChainETHBalanceUpdate(address podOwner, int256 sharesDelta) external { }
-    function removeShares(address podOwner, uint256 shares) external { }
-    function withdrawSharesAsTokens(address podOwner, address destination, uint256 shares) external { }
-
-    function stake(bytes calldata, /*pubkey*/ bytes calldata, /*signature*/ bytes32 /*depositDataRoot*/ )
+    /// @notice Used by the DelegationManager to award a Staker some shares that have passed through the withdrawal queue
+    /// @dev strategy must be beaconChainETH when talking to the EigenPodManager
+    /// @dev token is not validated when talking to the EigenPodManager
+    /// @return existingDepositShares the shares the staker had before any were added
+    /// @return addedShares the new shares added to the staker's balance
+    function addShares(address staker, IStrategy strategy, IERC20 token, uint256 shares)
         external
-        payable
+        returns (uint256, uint256)
     { }
 
-    function restakeBeaconChainETH(address, /*podOwner*/ uint256 /*amount*/ ) external pure { }
+    /// @notice Used by the DelegationManager to convert withdrawn descaled shares to tokens and send them to a staker
+    /// @dev strategy must be beaconChainETH when talking to the EigenPodManager
+    /// @dev token is not validated when talking to the EigenPodManager
+    function withdrawSharesAsTokens(address staker, IStrategy strategy, IERC20 token, uint256 shares) external { }
 
-    function recordBeaconChainETHBalanceUpdate(
-        address, /*podOwner*/
-        uint256, /*beaconChainETHStrategyIndex*/
-        int256 /*sharesDelta*/
-    ) external pure { }
+    /// @notice Returns the current shares of `user` in `strategy`
+    /// @dev strategy must be beaconChainETH when talking to the EigenPodManager
+    /// @dev returns 0 if the user has negative shares
+    function stakerDepositShares(address user, IStrategy strategy) external view returns (uint256 depositShares) { }
 
-    function withdrawRestakedBeaconChainETH(address, /*podOwner*/ address, /*recipient*/ uint256 /*amount*/ )
+    /**
+     * @notice Creates an EigenPod for the sender.
+     * @dev Function will revert if the `msg.sender` already has an EigenPod.
+     * @dev Returns EigenPod address
+     */
+    function createPod() external returns (address) { }
+
+    /**
+     * @notice Stakes for a new beacon chain validator on the sender's EigenPod.
+     * Also creates an EigenPod for the sender if they don't have one already.
+     * @param pubkey The 48 bytes public key of the beacon chain validator.
+     * @param signature The validator's signature of the deposit data.
+     * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
+     */
+    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable { }
+
+    /**
+     * @notice Changes the `podOwner`'s shares by `sharesDelta` and performs a call to the DelegationManager
+     * to ensure that delegated shares are also tracked correctly
+     * @param podOwner is the pod owner whose balance is being updated.
+     * @param prevRestakedBalanceWei is the total amount restaked through the pod before the balance update
+     * @param balanceDeltaWei is the amount the balance changed
+     * @dev Callable only by the podOwner's EigenPod contract.
+     * @dev Reverts if `sharesDelta` is not a whole Gwei amount
+     */
+    function recordBeaconChainETHBalanceUpdate(address podOwner, uint256 prevRestakedBalanceWei, int256 balanceDeltaWei)
         external
-        pure
     { }
 
-    // function updateBeaconChainOracle(IBeaconChainOracle /*newBeaconChainOracle*/ ) external pure { }
+    /// @notice Returns the address of the `podOwner`'s EigenPod if it has been deployed.
+    function ownerToPod(address podOwner) external view returns (IEigenPod) { }
 
-    function ownerToPod(address /*podOwner*/ ) external view returns (IEigenPod) {
-        // return IEigenPod(address(555));
-        return IEigenPod(address(uint160(uint256(uint160(msg.sender)) + 1)));
-    }
+    /// @notice Returns the address of the `podOwner`'s EigenPod (whether it is deployed yet or not).
+    function getPod(address podOwner) external view returns (IEigenPod) { }
 
-    function getPod(address podOwner) external pure returns (IEigenPod) {
-        return IEigenPod(podOwner);
-    }
+    /// @notice The ETH2 Deposit Contract
+    function ethPOS() external view returns (IETHPOSDeposit) { }
 
-    function getBeaconChainStateRoot(uint64 /*blockNumber*/ ) external pure returns (bytes32) {
-        return bytes32(0);
-    }
+    /// @notice Beacon proxy to which the EigenPods point
+    function eigenPodBeacon() external view returns (IBeacon) { }
 
-    function strategyManager() external pure returns (IStrategyManager) {
-        return IStrategyManager(address(0));
-    }
+    /// @notice Returns 'true' if the `podOwner` has created an EigenPod, and 'false' otherwise.
+    function hasPod(address podOwner) external view returns (bool) { }
 
-    function decrementWithdrawableRestakedExecutionLayerGwei(address podOwner, uint256 amountWei) external { }
+    /// @notice Returns the number of EigenPods that have been created
+    function numPods() external view returns (uint256) { }
 
-    function incrementWithdrawableRestakedExecutionLayerGwei(address podOwner, uint256 amountWei) external { }
+    /**
+     * @notice Mapping from Pod owner owner to the number of shares they have in the virtual beacon chain ETH strategy.
+     * @dev The share amount can become negative. This is necessary to accommodate the fact that a pod owner's virtual beacon chain ETH shares can
+     * decrease between the pod owner queuing and completing a withdrawal.
+     * When the pod owner's shares would otherwise increase, this "deficit" is decreased first _instead_.
+     * Likewise, when a withdrawal is completed, this "deficit" is decreased and the withdrawal amount is decreased; We can think of this
+     * as the withdrawal "paying off the deficit".
+     */
+    function podOwnerDepositShares(address podOwner) external view returns (int256) { }
 
-    function hasPod(address /*podOwner*/ ) external pure returns (bool) {
-        return false;
-    }
+    /// @notice returns canonical, virtual beaconChainETH strategy
+    function beaconChainETHStrategy() external view returns (IStrategy) { }
 
-    function pause(uint256 /*newPausedStatus*/ ) external { }
+    /**
+     * @notice Returns the historical sum of proportional balance decreases a pod owner has experienced when
+     * updating their pod's balance.
+     */
+    function beaconChainSlashingFactor(address staker) external view returns (uint64) { }
 
+    /**
+     * @notice This function is used to pause an EigenLayer contract's functionality.
+     * It is permissioned to the `pauser` address, which is expected to be a low threshold multisig.
+     * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
+     * @dev This function can only pause functionality, and thus cannot 'unflip' any bit in `_paused` from 1 to 0.
+     */
+    function pause(uint256 newPausedStatus) external { }
+
+    /**
+     * @notice Alias for `pause(type(uint256).max)`.
+     */
     function pauseAll() external { }
 
-    function paused() external pure returns (uint256) {
-        return 0;
-    }
+    /**
+     * @notice This function is used to unpause an EigenLayer contract's functionality.
+     * It is permissioned to the `unpauser` address, which is expected to be a high threshold multisig or governance contract.
+     * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
+     * @dev This function can only unpause functionality, and thus cannot 'flip' any bit in `_paused` from 0 to 1.
+     */
+    function unpause(uint256 newPausedStatus) external { }
 
-    function paused(uint8 /*index*/ ) external pure returns (bool) {
-        return false;
-    }
+    /// @notice Returns the current paused status as a uint256.
+    function paused() external view returns (uint256) { }
 
-    function setPauserRegistry(IPauserRegistry /*newPauserRegistry*/ ) external { }
-
-    function pauserRegistry() external pure returns (IPauserRegistry) {
-        return IPauserRegistry(address(0));
-    }
-
-    function unpause(uint256 /*newPausedStatus*/ ) external { }
+    /// @notice Returns 'true' if the `indexed`th bit of `_paused` is 1, and 'false' otherwise
+    function paused(uint8 index) external view returns (bool) { }
 }

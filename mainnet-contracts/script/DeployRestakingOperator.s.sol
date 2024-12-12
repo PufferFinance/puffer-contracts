@@ -6,10 +6,10 @@ import { IPufferModuleManager } from "../src/interface/IPufferModuleManager.sol"
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
@@ -24,7 +24,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            slasher: ISlasher(_getEigenSlasher()),
+            slasher: IAllocationManager(_getEigenSlasher()),
             moduleManager: IPufferModuleManager(_getPufferModuleManager()),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
         });

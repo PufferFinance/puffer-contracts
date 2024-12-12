@@ -12,9 +12,9 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
