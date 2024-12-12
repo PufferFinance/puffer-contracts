@@ -14,8 +14,7 @@ import { SOON } from "../src/SOON.sol";
 contract DeploySOON is DeployerHelper {
     function run() public {
         vm.startBroadcast();
-        // TODO: update this with the actual multiSig
-        address multiSig = 0x0000000000000000000000000000000000000000;
+        address multiSig = 0xE06A1ad7346Dfda7Ce9BCFba751DABFd754BAfAD;
 
         SOON soon = new SOON(multiSig);
 
