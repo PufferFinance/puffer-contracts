@@ -5,11 +5,6 @@ interface IStrategy {
     /**
      * @notice Returns the amount of underlying tokens for `user`
      */
-    function userUnderlying(address user) external view returns (uint256);
-
-    /**
-     * @notice Returns the amount of underlying tokens for `user`
-     */
     function userUnderlyingView(address user) external view returns (uint256);
 
     /**
