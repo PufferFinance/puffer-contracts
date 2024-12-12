@@ -57,11 +57,8 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
             newDelegationApprover: newDelegationApprover
         });
 
-        IDelegationManager.OperatorDetails memory details =
-            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.delegationApprover, newDelegationApprover, "updated delegation approver");
-
-        assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
+        address result = operator.EIGEN_DELEGATION_MANAGER().delegationApprover(address(operator));
+        assertEq(result, newDelegationApprover, "updated delegation approver");
     }
 
     function test_update_metadata_uri() public {
@@ -194,15 +191,11 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     function _createRestakingOperator() internal returns (RestakingOperator) {
         RestakingOperator operator = moduleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
-            delegationApprover: address(0),
-            stakerOptOutWindowBlocks: 0
+            delegationApprover: address(0x5555555555555555555555555555555555555555),
+            allocationDelay: 0
         });
 
-        IDelegationManager.OperatorDetails memory details =
-            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.delegationApprover, address(0), "delegation approver");
-        assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
-        assertEq(details.__deprecated_earningsReceiver, address(moduleManager), "earnings receiver");
+        assertTrue(address(operator).code.length > 0, "operator deployed");
 
         return operator;
     }

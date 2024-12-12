@@ -9,7 +9,7 @@ import { ISignatureUtils } from "../src/interface/EigenLayer-Slashing/ISignature
 import { IStrategy } from "../src/interface/EigenLayer-Slashing/IStrategy.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { IEigenPod } from "../src/interface/EigenLayer-Slashing/IEigenPod.sol";
-import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { Unauthorized } from "./Errors.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -62,7 +62,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
      * @dev Upgradeable Puffer Module Manager
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
+    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
     /**
      * keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
@@ -77,7 +77,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
         IPufferProtocol protocol,
         address eigenPodManager,
         IDelegationManager delegationManager,
-        IPufferModuleManager moduleManager,
+        PufferModuleManager moduleManager,
         IRewardsCoordinator rewardsCoordinator
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);

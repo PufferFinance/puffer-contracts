@@ -423,7 +423,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function changeMinimumVTAmount(uint256 newMinimumVTAmount) external restricted {
@@ -431,7 +430,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Initially it is restricted to the DAO
      */
     function createPufferModule(bytes32 moduleName) external restricted returns (address) {
@@ -439,7 +437,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external restricted {
@@ -447,7 +444,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
@@ -455,7 +451,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setVTPenalty(uint256 newPenaltyAmount) external restricted {

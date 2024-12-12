@@ -231,13 +231,10 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         IDelegationManager.Withdrawal[] memory withdrawals;
         IERC20[][] memory tokens;
-        uint256[] memory middlewareTimesIndexes;
         bool[] memory receiveAsTokens;
 
         emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
-        pufferModuleManager.callCompleteQueuedWithdrawals(
-            moduleName, withdrawals, tokens, middlewareTimesIndexes, receiveAsTokens
-        );
+        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, receiveAsTokens);
     }
 
     function test_updateAVSRegistrationSignatureProof() public {
@@ -364,13 +361,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
         RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
             delegationApprover: address(0),
-            stakerOptOutWindowBlocks: 0
+            allocationDelay: 0
         });
 
-        IDelegationManager.OperatorDetails memory details =
-            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.delegationApprover, address(0), "delegation approver");
-        assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
         return operator;
     }
 

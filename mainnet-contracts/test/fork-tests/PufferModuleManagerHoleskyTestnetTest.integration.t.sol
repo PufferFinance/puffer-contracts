@@ -7,7 +7,6 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
@@ -22,6 +21,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { IDelegationManagerTypes } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
 
 interface Weth {
     function deposit() external payable;
@@ -50,7 +50,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     address ACCESS_MANAGER_HOLESKY = 0xA6c916f85DAfeb6f726E03a1Ce8d08cf835138fF;
     address MODULE_BEACON_HOLESKY = 0x5B81A4579f466fB17af4d8CC0ED51256b94c61D4;
     address PUFFER_PROTOCOL_HOLESKY = 0x705E27D6A6A0c77081D32C07DbDE5A1E139D3F14;
-    address PUFFER_MODULE_MANAGER = 0xe4695ab93163F91665Ce5b96527408336f070a71;
+    address payable PUFFER_MODULE_MANAGER = payable(0xe4695ab93163F91665Ce5b96527408336f070a71);
     address PUFFER_MODULE_0_HOLESKY = 0x0B0456ec773B7D89C9deCc38b682F98556CF9862;
     // https://holesky.eigenlayer.xyz/operator/0xe2c2dc296a0bff351f6bc3e98d37ea798e393e56
     address RESTAKING_OPERATOR_CONTRACT = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
@@ -62,7 +62,7 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         // https://holesky.etherscan.io/tx/0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6#eventlog
         vm.createSelectFork(vm.rpcUrl("holesky"), 1369706);
 
-        IPufferModuleManager pufferModuleManager = IPufferModuleManager(PUFFER_MODULE_MANAGER);
+        PufferModuleManager pufferModuleManager = PufferModuleManager(PUFFER_MODULE_MANAGER);
 
         // Upgrade PufferModule to a new implementation, that fixes the issue
         PufferModule upgrade = new PufferModule({
@@ -98,15 +98,15 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         uint256[] memory shares = new uint256[](1);
         shares[0] = 224000000000000000000;
 
-        IDelegationManager.Withdrawal[] memory withdrawals = new IDelegationManager.Withdrawal[](1);
-        withdrawals[0] = IDelegationManager.Withdrawal({
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals = new IDelegationManagerTypes.Withdrawal[](1);
+        withdrawals[0] = IDelegationManagerTypes.Withdrawal({
             staker: PUFFER_MODULE_0_HOLESKY,
             delegatedTo: RESTAKING_OPERATOR_CONTRACT,
             withdrawer: PUFFER_MODULE_0_HOLESKY,
             nonce: 0,
             startBlock: 1369340,
             strategies: strategies,
-            shares: shares
+            scaledShares: shares
         });
 
         IERC20[] memory t = new IERC20[](1);
@@ -123,7 +123,6 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
             moduleName: bytes32("PUFFER_MODULE_0"),
             withdrawals: withdrawals,
             tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: receiveAsTokens
         });
 

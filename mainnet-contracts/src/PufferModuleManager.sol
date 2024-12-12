@@ -140,7 +140,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to Puffer Paymaster
      */
     function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
@@ -150,7 +149,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
@@ -160,7 +158,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external virtual restricted {
@@ -170,7 +167,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function createNewRestakingOperator(string calldata metadataURI, address delegationApprover, uint32 allocationDelay)
@@ -199,7 +195,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callModifyOperatorDetails(RestakingOperator restakingOperator, address newDelegationApprover)
@@ -212,7 +207,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callUpdateMetadataURI(RestakingOperator restakingOperator, string calldata metadataURI)
@@ -225,7 +219,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callDelegateTo(
@@ -242,7 +235,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
     function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
