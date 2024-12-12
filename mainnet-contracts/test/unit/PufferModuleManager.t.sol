@@ -395,6 +395,28 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
+    function test_updateOperatorEigenDASocket() public {
+        vm.startPrank(DAO);
+        // Create a new operator
+        IRestakingOperator operator = _createRestakingOperator();
+        address newOwner = makeAddr("newOwner");
+        
+        // Set operator owner
+        pufferModuleManager.setOperatorOwner(address(operator), newOwner);
+        vm.stopPrank();
+
+        string memory newSocket = "new.socket.address:8080";
+
+        // Try updating socket as non-owner (should fail)
+        vm.prank(address(0xdead));
+        vm.expectRevert(Unauthorized.selector);
+        operator.updateOperatorEigenDASocket(newSocket);
+
+        // Update socket as owner (should succeed)
+        vm.prank(newOwner);
+        operator.updateOperatorEigenDASocket(newSocket);
+    }
+
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         vm.assume(bytes32("NO_VALIDATORS") != moduleName);

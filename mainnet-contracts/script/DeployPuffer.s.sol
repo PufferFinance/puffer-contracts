@@ -27,6 +27,7 @@ import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
+import { RegistryCoordinatorMock } from "../test/mocks/RegistryCoordinatorMock.sol";
 
 /**
  * @title DeployPuffer
@@ -89,6 +90,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
             treasury = address(1);
             operationsMultisig = address(2);
+            eigenDaRegistryCoordinator = address(new RegistryCoordinatorMock());
         } else {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
