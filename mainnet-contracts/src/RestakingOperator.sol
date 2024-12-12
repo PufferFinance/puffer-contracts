@@ -55,12 +55,12 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IDelegationManager public immutable override EIGEN_DELEGATION_MANAGER;
+    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
 
     /**
      * @dev Upgradeable contract from EigenLayer
      */
-    IAllocationManager public immutable override EIGEN_ALLOCATION_MANAGER;
+    IAllocationManager public immutable EIGEN_ALLOCATION_MANAGER;
 
     /**
      * @dev Upgradeable Puffer Module Manager

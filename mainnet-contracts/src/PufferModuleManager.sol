@@ -28,29 +28,11 @@ import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAlloca
  * @custom:security-contact security@puffer.fi
  */
 contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, UUPSUpgradeable {
-    /**
-     * @inheritdoc IPufferModuleManager
-     */
-    address public immutable override PUFFER_MODULE_BEACON;
+    address public immutable PUFFER_MODULE_BEACON;
+    address public immutable RESTAKING_OPERATOR_BEACON;
+    address public immutable PUFFER_PROTOCOL;
+    address payable public immutable PUFFER_VAULT;
 
-    /**
-     * @inheritdoc IPufferModuleManager
-     */
-    address public immutable override RESTAKING_OPERATOR_BEACON;
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     */
-    address public immutable override PUFFER_PROTOCOL;
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     */
-    address payable public immutable override PUFFER_VAULT;
-
-    /**
-     * @dev AVS contracts registry
-     */
     AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
 
     modifier onlyPufferProtocol() {
@@ -91,7 +73,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         bytes32 moduleName,
         IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
@@ -99,7 +80,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IPufferModule(moduleAddress).completeQueuedWithdrawals({
             withdrawals: withdrawals,
             tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: receiveAsTokens
         });
 
@@ -222,12 +202,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callModifyOperatorDetails(
-        RestakingOperator restakingOperator,
-        address newOperatorDetails,
-        address newDelegationApprover
-    ) external virtual restricted {
-        restakingOperator.modifyOperatorDetails(newOperatorDetails, newDelegationApprover);
+    function callModifyOperatorDetails(RestakingOperator restakingOperator, address newDelegationApprover)
+        external
+        virtual
+        restricted
+    {
+        restakingOperator.modifyOperatorDetails(newDelegationApprover);
         emit RestakingOperatorModified(address(restakingOperator), newDelegationApprover);
     }
 
@@ -242,15 +222,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     {
         restakingOperator.updateOperatorMetadataURI(metadataURI);
         emit RestakingOperatorMetadataURIUpdated(address(restakingOperator), metadataURI);
-    }
-
-    /**
-     * @inheritdoc IPufferModuleManager
-     * @dev Restricted to the DAO
-     */
-    function callOptIntoSlashing(RestakingOperator restakingOperator, address slasher) external virtual restricted {
-        restakingOperator.optIntoSlashing(slasher);
-        emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
 
     /**
@@ -290,8 +261,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IAllocationManager.RegisterParams calldata registrationParams
     ) external virtual restricted {
         restakingOperator.registerOperatorToAVS(registrationParams);
-
-        emit RestakingOperatorRegisteredToAVS(address(restakingOperator), avsRegistryCoordinator, quorumNumbers, socket);
     }
 
     /**
@@ -322,12 +291,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function callDeregisterOperatorFromAVS(
         RestakingOperator restakingOperator,
-        address avsRegistryCoordinator,
-        bytes calldata quorumNumbers
+        IAllocationManager.DeregisterParams calldata deregistrationParams
     ) external virtual restricted {
-        restakingOperator.deregisterOperatorFromAVS(avsRegistryCoordinator, quorumNumbers);
-
-        emit RestakingOperatorDeregisteredFromAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers);
+        restakingOperator.deregisterOperatorFromAVS(deregistrationParams);
     }
 
     /**

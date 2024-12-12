@@ -6,7 +6,7 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
-import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
@@ -88,7 +88,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
+    PufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -110,7 +110,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
-        PUFFER_MODULE_MANAGER = IPufferModuleManager(moduleManager);
+        PUFFER_MODULE_MANAGER = PufferModuleManager(moduleManager);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
