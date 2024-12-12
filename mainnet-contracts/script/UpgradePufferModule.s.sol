@@ -11,7 +11,7 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title UpgradePufferModule
@@ -44,7 +44,7 @@ contract UpgradePufferModule is BaseScript {
             eigenPodManager: eigenPodManager,
             delegationManager: delegationManager,
             moduleManager: pufferModuleManager,
-            rewardsCoordinator: rewardsCoordinator
+            rewardsCoordinator: IRewardsCoordinator(rewardsCoordinator)
         });
         console.log("newImplementation", address(newImplementation));
 

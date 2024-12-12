@@ -150,19 +150,16 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](2);
 
         // Dao selectors
-        bytes4[] memory selectors = new bytes4[](12);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = PufferModuleManager.createNewRestakingOperator.selector;
         selectors[1] = PufferModuleManager.callModifyOperatorDetails.selector;
-        selectors[2] = PufferModuleManager.callOptIntoSlashing.selector;
-        selectors[3] = PufferModuleManager.callUpdateMetadataURI.selector;
-        selectors[4] = PufferModuleManager.callUndelegate.selector;
-        selectors[5] = PufferModuleManager.callDelegateTo.selector;
-        selectors[6] = PufferModuleManager.updateAVSRegistrationSignatureProof.selector;
-        selectors[7] = PufferModuleManager.callRegisterOperatorToAVS.selector;
-        selectors[8] = PufferModuleManager.callRegisterOperatorToAVSWithChurn.selector;
-        selectors[9] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
-        selectors[10] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
-        selectors[11] = PufferModuleManager.customExternalCall.selector;
+        selectors[2] = PufferModuleManager.callUpdateMetadataURI.selector;
+        selectors[3] = PufferModuleManager.callUndelegate.selector;
+        selectors[4] = PufferModuleManager.callDelegateTo.selector;
+        selectors[5] = PufferModuleManager.updateAVSRegistrationSignatureProof.selector;
+        selectors[6] = PufferModuleManager.callRegisterOperatorToAVS.selector;
+        selectors[7] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
+        selectors[8] = PufferModuleManager.customExternalCall.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.moduleManager, selectors, ROLE_ID_DAO

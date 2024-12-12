@@ -54,7 +54,7 @@ contract CompleteQueuedWithdrawals is Script {
                 nonce: params.nonces[i],
                 startBlock: params.startBlocks[i],
                 strategies: strategies,
-                shares: shares
+                scaledShares: shares
             });
         }
 

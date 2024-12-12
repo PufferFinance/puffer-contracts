@@ -76,10 +76,9 @@ contract GenerateAccessManagerCallData is Script {
 
     function _getOperationsSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Operations multisig
-        bytes4[] memory operationsSelectors = new bytes4[](3);
+        bytes4[] memory operationsSelectors = new bytes4[](2);
         operationsSelectors[0] = PufferVaultV2.initiateETHWithdrawalsFromLido.selector;
         operationsSelectors[1] = PufferVaultV2.claimWithdrawalsFromLido.selector;
-        operationsSelectors[2] = PufferVaultV2.claimWithdrawalFromEigenLayerM2.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

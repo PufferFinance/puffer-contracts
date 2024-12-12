@@ -44,34 +44,22 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         pufferProtocol.createPufferModule(bytes32("SOME_MODULE_NAME"));
     }
 
-    function test_opt_into_slashing() public {
-        vm.startPrank(DAO);
-        RestakingOperator operator = _createRestakingOperator();
-
-        address slasher = address(1235);
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorOptedInSlasher(address(operator), slasher);
-        moduleManager.callOptIntoSlashing(operator, slasher);
-    }
-
     function test_modify_operator() public {
         vm.startPrank(DAO);
         RestakingOperator operator = _createRestakingOperator();
 
-        IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
-            __deprecated_earningsReceiver: address(this),
-            delegationApprover: address(0),
-            stakerOptOutWindowBlocks: 100
-        });
+        address newDelegationApprover = makeAddr("newDelegationApprover");
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newOperatorDetails);
-        moduleManager.callModifyOperatorDetails({ restakingOperator: operator, newOperatorDetails: newOperatorDetails });
+        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newDelegationApprover);
+        moduleManager.callModifyOperatorDetails({
+            restakingOperator: operator,
+            newDelegationApprover: newDelegationApprover
+        });
 
         IDelegationManager.OperatorDetails memory details =
             operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
+        assertEq(details.delegationApprover, newDelegationApprover, "updated delegation approver");
 
         assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
     }

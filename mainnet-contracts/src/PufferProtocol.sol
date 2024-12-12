@@ -88,7 +88,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    PufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
+    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -110,7 +110,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
-        PUFFER_MODULE_MANAGER = PufferModuleManager(moduleManager);
+        PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);

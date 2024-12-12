@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
-import { IPufferModuleManager } from "../src/interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
@@ -24,8 +24,8 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            slasher: IAllocationManager(_getEigenSlasher()),
-            moduleManager: IPufferModuleManager(_getPufferModuleManager()),
+            allocationManager: IAllocationManager(_getEigenSlasher()),
+            moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
         });
 
