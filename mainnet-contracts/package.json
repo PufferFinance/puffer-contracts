@@ -10,7 +10,6 @@
     "@connext/interfaces": "^2.0.5",
     "@openzeppelin/contracts": "5.0.1",
     "@openzeppelin/contracts-upgradeable": "5.0.1",
-    "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
     "l2-contracts": "*",
     "murky": "https://github.com/dmfxyz/murky.git",
     "openzeppelin-foundry-upgrades": "https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#patch-1",

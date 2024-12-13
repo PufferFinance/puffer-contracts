@@ -3,19 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IPufferModuleManager } from "src/interface/IPufferModuleManager.sol";
-import { PufferModuleManager } from "src/PufferModuleManager.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
-import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "src/interface/EigenLayer-Slashing/IAVSDirectory.sol";
 import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
-import { IRegistryCoordinatorExtended } from "src/interface/IRegistryCoordinatorExtended.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { RestakingOperator } from "src/RestakingOperator.sol";
+import { BN254 } from "src/interface/libraries/BN254.sol";
 
 interface Weth {
     function deposit() external payable;
@@ -28,7 +21,6 @@ contract PufferModuleManagerHoleskyTestnetFFI is Test {
     using Strings for uint256;
 
     uint256[] privKeys;
-    IBLSApkRegistry.PubkeyRegistrationParams[] pubkeys;
 
     // https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#deployments
     IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
@@ -50,17 +42,6 @@ contract PufferModuleManagerHoleskyTestnetFFI is Test {
     address RESTAKING_OPERATOR_CONTRACT = 0xe2c2dc296a0bFF351F6bC3e98D37ea798e393e56;
     address RESTAKING_OPERATOR_BEACON = 0xa7DC88c059F57ADcE41070cEfEFd31F74649a261;
     address REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
-
-    // Generates bls pubkey params from a private key
-    function _generateBlsPubkeyParams(uint256 privKey)
-        internal
-        returns (IBLSApkRegistry.PubkeyRegistrationParams memory)
-    {
-        IBLSApkRegistry.PubkeyRegistrationParams memory pubkey;
-        pubkey.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
-        pubkey.pubkeyG2 = _mulGo(privKey);
-        return pubkey;
-    }
 
     function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {
         string[] memory inputs = new string[](3);

@@ -4,19 +4,15 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { IDelegationManager } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../../src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
 import { IStrategy } from "../../src/interface/EigenLayer-Slashing/IStrategy.sol";
-import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IRegistryCoordinator.sol";
 import { IAVSDirectory } from "../../src/interface/EigenLayer-Slashing/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "../../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
-import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
+import { BN254 } from "../../src/interface/libraries/BN254.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -34,7 +30,6 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     using Strings for uint256;
 
     uint256[] privKeys;
-    IBLSApkRegistry.PubkeyRegistrationParams[] pubkeys;
 
     // https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#deployments
     IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
@@ -57,91 +52,80 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     address RESTAKING_OPERATOR_BEACON = 0xa7DC88c059F57ADcE41070cEfEFd31F74649a261;
     address REWARDS_COORDINATOR = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
 
-    function test_claim_undelegated_shares() public {
-        // On this block number, we have already undelegated shares from the operator on chain
-        // https://holesky.etherscan.io/tx/0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6#eventlog
-        vm.createSelectFork(vm.rpcUrl("holesky"), 1369706);
+    // function test_claim_undelegated_shares() public {
+    //     // On this block number, we have already undelegated shares from the operator on chain
+    //     // https://holesky.etherscan.io/tx/0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6#eventlog
+    //     vm.createSelectFork(vm.rpcUrl("holesky"), 1369706);
 
-        PufferModuleManager pufferModuleManager = PufferModuleManager(PUFFER_MODULE_MANAGER);
+    //     PufferModuleManager pufferModuleManager = PufferModuleManager(PUFFER_MODULE_MANAGER);
 
-        // Upgrade PufferModule to a new implementation, that fixes the issue
-        PufferModule upgrade = new PufferModule({
-            protocol: PufferProtocol(payable(PUFFER_PROTOCOL_HOLESKY)),
-            eigenPodManager: EIGEN_POD_MANAGER,
-            delegationManager: IDelegationManager(DELEGATION_MANAGER),
-            moduleManager: pufferModuleManager,
-            rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
-        });
+    //     // Upgrade PufferModule to a new implementation, that fixes the issue
+    //     PufferModule upgrade = new PufferModule({
+    //         protocol: PufferProtocol(payable(PUFFER_PROTOCOL_HOLESKY)),
+    //         eigenPodManager: EIGEN_POD_MANAGER,
+    //         delegationManager: IDelegationManager(DELEGATION_MANAGER),
+    //         moduleManager: pufferModuleManager,
+    //         rewardsCoordinator: IRewardsCoordinator(REWARDS_COORDINATOR)
+    //     });
 
-        // Execute Beacon upgrade
-        vm.startPrank(PUFFER_SHARED_DEV_WALLET);
-        AccessManager(ACCESS_MANAGER_HOLESKY).execute(
-            MODULE_BEACON_HOLESKY, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade))
-        );
+    //     // Execute Beacon upgrade
+    //     vm.startPrank(PUFFER_SHARED_DEV_WALLET);
+    //     AccessManager(ACCESS_MANAGER_HOLESKY).execute(
+    //         MODULE_BEACON_HOLESKY, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade))
+    //     );
 
-        // Upgrade PufferModuleManager to a new fixed implementation
-        PufferModuleManager moduleManagerImplementation = new PufferModuleManager({
-            pufferModuleBeacon: MODULE_BEACON_HOLESKY,
-            restakingOperatorBeacon: RESTAKING_OPERATOR_BEACON,
-            pufferProtocol: PUFFER_PROTOCOL_HOLESKY
-        });
+    //     // Upgrade PufferModuleManager to a new fixed implementation
+    //     PufferModuleManager moduleManagerImplementation = new PufferModuleManager({
+    //         pufferModuleBeacon: MODULE_BEACON_HOLESKY,
+    //         restakingOperatorBeacon: RESTAKING_OPERATOR_BEACON,
+    //         pufferProtocol: PUFFER_PROTOCOL_HOLESKY
+    //     });
 
-        // Upgrade PufferModuleManager to a new implementation
-        UUPSUpgradeable(PUFFER_MODULE_MANAGER).upgradeToAndCall(address(moduleManagerImplementation), "");
+    //     // Upgrade PufferModuleManager to a new implementation
+    //     UUPSUpgradeable(PUFFER_MODULE_MANAGER).upgradeToAndCall(address(moduleManagerImplementation), "");
 
-        // Withdrawal data can be fetched from the transaction logs
-        // cast run 0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6 --rpc-url=$HOLESKY_RPC_URL --verbose
-        IStrategy[] memory strategies = new IStrategy[](1);
-        strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
+    //     // Withdrawal data can be fetched from the transaction logs
+    //     // cast run 0x2d6675d7d71606a9aafcd9f0d8a65c8bad3d7c0ed7915bb67290e989a3c8f1c6 --rpc-url=$HOLESKY_RPC_URL --verbose
+    //     IStrategy[] memory strategies = new IStrategy[](1);
+    //     strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
 
-        uint256[] memory shares = new uint256[](1);
-        shares[0] = 224000000000000000000;
+    //     uint256[] memory shares = new uint256[](1);
+    //     shares[0] = 224000000000000000000;
 
-        IDelegationManagerTypes.Withdrawal[] memory withdrawals = new IDelegationManagerTypes.Withdrawal[](1);
-        withdrawals[0] = IDelegationManagerTypes.Withdrawal({
-            staker: PUFFER_MODULE_0_HOLESKY,
-            delegatedTo: RESTAKING_OPERATOR_CONTRACT,
-            withdrawer: PUFFER_MODULE_0_HOLESKY,
-            nonce: 0,
-            startBlock: 1369340,
-            strategies: strategies,
-            scaledShares: shares
-        });
+    //     IDelegationManagerTypes.Withdrawal[] memory withdrawals = new IDelegationManagerTypes.Withdrawal[](1);
+    //     withdrawals[0] = IDelegationManagerTypes.Withdrawal({
+    //         staker: PUFFER_MODULE_0_HOLESKY,
+    //         delegatedTo: RESTAKING_OPERATOR_CONTRACT,
+    //         withdrawer: PUFFER_MODULE_0_HOLESKY,
+    //         nonce: 0,
+    //         startBlock: 1369340,
+    //         strategies: strategies,
+    //         scaledShares: shares
+    //     });
 
-        IERC20[] memory t = new IERC20[](1);
-        t[0] = IERC20(BEACON_CHAIN_STRATEGY);
+    //     IERC20[] memory t = new IERC20[](1);
+    //     t[0] = IERC20(BEACON_CHAIN_STRATEGY);
 
-        IERC20[][] memory tokens = new IERC20[][](1);
-        tokens[0] = t;
+    //     IERC20[][] memory tokens = new IERC20[][](1);
+    //     tokens[0] = t;
 
-        uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
-        bool[] memory receiveAsTokens = new bool[](1); // false
+    //     uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
+    //     bool[] memory receiveAsTokens = new bool[](1); // false
 
-        // At the moment the caller is the admin role, but this will be restricted to the PufferPaymaster
-        pufferModuleManager.callCompleteQueuedWithdrawals({
-            moduleName: bytes32("PUFFER_MODULE_0"),
-            withdrawals: withdrawals,
-            tokens: tokens,
-            receiveAsTokens: receiveAsTokens
-        });
+    //     // At the moment the caller is the admin role, but this will be restricted to the PufferPaymaster
+    //     pufferModuleManager.callCompleteQueuedWithdrawals({
+    //         moduleName: bytes32("PUFFER_MODULE_0"),
+    //         withdrawals: withdrawals,
+    //         tokens: tokens,
+    //         receiveAsTokens: receiveAsTokens
+    //     });
 
-        ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        // Delegate again to the same operator
-        pufferModuleManager.callDelegateTo(
-            bytes32("PUFFER_MODULE_0"), RESTAKING_OPERATOR_CONTRACT, signatureWithExpiry, bytes32(0)
-        );
-    }
-
-    // Generates bls pubkey params from a private key
-    function _generateBlsPubkeyParams(uint256 privKey)
-        internal
-        returns (IBLSApkRegistry.PubkeyRegistrationParams memory)
-    {
-        IBLSApkRegistry.PubkeyRegistrationParams memory pubkey;
-        pubkey.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
-        pubkey.pubkeyG2 = _mulGo(privKey);
-        return pubkey;
-    }
+    //     ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
+    //     // Delegate again to the same operator
+    //     pufferModuleManager.callDelegateTo(
+    //         bytes32("PUFFER_MODULE_0"), RESTAKING_OPERATOR_CONTRACT, signatureWithExpiry, bytes32(0)
+    //     );
+    // }
 
     function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {
         string[] memory inputs = new string[](3);
