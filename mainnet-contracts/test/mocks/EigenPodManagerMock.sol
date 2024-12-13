@@ -5,7 +5,11 @@ import "forge-std/Test.sol";
 import "src/interface/EigenLayer-Slashing/IEigenPodManager.sol";
 import "src/interface/EigenLayer-Slashing/IAllocationManager.sol";
 
-contract EigenPodMock { }
+contract EigenPodMock {
+    function startCheckpoint(bool) external { }
+
+    function setProofSubmitter(address) external { }
+}
 
 contract EigenPodManagerMock is IEigenPodManager, Test {
     /// @notice Used by the DelegationManager to remove a Staker's shares from a particular strategy when entering the withdrawal queue
@@ -37,7 +41,9 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
      * @dev Function will revert if the `msg.sender` already has an EigenPod.
      * @dev Returns EigenPod address
      */
-    function createPod() external returns (address) { }
+    function createPod() external returns (address) {
+        return address(new EigenPodMock());
+    }
 
     /**
      * @notice Stakes for a new beacon chain validator on the sender's EigenPod.

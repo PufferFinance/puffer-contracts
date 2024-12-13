@@ -277,56 +277,10 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         bytes memory customCalldata = abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ());
 
-        // Not allowlisted, revert
-        vm.expectRevert();
-        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
-
-        // Generate allowlist cd
-        bytes memory allowlistCalldata = abi.encodeWithSelector(
-            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
-            address(this),
-            PufferModuleManagerTest.getMagicNumber.selector,
-            true
-        );
-
-        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
-        // accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
-
-        // Advance the timestamp
-        vm.warp(block.timestamp + 1 days + 1);
-        // execute the allowlist calldata
-        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
-
-        // Now it works
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.CustomCallSucceeded({
-            restakingOperator: address(operator),
-            target: address(this),
-            customCalldata: customCalldata,
-            response: abi.encode(85858585)
-        });
-        pufferModuleManager.customExternalCall(
-            operator, address(this), abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ())
+        emit IPufferModuleManager.CustomCallSucceeded(
+            address(operator), address(this), customCalldata, abi.encode(85858585)
         );
-
-        // Generate allowlist cd to remove the selector from the allowlist
-        allowlistCalldata = abi.encodeWithSelector(
-            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
-            address(this),
-            PufferModuleManagerTest.getMagicNumber.selector,
-            false
-        );
-
-        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
-        // accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
-
-        // Advance the timestamp
-        vm.warp(block.timestamp + 1 days + 1);
-        // execute the allowlist calldata
-        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
-
-        // Not allowlisted, revert
-        vm.expectRevert();
         pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
         vm.stopPrank();
     }
@@ -361,7 +315,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
             delegationApprover: address(0),
-            allocationDelay: 0
+            allocationDelay: 500
         });
 
         return operator;

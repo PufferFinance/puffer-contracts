@@ -22,14 +22,11 @@ contract DelegationManagerMock {
 
     mapping(address => address) public delegatedTo;
 
-    function registerAsOperator(
-        IDelegationManager.OperatorDetails calldata, /*registeringOperatorDetails*/
-        string calldata /*metadataURI*/
-    ) external pure { }
+    function registerAsOperator(address initDelegationApprover, uint32 allocationDelay, string calldata metadataURI)
+        external
+    { }
 
     function updateOperatorMetadataURI(string calldata /*metadataURI*/ ) external pure { }
-
-    function updateAVSMetadataURI(string calldata /*metadataURI*/ ) external pure { }
 
     function delegateTo(
         address operator,
@@ -217,4 +214,10 @@ contract DelegationManagerMock {
     ) external { }
 
     function operatorDetails(address operator) external view returns (IDelegationManager.OperatorDetails memory) { }
+
+    function completeQueuedWithdrawals(
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        bool[] calldata receiveAsTokens
+    ) external { }
 }
