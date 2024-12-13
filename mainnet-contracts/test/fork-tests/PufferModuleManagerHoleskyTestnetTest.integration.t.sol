@@ -7,17 +7,17 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
-import { IDelegationManager } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { ISignatureUtils } from "../../src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
-import { IStrategy } from "../../src/interface/EigenLayer-Slashing/IStrategy.sol";
-import { IAVSDirectory } from "../../src/interface/EigenLayer-Slashing/IAVSDirectory.sol";
-import { IRewardsCoordinator } from "../../src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
+import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IAVSDirectory } from "../../src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "../../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { BN254 } from "../../src/interface/libraries/BN254.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { IDelegationManagerTypes } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 interface Weth {
     function deposit() external payable;

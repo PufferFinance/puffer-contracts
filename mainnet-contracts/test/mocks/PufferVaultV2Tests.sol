@@ -4,11 +4,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVaultV2 } from "src/PufferVaultV2.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "src/interface/EigenLayer-Slashing/IEigenLayer.sol";
-import { IStrategy } from "src/interface/EigenLayer-Slashing/IStrategy.sol";
+import { IEigenLayer } from "src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
+import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
-import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 contract PufferVaultV2Tests is PufferVaultV2 {
     constructor(

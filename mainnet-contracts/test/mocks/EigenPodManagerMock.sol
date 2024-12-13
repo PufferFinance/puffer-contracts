@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
-import "src/interface/EigenLayer-Slashing/IEigenPodManager.sol";
-import "src/interface/EigenLayer-Slashing/IAllocationManager.sol";
+import "src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
+import "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 
 contract EigenPodMock {
     function startCheckpoint(bool) external { }

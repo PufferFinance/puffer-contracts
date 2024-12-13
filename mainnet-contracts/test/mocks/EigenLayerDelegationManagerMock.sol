@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStrategy } from "../../src/interface/EigenLayer-Slashing/IStrategy.sol";
-import { IDelegationManager } from "../../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 contract EigenLayerDelegationManagerMock is IDelegationManager {
     /**

@@ -4,9 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Script } from "forge-std/Script.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { IStrategy } from "../src/interface/EigenLayer-Slashing/IStrategy.sol";
-import { IDelegationManager } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { IDelegationManagerTypes } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 struct ScriptParameters {
     address pufferModuleManager;

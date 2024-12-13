@@ -9,10 +9,10 @@ import { PufferVaultV3 } from "src/PufferVaultV3.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
-import { IStrategy } from "src/interface/EigenLayer-Slashing/IStrategy.sol";
-import { IEigenLayer } from "src/interface/EigenLayer-Slashing/IEigenLayer.sol";
+import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IEigenLayer } from "src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
-import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 /**
  * @title DeployPufferVaultV3

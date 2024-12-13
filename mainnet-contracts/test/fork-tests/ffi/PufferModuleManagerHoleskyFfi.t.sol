@@ -3,10 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
-import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { ISignatureUtils } from "src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
-import { IAVSDirectory } from "src/interface/EigenLayer-Slashing/IAVSDirectory.sol";
-import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IAVSDirectory } from "src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { BN254 } from "src/interface/libraries/BN254.sol";
 

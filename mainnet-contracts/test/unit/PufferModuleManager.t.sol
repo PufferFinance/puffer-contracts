@@ -9,11 +9,11 @@ import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.s
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ISignatureUtils } from "src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
+import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IDelegationManager } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { RestakingOperator } from "src/RestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 

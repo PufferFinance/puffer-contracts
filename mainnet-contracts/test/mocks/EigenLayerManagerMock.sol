@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IEigenLayer } from "../../src/interface/EigenLayer-Slashing/IEigenLayer.sol";
+import { IEigenLayer } from "../../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStrategy } from "../../src/interface/EigenLayer-Slashing/IStrategy.sol";
+import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 
 contract EigenLayerManagerMock is IEigenLayer {
     function depositIntoStrategy(IStrategy strategy, IERC20 token, uint256 amount) external returns (uint256 shares) { }

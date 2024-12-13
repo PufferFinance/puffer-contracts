@@ -3,12 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IDelegationManager } from "../src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { IEigenPodManager } from "../src/interface/EigenLayer-Slashing/IEigenPodManager.sol";
-import { ISignatureUtils } from "../src/interface/EigenLayer-Slashing/ISignatureUtils.sol";
-import { IStrategy } from "../src/interface/EigenLayer-Slashing/IStrategy.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IEigenPodManager } from "../src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
+import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IEigenPod } from "../src/interface/EigenLayer-Slashing/IEigenPod.sol";
+import { IEigenPod } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferModule } from "./interface/IPufferModule.sol";
 import { Unauthorized } from "./Errors.sol";
@@ -16,8 +16,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
-import { IDelegationManagerTypes } from "src/interface/EigenLayer-Slashing/IDelegationManager.sol";
-import { IRewardsCoordinator } from "src/interface/EigenLayer-Slashing/IRewardsCoordinator.sol";
+import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title PufferModule
