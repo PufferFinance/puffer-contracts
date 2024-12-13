@@ -16,11 +16,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { BridgeMock } from "../mocks/BridgeMock.sol";
 import { Merkle } from "murky/Merkle.sol";
 import {
-    ROLE_ID_BRIDGE,
-    PUBLIC_ROLE,
-    ROLE_ID_DAO,
-    ROLE_ID_REWARD_WATCHER,
-    ROLE_ID_OPERATIONS_PAYMASTER
+    ROLE_ID_BRIDGE, PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER
 } from "mainnet-contracts/script/Roles.sol";
 import { XERC20Lockbox } from "mainnet-contracts/src/XERC20Lockbox.sol";
 import { xPufETH } from "mainnet-contracts/src/l2/xPufETH.sol";
@@ -162,7 +158,6 @@ contract L2RewardManagerTest is Test {
         (s,) = address(accessManager).call(cd);
         require(s, "failed access manager 2");
 
-        accessManager.grantRole(ROLE_ID_REWARD_WATCHER, address(this), 0);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
 
