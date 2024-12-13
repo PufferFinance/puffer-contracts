@@ -114,7 +114,7 @@ contract EigenLayerDelegationManagerMock is IDelegationManager {
     ) external { }
 
     /**
-     * @notice Used to complete the lastest queued withdrawal.
+     * @notice Used to complete the latest queued withdrawal.
      * @param withdrawal The withdrawal to complete.
      * @param tokens Array in which the i-th entry specifies the `token` input to the 'withdraw' function of the i-th Strategy in the `withdrawal.strategies` array.
      * @param receiveAsTokens If true, the shares calculated to be withdrawn will be withdrawn from the specified strategies themselves
