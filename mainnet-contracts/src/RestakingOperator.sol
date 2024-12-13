@@ -32,6 +32,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @dev Upgradeable contract from EigenLayer
      */
     IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
+    address private immutable EIGEN_DA_REGISTRY_COORDINATOR;
 
     bytes32 private constant _RESTAKING_OPERATOR_STORAGE =
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
@@ -51,6 +52,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      */
     struct RestakingOperatorStorage {
         mapping(bytes32 digestHash => address signer) hashSigners;
+        address operatorOwner;
     }
 
     /**
@@ -75,12 +77,22 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         _;
     }
 
+    modifier onlyOperatorOwner() {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        if (msg.sender != $.operatorOwner) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     // We use constructor to set the immutable variables
     constructor(
         IDelegationManager delegationManager,
         ISlasher slasher,
         IPufferModuleManager moduleManager,
-        IRewardsCoordinator rewardsCoordinator
+        IRewardsCoordinator rewardsCoordinator,
+        address eigenDaRegistryCoordinator
     ) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
@@ -95,6 +107,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         EIGEN_SLASHER = slasher;
         PUFFER_MODULE_MANAGER = moduleManager;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
+        EIGEN_DA_REGISTRY_COORDINATOR = eigenDaRegistryCoordinator;
         _disableInitializers();
     }
 
@@ -226,6 +239,24 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
+     * @dev Restricted to the Operator owner
+     */
+    function updateOperatorEigenDASocket(string calldata socket) external virtual onlyOperatorOwner {
+        IRegistryCoordinatorExtended(EIGEN_DA_REGISTRY_COORDINATOR).updateSocket(socket);
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     * @dev Restricted to PufferModuleManager
+     */
+    function setOperatorOwner(address owner) external virtual onlyPufferModuleManager {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        $.operatorOwner = owner;
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
      * @dev Restricted to PufferModuleManager
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
@@ -246,6 +277,15 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         } else {
             return _EIP1271_INVALID_VALUE;
         }
+    }
+
+    /**
+     * @inheritdoc IRestakingOperator
+     */
+    function operatorOwner() external view returns (address) {
+        RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
+
+        return $.operatorOwner;
     }
 
     function _getRestakingOperatorStorage() internal pure returns (RestakingOperatorStorage storage $) {
