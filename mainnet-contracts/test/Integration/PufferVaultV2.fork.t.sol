@@ -51,7 +51,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.getPendingLidoETHAmount(), 0, "0 pending lido eth");
         assertEq(pufferVault.totalAssets(), 368072.286049064583783628 ether, "total assets");
         assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
-        assertEq(pufferVault.getELBackingEthAmount(), 342289.36625576203463247 ether, "0 EL backing eth"); // mainnet fork 19431593);
         assertEq(pufferVault.getExitFeeBasisPoints(), 100, "1% withdrawal fee");
     }
 

@@ -9,10 +9,7 @@ import { PufferVaultV3 } from "src/PufferVaultV3.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
-import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IEigenLayer } from "src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
-import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 /**
  * @title DeployPufferVaultV3
@@ -34,10 +31,7 @@ contract DeployPufferVaultV3 is DeployerHelper {
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
-            oracle: IPufferOracle(_getPufferOracle()),
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            oracle: IPufferOracle(_getPufferOracle())
         });
 
         //@todo Double check reinitialization

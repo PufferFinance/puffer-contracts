@@ -61,14 +61,11 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV3 newImplementation = new PufferVaultV4Tests(
+        PufferVaultV4Tests newImplementation = new PufferVaultV4Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
-            IStrategy(deployment.stETHStrategyMock),
-            IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle),
-            _DELEGATION_MANAGER,
             IPufferRevenueDepositor(revenueDepositor)
         );
 

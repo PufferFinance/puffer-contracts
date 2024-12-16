@@ -108,8 +108,7 @@ contract DeployPufETH is BaseScript {
             wethAddress = address(weth);
 
             // Deploy implementation contracts
-            pufferVaultImplementation =
-                new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager);
+            pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
             vm.label(address(pufferVaultImplementation), "PufferVaultImplementation");
             pufferDepositorImplementation =
                 new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
@@ -203,10 +202,8 @@ contract DeployPufETH is BaseScript {
     function _setupOther() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](5);
 
-        bytes4[] memory selectors = new bytes4[](3);
-        selectors[0] = PufferVault.depositToEigenLayer.selector;
-        selectors[1] = PufferVault.initiateETHWithdrawalsFromLido.selector;
-        selectors[2] = PufferVault.initiateStETHWithdrawalFromEigenLayer.selector;
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferVault.initiateETHWithdrawalsFromLido.selector;
 
         // Setup setup role
         calldatas[0] = abi.encodeWithSelector(

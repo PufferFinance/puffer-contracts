@@ -56,13 +56,6 @@ contract PufETHTest is ERC4626Test {
         assertEq(pufferVault.previewWithdraw(1000 ether), 1000 ether, "preview withdraw");
         assertEq(pufferVault.maxRedeem(address(this)), 2000 ether, "maxRedeem");
         assertEq(pufferVault.previewRedeem(1000 ether), 1000 ether, "previewRedeem");
-
-        // Withdrawals are disabled
-        vm.expectRevert(IPufferVault.WithdrawalsAreDisabled.selector);
-        pufferVault.withdraw(1000 ether, address(this), address(this));
-
-        vm.expectRevert(IPufferVault.WithdrawalsAreDisabled.selector);
-        pufferVault.redeem(1000 ether, address(this), address(this));
     }
 
     function test_roles_setup() public {
@@ -72,12 +65,6 @@ contract PufETHTest is ERC4626Test {
         uint256[] memory amounts = new uint256[](1);
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
         pufferVault.initiateETHWithdrawalsFromLido(amounts);
-
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
-        pufferVault.depositToEigenLayer(1);
-
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
-        pufferVault.initiateStETHWithdrawalFromEigenLayer(1);
 
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
         pufferVault.upgradeToAndCall(address(pufferDepositor), "");

@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -14,8 +13,10 @@ import { Unauthorized } from "../../src/Errors.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { RestakingOperator } from "src/RestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -24,6 +25,8 @@ contract PufferModuleUpgrade {
 }
 
 contract PufferModuleManagerTest is UnitTestHelper {
+    address public BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 
@@ -225,11 +228,39 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callSetClaimerFor(address(operator), claimer);
     }
 
-    function test_completeQueuedWithdrawals(bytes32 moduleName) public {
+    function test_completeQueuedWithdrawalsEmpty(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
 
-        IDelegationManager.Withdrawal[] memory withdrawals;
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals;
+        IERC20[][] memory tokens;
+        bool[] memory receiveAsTokens;
+
+        emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
+        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, receiveAsTokens);
+    }
+
+    function test_completeQueuedWithdrawalsFull(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
+
+        uint256[] memory scaledShares = new uint256[](1);
+        scaledShares[0] = 1 ether;
+
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals = new IDelegationManagerTypes.Withdrawal[](1);
+        withdrawals[0] = IDelegationManagerTypes.Withdrawal({
+            staker: address(0),
+            delegatedTo: address(0),
+            withdrawer: address(0),
+            nonce: 0,
+            startBlock: 0,
+            strategies: strategies,
+            scaledShares: scaledShares
+        });
+
         IERC20[][] memory tokens;
         bool[] memory receiveAsTokens;
 

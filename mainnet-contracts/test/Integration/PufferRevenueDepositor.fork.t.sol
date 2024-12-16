@@ -49,10 +49,7 @@ contract PufferRevenueDepositorForkTest is MainnetForkTestHelper {
                 IStETH(_getStETH()),
                 IWETH(_getWETH()),
                 ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-                IStrategy(_getStETHStrategy()),
-                IEigenLayer(_getEigenLayerStrategyManager()),
                 IPufferOracle(_getPufferOracle()),
-                IDelegationManager(_getDelegationManager()),
                 revenueDepositor
             )
         );

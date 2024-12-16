@@ -4,16 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVault } from "./PufferVault.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "./interface/Eigenlayer-Slashing/IEigenLayer.sol";
-import { IStrategy } from "./interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IDelegationManager } from "./interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
@@ -42,12 +38,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     IPufferOracle public immutable PUFFER_ORACLE;
 
     /**
-     * @notice Delegation manager from EigenLayer
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IDelegationManager internal immutable _DELEGATION_MANAGER;
-
-    /**
      * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
@@ -62,18 +52,11 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     /**
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(
-        IStETH stETH,
-        IWETH weth,
-        ILidoWithdrawalQueue lidoWithdrawalQueue,
-        IStrategy stETHStrategy,
-        IEigenLayer eigenStrategyManager,
-        IPufferOracle oracle,
-        IDelegationManager delegationManager
-    ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
+    constructor(IStETH stETH, IWETH weth, ILidoWithdrawalQueue lidoWithdrawalQueue, IPufferOracle oracle)
+        PufferVault(stETH, lidoWithdrawalQueue)
+    {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
-        _DELEGATION_MANAGER = delegationManager;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
         // This redundant code is for the Echidna fuzz testing
@@ -134,8 +117,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         assembly {
             callValue := callvalue()
         }
-        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + getELBackingEthAmount()
-            + _WETH.balanceOf(address(this)) + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
+        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + _WETH.balanceOf(address(this))
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
     }
 
     /**
@@ -471,16 +454,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.exitFeeBasisPoints;
     }
-
-    // Not compatible anymore
-    function claimWithdrawalFromEigenLayer(
-        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
-        IERC20[] calldata tokens,
-        uint256 middlewareTimesIndex
-    ) external override { }
-
-    // Not needed anymore
-    function depositToEigenLayer(uint256 amount) external override { }
 
     /**
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.

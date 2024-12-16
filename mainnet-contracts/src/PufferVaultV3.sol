@@ -4,9 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVaultV2 } from "./PufferVaultV2.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "./interface/Eigenlayer-Slashing/IEigenLayer.sol";
-import { IStrategy } from "./interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IDelegationManager } from "./interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
@@ -26,21 +23,12 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @param stETH Address of the stETH token contract.
      * @param weth Address of the WETH token contract.
      * @param lidoWithdrawalQueue Address of the Lido withdrawal queue contract.
-     * @param stETHStrategy Address of the stETH strategy contract.
-     * @param eigenStrategyManager Address of the EigenLayer strategy manager contract.
      * @param oracle Address of the PufferOracle contract.
-     * @param delegationManager Address of the delegation manager contract.
      * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(
-        IStETH stETH,
-        IWETH weth,
-        ILidoWithdrawalQueue lidoWithdrawalQueue,
-        IStrategy stETHStrategy,
-        IEigenLayer eigenStrategyManager,
-        IPufferOracle oracle,
-        IDelegationManager delegationManager
-    ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
+    constructor(IStETH stETH, IWETH weth, ILidoWithdrawalQueue lidoWithdrawalQueue, IPufferOracle oracle)
+        PufferVaultV2(stETH, weth, lidoWithdrawalQueue, oracle)
+    {
         _disableInitializers();
     }
 

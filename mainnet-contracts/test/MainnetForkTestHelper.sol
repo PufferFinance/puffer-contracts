@@ -152,10 +152,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
-            oracle: mockOracle,
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            oracle: mockOracle
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
@@ -166,10 +163,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
-            oracle: mockOracle,
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            oracle: mockOracle
         });
 
         // Community multisig can do thing instantly
@@ -228,10 +222,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
             oracle: IPufferOracle(_getPufferOracle()),
-            delegationManager: IDelegationManager(_getEigenDelegationManager()),
             revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 

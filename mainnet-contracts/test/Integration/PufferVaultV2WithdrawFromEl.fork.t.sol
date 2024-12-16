@@ -49,20 +49,9 @@ contract PufferVaultWithdrawalTest is Test {
         stETH = IStETH(address(0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034));
         IWETH weth = IWETH(0xD6eF375Ad62f1d5BC06479fD0c7DCEF28e5Dc898);
         ILidoWithdrawalQueue lidoWithdrawalQueue = ILidoWithdrawalQueue(0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50);
-        IStrategy stETHStrategy = IStrategy(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3);
-        IEigenLayer eigenStrategyManager = IEigenLayer(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6);
         MockPufferOracle oracle = new MockPufferOracle();
-        IDelegationManager delegationManager = IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7);
 
-        newImpl = new PufferVaultV2(
-            stETH,
-            weth,
-            lidoWithdrawalQueue,
-            stETHStrategy,
-            eigenStrategyManager,
-            IPufferOracle(address(oracle)),
-            delegationManager
-        );
+        newImpl = new PufferVaultV2(stETH, weth, lidoWithdrawalQueue, IPufferOracle(address(oracle)));
     }
 
     // Update contracts and setup access

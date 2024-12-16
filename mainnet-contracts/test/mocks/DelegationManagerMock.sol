@@ -26,8 +26,6 @@ contract DelegationManagerMock {
         external
     { }
 
-    function updateOperatorMetadataURI(string calldata /*metadataURI*/ ) external pure { }
-
     function delegateTo(
         address operator,
         IDelegationManager.SignatureWithExpiry memory, /*approverSignatureAndExpiry*/
@@ -177,20 +175,6 @@ contract DelegationManagerMock {
         roots[0] = bytes32("123");
         return roots;
     }
-
-    function completeQueuedWithdrawal(
-        IDelegationManager.Withdrawal calldata withdrawal,
-        IERC20[] calldata tokens,
-        uint256 middlewareTimesIndex,
-        bool receiveAsTokens
-    ) external { }
-
-    function completeQueuedWithdrawals(
-        IDelegationManager.Withdrawal[] calldata withdrawals,
-        IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes,
-        bool[] calldata receiveAsTokens
-    ) external { }
 
     // onlyDelegationManager functions in StrategyManager
     function addShares(

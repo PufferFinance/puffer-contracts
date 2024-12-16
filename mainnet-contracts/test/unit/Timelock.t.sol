@@ -38,15 +38,6 @@ contract TimelockTest is Test {
             accessManager.canCall(caller, address(pufferVault), PufferVault.initiateETHWithdrawalsFromLido.selector);
         assertFalse(canCall, "should not be able to call");
 
-        // Restricted to operations / community multisig
-        (canCall, delay) = accessManager.canCall(caller, address(pufferVault), PufferVault.depositToEigenLayer.selector);
-        assertFalse(canCall, "should not be able to call");
-
-        (canCall, delay) = accessManager.canCall(
-            caller, address(pufferVault), PufferVault.initiateStETHWithdrawalFromEigenLayer.selector
-        );
-        assertFalse(canCall, "should not be able to call");
-
         // Upgrades are forbidden
         (canCall, delay) =
             accessManager.canCall(caller, address(pufferVault), UUPSUpgradeable.upgradeToAndCall.selector);
