@@ -8,10 +8,10 @@ import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
+
 /**
  * forge script script/DeployPufferModuleManager.s.sol:DeployPufferModuleManager -vvvv --rpc-url=$RPC_URL --broadcast --verify
  */
-
 contract DeployPufferModuleManager is DeployerHelper {
     function run() public {
         vm.startBroadcast();

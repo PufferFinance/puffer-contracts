@@ -240,11 +240,6 @@ contract ValidatorTicketTest is UnitTestHelper {
         deal(address(pufferVault), recipient, pufEthAmount);
     }
 
-    function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
-        // TODO: Implement signing logic here
-        permit = Permit({ amount: 10 ether, deadline: block.timestamp + 1 hours, v: 27, r: bytes32(0), s: bytes32(0) });
-    }
-
     function test_funds_splitting_with_pufETH() public {
         uint256 vtAmount = 2000 ether; // Want to mint 2000 VTs
         address recipient = actors[0];

@@ -50,12 +50,7 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(
-        PufferDeployment memory deployment,
-        BridgingDeployment memory bridgingDeployment,
-        address pufferOracle,
-        address revenueDepositor
-    ) public broadcast {
+    function run(PufferDeployment memory deployment, address pufferOracle, address revenueDepositor) public broadcast {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
