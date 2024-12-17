@@ -695,6 +695,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     }
 
     function test_funds_returning_edge_case() public {
+        assertEq(pufferVault.asset(), address(weth), "asset should be WETH");
         assertEq(pufferVault.totalSupply(), 1000 ether, "totalSupply should be 1000 ETH");
 
         vm.startPrank(address(timelock));

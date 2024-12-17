@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV4 } from "src/PufferVaultV4.sol";
+import { PufferVaultV5 } from "src/PufferVaultV5.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
-import { IPufferOracle } from "src/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "src/interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 
-contract PufferVaultV4Tests is PufferVaultV4 {
+contract PufferVaultV5Tests is PufferVaultV5 {
     constructor(
         IStETH stETH,
         IWETH weth,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
-        IPufferOracle oracle,
+        IPufferOracleV2 oracle,
         IPufferRevenueDepositor revenueDepositor
-    ) PufferVaultV4(stETH, weth, lidoWithdrawalQueue, oracle, revenueDepositor) {
+    ) PufferVaultV5(stETH, lidoWithdrawalQueue, weth, oracle, revenueDepositor) {
         _disableInitializers();
     }
 

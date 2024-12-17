@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "erc4626-tests/ERC4626.test.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
-import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVault } from "../../src/PufferVault.sol";

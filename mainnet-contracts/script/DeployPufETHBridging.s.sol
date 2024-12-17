@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
-import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";

@@ -3,25 +3,24 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
-import { PufferVault } from "../src/PufferVault.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
+import { PufferVaultV5Tests } from "../test/mocks/PufferVaultV5Tests.sol";
 import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
-import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
-import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
+import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
 
 /**
  * @title UpgradePufETH
@@ -61,18 +60,26 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV4Tests newImplementation = new PufferVaultV4Tests(
+        PufferVaultV2 newImplementationV2 = new PufferVaultV2(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
-            IPufferOracle(pufferOracle),
+            IPufferOracle(pufferOracle)
+        );
+
+        // Initialize VaultV2 to swap stETH for WETH as the asset
+        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
+            address(newImplementationV2), abi.encodeCall(PufferVaultV2.initialize, ())
+        );
+
+        PufferVaultV5 newImplementation = new PufferVaultV5Tests(
+            IStETH(deployment.stETH),
+            IWETH(deployment.weth),
+            ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
+            IPufferOracleV2(pufferOracle),
             IPufferRevenueDepositor(revenueDepositor)
         );
 
-        vm.expectEmit(true, true, true, true);
-        emit Initializable.Initialized(2);
-        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
-        );
+        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(address(newImplementation), "");
     }
 }
