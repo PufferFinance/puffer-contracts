@@ -5,7 +5,6 @@ import { IPufferVault } from "./interface/IPufferVault.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
 import { PufferVaultStorage } from "./PufferVaultStorage.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -71,47 +70,6 @@ contract PufferVault is
     }
 
     /**
-     * @inheritdoc ERC4626Upgradeable
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function deposit(uint256 assets, address receiver) public virtual override restricted returns (uint256) {
-        return super.deposit(assets, receiver);
-    }
-
-    /**
-     * @inheritdoc ERC4626Upgradeable
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function mint(uint256 shares, address receiver) public virtual override restricted returns (uint256) {
-        return super.mint(shares, receiver);
-    }
-
-    /**
-     * @notice Claims ETH withdrawals from Lido
-     * @param requestIds An array of request IDs for the withdrawals
-     */
-    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        // Tell our receive() that we are doing a Lido claim
-        $.deprecated_isLidoWithdrawal = true;
-
-        for (uint256 i = 0; i < requestIds.length; ++i) {
-            bool isValidWithdrawal = $.lidoWithdrawals.remove(requestIds[i]);
-            if (!isValidWithdrawal) {
-                revert InvalidWithdrawal();
-            }
-
-            // slither-disable-next-line calls-loop
-            _LIDO_WITHDRAWAL_QUEUE.claimWithdrawal(requestIds[i]);
-        }
-
-        // Reset back the value
-        $.deprecated_isLidoWithdrawal = false;
-        emit ClaimedWithdrawals(requestIds);
-    }
-
-    /**
      * @dev See {IERC4626-totalAssets}.
      * Eventually, stETH will not be part of this vault anymore, and the Vault(pufETH) will represent shares of total ETH holdings
      * Because stETH is a rebasing token, its ratio with ETH is 1:1
@@ -130,36 +88,6 @@ contract PufferVault is
     function getPendingLidoETHAmount() public view virtual returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.lidoLockedETH;
-    }
-
-    /**
-     * @notice Initiates ETH withdrawals from Lido
-     * Restricted access
-     * @param amounts An array of amounts that we want to queue
-     */
-    function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
-        external
-        virtual
-        restricted
-        returns (uint256[] memory requestIds)
-    {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        uint256 lockedAmount;
-        for (uint256 i = 0; i < amounts.length; ++i) {
-            lockedAmount += amounts[i];
-        }
-        $.lidoLockedETH += lockedAmount;
-
-        SafeERC20.safeIncreaseAllowance(_ST_ETH, address(_LIDO_WITHDRAWAL_QUEUE), lockedAmount);
-        requestIds = _LIDO_WITHDRAWAL_QUEUE.requestWithdrawals(amounts, address(this));
-
-        // nosemgrep array-length-outside-loop
-        for (uint256 i = 0; i < requestIds.length; ++i) {
-            $.lidoWithdrawals.add(requestIds[i]);
-        }
-        emit RequestedWithdrawals(requestIds);
-        return requestIds;
     }
 
     /**

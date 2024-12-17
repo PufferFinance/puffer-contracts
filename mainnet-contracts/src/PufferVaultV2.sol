@@ -227,7 +227,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function deposit(uint256 assets, address receiver)
@@ -242,7 +241,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function mint(uint256 shares, address receiver) public virtual override markDeposit restricted returns (uint256) {
@@ -258,7 +256,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
         external
         virtual
-        override
         restricted
         returns (uint256[] memory requestIds)
     {
@@ -287,7 +284,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Restricted to Operations Multisig
      * @param requestIds An array of request IDs for the withdrawals
      */
-    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
+    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual restricted {
         require(requestIds.length != 0);
         VaultStorage storage $ = _getPufferVaultStorage();
 

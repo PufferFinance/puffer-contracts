@@ -200,21 +200,13 @@ contract DeployPufETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](5);
-
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferVault.initiateETHWithdrawalsFromLido.selector;
-
-        // Setup setup role
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_OPERATIONS_MULTISIG
-        );
+        bytes[] memory calldatas = new bytes[](3);
 
         // Setup role members (no delay)
-        calldatas[1] =
+        calldatas[0] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         // Grant admin role to timelock
-        calldatas[2] =
+        calldatas[1] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);
 
         // Setup public access for PufferDepositor
@@ -226,18 +218,8 @@ contract DeployPufETH is BaseScript {
         publicSelectors[4] = PufferDepositor.swapAndDeposit1Inch.selector;
         publicSelectors[5] = PufferDepositor.depositStETH.selector;
 
-        calldatas[3] = abi.encodeCall(
+        calldatas[2] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
-        );
-
-        // Setup public access for PufferVault
-        bytes4[] memory publicSelectorsPufferVault = new bytes4[](2);
-        publicSelectorsPufferVault[0] = PufferVault.deposit.selector;
-        publicSelectorsPufferVault[1] = PufferVault.mint.selector;
-
-        calldatas[4] = abi.encodeCall(
-            AccessManager.setTargetFunctionRole,
-            (address(vaultProxy), publicSelectorsPufferVault, accessManager.PUBLIC_ROLE())
         );
 
         return calldatas;

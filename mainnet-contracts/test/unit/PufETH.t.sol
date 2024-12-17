@@ -62,10 +62,6 @@ contract PufETHTest is ERC4626Test {
         address msgSender = makeAddr("random");
         vm.startPrank(msgSender);
 
-        uint256[] memory amounts = new uint256[](1);
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
-        pufferVault.initiateETHWithdrawalsFromLido(amounts);
-
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, msgSender));
         pufferVault.upgradeToAndCall(address(pufferDepositor), "");
     }

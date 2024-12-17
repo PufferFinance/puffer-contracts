@@ -34,12 +34,8 @@ contract TimelockTest is Test {
         vm.assume(caller != address(timelock));
         vm.assume(caller != address(accessManager));
 
-        (bool canCall, uint32 delay) =
-            accessManager.canCall(caller, address(pufferVault), PufferVault.initiateETHWithdrawalsFromLido.selector);
-        assertFalse(canCall, "should not be able to call");
-
         // Upgrades are forbidden
-        (canCall, delay) =
+        (bool canCall, uint32 delay) =
             accessManager.canCall(caller, address(pufferVault), UUPSUpgradeable.upgradeToAndCall.selector);
         assertFalse(canCall, "should not be able to call");
 
