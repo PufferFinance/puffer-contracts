@@ -21,6 +21,7 @@
     "func-param-name-mixedcase": "error",
     "modifier-name-mixedcase": "error",
     "code-complexity": "error",
-    "explicit-types": "error"
+    "explicit-types": "error",
+    "gas-custom-errors": "off"
   }
 }
