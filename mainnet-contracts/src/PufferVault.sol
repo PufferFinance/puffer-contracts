@@ -30,9 +30,7 @@ contract PufferVault is
     ERC4626Upgradeable,
     UUPSUpgradeable
 {
-    using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.UintSet;
-    using SafeERC20 for address;
 
     /**
      * @dev stETH contract
