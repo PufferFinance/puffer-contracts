@@ -14,7 +14,7 @@ import { EnclaveVerifier } from "../src/EnclaveVerifier.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCallData.sol";
@@ -57,7 +57,7 @@ contract SetupAccess is BaseScript {
         require(s, "failed setupAccess GenerateAccessManagerCallData 1");
 
         // This will be executed by the operations multisig on mainnet
-        // PufferVaultV2 access setup
+        // PufferVaultV5 access setup
         bytes memory cd = new GenerateAccessManagerCallData().run(deployment.pufferVault, deployment.pufferDepositor);
         // console.logBytes(cd);
         (s,) = address(accessManager).call(cd);
@@ -221,7 +221,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](1);
 
         bytes4[] memory protocolSelectors = new bytes4[](1);
-        protocolSelectors[0] = PufferVaultV2.transferETH.selector;
+        protocolSelectors[0] = PufferVaultV5.transferETH.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

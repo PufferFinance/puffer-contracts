@@ -4,11 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferVaultV2 } from "./IPufferVaultV2.sol";
 
 /**
- * @title IPufferVaultV3
+ * @title IPufferVaultV5
  * @notice Interface for the PufferVault version 3 contract.
+ * @dev Interface V3 did not contain any new public functions.
  * @custom:security-contact security@puffer.fi
  */
-interface IPufferVaultV3 is IPufferVaultV2 {
+interface IPufferVaultV5 is IPufferVaultV2 {
     /**
      * @notice Constructor parameters for bridging.
      * @param xToken The address of the xToken contract.

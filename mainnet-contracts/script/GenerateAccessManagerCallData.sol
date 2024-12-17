@@ -5,10 +5,10 @@ import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
+import { PUBLIC_ROLE, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -40,10 +40,10 @@ contract GenerateAccessManagerCallData is Script {
     function _getPublicSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Public selectors for PufferVault
         bytes4[] memory publicSelectors = new bytes4[](4);
-        publicSelectors[0] = PufferVaultV2.withdraw.selector;
-        publicSelectors[1] = PufferVaultV2.redeem.selector;
-        publicSelectors[2] = PufferVaultV2.depositETH.selector;
-        publicSelectors[3] = PufferVaultV2.depositStETH.selector;
+        publicSelectors[0] = PufferVaultV5.withdraw.selector;
+        publicSelectors[1] = PufferVaultV5.redeem.selector;
+        publicSelectors[2] = PufferVaultV5.depositETH.selector;
+        publicSelectors[3] = PufferVaultV5.depositStETH.selector;
         // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
 
         return abi.encodeWithSelector(
@@ -55,8 +55,8 @@ contract GenerateAccessManagerCallData is Script {
         // Puffer Protocol only
         // PufferProtocol will get `ROLE_ID_PUFFER_PROTOCOL` when it's deployed
         bytes4[] memory protocolSelectors = new bytes4[](2);
-        protocolSelectors[0] = PufferVaultV2.transferETH.selector;
-        protocolSelectors[1] = PufferVaultV2.burn.selector;
+        protocolSelectors[0] = PufferVaultV5.transferETH.selector;
+        protocolSelectors[1] = PufferVaultV5.burn.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, protocolSelectors, ROLE_ID_PUFFER_PROTOCOL
@@ -66,8 +66,8 @@ contract GenerateAccessManagerCallData is Script {
     function _getOperationsSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Operations multisig
         bytes4[] memory operationsSelectors = new bytes4[](2);
-        operationsSelectors[0] = PufferVaultV2.initiateETHWithdrawalsFromLido.selector;
-        operationsSelectors[1] = PufferVaultV2.claimWithdrawalsFromLido.selector;
+        operationsSelectors[0] = PufferVaultV5.initiateETHWithdrawalsFromLido.selector;
+        operationsSelectors[1] = PufferVaultV5.claimWithdrawalsFromLido.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

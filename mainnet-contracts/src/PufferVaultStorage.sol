@@ -22,8 +22,8 @@ abstract contract PufferVaultStorage {
         // 6 Slots for Redemption logic
         uint256 lidoLockedETH;
         uint256 deprecated_eigenLayerPendingWithdrawalSharesAmount; // Not in use anymore
-        bool deprecated_isLidoWithdrawal; // Not in use in PufferVaultV2
-        EnumerableSet.UintSet deprecated_lidoWithdrawals; // Not in use in PufferVaultV2
+        bool deprecated_isLidoWithdrawal; // Not in use anymore
+        EnumerableSet.UintSet deprecated_lidoWithdrawals; // Not in use anymore
         EnumerableSet.Bytes32Set deprecated_eigenLayerWithdrawals; // Not in use anymore
         EnumerableMap.UintToUintMap lidoWithdrawalAmounts;
         // 1 Slot for daily withdrawal limits

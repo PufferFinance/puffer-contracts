@@ -18,18 +18,17 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
+import { IPufferVaultV5 } from "./interface/IPufferVaultV5.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
-import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
 
 /**
  * @title PufferVaultV5
- * @dev Implementation of the PufferVault version 5 contract.
+ * @dev Implementation of the PufferVault version 5.
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultV5 is
-    IPufferVaultV3,
+    IPufferVaultV5,
     IERC721Receiver,
     PufferVaultStorage,
     AccessManagedUpgradeable,
@@ -43,30 +42,10 @@ contract PufferVaultV5 is
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
-
-    /**
-     * @dev stETH contract
-     */
     IStETH internal immutable _ST_ETH;
-
-    /**
-     * @dev Lido Withdrawal Queue
-     */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
-
-    /**
-     * @dev The Wrapped Ethereum ERC20 token
-     */
     IWETH internal immutable _WETH;
-
-    /**
-     * @dev The PufferOracle contract
-     */
     IPufferOracleV2 public immutable PUFFER_ORACLE;
-
-    /**
-     * @notice The restaking rewards depositor contract.
-     */
     IPufferRevenueDepositor public immutable RESTAKING_REWARDS_DEPOSITOR;
 
     constructor(
@@ -84,10 +63,14 @@ contract PufferVaultV5 is
         _disableInitializers();
     }
 
+    /**
+     * @notice Accept ETH from anywhere
+     */
     receive() external payable virtual { }
 
     /**
-     * @inheritdoc IPufferVaultV3
+     * @notice Returns the total reward mint amount.
+     * @return The total minted rewards amount.
      */
     function getTotalRewardMintAmount() public view returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -95,7 +78,8 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @inheritdoc IPufferVaultV3
+     * @notice Returns the total reward mint amount.
+     * @return The total deposited rewards amount.
      */
     function getTotalRewardDepositAmount() public view returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
@@ -254,7 +238,9 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @inheritdoc IPufferVaultV2
+     * @notice Deposits native ETH into the Puffer Vault
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositETH(address receiver) public payable virtual markDeposit restricted returns (uint256) {
@@ -271,7 +257,11 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @inheritdoc IPufferVaultV2
+     * @notice Deposits stETH into the Puffer Vault
+     * @param stETHSharesAmount The shares amount of stETH to deposit
+     * @param receiver The recipient of pufETH tokens
+     * @return shares The amount of pufETH received from the deposit
+     *
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositStETH(uint256 stETHSharesAmount, address receiver)
@@ -493,7 +483,7 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @inheritdoc IPufferVaultV2
+     * @notice Returns the current exit fee basis points
      */
     function getExitFeeBasisPoints() public view virtual returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();

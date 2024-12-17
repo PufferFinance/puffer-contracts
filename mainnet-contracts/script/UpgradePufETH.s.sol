@@ -15,7 +15,6 @@ import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.s
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
@@ -67,6 +66,7 @@ contract UpgradePufETH is BaseScript {
             IPufferOracle(pufferOracle)
         );
 
+        // It is necessary to upgrade to VaultV2 because in that upgrade we changed the underlying asset from stETH to WETH
         // Initialize VaultV2 to swap stETH for WETH as the asset
         UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
             address(newImplementationV2), abi.encodeCall(PufferVaultV2.initialize, ())
