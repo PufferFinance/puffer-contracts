@@ -50,7 +50,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.asset(), address(_WETH), "asset");
         assertEq(pufferVault.getPendingLidoETHAmount(), 0, "0 pending lido eth");
         assertEq(pufferVault.totalAssets(), 368072.286049064583783628 ether, "total assets");
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
         assertEq(pufferVault.getExitFeeBasisPoints(), 100, "1% withdrawal fee");
     }
 
@@ -138,38 +137,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.maxRedeem(pufferWhale), 100.595147442558494386 ether, "max redeem");
     }
 
-    function test_setDailyWithdrawalLimit() public {
-        // Get withdrawal liquidity
-        _withdraw_stETH_from_lido();
-
-        address dao = makeAddr("dao");
-
-        // Grant DAO role to 'dao' address
-        vm.startPrank(address(timelock));
-        accessManager.grantRole(ROLE_ID_DAO, dao, 0);
-
-        // Whale has more than 100 ether, but the limit is 100 eth
-        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
-
-        vm.startPrank(pufferWhale);
-        pufferVault.withdraw(pufferVault.maxWithdraw(pufferWhale), pufferWhale, pufferWhale);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0, "remaining assets daily withdrawal limit");
-
-        // Set the new limit
-        uint96 newLimit = 1000 ether;
-        vm.startPrank(dao);
-        vm.expectEmit(true, true, true, true);
-        emit IPufferVaultV2.DailyWithdrawalLimitReset();
-        pufferVault.setDailyWithdrawalLimit(newLimit);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), newLimit, "daily withdrawal limit");
-        // Shares amount
-        uint256 maxRedeem = pufferVault.maxRedeem(pufferWhale);
-        // If we convert shares to assets, it should be equal to the new limit + 10 (1% is the withdrawal fee)
-        assertEq(pufferVault.convertToAssets(maxRedeem), 1010 ether, "max redeem converted to assets");
-    }
-
     function test_withdraw_fee() public {
         // Get withdrawal liquidity
         _withdraw_stETH_from_lido();
@@ -238,32 +205,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         uint256 recipientBalance = _WETH.balanceOf(recipient);
 
         assertGt(recipientBalance, 20 ether, "+10 weth");
-
-        // Assert the daily withdrawal limit
-        assertEq(
-            pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether - recipientBalance, "daily withdrawal limit"
-        );
-    }
-
-    function test_daily_limit_reset() public {
-        _withdraw_stETH_from_lido();
-
-        vm.startPrank(pufferWhale);
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
-
-        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
-        pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 50 ether, "daily withdrawal limit reduced");
-
-        vm.warp(block.timestamp + 1 days);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit reduced");
-
-        assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
-        pufferVault.withdraw(22 ether, pufferWhale, pufferWhale);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 78 ether, "daily withdrawal limit reduced");
     }
 
     function test_withdrawal() public {
@@ -271,17 +212,14 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         _withdraw_stETH_from_lido();
 
         vm.startPrank(pufferWhale);
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 100 ether, "daily withdrawal limit");
 
         assertEq(pufferVault.maxWithdraw(pufferWhale), 100 ether, "max withdraw");
         pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
 
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 50 ether, "daily withdrawal limit reduced");
         assertEq(pufferVault.maxWithdraw(pufferWhale), 50 ether, "leftover max withdraw");
 
         pufferVault.withdraw(50 ether, pufferWhale, pufferWhale);
         assertEq(pufferVault.maxWithdraw(pufferWhale), 0 ether, "no leftover max withdraw");
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 0 ether, "everything withdrawn");
     }
 
     function test_withdrawal_transfers_to_receiver() public {
@@ -383,29 +321,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
 
         vm.expectRevert();
         pufferVault.depositStETH(100 ether + 1, alice);
-    }
-
-    function test_change_withdrawal_limit() public {
-        _withdraw_stETH_from_lido();
-
-        address dao = makeAddr("dao");
-
-        // Grant DAO role to 'dao' address
-        vm.startPrank(address(timelock));
-        accessManager.grantRole(ROLE_ID_DAO, dao, 0);
-
-        vm.startPrank(pufferWhale);
-        pufferVault.withdraw(20 ether, pufferWhale, pufferWhale);
-
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 80 ether, "daily withdrawal limit");
-
-        // Set the new limit
-        uint96 newLimit = 10 ether;
-        vm.startPrank(dao);
-        pufferVault.setDailyWithdrawalLimit(newLimit);
-
-        // The remaining limit is reset in `setDailyWithdrawalLimit`
-        assertEq(pufferVault.getRemainingAssetsDailyWithdrawalLimit(), 10 ether, "10 ether left - limit is reset");
     }
 
     function test_burn() public withCaller(pufferWhale) {

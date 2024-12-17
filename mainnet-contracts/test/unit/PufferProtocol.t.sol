@@ -68,9 +68,6 @@ contract PufferProtocolTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         vm.stopPrank();
 
-        // Set daily withdrawals limit
-        pufferVault.setDailyWithdrawalLimit(1000 ether);
-
         _skipDefaultFuzzAddresses();
 
         fuzzedAddressMapping[address(pufferProtocol)] = true;

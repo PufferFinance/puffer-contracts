@@ -279,8 +279,6 @@ contract PufferTest is Test {
 
         assertEq(pufferVault.totalAssets(), assetsBefore + 10 ether, "Previous assets should increase");
 
-        PufferVaultV2(payable(address(pufferVault))).getRemainingAssetsDailyWithdrawalLimit();
-
         pufferVault.balanceOf(eve);
         uint256 maxWithdraw = pufferVault.maxWithdraw(eve);
 

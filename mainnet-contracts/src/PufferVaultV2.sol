@@ -59,9 +59,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         PUFFER_ORACLE = oracle;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        // This redundant code is for the Echidna fuzz testing
-        _setDailyWithdrawalLimit(100 ether);
-        _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
         _disableInitializers();
     }
@@ -76,8 +73,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        _setDailyWithdrawalLimit(100 ether);
-        _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
 
         // Return pufETH to Puffers
@@ -144,8 +139,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
 
-        _updateDailyWithdrawals(assets);
-
         _wrapETH(assets);
 
         uint256 shares = previewWithdraw(assets);
@@ -178,8 +171,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
 
         uint256 assets = previewRedeem(shares);
-
-        _updateDailyWithdrawals(assets);
 
         _wrapETH(assets);
 
@@ -371,63 +362,11 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Sets a new daily withdrawal limit
-     * @dev Restricted to the DAO
-     * @param newLimit The new daily limit to be set
-     */
-    function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
-        _setDailyWithdrawalLimit(newLimit);
-        _resetDailyWithdrawals();
-    }
-
-    /**
      * @param newExitFeeBasisPoints is the new exit fee basis points
      * @dev Restricted to the DAO
      */
     function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
         _setExitFeeBasisPoints(newExitFeeBasisPoints);
-    }
-
-    /**
-     * @inheritdoc IPufferVaultV2
-     */
-    function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint256) {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
-        uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
-
-        // If we are in a new day, return the full daily limit
-        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            return dailyAssetsWithdrawalLimit;
-        }
-
-        return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
-    }
-
-    /**
-     * @notice Calculates the maximum amount of assets (WETH) that can be withdrawn by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
-     * See {IERC4626-maxWithdraw}
-     * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
-     * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
-     */
-    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
-        uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
-        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
-        return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
-    }
-
-    /**
-     * @notice Calculates the maximum amount of shares (pufETH) that can be redeemed by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
-     * See {IERC4626-maxRedeem}
-     * @param owner The address of the owner for which the maximum redeemable shares are calculated.
-     * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
-     */
-    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
-        uint256 remainingShares = previewWithdraw(getRemainingAssetsDailyWithdrawalLimit());
-        uint256 userShares = balanceOf(owner);
-        return remainingShares < userShares ? remainingShares : userShares;
     }
 
     /**
@@ -484,31 +423,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Updates the amount of assets (WETH) withdrawn today
-     * @param withdrawalAmount is the assets (WETH) amount
-     */
-    function _updateDailyWithdrawals(uint256 withdrawalAmount) internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        // Check if it's a new day to reset the withdrawal count
-        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            _resetDailyWithdrawals();
-        }
-        $.assetsWithdrawnToday += uint96(withdrawalAmount);
-        emit AssetsWithdrawnToday($.assetsWithdrawnToday);
-    }
-
-    /**
-     * @notice Updates the maximum amount of assets (WETH) that can be withdrawn daily
-     * @param newLimit is the assets (WETH) amount
-     */
-    function _setDailyWithdrawalLimit(uint96 newLimit) internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
-        $.dailyAssetsWithdrawalLimit = newLimit;
-    }
-
-    /**
      * @notice Updates the exit fee basis points
      * @dev 200 Basis points = 2% is the maximum exit fee
      */
@@ -540,13 +454,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             }
         }
         _;
-    }
-
-    function _resetDailyWithdrawals() internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-        $.assetsWithdrawnToday = 0;
-        emit DailyWithdrawalLimitReset();
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

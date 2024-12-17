@@ -21,14 +21,13 @@ import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_M
  */
 contract GenerateAccessManagerCallData is Script {
     function run(address pufferVaultProxy, address pufferDepositorProxy) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](5);
+        bytes[] memory calldatas = new bytes[](4);
 
         // Combine the two calldatas
         calldatas[0] = _getPublicSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
-        calldatas[1] = _getDaoSelectorsCalldataCalldata({ pufferVaultProxy: pufferVaultProxy });
-        calldatas[2] = _getProtocolSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
-        calldatas[3] = _getOperationsSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
-        calldatas[4] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
+        calldatas[1] = _getProtocolSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[2] = _getOperationsSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
+        calldatas[3] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
@@ -49,16 +48,6 @@ contract GenerateAccessManagerCallData is Script {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, publicSelectors, PUBLIC_ROLE
-        );
-    }
-
-    function _getDaoSelectorsCalldataCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
-        // DAO selectors
-        bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
-
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, daoSelectors, ROLE_ID_DAO
         );
     }
 

@@ -27,9 +27,9 @@ abstract contract PufferVaultStorage {
         EnumerableSet.Bytes32Set deprecated_eigenLayerWithdrawals; // Not in use anymore
         EnumerableMap.UintToUintMap lidoWithdrawalAmounts;
         // 1 Slot for daily withdrawal limits
-        uint96 dailyAssetsWithdrawalLimit;
-        uint96 assetsWithdrawnToday;
-        uint64 lastWithdrawalDay;
+        uint96 deprecated_dailyAssetsWithdrawalLimit;
+        uint96 deprecated_assetsWithdrawnToday;
+        uint64 deprecated_lastWithdrawalDay;
         // 1 slot for withdrawal fee
         uint256 exitFeeBasisPoints;
         // ETH rewards amount

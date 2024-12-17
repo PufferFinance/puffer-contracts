@@ -86,7 +86,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](31);
+        calldatas = new bytes[](30);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -105,27 +105,26 @@ contract SetupAccess is BaseScript {
         calldatas[13] = validatorTicketRoles[1];
 
         calldatas[14] = vaultMainnetAccess[0];
-        calldatas[15] = vaultMainnetAccess[1];
 
-        calldatas[16] = pufferOracleAccess[0];
-        calldatas[17] = pufferOracleAccess[1];
-        calldatas[18] = pufferOracleAccess[2];
+        calldatas[15] = pufferOracleAccess[0];
+        calldatas[16] = pufferOracleAccess[1];
+        calldatas[17] = pufferOracleAccess[2];
 
-        calldatas[19] = moduleManagerAccess[0];
-        calldatas[20] = moduleManagerAccess[1];
+        calldatas[18] = moduleManagerAccess[0];
+        calldatas[19] = moduleManagerAccess[1];
 
-        calldatas[21] = roleLabels[0];
-        calldatas[22] = roleLabels[1];
-        calldatas[23] = roleLabels[2];
-        calldatas[24] = roleLabels[3];
+        calldatas[20] = roleLabels[0];
+        calldatas[21] = roleLabels[1];
+        calldatas[22] = roleLabels[2];
+        calldatas[23] = roleLabels[3];
 
-        calldatas[25] = coordinatorAccess[0];
-        calldatas[26] = coordinatorAccess[1];
+        calldatas[24] = coordinatorAccess[0];
+        calldatas[25] = coordinatorAccess[1];
 
-        calldatas[27] = validatorTicketAccess[0];
-        calldatas[28] = validatorTicketAccess[1];
-        calldatas[29] = validatorTicketAccess[2];
-        calldatas[30] = validatorTicketAccess[3];
+        calldatas[26] = validatorTicketAccess[0];
+        calldatas[27] = validatorTicketAccess[1];
+        calldatas[28] = validatorTicketAccess[2];
+        calldatas[29] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -219,22 +218,12 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferVaultMainnetAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
-
-        bytes4[] memory operationsSelectors = new bytes4[](1);
-        operationsSelectors[0] = PufferVaultV2.setDailyWithdrawalLimit.selector;
-
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferDeployment.pufferVault,
-            operationsSelectors,
-            ROLE_ID_OPERATIONS_MULTISIG
-        );
+        bytes[] memory calldatas = new bytes[](1);
 
         bytes4[] memory protocolSelectors = new bytes4[](1);
         protocolSelectors[0] = PufferVaultV2.transferETH.selector;
 
-        calldatas[1] = abi.encodeWithSelector(
+        calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.pufferVault,
             protocolSelectors,
