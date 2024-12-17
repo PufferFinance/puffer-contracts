@@ -9,7 +9,6 @@ import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Validator } from "../../src/struct/Validator.sol";
@@ -27,6 +26,7 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 
 struct ProvisionedValidator {
     bytes32 moduleName;
@@ -106,7 +106,7 @@ contract PufferProtocolHandler is Test {
 
     address internal currentActor;
 
-    PufferVaultV2 pufferVault;
+    PufferVaultV5 pufferVault;
     PufferOracleV2 pufferOracle;
     ValidatorTicket validatorTicket;
 
@@ -114,7 +114,7 @@ contract PufferProtocolHandler is Test {
 
     constructor(
         UnitTestHelper helper,
-        PufferVaultV2 vault,
+        PufferVaultV5 vault,
         address steth,
         PufferProtocol protocol,
         uint256[] memory _guardiansEnclavePks,

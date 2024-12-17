@@ -11,7 +11,7 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { Generate2StepWithdrawalsCalldata } from
     "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
 import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 
 /**
@@ -638,7 +638,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
     function testRevert_multipleWithdrawalsInTheSameTx() public withUnlimitedWithdrawalLimit {
         // Upgrade to the real implementation
         address newImpl = address(
-            new PufferWithdrawalManager(batchSize, PufferVaultV3(payable(address(pufferVault))), IWETH(address(weth)))
+            new PufferWithdrawalManager(batchSize, PufferVaultV5(payable(address(pufferVault))), IWETH(address(weth)))
         );
         vm.prank(timelock);
         withdrawalManager.upgradeToAndCall(newImpl, "");

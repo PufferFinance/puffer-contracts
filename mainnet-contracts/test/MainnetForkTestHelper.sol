@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { PufferVaultV5Tests } from "../test/mocks/PufferVaultV5Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
@@ -53,7 +52,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     }
 
     PufferDepositorV2 public pufferDepositor;
-    PufferVaultV3 public pufferVault;
+    PufferVaultV5 public pufferVault;
     PufferVaultV5 public pufferVaultWithBlocking;
     // Non blocking version is required because of the foundry tests
     PufferVaultV5 public pufferVaultNonBlocking;
@@ -118,7 +117,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
 
     function _setupLiveContracts() internal {
         pufferDepositor = PufferDepositorV2(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
-        pufferVault = PufferVaultV3(payable(_getPufferVault()));
+        pufferVault = PufferVaultV5(payable(_getPufferVault()));
         accessManager = AccessManager(payable(_getAccessManager()));
         timelock = Timelock(payable(_getTimelock()));
 

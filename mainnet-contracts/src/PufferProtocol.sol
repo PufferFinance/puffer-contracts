@@ -19,7 +19,7 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { PufferVaultV2 } from "./PufferVaultV2.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
@@ -83,7 +83,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    PufferVaultV2 public immutable override PUFFER_VAULT;
+    PufferVaultV5 public immutable override PUFFER_VAULT;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -101,7 +101,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
 
     constructor(
-        PufferVaultV2 pufferVault,
+        PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
         address moduleManager,
         ValidatorTicket validatorTicket,
@@ -109,7 +109,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address beaconDepositContract
     ) {
         GUARDIAN_MODULE = guardianModule;
-        PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
+        PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
         PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;

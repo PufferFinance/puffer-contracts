@@ -5,7 +5,7 @@ import { Validator } from "../struct/Validator.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "../interface/IGuardianModule.sol";
 import { PufferModuleManager } from "../PufferModuleManager.sol";
-import { PufferVaultV2 } from "../PufferVaultV2.sol";
+import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
 import { Status } from "../struct/Status.sol";
 import { Permit } from "../structs/Permit.sol";
@@ -245,7 +245,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns the Puffer Vault
      */
-    function PUFFER_VAULT() external view returns (PufferVaultV2);
+    function PUFFER_VAULT() external view returns (PufferVaultV5);
 
     /**
      * @notice Returns the Puffer Module Manager

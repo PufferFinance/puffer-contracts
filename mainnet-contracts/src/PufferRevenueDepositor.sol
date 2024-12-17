@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV4 } from "./PufferVaultV4.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -37,7 +37,7 @@ contract PufferRevenueDepositor is
      * @notice PufferVault contract.
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    PufferVaultV4 public immutable PUFFER_VAULT;
+    PufferVaultV5 public immutable PUFFER_VAULT;
 
     /**
      * @notice AeraVault contract.
@@ -59,7 +59,7 @@ contract PufferRevenueDepositor is
         if (vault == address(0) || weth == address(0) || aeraVault == address(0)) {
             revert InvalidAddress();
         }
-        PUFFER_VAULT = PufferVaultV4(payable(vault));
+        PUFFER_VAULT = PufferVaultV5(payable(vault));
         AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
         _disableInitializers();

@@ -6,7 +6,7 @@ import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Unauthorized, InvalidAmount } from "./Errors.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { PufferModule } from "./PufferModule.sol";
-import { PufferVaultV3 } from "./PufferVaultV3.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -127,7 +127,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             totalRewardsAmount += rewardsAmounts[i];
         }
 
-        PufferVaultV3(PUFFER_VAULT).depositRewards{ value: totalRewardsAmount }();
+        PufferVaultV5(PUFFER_VAULT).depositRewards{ value: totalRewardsAmount }();
     }
 
     /**

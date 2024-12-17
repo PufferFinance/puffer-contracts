@@ -19,7 +19,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
