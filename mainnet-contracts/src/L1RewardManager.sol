@@ -28,28 +28,21 @@ contract L1RewardManager is
 {
     /**
      * @notice The XPUFETH token contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IERC20 public immutable XPUFETH;
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     PufferVaultV5 public immutable PUFFER_VAULT;
     /**
      * @notice The XERC20Lockbox contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IXERC20Lockbox public immutable LOCKBOX;
     /**
      * @notice The Rewards Manager contract on L2
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(address xPufETH, address lockbox, address pufETH, address l2RewardsManager) {
         XPUFETH = IERC20(xPufETH);
         LOCKBOX = IXERC20Lockbox(lockbox);

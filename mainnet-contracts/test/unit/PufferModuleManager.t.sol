@@ -280,20 +280,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callSetProofSubmitter(moduleName, proofSubmitter);
     }
 
-    function test_startCheckpoint(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-
-        vm.startPrank(DAO);
-
-        address module = _createPufferModule(moduleName);
-        address[] memory modules = new address[](1);
-        modules[0] = module;
-
-        vm.startPrank(DAO);
-
-        pufferModuleManager.callStartCheckpoint(modules);
-    }
-
     function testRevert_createPufferModuleForbiddenName() public {
         vm.startPrank(DAO);
         vm.expectRevert(IPufferModuleManager.ForbiddenModuleName.selector);

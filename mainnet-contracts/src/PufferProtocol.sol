@@ -10,7 +10,6 @@ import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
-import { IPufferModule } from "./interface/IPufferModule.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
 import { Permit } from "./structs/Permit.sol";
@@ -23,6 +22,7 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
+import { PufferModule } from "./PufferModule.sol";
 
 /**
  * @title PufferProtocol
@@ -368,7 +368,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             uint256 transferAmount =
                 validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
             //solhint-disable-next-line avoid-low-level-calls
-            (bool success,) = IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            (bool success,) =
+                PufferModule(payable(validatorInfos[i].module)).call(address(PUFFER_VAULT), transferAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -572,7 +573,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getWithdrawalCredentials(address module) public view returns (bytes memory) {
-        return IPufferModule(module).getWithdrawalCredentials();
+        return PufferModule(payable(module)).getWithdrawalCredentials();
     }
 
     /**
@@ -700,7 +701,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
+        PufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
@@ -789,7 +790,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             guardianEnclaveSignatures: guardianEnclaveSignatures
         });
 
-        IPufferModule module = $.modules[moduleName];
+        PufferModule module = $.modules[moduleName];
 
         // Transfer 32 ETH to the module
         PUFFER_VAULT.transferETH(address(module), 32 ether);

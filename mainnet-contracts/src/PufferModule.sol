@@ -10,7 +10,6 @@ import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { IEigenPod } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
-import { IPufferModule } from "./interface/IPufferModule.sol";
 import { Unauthorized } from "./Errors.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -25,54 +24,25 @@ import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsC
  * @notice PufferModule
  * @custom:security-contact security@puffer.fi
  */
-contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable {
+contract PufferModule is Initializable, AccessManagedUpgradeable {
     using Address for address;
     using Address for address payable;
 
+    IEigenPodManager public immutable EIGEN_POD_MANAGER;
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
+    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
+    IPufferProtocol public immutable PUFFER_PROTOCOL;
+    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
     /**
      * @dev Represents the Beacon Chain strategy in EigenLayer
      */
     address internal constant _BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IEigenPodManager public immutable EIGEN_POD_MANAGER;
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
-
-    /**
-     * @dev Upgradeable PufferProtocol
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IPufferProtocol public immutable PUFFER_PROTOCOL;
-
-    /**
-     * @dev Upgradeable Puffer Module Manager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
-
     /**
      * keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
      */
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
 
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
@@ -127,7 +97,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     receive() external payable { }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Starts the validator
      */
     function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
@@ -139,7 +109,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Sets the proof submitter on the EigenPod
      */
     function setProofSubmitter(address proofSubmitter) external onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
@@ -148,8 +118,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
+     * @notice Queues the withdrawal from EigenLayer for the Beacon Chain strategy
      */
     function queueWithdrawals(uint256 shareAmount)
         external
@@ -176,7 +145,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Completes the queued withdrawals
      */
     function completeQueuedWithdrawals(
         IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
@@ -191,16 +160,9 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
-     */
-    function startCheckpoint() external virtual onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-        $.eigenPod.startCheckpoint({ revertIfNoBalance: true });
-    }
-
-    /**
-     * @dev Restricted to PufferProtocol
+     * @notice the `to` with custom `value` and `data`
+     * @return success the success of the call
+     * @return returnData the return data of the call
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
@@ -213,8 +175,10 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
+     * @notice Calls the delegateTo function on the EigenLayer delegation manager
+     * @param operator is the address of the restaking operator
+     * @param approverSignatureAndExpiry the signature of the delegation approver
+     * @param approverSalt salt for the signature
      */
     function callDelegateTo(
         address operator,
@@ -225,23 +189,21 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
+     * @notice Calls the undelegate function on the EigenLayer delegation manager
      */
     function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
     /**
-     * @inheritdoc IPufferModule
-     * @dev Restricted to PufferModuleManager
+     * @notice Sets the rewards claimer to `claimer` for the PufferModule
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Returns the Withdrawal credentials for that module
      */
     function getWithdrawalCredentials() public view returns (bytes memory) {
         // Withdrawal credentials for EigenLayer modules are EigenPods
@@ -250,7 +212,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Returns the EigenPod address owned by the module
      */
     function getEigenPod() external view returns (address) {
         ModuleStorage storage $ = _getPufferModuleStorage();
@@ -258,7 +220,7 @@ contract PufferModule is IPufferModule, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @inheritdoc IPufferModule
+     * @notice Returns the module name
      */
     // solhint-disable-next-line func-name-mixedcase
     function NAME() external view returns (bytes32) {

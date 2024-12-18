@@ -12,7 +12,6 @@
     "@openzeppelin/contracts-upgradeable": "5.0.1",
     "l2-contracts": "*",
     "murky": "https://github.com/dmfxyz/murky.git",
-    "openzeppelin-foundry-upgrades": "https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#patch-1",
     "rave": "https://github.com/PufferFinance/rave.git#57ce268",
     "solidity-stringutils": "https://github.com/Arachnid/solidity-stringutils"
   },
@@ -20,9 +19,9 @@
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
     "erc4626-tests": "https://github.com/a16z/erc4626-tests#8b1d7c2",
-    "forge-std": "github:foundry-rs/forge-std#v1.9.2",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "solarray": "github:evmcheb/solarray#a547630",
-    "solhint": "^5.0.1"
+    "solhint": "^5.0.3"
   },
   "homepage": "https://puffer.fi",
   "keywords": [

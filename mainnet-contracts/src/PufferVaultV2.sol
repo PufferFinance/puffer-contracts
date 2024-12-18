@@ -24,34 +24,9 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
-
-    /**
-     * @dev The Wrapped Ethereum ERC20 token
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IWETH internal immutable _WETH;
-
-    /**
-     * @dev The PufferOracle contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IPufferOracle public immutable PUFFER_ORACLE;
 
-    /**
-     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    address private constant _WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
-
-    /**
-     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    address private constant _PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
-
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(IStETH stETH, IWETH weth, ILidoWithdrawalQueue lidoWithdrawalQueue, IPufferOracle oracle)
         PufferVault(stETH, lidoWithdrawalQueue)
     {
@@ -74,19 +49,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
         _setExitFeeBasisPoints(100); // 1%
-
-        // Return pufETH to Puffers
-        // If statement is necessary because we don't wan to change existing tests that rely on the original behavior
-        if (balanceOf(address(this)) > 299 ether) {
-            // Must do this.transfer (external call) because ERC20Upgradeable uses Context::_msgSender() (the msg.sender of the .initialize external call)
-
-            // https://etherscan.io/tx/0x2e02a00dbc8ba48cd65a6802d174c210d0c4869806a564cca0088e42d382b2ff
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(_WHALE_PUFFER, 299.864287100672938618 ether);
-            // https://etherscan.io/tx/0x7d309dc26cb3f0226e480e0d4c598707faee59d58bfc68bedb75cf5055ac274a
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(_PUFFER, 25426113577506618);
-        }
     }
 
     /**

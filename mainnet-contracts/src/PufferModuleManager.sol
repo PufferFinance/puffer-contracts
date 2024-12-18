@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferModule } from "./interface/IPufferModule.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Unauthorized, InvalidAmount } from "./Errors.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
@@ -19,6 +18,7 @@ import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignature
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { PufferModule } from "./PufferModule.sol";
 
 /**
  * @title PufferModuleManager
@@ -67,7 +67,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        IPufferModule(moduleAddress).completeQueuedWithdrawals({
+        PufferModule(payable(moduleAddress)).completeQueuedWithdrawals({
             withdrawals: withdrawals,
             tokens: tokens,
             receiveAsTokens: receiveAsTokens
@@ -89,20 +89,22 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the PufferProtocol
      * @param moduleName The name of the module
      */
-    function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
+    function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (PufferModule) {
         if (moduleName == bytes32("NO_VALIDATORS")) {
             revert ForbiddenModuleName();
         }
         // This called from the PufferProtocol and the event is emitted there
-        return IPufferModule(
-            Create2.deploy({
-                amount: 0,
-                salt: moduleName,
-                bytecode: abi.encodePacked(
-                    type(BeaconProxy).creationCode,
-                    abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
-                )
-            })
+        return PufferModule(
+            payable(
+                Create2.deploy({
+                    amount: 0,
+                    salt: moduleName,
+                    bytecode: abi.encodePacked(
+                        type(BeaconProxy).creationCode,
+                        abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
+                    )
+                })
+            )
         );
     }
 
@@ -119,7 +121,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         for (uint256 i = 0; i < modules.length; ++i) {
             //solhint-disable-next-line avoid-low-level-calls
-            (bool success,) = IPufferModule(modules[i]).call(address(this), rewardsAmounts[i], "");
+            (bool success,) = PufferModule(payable(modules[i])).call(address(this), rewardsAmounts[i], "");
             if (!success) {
                 revert InvalidAmount();
             }
@@ -134,7 +136,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-        bytes32[] memory withdrawalRoots = IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
+        bytes32[] memory withdrawalRoots = PufferModule(payable(moduleAddress)).queueWithdrawals(sharesAmount);
         emit WithdrawalsQueued(moduleName, sharesAmount, withdrawalRoots[0]);
     }
 
@@ -142,8 +144,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the DAO
      */
     function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
-        // We can cast `moduleOrReOp` to IPufferModule/RestakingOperator, uses the same function signature.
-        IPufferModule(moduleOrReOp).callSetClaimerFor(claimer);
+        // We can cast `moduleOrReOp` to PufferModule/RestakingOperator, uses the same function signature.
+        PufferModule(payable(moduleOrReOp)).callSetClaimerFor(claimer);
         emit ClaimerSet({ rewardsReceiver: moduleOrReOp, claimer: claimer });
     }
 
@@ -152,7 +154,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
-        IPufferModule(moduleAddress).setProofSubmitter(proofSubmitter);
+        PufferModule(payable(moduleAddress)).setProofSubmitter(proofSubmitter);
         emit ProofSubmitterSet(moduleName, proofSubmitter);
     }
 
@@ -219,7 +221,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+        PufferModule(payable(moduleAddress)).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
 
         emit PufferModuleDelegated(moduleName, operator);
     }
@@ -230,7 +232,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
+        withdrawalRoot = PufferModule(payable(moduleAddress)).callUndelegate();
 
         emit PufferModuleUndelegated(moduleName);
     }
@@ -262,16 +264,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         bytes memory response = restakingOperator.customCalldataCall(target, customCalldata);
 
         emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
-    }
-
-    /**
-     * @dev Restricted to the DAO
-     */
-    function callStartCheckpoint(address[] calldata moduleAddresses) external virtual restricted {
-        for (uint256 i = 0; i < moduleAddresses.length; ++i) {
-            // reverts if supplied with a duplicate module address
-            IPufferModule(moduleAddresses[i]).startCheckpoint();
-        }
     }
 
     /**

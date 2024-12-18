@@ -31,21 +31,9 @@ contract PufferVault is
 {
     using EnumerableSet for EnumerableSet.UintSet;
 
-    /**
-     * @dev stETH contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IStETH internal immutable _ST_ETH;
-
-    /**
-     * @dev Lido Withdrawal Queue
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
 
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(IStETH stETH, ILidoWithdrawalQueue lidoWithdrawalQueue) payable {
         _ST_ETH = stETH;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;

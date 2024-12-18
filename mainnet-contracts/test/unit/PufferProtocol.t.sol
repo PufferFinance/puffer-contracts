@@ -10,7 +10,6 @@ import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { IPufferModule } from "../../src/interface/IPufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
@@ -502,7 +501,7 @@ contract PufferProtocolTest is UnitTestHelper {
     function test_create_puffer_module() public {
         bytes32 name = bytes32("LEVERAGED_RESTAKING");
         pufferProtocol.createPufferModule(name);
-        IPufferModule module = IPufferModule(pufferProtocol.getModuleAddress(name));
+        PufferModule module = PufferModule(payable(pufferProtocol.getModuleAddress(name)));
         assertEq(module.NAME(), name, "name");
     }
 

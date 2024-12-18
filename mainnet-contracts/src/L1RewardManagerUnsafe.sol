@@ -113,9 +113,6 @@ contract L1RewardManagerUnsafe is
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(address xPufETH, address lockbox, address pufETH, address l2RewardsManager) {
         XPUFETH = IERC20(xPufETH);
         LOCKBOX = IXERC20Lockbox(lockbox);

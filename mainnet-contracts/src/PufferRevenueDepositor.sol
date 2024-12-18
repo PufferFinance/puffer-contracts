@@ -32,28 +32,14 @@ contract PufferRevenueDepositor is
      * @notice The maximum rewards distribution window.
      */
     uint256 private constant _MAXIMUM_DISTRIBUTION_WINDOW = 7 days;
-
-    /**
-     * @notice PufferVault contract.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     PufferVaultV5 public immutable PUFFER_VAULT;
-
-    /**
-     * @notice AeraVault contract.
-     */
     IAeraVault public immutable AERA_VAULT;
-
-    /**
-     * @notice WETH contract.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IWETH public immutable WETH;
 
     /**
      * @param vault PufferVault contract
      * @param weth WETH contract
-     * @custom:oz-upgrades-unsafe-allow constructor
+     * @param aeraVault AeraVault contract
      */
     constructor(address vault, address weth, address aeraVault) {
         if (vault == address(0) || weth == address(0) || aeraVault == address(0)) {
