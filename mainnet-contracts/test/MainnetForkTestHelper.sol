@@ -4,28 +4,24 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
-import { PufferVaultV4 } from "../src/PufferVaultV4.sol";
-import { PufferVaultV2Tests } from "../test/mocks/PufferVaultV2Tests.sol";
-import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
+import { PufferVaultV5Tests } from "../test/mocks/PufferVaultV5Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
-import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
+import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { stdStorage, StdStorage } from "forge-std/Test.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
-import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { IPufferOracleV2 } from "src/interface/IPufferOracleV2.sol";
 import { IWstETH } from "../src/interface/Lido/IWstETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
-import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { GenerateAccessManagerCallData } from "script/GenerateAccessManagerCallData.sol";
 import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
-import { IDelegationManager } from "../src/interface/EigenLayer/IDelegationManager.sol";
 import { DeployerHelper } from "../script/DeployerHelper.s.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 
@@ -56,10 +52,10 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     }
 
     PufferDepositorV2 public pufferDepositor;
-    PufferVaultV3 public pufferVault;
-    PufferVaultV2 public pufferVaultWithBlocking;
+    PufferVaultV5 public pufferVault;
+    PufferVaultV5 public pufferVaultWithBlocking;
     // Non blocking version is required because of the foundry tests
-    PufferVaultV2 public pufferVaultNonBlocking;
+    PufferVaultV5 public pufferVaultNonBlocking;
     AccessManager public accessManager;
     Timelock public timelock;
 
@@ -121,7 +117,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
 
     function _setupLiveContracts() internal {
         pufferDepositor = PufferDepositorV2(payable(0x4aA799C5dfc01ee7d790e3bf1a7C2257CE1DcefF));
-        pufferVault = PufferVaultV3(payable(_getPufferVault()));
+        pufferVault = PufferVaultV5(payable(_getPufferVault()));
         accessManager = AccessManager(payable(_getAccessManager()));
         timelock = Timelock(payable(_getTimelock()));
 
@@ -148,28 +144,24 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         // We use MockOracle + MockPufferProtocol to simulate the Puffer Protocol
         MockPufferOracle mockOracle = new MockPufferOracle();
 
-        pufferVaultNonBlocking = new PufferVaultV2Tests({
+        pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: IStETH(_getStETH()),
-            weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
+            weth: IWETH(_getWETH()),
             oracle: mockOracle,
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV2 newImplementation = pufferVaultNonBlocking;
+        PufferVaultV5 newImplementation = pufferVaultNonBlocking;
 
-        pufferVaultWithBlocking = new PufferVaultV2({
+        pufferVaultWithBlocking = new PufferVaultV5({
             stETH: IStETH(_getStETH()),
-            weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
-            oracle: mockOracle,
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            weth: IWETH(_getWETH()),
+            pufferOracle: IPufferOracleV2(address(mockOracle)),
+            revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 
         // Community multisig can do thing instantly
@@ -224,20 +216,17 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     }
 
     function _upgradeToMainnetV4Puffer() internal {
-        pufferVaultNonBlocking = new PufferVaultV4Tests({
+        pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: IStETH(_getStETH()),
-            weth: IWETH(_getWETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            stETHStrategy: IStrategy(_getStETHStrategy()),
-            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
-            oracle: IPufferOracle(_getPufferOracle()),
-            delegationManager: IDelegationManager(_getEigenDelegationManager()),
+            weth: IWETH(_getWETH()),
+            oracle: IPufferOracleV2(_getPufferOracle()),
             revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
         // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV4 newImplementation = PufferVaultV4(payable(address(pufferVaultNonBlocking)));
+        PufferVaultV5 newImplementation = PufferVaultV5(payable(address(pufferVaultNonBlocking)));
 
         vm.startPrank(address(timelock));
         vm.expectEmit(true, true, true, true);

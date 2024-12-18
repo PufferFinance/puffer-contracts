@@ -6,11 +6,10 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
-import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
-import { IPufferModule } from "./interface/IPufferModule.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
 import { Permit } from "./structs/Permit.sol";
@@ -19,10 +18,11 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { PufferVaultV2 } from "./PufferVaultV2.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
+import { PufferModule } from "./PufferModule.sol";
 
 /**
  * @title PufferProtocol
@@ -83,12 +83,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @inheritdoc IPufferProtocol
      */
-    PufferVaultV2 public immutable override PUFFER_VAULT;
+    PufferVaultV5 public immutable override PUFFER_VAULT;
 
     /**
      * @inheritdoc IPufferProtocol
      */
-    IPufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
+    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -101,7 +101,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
 
     constructor(
-        PufferVaultV2 pufferVault,
+        PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
         address moduleManager,
         ValidatorTicket validatorTicket,
@@ -109,8 +109,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address beaconDepositContract
     ) {
         GUARDIAN_MODULE = guardianModule;
-        PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
-        PUFFER_MODULE_MANAGER = IPufferModuleManager(moduleManager);
+        PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
+        PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
@@ -368,7 +368,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             uint256 transferAmount =
                 validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
             //solhint-disable-next-line avoid-low-level-calls
-            (bool success,) = IPufferModule(validatorInfos[i].module).call(address(PUFFER_VAULT), transferAmount, "");
+            (bool success,) =
+                PufferModule(payable(validatorInfos[i].module)).call(address(PUFFER_VAULT), transferAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -423,7 +424,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function changeMinimumVTAmount(uint256 newMinimumVTAmount) external restricted {
@@ -431,7 +431,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Initially it is restricted to the DAO
      */
     function createPufferModule(bytes32 moduleName) external restricted returns (address) {
@@ -439,7 +438,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external restricted {
@@ -447,7 +445,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
@@ -455,7 +452,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @inheritdoc IPufferProtocol
      * @dev Restricted to the DAO
      */
     function setVTPenalty(uint256 newPenaltyAmount) external restricted {
@@ -577,7 +573,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     function getWithdrawalCredentials(address module) public view returns (bytes memory) {
-        return IPufferModule(module).getWithdrawalCredentials();
+        return PufferModule(payable(module)).getWithdrawalCredentials();
     }
 
     /**
@@ -705,7 +701,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        IPufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
+        PufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
@@ -794,7 +790,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             guardianEnclaveSignatures: guardianEnclaveSignatures
         });
 
-        IPufferModule module = $.modules[moduleName];
+        PufferModule module = $.modules[moduleName];
 
         // Transfer 32 ETH to the module
         PUFFER_VAULT.transferETH(address(module), 32 ether);
