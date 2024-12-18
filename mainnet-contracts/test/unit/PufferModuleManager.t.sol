@@ -168,38 +168,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callDeregisterOperatorFromAVS(operator, deregisterParams);
     }
 
-    function test_modifyOperatorDetails(address newDelegationApprover) public {
-        vm.assume(newDelegationApprover != address(0));
-
-        vm.startPrank(DAO);
-        RestakingOperator operator = _createRestakingOperator();
-
-        // Can't be called directly
-        vm.expectRevert(Unauthorized.selector);
-        operator.modifyOperatorDetails(newDelegationApprover);
-
-        // Can be called through the PufferModuleManager
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newDelegationApprover);
-        pufferModuleManager.callModifyOperatorDetails(operator, newDelegationApprover);
-        vm.stopPrank();
-    }
-
-    function test_updateOperatorMetadataURI(string memory newMetadataURI) public {
-        vm.startPrank(DAO);
-        RestakingOperator operator = _createRestakingOperator();
-
-        // Can't be called directly
-        vm.expectRevert(Unauthorized.selector);
-        operator.updateOperatorMetadataURI(newMetadataURI);
-
-        vm.startPrank(DAO);
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newMetadataURI);
-        pufferModuleManager.callUpdateMetadataURI(operator, newMetadataURI);
-        vm.stopPrank();
-    }
-
     function test_donation(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         (bool s,) = address(module).call{ value: 5 ether }("");
@@ -445,7 +413,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
     function _createRestakingOperator() internal returns (RestakingOperator) {
         RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
-            delegationApprover: address(0),
             allocationDelay: 500
         });
 

@@ -2,12 +2,12 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { RestakingOperator } from "src/RestakingOperator.sol";
+
 /**
  * @title IPufferModuleManager
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-
 interface IPufferModuleManager {
     /**
      * @notice Thrown if the module name is not allowed
@@ -44,28 +44,11 @@ interface IPufferModuleManager {
     );
 
     /**
-     * @notice Emitted when a Restaking Operator is opted into a slasher
-     * @param restakingOperator is the address of the restaking operator
-     * @param slasher is the address of the slasher contract
-     * @dev Signature "0xfaf85fa92e9a913f582def722d9da998852ef6cd2fc7715266e3c3b16495c7ac"
-     */
-    event RestakingOperatorOptedInSlasher(address indexed restakingOperator, address indexed slasher);
-
-    /**
      * @notice Emitted when the Restaking Operator is created
      * @param restakingOperator is the address of the restaking operator
-     * @param delegationApprover is the address of the delegation approver
-     * @dev Signature "0x28682dddd8aa82d42ec7143a18beba2d09b27d4581f2f26a6afcd0da4576ae71"
+     * @dev Signature "0xc7178e96e72aa500a37cafe2999b91040f28d3d3a83e64eb3b6166345e804291"
      */
-    event RestakingOperatorCreated(address indexed restakingOperator, address indexed delegationApprover);
-
-    /**
-     * @notice Emitted when the Restaking Operator is modified
-     * @param restakingOperator is the address of the restaking operator
-     * @param newOperatorDetails is the struct with new operator details
-     * @dev Signature "0xee78237d6444cc6c9083c1ef31a82b0feac23fbdf0cf52d7b0ed66dfa5f7f9f2"
-     */
-    event RestakingOperatorModified(address indexed restakingOperator, address indexed newOperatorDetails);
+    event RestakingOperatorCreated(address indexed restakingOperator);
 
     /**
      * @notice Emitted when the Withdrawals are queued
@@ -74,14 +57,6 @@ interface IPufferModuleManager {
      * @dev Signature "0xfa1bd67700189b28b5a9085170838266813878ca3237b31a33358644a22a2f0e"
      */
     event WithdrawalsQueued(bytes32 indexed moduleName, uint256 shareAmount, bytes32 withdrawalRoot);
-
-    /**
-     * @notice Emitted when the Restaking Operator is updated with a new metadata URI
-     * @param restakingOperator is the address of the restaking operator
-     * @param metadataURI is the new URI of the operator's metadata
-     * @dev Signature "0x4cb1b839d29c7a6f051ae51c7b439f2f8f991de54a4b5906503a06a0892ba2c4"
-     */
-    event RestakingOperatorMetadataURIUpdated(address indexed restakingOperator, string metadataURI);
 
     /**
      * @notice Emitted when the Puffer Module is delegated
@@ -108,14 +83,6 @@ interface IPufferModuleManager {
     event AVSRegistrationSignatureProofUpdated(address indexed restakingOperator, bytes32 digestHash, address signer);
 
     /**
-     * @notice Emitted when a Node Operator verifies withdrawal credentials
-     * @param moduleName is the name of the module
-     * @param validatorIndices is the indices of the validators
-     * @dev Signature "0x6722c9fd02a30e38d993af1ef931e54d0c24d0eae5eba68982773ce120b8ddee"
-     */
-    event ValidatorCredentialsVerified(bytes32 indexed moduleName, uint40[] validatorIndices);
-
-    /**
      * @notice Emitted when the withdrawals are completed
      * @param moduleName is the name of the module
      * @param sharesWithdrawn is the shares withdrawn
@@ -132,7 +99,7 @@ interface IPufferModuleManager {
     event ProofSubmitterSet(bytes32 indexed moduleName, address indexed proofSubmitter);
 
     /**
-     * @notice Emitted when the Restaking Operator or PufferModule sets the calimer to `claimer`
+     * @notice Emitted when the Restaking Operator or PufferModule sets the claimer to `claimer`
      * @dev Signature "0x4925eafc82d0c4d67889898eeed64b18488ab19811e61620f387026dec126a28"
      */
     event ClaimerSet(address indexed rewardsReceiver, address indexed claimer);

@@ -12,15 +12,8 @@ The vault manages deposits and withdrawals of ETH, stETH, and WETH while minting
 - Withdrawals of WETH in exchange for pufETH
 - Reward distribution and management
 - Integration with Lido for stETH withdrawals
-- Integration with EigenLayer for restaking
 
 ## Key Components
-
-### Asset Management
-- Supports native ETH, stETH, and WETH
-- Tracks total assets across multiple forms (ETH, stETH, WETH)
-- Handles conversions between asset types
-- Manages reward distributions and deposits
 
 ### Important State Variables
 - `_ST_ETH`: Lido's stETH contract address

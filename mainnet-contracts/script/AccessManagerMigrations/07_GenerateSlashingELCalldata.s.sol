@@ -11,11 +11,9 @@ contract GenerateSlashingELCalldata is Script {
     function run(address pufferModuleManagerProxy) public pure returns (bytes memory) {
         bytes[] memory calldatas = new bytes[](1);
 
-        bytes4[] memory daoSelectors = new bytes4[](4);
-        daoSelectors[0] = PufferModuleManager.callModifyOperatorDetails.selector;
-        daoSelectors[1] = PufferModuleManager.callUpdateMetadataURI.selector;
-        daoSelectors[2] = PufferModuleManager.callRegisterOperatorToAVS.selector;
-        daoSelectors[3] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
+        bytes4[] memory daoSelectors = new bytes4[](2);
+        daoSelectors[0] = PufferModuleManager.callRegisterOperatorToAVS.selector;
+        daoSelectors[1] = PufferModuleManager.callDeregisterOperatorFromAVS.selector;
 
         calldatas[0] =
             abi.encodeCall(AccessManager.setTargetFunctionRole, (pufferModuleManagerProxy, daoSelectors, ROLE_ID_DAO));

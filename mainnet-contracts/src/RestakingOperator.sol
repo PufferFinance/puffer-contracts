@@ -97,28 +97,13 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
         _disableInitializers();
     }
 
-    function initialize(
-        address initialAuthority,
-        address initDelegationApprover,
-        string calldata metadataURI,
-        uint32 allocationDelay
-    ) external initializer {
+    function initialize(address initialAuthority, string calldata metadataURI, uint32 allocationDelay)
+        external
+        initializer
+    {
         __AccessManaged_init(initialAuthority);
-        EIGEN_DELEGATION_MANAGER.registerAsOperator(initDelegationApprover, allocationDelay, metadataURI);
-    }
-
-    /**
-     * @dev Restricted to the PufferModuleManager
-     */
-    function modifyOperatorDetails(address newDelegationApprover) external virtual onlyPufferModuleManager {
-        EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(address(this), newDelegationApprover);
-    }
-
-    /**
-     * @dev Restricted to the PufferModuleManager
-     */
-    function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyPufferModuleManager {
-        EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(address(this), metadataURI);
+        // Delegation approve is address(0) because we want everybody to be able to delegate to us
+        EIGEN_DELEGATION_MANAGER.registerAsOperator(address(0), allocationDelay, metadataURI);
     }
 
     /**

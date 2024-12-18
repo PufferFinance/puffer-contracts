@@ -5,7 +5,6 @@ import "forge-std/console.sol";
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
@@ -40,34 +39,6 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         pufferProtocol.createPufferModule(bytes32("SOME_MODULE_NAME"));
     }
 
-    // function test_modify_operator() public {
-    //     vm.startPrank(DAO);
-    //     RestakingOperator operator = _createRestakingOperator();
-
-    //     address newDelegationApprover = makeAddr("newDelegationApprover");
-
-    //     vm.expectEmit(true, true, true, true);
-    //     emit IPufferModuleManager.RestakingOperatorModified(address(operator), newDelegationApprover);
-    //     moduleManager.callModifyOperatorDetails({
-    //         restakingOperator: operator,
-    //         newDelegationApprover: newDelegationApprover
-    //     });
-
-    //     address result = operator.EIGEN_DELEGATION_MANAGER().delegationApprover(address(operator));
-    //     assertEq(result, newDelegationApprover, "updated delegation approver");
-    // }
-
-    // function test_update_metadata_uri() public {
-    //     vm.startPrank(DAO);
-    //     RestakingOperator operator = _createRestakingOperator();
-
-    //     string memory newUri = "https://puffer.fi/updated.json";
-
-    //     vm.expectEmit(true, true, true, true);
-    //     emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newUri);
-    //     moduleManager.callUpdateMetadataURI(operator, newUri);
-    // }
-
     function _depositToWETHEigenLayerStrategyAndDelegateTo(address restakingOperator) internal {
         // buy weth
         vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad);
@@ -93,7 +64,6 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     function _createRestakingOperator() internal returns (RestakingOperator) {
         RestakingOperator operator = moduleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
-            delegationApprover: address(0x5555555555555555555555555555555555555555),
             allocationDelay: 0
         });
 

@@ -57,6 +57,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @notice Completes queued withdrawals
+     *
      * @dev Restricted to Puffer Paymaster
      */
     function callCompleteQueuedWithdrawals(
@@ -86,7 +87,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @dev Restricted to the PufferProtocol
      * @param moduleName The name of the module
      */
     function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (PufferModule) {
@@ -110,6 +110,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @notice Transfers the unlocked rewards from the modules to the vault
+     *
      * @dev Restricted to Puffer Paymaster
      */
     function transferRewardsToTheVault(address[] calldata modules, uint256[] calldata rewardsAmounts)
@@ -161,7 +162,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     /**
      * @dev Restricted to the DAO
      */
-    function createNewRestakingOperator(string calldata metadataURI, address delegationApprover, uint32 allocationDelay)
+    function createNewRestakingOperator(string calldata metadataURI, uint32 allocationDelay)
         external
         virtual
         restricted
@@ -174,40 +175,14 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                 type(BeaconProxy).creationCode,
                 abi.encode(
                     RESTAKING_OPERATOR_BEACON,
-                    abi.encodeCall(
-                        RestakingOperator.initialize, (authority(), delegationApprover, metadataURI, allocationDelay)
-                    )
+                    abi.encodeCall(RestakingOperator.initialize, (authority(), metadataURI, allocationDelay))
                 )
             )
         });
 
-        emit RestakingOperatorCreated(restakingOperator, delegationApprover);
+        emit RestakingOperatorCreated(restakingOperator);
 
         return RestakingOperator(restakingOperator);
-    }
-
-    /**
-     * @dev Restricted to the DAO
-     */
-    function callModifyOperatorDetails(RestakingOperator restakingOperator, address newDelegationApprover)
-        external
-        virtual
-        restricted
-    {
-        restakingOperator.modifyOperatorDetails(newDelegationApprover);
-        emit RestakingOperatorModified(address(restakingOperator), newDelegationApprover);
-    }
-
-    /**
-     * @dev Restricted to the DAO
-     */
-    function callUpdateMetadataURI(RestakingOperator restakingOperator, string calldata metadataURI)
-        external
-        virtual
-        restricted
-    {
-        restakingOperator.updateOperatorMetadataURI(metadataURI);
-        emit RestakingOperatorMetadataURIUpdated(address(restakingOperator), metadataURI);
     }
 
     /**
