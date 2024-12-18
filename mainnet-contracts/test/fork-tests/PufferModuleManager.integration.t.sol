@@ -11,7 +11,6 @@ import { DeployEverything } from "script/DeployEverything.s.sol";
 import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IStrategyManager } from "../../src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
 import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IAVSDirectory } from "../../src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
 import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -30,7 +29,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     address EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY = 0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490;
     address EIGEN_DA_SERVICE_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b;
-    IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
+    // IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
     function setUp() public {
         deployContractsHolesky(0); // on latest block
@@ -101,27 +100,6 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         assertTrue(address(operator).code.length > 0, "operator deployed");
 
         return operator;
-    }
-
-    /**
-     * @notice internal function for calculating a signature from the operator corresponding to `_operatorPrivateKey`, delegating them to
-     * the `operator`, and expiring at `expiry`.
-     */
-    function _getOperatorSignature(
-        uint256 _operatorPrivateKey,
-        address operator,
-        address avs,
-        bytes32 salt,
-        uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
-        operatorSignature.expiry = expiry;
-        operatorSignature.salt = salt;
-        {
-            digestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(operator, avs, salt, expiry);
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_operatorPrivateKey, digestHash);
-            operatorSignature.signature = abi.encodePacked(r, s, v);
-        }
-        return (digestHash, operatorSignature);
     }
 
     function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {

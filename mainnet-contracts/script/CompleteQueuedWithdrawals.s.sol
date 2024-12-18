@@ -63,7 +63,6 @@ contract CompleteQueuedWithdrawals is Script {
 
         IERC20[][] memory tokens = new IERC20[][](1);
         tokens[0] = t;
-        uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
 
         vm.startBroadcast();
         PufferModuleManager(payable(params.pufferModuleManager)).callCompleteQueuedWithdrawals({

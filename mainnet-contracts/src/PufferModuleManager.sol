@@ -243,6 +243,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IAllocationManager.RegisterParams calldata registrationParams
     ) external virtual restricted {
         restakingOperator.registerOperatorToAVS(registrationParams);
+        emit RestakingOperatorRegisteredToAVS(
+            address(restakingOperator),
+            registrationParams.avs,
+            registrationParams.operatorSetIds,
+            registrationParams.data
+        );
     }
 
     /**
@@ -276,6 +282,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IAllocationManager.DeregisterParams calldata deregistrationParams
     ) external virtual restricted {
         restakingOperator.deregisterOperatorFromAVS(deregistrationParams);
+
+        emit RestakingOperatorDeregisteredFromAVS(
+            address(restakingOperator), deregistrationParams.avs, deregistrationParams.operatorSetIds
+        );
     }
 
     /**

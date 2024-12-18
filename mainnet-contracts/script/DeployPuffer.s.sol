@@ -27,7 +27,7 @@ import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
-
+import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -43,6 +43,7 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
  *
  *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
+
 contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocolImpl;
     AccessManager accessManager;
@@ -84,7 +85,7 @@ contract DeployPuffer is BaseScript {
             eigenPodManager = address(new EigenPodManagerMock());
             delegationManager = address(new DelegationManagerMock());
             rewardsCoordinator = address(new RewardsCoordinatorMock());
-            eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
+            eigenSlasher = address(new EigenAllocationManagerMock());
             treasury = address(1);
             operationsMultisig = address(2);
         } else {

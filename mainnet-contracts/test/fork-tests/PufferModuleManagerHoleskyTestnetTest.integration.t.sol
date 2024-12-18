@@ -10,7 +10,6 @@ import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IAVSDirectory } from "../../src/interface/Eigenlayer-Slashing/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "../../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { BN254 } from "../../src/interface/libraries/BN254.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
@@ -32,7 +31,6 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
     uint256[] privKeys;
 
     // https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#deployments
-    IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
     address EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY = 0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490;
     address EIGEN_DA_SERVICE_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b;
     address BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
@@ -147,26 +145,5 @@ contract PufferModuleManagerHoleskyTestnetTest is Test {
         inputs[2] = "4";
         res = vm.ffi(inputs);
         g2Point.Y[0] = abi.decode(res, (uint256));
-    }
-
-    /**
-     * @notice internal function for calculating a signature from the operator corresponding to `_operatorPrivateKey`, delegating them to
-     * the `operator`, and expiring at `expiry`.
-     */
-    function _getOperatorSignature(
-        uint256 _operatorPrivateKey,
-        address operator,
-        address avs,
-        bytes32 salt,
-        uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
-        operatorSignature.expiry = expiry;
-        operatorSignature.salt = salt;
-        {
-            digestHash = avsDirectory.calculateOperatorAVSRegistrationDigestHash(operator, avs, salt, expiry);
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(_operatorPrivateKey, digestHash);
-            operatorSignature.signature = abi.encodePacked(r, s, v);
-        }
-        return (digestHash, operatorSignature);
     }
 }

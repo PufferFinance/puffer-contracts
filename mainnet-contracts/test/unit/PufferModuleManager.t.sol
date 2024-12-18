@@ -17,6 +17,11 @@ import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDele
 import { RestakingOperator } from "src/RestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { IAllocationManagerTypes } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IAllocationManager } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { InvalidAddress } from "../../src/Errors.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -37,11 +42,51 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.deal(address(this), 1000 ether);
 
+        bytes memory cd = new GenerateSlashingELCalldata().run(address(pufferModuleManager));
+
         vm.startPrank(timelock);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        (bool success,) = address(accessManager).call(cd);
+        assertTrue(success, "should succeed");
+
         vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
+    }
+
+    function test_createBadRestakingOperator() public {
+        // Bad Delegation Manager
+        vm.expectRevert(InvalidAddress.selector);
+        new RestakingOperator({
+            delegationManager: IDelegationManager(address(0)),
+            allocationManager: IAllocationManager(address(0)),
+            moduleManager: IPufferModuleManager(address(0)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
+        });
+        // Bad Allocation Manager
+        vm.expectRevert(InvalidAddress.selector);
+        new RestakingOperator({
+            delegationManager: IDelegationManager(address(5)),
+            allocationManager: IAllocationManager(address(0)),
+            moduleManager: IPufferModuleManager(address(0)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
+        });
+        // Bad Module Manager
+        vm.expectRevert(InvalidAddress.selector);
+        new RestakingOperator({
+            delegationManager: IDelegationManager(address(5)),
+            allocationManager: IAllocationManager(address(6)),
+            moduleManager: IPufferModuleManager(address(0)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
+        });
+        // Bad Rewards Coordinator
+        vm.expectRevert(InvalidAddress.selector);
+        new RestakingOperator({
+            delegationManager: IDelegationManager(address(5)),
+            allocationManager: IAllocationManager(address(6)),
+            moduleManager: IPufferModuleManager(address(7)),
+            rewardsCoordinator: IRewardsCoordinator(address(0))
+        });
     }
 
     function test_beaconUpgrade() public {
@@ -84,6 +129,75 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.expectRevert(Unauthorized.selector);
         PufferModule(payable(module)).call(address(0), 0, "");
+    }
+
+    function test_registerOperatorToAVS() public {
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        address mockAvs = makeAddr("mockAvs");
+
+        IAllocationManagerTypes.RegisterParams memory registerParams =
+            IAllocationManagerTypes.RegisterParams({ avs: mockAvs, operatorSetIds: new uint32[](1), data: "asdf" });
+
+        vm.expectRevert(Unauthorized.selector);
+        operator.registerOperatorToAVS(registerParams);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorRegisteredToAVS(address(operator), mockAvs, new uint32[](1), "asdf");
+        pufferModuleManager.callRegisterOperatorToAVS(operator, registerParams);
+    }
+
+    function test_deregisterOperatorFromAVS() public {
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        address mockAvs = makeAddr("mockAvs");
+
+        IAllocationManagerTypes.DeregisterParams memory deregisterParams = IAllocationManagerTypes.DeregisterParams({
+            operator: address(operator),
+            avs: mockAvs,
+            operatorSetIds: new uint32[](1)
+        });
+
+        vm.expectRevert(Unauthorized.selector);
+        operator.deregisterOperatorFromAVS(deregisterParams);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorDeregisteredFromAVS(address(operator), mockAvs, new uint32[](1));
+        pufferModuleManager.callDeregisterOperatorFromAVS(operator, deregisterParams);
+    }
+
+    function test_modifyOperatorDetails(address newDelegationApprover) public {
+        vm.assume(newDelegationApprover != address(0));
+
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        // Can't be called directly
+        vm.expectRevert(Unauthorized.selector);
+        operator.modifyOperatorDetails(newDelegationApprover);
+
+        // Can be called through the PufferModuleManager
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newDelegationApprover);
+        pufferModuleManager.callModifyOperatorDetails(operator, newDelegationApprover);
+        vm.stopPrank();
+    }
+
+    function test_updateOperatorMetadataURI(string memory newMetadataURI) public {
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        // Can't be called directly
+        vm.expectRevert(Unauthorized.selector);
+        operator.updateOperatorMetadataURI(newMetadataURI);
+
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newMetadataURI);
+        pufferModuleManager.callUpdateMetadataURI(operator, newMetadataURI);
+        vm.stopPrank();
     }
 
     function test_donation(bytes32 moduleName) public {

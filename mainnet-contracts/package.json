@@ -47,7 +47,7 @@
     "lint": "yarn run lint:sol",
     "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
     "slither": "slither .",
-    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
-    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
+    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
+    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
   }
 }

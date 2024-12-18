@@ -87,6 +87,9 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
         if (address(moduleManager) == address(0)) {
             revert InvalidAddress();
         }
+        if (address(rewardsCoordinator) == address(0)) {
+            revert InvalidAddress();
+        }
         EIGEN_DELEGATION_MANAGER = delegationManager;
         EIGEN_ALLOCATION_MANAGER = allocationManager;
         PUFFER_MODULE_MANAGER = moduleManager;

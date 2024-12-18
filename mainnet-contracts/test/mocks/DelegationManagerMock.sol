@@ -34,8 +34,6 @@ contract DelegationManagerMock {
         delegatedTo[msg.sender] = operator;
     }
 
-    function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata /*newOperatorDetails*/ ) external pure { }
-
     function delegateToBySignature(
         address, /*staker*/
         address, /*operator*/
@@ -157,13 +155,6 @@ contract DelegationManagerMock {
 
     function calculateWithdrawalRoot(IDelegationManager.Withdrawal memory withdrawal) external pure returns (bytes32) { }
 
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) external { }
-
-    function deregisterOperatorFromAVS(address operator) external { }
-
     function operatorSaltIsSpent(address avs, bytes32 salt) external view returns (bool) { }
 
     function queueWithdrawals(IDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams)
@@ -204,4 +195,7 @@ contract DelegationManagerMock {
         IERC20[][] calldata tokens,
         bool[] calldata receiveAsTokens
     ) external { }
+
+    function modifyOperatorDetails(address operator, address newDelegationApprover) external pure { }
+    function updateOperatorMetadataURI(address operator, string calldata newMetadataURI) external pure { }
 }

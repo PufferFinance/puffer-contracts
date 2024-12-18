@@ -37,6 +37,7 @@ import {
     ROLE_ID_OPERATIONS_MULTISIG,
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
+import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =

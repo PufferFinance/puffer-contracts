@@ -21,6 +21,29 @@ interface IPufferModuleManager {
     event CustomCallSucceeded(address indexed restakingOperator, address target, bytes customCalldata, bytes response);
 
     /**
+     * @notice Emitted when the Restaking Operator is registered to an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avs is the address of the AVS
+     * @param operatorSetId is the id of the operator set
+     * @param data is the data passed to the AVS
+     * @dev Signature "0xe47a1be2e87cd0d8e7deac93187c98c837de2096e1f048141ab6e377d30d648a"
+     */
+    event RestakingOperatorRegisteredToAVS(
+        address indexed restakingOperator, address indexed avs, uint32[] operatorSetId, bytes data
+    );
+
+    /**
+     * @notice Emitted when the Restaking Operator is deregistered from an AVS
+     * @param restakingOperator is the address of the restaking operator
+     * @param avs is the address of the AVS
+     * @param operatorSetId is the id of the operator set
+     * @dev Signature "0xd3a1da1a6a02235e5cee67b27f99931e657829be79f720ae8bfe10bd80bcd5ae"
+     */
+    event RestakingOperatorDeregisteredFromAVS(
+        address indexed restakingOperator, address indexed avs, uint32[] operatorSetId
+    );
+
+    /**
      * @notice Emitted when a Restaking Operator is opted into a slasher
      * @param restakingOperator is the address of the restaking operator
      * @param slasher is the address of the slasher contract

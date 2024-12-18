@@ -48,7 +48,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         vm.stopPrank();
     }
 
-    function test_initial_state() public {
+    function test_initial_state() public view {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), INITIAL_PROTOCOL_FEE);
