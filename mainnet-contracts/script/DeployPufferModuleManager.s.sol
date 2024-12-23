@@ -30,4 +30,19 @@ contract DeployPufferModuleManager is DeployerHelper {
             contractName: "PufferModuleManagerImplementation"
         });
     }
+
+    function deployPufferModuleManagerTests() public {
+        PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
+            pufferModuleBeacon: address(_getPufferModuleBeacon()),
+            restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
+            pufferProtocol: address(_getPufferProtocol())
+        });
+
+        _consoleLogOrUpgradeUUPSPrank({
+            proxyTarget: _getPufferModuleManager(),
+            implementation: address(newPufferModuleManagerImplementation),
+            data: "",
+            contractName: "PufferModuleManagerImplementation"
+        });
+    }
 }

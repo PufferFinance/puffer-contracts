@@ -46,4 +46,24 @@ contract DeployPufferModuleImplementation is DeployerHelper {
             AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
         }
     }
+
+    function deployPufferModuleTests() public {
+        vm.startPrank(_getPaymaster());
+
+        PufferModule newImpl = new PufferModule({
+            protocol: PufferProtocol(_getPufferProtocol()),
+            eigenPodManager: _getEigenPodManager(),
+            delegationManager: IDelegationManager(_getDelegationManager()),
+            moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+        });
+
+        vm.label(address(newImpl), "PufferModuleImplementation");
+
+        bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(newImpl));
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
+        }
+    }
 }
