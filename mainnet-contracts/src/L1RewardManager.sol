@@ -6,7 +6,7 @@ import { AccessManagedUpgradeable } from
 import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
 import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
-import { PufferVaultV3 } from "./PufferVaultV3.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
@@ -28,32 +28,25 @@ contract L1RewardManager is
 {
     /**
      * @notice The XPUFETH token contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IERC20 public immutable XPUFETH;
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    PufferVaultV3 public immutable PUFFER_VAULT;
+    PufferVaultV5 public immutable PUFFER_VAULT;
     /**
      * @notice The XERC20Lockbox contract on Ethereum Mainnet
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IXERC20Lockbox public immutable LOCKBOX;
     /**
      * @notice The Rewards Manager contract on L2
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
     constructor(address xPufETH, address lockbox, address pufETH, address l2RewardsManager) {
         XPUFETH = IERC20(xPufETH);
         LOCKBOX = IXERC20Lockbox(lockbox);
-        PUFFER_VAULT = PufferVaultV3(payable(pufETH));
+        PUFFER_VAULT = PufferVaultV5(payable(pufETH));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }

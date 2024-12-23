@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV3 } from "../PufferVaultV3.sol";
+import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { Permit } from "../structs/Permit.sol";
 import { PufferWithdrawalManagerStorage } from "../PufferWithdrawalManagerStorage.sol";
 
@@ -120,10 +120,10 @@ interface IPufferWithdrawalManager {
     event ExcessETHReturned(uint256[] batchIndices, uint256 totalExcessETH);
 
     /**
-     * @notice Returns the address of the PufferVaultV3 contract
-     * @return The address of the PufferVaultV3 contract
+     * @notice Returns the address of the PufferVaultV5 contract
+     * @return The address of the PufferVaultV5 contract
      */
-    function PUFFER_VAULT() external view returns (PufferVaultV3);
+    function PUFFER_VAULT() external view returns (PufferVaultV5);
 
     /**
      * @notice Returns the minimum withdrawal amount

@@ -25,24 +25,6 @@ interface IPufferVaultV2 is IPufferVault {
     error InvalidExitFeeBasisPoints();
 
     /**
-     * Emitted when assets (WETH) are withdrawn
-     * @dev Signature: 0x139f9ee0762f3b0c92a4b8c7b8fe8be6b12aaece4b9b22de6bf1ba1094dcd998
-     */
-    event AssetsWithdrawnToday(uint256 withdrawalAmount);
-
-    /**
-     * Emitted daily withdrawal limit is reset
-     * @dev Signature: 0x190567136e3dd93d29bef98a7c7c87cff34ee88e71d634b52f5fb3b531085f40
-     */
-    event DailyWithdrawalLimitReset();
-
-    /**
-     * Emitted when the daily withdrawal limit is set
-     * @dev Signature: 0x8d5f7487ce1fd25059bd15204a55ea2c293160362b849a6f9244aec7d5a3700b
-     */
-    event DailyWithdrawalLimitSet(uint96 oldLimit, uint96 newLimit);
-
-    /**
      * Emitted when the Vault transfers ETH to a specified address
      * @dev Signature: 0xba7bb5aa419c34d8776b86cc0e9d41e72d74a893a511f361a11af6c05e920c3d
      */
@@ -64,12 +46,6 @@ interface IPufferVaultV2 is IPufferVault {
      * @notice Returns the current exit fee basis points
      */
     function getExitFeeBasisPoints() external view returns (uint256);
-
-    /**
-     * @notice Returns the remaining assets that can be withdrawn today
-     * @return The remaining assets that can be withdrawn today
-     */
-    function getRemainingAssetsDailyWithdrawalLimit() external view returns (uint256);
 
     /**
      * @notice Deposits native ETH into the Puffer Vault

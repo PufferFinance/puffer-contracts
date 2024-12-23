@@ -13,10 +13,10 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { DelegationManagerMock } from "../test/mocks/DelegationManagerMock.sol";
 import { BeaconMock } from "../test/mocks/BeaconMock.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
@@ -24,10 +24,10 @@ import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
-import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
-
+import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -43,6 +43,7 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
  *
  *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
+
 contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocolImpl;
     AccessManager accessManager;
@@ -84,7 +85,7 @@ contract DeployPuffer is BaseScript {
             eigenPodManager = address(new EigenPodManagerMock());
             delegationManager = address(new DelegationManagerMock());
             rewardsCoordinator = address(new RewardsCoordinatorMock());
-            eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
+            eigenSlasher = address(new EigenAllocationManagerMock());
             treasury = address(1);
             operationsMultisig = address(2);
         } else {
@@ -135,7 +136,7 @@ contract DeployPuffer is BaseScript {
 
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
-                ISlasher(eigenSlasher),
+                IAllocationManager(eigenSlasher),
                 PufferModuleManager(payable(address(moduleManagerProxy))),
                 IRewardsCoordinator(rewardsCoordinator)
             );
@@ -148,7 +149,7 @@ contract DeployPuffer is BaseScript {
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
-                pufferVault: PufferVaultV2(payable(pufferVault)),
+                pufferVault: PufferVaultV5(payable(pufferVault)),
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
@@ -164,8 +165,7 @@ contract DeployPuffer is BaseScript {
         moduleManager = new PufferModuleManager({
             pufferModuleBeacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            pufferProtocol: address(proxy),
-            avsContractsRegistry: aVSContractsRegistry
+            pufferProtocol: address(proxy)
         });
 
         NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
