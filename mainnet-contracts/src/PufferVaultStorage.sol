@@ -35,6 +35,10 @@ abstract contract PufferVaultStorage {
         // ETH rewards amount
         uint256 totalRewardDepositAmount;
         uint256 totalRewardMintAmount;
+        // Grant Merkle root
+        bytes32 grantRoot;
+        // Granted amount for a given grantee by epoch
+        mapping(address => mapping(uint256 => uint256)) granteeEpochAmounts;
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.depositTracker")) - 1)) & ~bytes32(uint256(0xff))

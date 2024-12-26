@@ -39,7 +39,10 @@ contract DeployPufferVaultV3 is DeployerHelper {
             stETHStrategy: IStrategy(_getStETHStrategy()),
             eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
             oracle: IPufferOracle(_getPufferOracle()),
-            delegationManager: IDelegationManager(_getEigenDelegationManager())
+            delegationManager: IDelegationManager(_getEigenDelegationManager()),
+            maxGrantAmount: 1 ether,
+            grantEpochStartTime: block.timestamp,
+            grantEpochDuration: 30 days
         });
 
         //@todo Double check reinitialization

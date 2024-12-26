@@ -53,7 +53,10 @@ contract PufferRevenueDepositorForkTest is MainnetForkTestHelper {
                 IEigenLayer(_getEigenLayerStrategyManager()),
                 IPufferOracle(_getPufferOracle()),
                 IDelegationManager(_getDelegationManager()),
-                revenueDepositor
+                revenueDepositor,
+                1 ether,
+                block.timestamp,
+                30 days
             )
         );
 

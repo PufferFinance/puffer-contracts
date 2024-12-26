@@ -10,7 +10,10 @@ import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.so
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title PufferVaultV3
@@ -20,6 +23,25 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
  */
 contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     using Math for uint256;
+    using SafeERC20 for IWETH;
+    using Address for address payable;
+
+    /**
+     * @dev Maximum grant amount
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
+    uint256 public immutable GRANT_MAX_AMOUNT;
+
+    /**
+     * @dev Grant epoch start time (in seconds)
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
+    uint256 public immutable GRANT_EPOCH_START_TIME;
+    /**
+     * @dev Grant epoch duration (in seconds)
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
+    uint256 public immutable GRANT_EPOCH_DURATION;
 
     /**
      * @notice Initializes the PufferVaultV3 contract.
@@ -30,6 +52,9 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @param eigenStrategyManager Address of the EigenLayer strategy manager contract.
      * @param oracle Address of the PufferOracle contract.
      * @param delegationManager Address of the delegation manager contract.
+     * @param maxGrantAmount Maximum grant amount
+     * @param grantEpochStartTime Grant epoch start time (in seconds)
+     * @param grantEpochDuration Grant epoch duration (in seconds)
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(
@@ -39,8 +64,15 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         IStrategy stETHStrategy,
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
-        IDelegationManager delegationManager
+        IDelegationManager delegationManager,
+        uint256 maxGrantAmount,
+        uint256 grantEpochStartTime,
+        uint256 grantEpochDuration
     ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
+        GRANT_MAX_AMOUNT = maxGrantAmount;
+        GRANT_EPOCH_START_TIME = grantEpochStartTime;
+        GRANT_EPOCH_DURATION = grantEpochDuration;
+
         _disableInitializers();
     }
 
@@ -126,5 +158,35 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
         // msg.sender is the L1RewardManager contract
         _burn(msg.sender, pufETHAmount);
+    }
+
+    function setGrantRoot(bytes32 grantRoot) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.grantRoot = grantRoot;
+        emit GrantRootSet(grantRoot);
+    }
+
+    function payGrant(address grantee, uint256 amount, bool isNativePayment, bytes32[] calldata proof) external {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        if (amount == 0 || amount > GRANT_MAX_AMOUNT) {
+            revert InvalidGrantAmount(amount);
+        }
+
+        bytes32 leaf = keccak256(abi.encodePacked(grantee));
+        if (!MerkleProof.verify(proof, $.grantRoot, leaf)) {
+            revert InvalidGrantProof(grantee);
+        }
+
+        uint256 grantEpoch = (block.timestamp - GRANT_EPOCH_START_TIME) / GRANT_EPOCH_DURATION;
+
+        uint256 availableAmount = GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][grantEpoch];
+        if (amount > availableAmount) {
+            revert InsufficientGrantAmount(amount, availableAmount);
+        }
+
+        $.granteeEpochAmounts[grantee][grantEpoch] += amount;
+        emit GrantPayed(grantee, grantEpoch, amount, isNativePayment);
+
+        isNativePayment ? payable(grantee).sendValue(amount) : IWETH(_WETH).safeTransfer(grantee, amount);
     }
 }

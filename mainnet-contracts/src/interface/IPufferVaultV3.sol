@@ -33,6 +33,10 @@ interface IPufferVaultV3 is IPufferVaultV2 {
      */
     function getTotalRewardDepositAmount() external view returns (uint256);
 
+    function setGrantRoot(bytes32 grantRoot) external;
+
+    function payGrant(address grantee, uint256 amount, bool isNativePayment, bytes32[] calldata proof) external;
+
     /**
      * @notice Emitted when the rewards are deposited to the PufferVault
      * @dev Signature "0x3a278b4e83c8793751d35f41b90435c742acf0dfdd54a8cbe09aa59720db93a5"
@@ -40,4 +44,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     event UpdatedTotalRewardsAmount(
         uint256 previousTotalRewardsAmount, uint256 newTotalRewardsAmount, uint256 depositedETHAmount
     );
+
+    event GrantRootSet(bytes32 grantRoot);
+
+    event GrantPayed(address indexed grantee, uint256 indexed grantEpoch, uint256 amount, bool isNativePayment);
+
+    error InvalidGrantAmount(uint256 amount);
+
+    error InvalidGrantProof(address grantee);
+
+    error InsufficientGrantAmount(uint256 requestedAmount, uint256 availableAmount);
 }

@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVault } from "../src/PufferVault.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
+import { PufferVaultV4 } from "../src/PufferVaultV4.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
 import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
@@ -61,7 +61,7 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV3 newImplementation = new PufferVaultV4Tests(
+        PufferVaultV4 newImplementation = new PufferVaultV4Tests(
             IStETH(deployment.stETH),
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
@@ -69,7 +69,10 @@ contract UpgradePufETH is BaseScript {
             IEigenLayer(deployment.eigenStrategyManagerMock),
             IPufferOracle(pufferOracle),
             _DELEGATION_MANAGER,
-            IPufferRevenueDepositor(revenueDepositor)
+            IPufferRevenueDepositor(revenueDepositor),
+            1 ether,
+            block.timestamp,
+            30 days
         );
 
         vm.expectEmit(true, true, true, true);

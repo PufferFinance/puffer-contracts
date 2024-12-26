@@ -7,8 +7,9 @@ import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { console } from "forge-std/console.sol";
 
-contract PufferVaultV4ForkTest is MainnetForkTestHelper {
+contract PufferVaultV3ForkTest is MainnetForkTestHelper {
     function setUp() public virtual override {
         // Cancun upgrade
         vm.createSelectFork(vm.rpcUrl("mainnet"), 21019835); // (Oct-22-2024 08:09:59 AM +UTC)
@@ -17,7 +18,7 @@ contract PufferVaultV4ForkTest is MainnetForkTestHelper {
         _setupLiveContracts();
 
         // Upgrade to latest version
-        _upgradeToMainnetV4Puffer();
+        _upgradeToMainnetV3Puffer();
 
         // vm.startPrank(OPERATIONS_MULTISIG);
         // xpufETH.setLockbox(address(lockBox));
@@ -58,4 +59,8 @@ contract PufferVaultV4ForkTest is MainnetForkTestHelper {
 
     //     assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
     // }
+
+    function test_Hello() external pure {
+        console.log("HELLO");
+    }
 }

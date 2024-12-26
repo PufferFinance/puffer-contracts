@@ -46,8 +46,24 @@ contract PufferVaultV4 is PufferVaultV3 {
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
         IDelegationManager delegationManager,
-        IPufferRevenueDepositor revenueDepositor
-    ) PufferVaultV3(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
+        IPufferRevenueDepositor revenueDepositor,
+        uint256 maxGrantAmount,
+        uint256 grantEpochStartTime,
+        uint256 grantEpochDuration
+    )
+        PufferVaultV3(
+            stETH,
+            weth,
+            lidoWithdrawalQueue,
+            stETHStrategy,
+            eigenStrategyManager,
+            oracle,
+            delegationManager,
+            maxGrantAmount,
+            grantEpochStartTime,
+            grantEpochDuration
+        )
+    {
         RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
         _disableInitializers();
     }

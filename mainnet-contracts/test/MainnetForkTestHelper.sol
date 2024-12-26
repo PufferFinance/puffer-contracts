@@ -7,6 +7,7 @@ import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV4 } from "../src/PufferVaultV4.sol";
 import { PufferVaultV2Tests } from "../test/mocks/PufferVaultV2Tests.sol";
+import { PufferVaultV3Tests } from "../test/mocks/PufferVaultV3Tests.sol";
 import { PufferVaultV4Tests } from "../test/mocks/PufferVaultV4Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { MockPufferOracle } from "./mocks/MockPufferOracle.sol";
@@ -223,6 +224,30 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.stopPrank();
     }
 
+    function _upgradeToMainnetV3Puffer() internal {
+        pufferVaultNonBlocking = new PufferVaultV3Tests({
+            stETH: IStETH(_getStETH()),
+            weth: IWETH(_getWETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            stETHStrategy: IStrategy(_getStETHStrategy()),
+            eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
+            oracle: IPufferOracle(_getPufferOracle()),
+            delegationManager: IDelegationManager(_getEigenDelegationManager()),
+            maxGrantAmount: 1 ether,
+            grantEpochStartTime: block.timestamp,
+            grantEpochDuration: 30 days
+        });
+
+        PufferVaultV3 newImplementation = PufferVaultV3(payable(address(pufferVaultNonBlocking)));
+
+        vm.startPrank(address(timelock));
+        vm.expectEmit(true, true, true, true);
+        emit ERC1967Utils.Upgraded(address(newImplementation));
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
+
+        vm.stopPrank();
+    }
+
     function _upgradeToMainnetV4Puffer() internal {
         pufferVaultNonBlocking = new PufferVaultV4Tests({
             stETH: IStETH(_getStETH()),
@@ -232,7 +257,10 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
             oracle: IPufferOracle(_getPufferOracle()),
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            revenueDepositor: IPufferRevenueDepositor(address(0))
+            revenueDepositor: IPufferRevenueDepositor(address(0)),
+            maxGrantAmount: 1 ether,
+            grantEpochStartTime: block.timestamp,
+            grantEpochDuration: 30 days
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking

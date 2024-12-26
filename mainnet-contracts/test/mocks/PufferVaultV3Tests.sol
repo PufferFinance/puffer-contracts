@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV4 } from "src/PufferVaultV4.sol";
+import { PufferVaultV3 } from "src/PufferVaultV3.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
@@ -11,7 +11,7 @@ import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
 
-contract PufferVaultV4Tests is PufferVaultV4 {
+contract PufferVaultV3Tests is PufferVaultV3 {
     constructor(
         IStETH stETH,
         IWETH weth,
@@ -20,12 +20,11 @@ contract PufferVaultV4Tests is PufferVaultV4 {
         IEigenLayer eigenStrategyManager,
         IPufferOracle oracle,
         IDelegationManager delegationManager,
-        IPufferRevenueDepositor revenueDepositor,
         uint256 maxGrantAmount,
         uint256 grantEpochStartTime,
         uint256 grantEpochDuration
     )
-        PufferVaultV4(
+        PufferVaultV3(
             stETH,
             weth,
             lidoWithdrawalQueue,
@@ -33,7 +32,6 @@ contract PufferVaultV4Tests is PufferVaultV4 {
             eigenStrategyManager,
             oracle,
             delegationManager,
-            revenueDepositor,
             maxGrantAmount,
             grantEpochStartTime,
             grantEpochDuration
