@@ -6,9 +6,16 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
+import {
+    PUBLIC_ROLE,
+    ROLE_ID_DAO,
+    ROLE_ID_PUFFER_PROTOCOL,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_GRANT_MANAGER
+} from "./Roles.sol";
 
 /**
  * @title GenerateAccessManagerCallData
@@ -21,7 +28,7 @@ import { PUBLIC_ROLE, ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_M
  */
 contract GenerateAccessManagerCallData is Script {
     function run(address pufferVaultProxy, address pufferDepositorProxy) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](5);
+        bytes[] memory calldatas = new bytes[](6);
 
         // Combine the two calldatas
         calldatas[0] = _getPublicSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
@@ -29,6 +36,7 @@ contract GenerateAccessManagerCallData is Script {
         calldatas[2] = _getProtocolSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
         calldatas[3] = _getOperationsSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
         calldatas[4] = _getPublicSelectorsForDepositor({ pufferDepositorProxy: pufferDepositorProxy });
+        calldatas[5] = _getGrantSelectorsCalldata({ pufferVaultProxy: pufferVaultProxy });
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
@@ -97,6 +105,16 @@ contract GenerateAccessManagerCallData is Script {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDepositorProxy, publicSelectorsDepositor, PUBLIC_ROLE
+        );
+    }
+
+    function _getGrantSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
+        // Grant selectors
+        bytes4[] memory grantSelectors = new bytes4[](1);
+        grantSelectors[0] = PufferVaultV3.setGrantRoot.selector;
+
+        return abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, grantSelectors, ROLE_ID_GRANT_MANAGER
         );
     }
 }

@@ -30,18 +30,19 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @dev Maximum grant amount
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    uint256 public immutable GRANT_MAX_AMOUNT;
+    uint256 internal immutable _GRANT_MAX_AMOUNT;
 
     /**
      * @dev Grant epoch start time (in seconds)
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    uint256 public immutable GRANT_EPOCH_START_TIME;
+    uint256 internal immutable _GRANT_EPOCH_START_TIME;
+
     /**
      * @dev Grant epoch duration (in seconds)
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    uint256 public immutable GRANT_EPOCH_DURATION;
+    uint256 internal immutable _GRANT_EPOCH_DURATION;
 
     /**
      * @notice Initializes the PufferVaultV3 contract.
@@ -69,9 +70,9 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         uint256 grantEpochStartTime,
         uint256 grantEpochDuration
     ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
-        GRANT_MAX_AMOUNT = maxGrantAmount;
-        GRANT_EPOCH_START_TIME = grantEpochStartTime;
-        GRANT_EPOCH_DURATION = grantEpochDuration;
+        _GRANT_MAX_AMOUNT = maxGrantAmount;
+        _GRANT_EPOCH_START_TIME = grantEpochStartTime;
+        _GRANT_EPOCH_DURATION = grantEpochDuration;
 
         _disableInitializers();
     }
@@ -168,25 +169,30 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
     function payGrant(address grantee, uint256 amount, bool isNativePayment, bytes32[] calldata proof) external {
         VaultStorage storage $ = _getPufferVaultStorage();
-        if (amount == 0 || amount > GRANT_MAX_AMOUNT) {
+        if (amount == 0 || amount > _GRANT_MAX_AMOUNT) {
             revert InvalidGrantAmount(amount);
         }
 
-        bytes32 leaf = keccak256(abi.encodePacked(grantee));
-        if (!MerkleProof.verify(proof, $.grantRoot, leaf)) {
+        bytes32 data = keccak256(abi.encodePacked(grantee));
+        if (!MerkleProof.verify(proof, $.grantRoot, data)) {
             revert InvalidGrantProof(grantee);
         }
 
-        uint256 grantEpoch = (block.timestamp - GRANT_EPOCH_START_TIME) / GRANT_EPOCH_DURATION;
+        uint256 grantEpoch = (block.timestamp - _GRANT_EPOCH_START_TIME) / _GRANT_EPOCH_DURATION;
 
-        uint256 availableAmount = GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][grantEpoch];
+        uint256 availableAmount = _GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][grantEpoch];
         if (amount > availableAmount) {
             revert InsufficientGrantAmount(amount, availableAmount);
         }
 
         $.granteeEpochAmounts[grantee][grantEpoch] += amount;
-        emit GrantPayed(grantee, grantEpoch, amount, isNativePayment);
+        emit GrantPaid(grantee, grantEpoch, amount, isNativePayment);
 
         isNativePayment ? payable(grantee).sendValue(amount) : IWETH(_WETH).safeTransfer(grantee, amount);
+    }
+
+    function getGrantInfo() external view returns (bytes32, uint256, uint256, uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return ($.grantRoot, _GRANT_MAX_AMOUNT, _GRANT_EPOCH_START_TIME, _GRANT_EPOCH_DURATION);
     }
 }

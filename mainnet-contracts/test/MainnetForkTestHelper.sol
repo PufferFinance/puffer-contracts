@@ -63,6 +63,9 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     PufferVaultV2 public pufferVaultNonBlocking;
     AccessManager public accessManager;
     Timelock public timelock;
+    uint256 public maxGrantAmount = 1 ether;
+    uint256 public grantEpochStartTime = block.timestamp;
+    uint256 public grantEpochDuration = 30 days;
 
     // Lido contract (stETH)
     IStETH stETH = IStETH(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84);
@@ -233,19 +236,17 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             eigenStrategyManager: IEigenLayer(_getEigenLayerStrategyManager()),
             oracle: IPufferOracle(_getPufferOracle()),
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            maxGrantAmount: 1 ether,
-            grantEpochStartTime: block.timestamp,
-            grantEpochDuration: 30 days
+            maxGrantAmount: maxGrantAmount,
+            grantEpochStartTime: grantEpochStartTime,
+            grantEpochDuration: grantEpochDuration
         });
 
         PufferVaultV3 newImplementation = PufferVaultV3(payable(address(pufferVaultNonBlocking)));
 
-        vm.startPrank(address(timelock));
-        vm.expectEmit(true, true, true, true);
+        vm.prank(COMMUNITY_MULTISIG);
+        vm.expectEmit();
         emit ERC1967Utils.Upgraded(address(newImplementation));
         UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
-
-        vm.stopPrank();
     }
 
     function _upgradeToMainnetV4Puffer() internal {
@@ -258,9 +259,9 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             oracle: IPufferOracle(_getPufferOracle()),
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
             revenueDepositor: IPufferRevenueDepositor(address(0)),
-            maxGrantAmount: 1 ether,
-            grantEpochStartTime: block.timestamp,
-            grantEpochDuration: 30 days
+            maxGrantAmount: maxGrantAmount,
+            grantEpochStartTime: grantEpochStartTime,
+            grantEpochDuration: grantEpochDuration
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
