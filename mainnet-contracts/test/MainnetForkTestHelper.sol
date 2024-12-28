@@ -64,7 +64,6 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
     AccessManager public accessManager;
     Timelock public timelock;
     uint256 public maxGrantAmount = 1 ether;
-    uint256 public grantEpochStartTime = block.timestamp;
     uint256 public grantEpochDuration = 30 days;
 
     // Lido contract (stETH)
@@ -227,7 +226,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.stopPrank();
     }
 
-    function _upgradeToMainnetV3Puffer() internal {
+    function _upgradeToMainnetV3Puffer(uint256 grantEpochStartTime) internal {
         pufferVaultNonBlocking = new PufferVaultV3Tests({
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
@@ -249,7 +248,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
     }
 
-    function _upgradeToMainnetV4Puffer() internal {
+    function _upgradeToMainnetV4Puffer(uint256 grantEpochStartTime) internal {
         pufferVaultNonBlocking = new PufferVaultV4Tests({
             stETH: IStETH(_getStETH()),
             weth: IWETH(_getWETH()),
