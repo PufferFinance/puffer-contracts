@@ -21,7 +21,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
     address[] internal grantees;
     bytes32 internal grantRoot;
     bytes32[][] internal grantProofs;
-    uint256 internal grantEpochStartTime;
+    uint256 internal currentEpochStartTime;
 
     function setUp() public virtual override {
         // Cancun upgrade
@@ -36,12 +36,12 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         grantManager = makeAddr("grantManager");
         grantees = [pufferCommunityMultisig, eigenlayerCommunityMultisig, lucidlyMultisig, pointMarketMultisig];
         (grantRoot, grantProofs) = _buildMerkle(grantees);
-        grantEpochStartTime = block.timestamp;
+        currentEpochStartTime = vm.getBlockTimestamp();
 
         // Setup contracts
         _setupLiveContracts();
         _upgradeToMainnetPuffer();
-        _upgradeToMainnetV3Puffer(grantEpochStartTime);
+        _upgradeToMainnetV3Puffer(currentEpochStartTime);
 
         // Configure contracts
         vm.prank(address(timelock));
@@ -61,17 +61,35 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         pufferVault.setGrantRoot(grantRoot);
     }
 
-    function test_SetGrantRoot_GetGrantInfo() public view {
+    function test_GetGrantInfo() public view {
         (
             bytes32 currentRoot,
             uint256 currentMaxGrantAmount,
-            uint256 currentGrantEpochStartTime,
+            uint256 currentcurrentEpochStartTime,
             uint256 currentGrantEpochDuration
         ) = pufferVault.getGrantInfo();
         assertEq(currentRoot, grantRoot);
         assertEq(currentMaxGrantAmount, maxGrantAmount);
-        assertEq(currentGrantEpochStartTime, grantEpochStartTime);
+        assertEq(currentcurrentEpochStartTime, currentEpochStartTime);
         assertEq(currentGrantEpochDuration, grantEpochDuration);
+    }
+
+    function test_GetClaimableGrantEpoch() public {
+        (uint256 initialGrantEpoch,) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(initialGrantEpoch, pufferVault.calculateGrantEpoch());
+
+        // Set time to the end of the current grant epoch
+        (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
+        vm.warp(epochStartTime + epochDuration - 1);
+
+        (uint256 currentGrantEpoch,) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(currentGrantEpoch, initialGrantEpoch);
+
+        // Set time to the beginning of the next grant epoch
+        vm.warp(epochStartTime + epochDuration);
+
+        (uint256 nextGrantEpoch,) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(nextGrantEpoch, currentGrantEpoch + 1);
     }
 
     function test_SetGrantRoot_RevertIf_UnuathorizedAccess() public {
@@ -90,7 +108,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
         vm.warp(epochStartTime + epochDuration - 1);
 
-        uint256 grantEpoch = _calculateGrantEpoch();
+        uint256 grantEpoch = pufferVault.calculateGrantEpoch();
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
@@ -107,7 +125,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
         vm.warp(epochStartTime + epochDuration - 1);
 
-        uint256 grantEpoch = _calculateGrantEpoch();
+        uint256 grantEpoch = pufferVault.calculateGrantEpoch();
         bool isNative = false;
 
         vm.prank(pufferCommunityMultisig);
@@ -152,41 +170,57 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         assertEq(grantAmount, initialGranteeBalance + currentGranteeBalance);
     }
 
+    function test_ClaimGrant_MultipleTimesWithinSingleGrantEpoch() public {
+        uint256 grantAmount = maxGrantAmount;
+        deal(address(pufferVault), grantAmount * 2);
+
+        (, uint256 claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, grantAmount);
+
+        bool isNative = true;
+        vm.prank(pufferCommunityMultisig);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
+
+        (, claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, 0);
+
+        // Set time to the beginning of the next grant epoch
+        (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
+        vm.warp(epochStartTime + epochDuration);
+
+        (, claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, grantAmount);
+
+        vm.prank(pufferCommunityMultisig);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
+
+        (, claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, 0);
+    }
+
     function test_ClaimGrant_SingleTimeWithinMultipleGrantEpochs() public {
         uint256 grantAmount = maxGrantAmount / 2;
         deal(address(pufferVault), grantAmount * 2);
 
-        bool isNative = true;
+        (, uint256 claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, maxGrantAmount);
 
-        vm.startPrank(pufferCommunityMultisig);
-        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.claimGrant, (grantAmount, isNative, grantProofs[0])), 2);
+        bool isNative = true;
+        vm.prank(pufferCommunityMultisig);
         pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         // Set time to the end of the current grant epoch
         (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
         vm.warp(epochStartTime + epochDuration - 1);
 
-        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
-        vm.stopPrank();
-    }
+        (, claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, grantAmount);
 
-    function test_ClaimGrant_MultipleTimesWithinSingleGrantEpoch() public {
-        uint256 grantAmount = maxGrantAmount;
-        deal(address(pufferVault), grantAmount * 2);
-
-        bool isNative = true;
-
-        vm.startPrank(pufferCommunityMultisig);
-        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.claimGrant, (grantAmount, isNative, grantProofs[0])), 2);
+        vm.prank(pufferCommunityMultisig);
         pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
-        // Set time to the beginning of the next grant epoch
-        (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
-        vm.warp(epochStartTime + epochDuration);
-
-        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
-
-        vm.stopPrank();
+        (, claimableAmount) = pufferVault.getClaimableGrant(pufferCommunityMultisig);
+        assertEq(claimableAmount, 0);
     }
 
     function test_ClaimGrant_RevertIf_ZeroGrantAmount() public {
@@ -216,7 +250,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         pufferVault.claimGrant(grantAmount, isNative, grantProofs[1]);
     }
 
-    function test_ClaimGrant_RevertIf_InsufficientGrantAmount() public {
+    function test_ClaimGrant_RevertIf_UnavailableGrantAmount() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(pufferVault), grantAmount);
 
@@ -226,7 +260,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         uint256 newGrantAmount = 1;
-        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InsufficientGrantAmount.selector, newGrantAmount, 0));
+        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.UnavailableGrantAmount.selector, newGrantAmount, 0));
         pufferVault.claimGrant(newGrantAmount, isNative, grantProofs[0]);
 
         vm.stopPrank();
@@ -267,10 +301,5 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         }
 
         return (root, proofs);
-    }
-
-    function _calculateGrantEpoch() private view returns (uint256) {
-        (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
-        return (block.timestamp - epochStartTime) / epochDuration;
     }
 }

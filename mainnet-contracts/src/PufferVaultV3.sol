@@ -179,14 +179,13 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
             revert IneligibleGrantee(grantee);
         }
 
-        uint256 grantEpoch = (block.timestamp - _GRANT_EPOCH_START_TIME) / _GRANT_EPOCH_DURATION;
-        uint256 availableAmount = _GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][grantEpoch];
-        if (amount > availableAmount) {
-            revert InsufficientGrantAmount(amount, availableAmount);
+        (uint256 epoch, uint256 claimableAmount) = getClaimableGrant(grantee);
+        if (amount > claimableAmount) {
+            revert UnavailableGrantAmount(amount, claimableAmount);
         }
 
-        $.granteeEpochAmounts[grantee][grantEpoch] += amount;
-        emit GrantPaid(grantee, grantEpoch, amount, isNativePayment);
+        $.granteeEpochAmounts[grantee][epoch] += amount;
+        emit GrantPaid(grantee, epoch, amount, isNativePayment);
 
         isNativePayment ? payable(grantee).sendValue(amount) : IWETH(_WETH).safeTransfer(grantee, amount);
     }
@@ -194,5 +193,15 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     function getGrantInfo() external view returns (bytes32, uint256, uint256, uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return ($.grantRoot, _GRANT_MAX_AMOUNT, _GRANT_EPOCH_START_TIME, _GRANT_EPOCH_DURATION);
+    }
+
+    function getClaimableGrant(address grantee) public view returns (uint256 epoch, uint256 amount) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        epoch = calculateGrantEpoch();
+        amount = _GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][epoch];
+    }
+
+    function calculateGrantEpoch() public view returns (uint256) {
+        return (block.timestamp - _GRANT_EPOCH_START_TIME) / _GRANT_EPOCH_DURATION;
     }
 }

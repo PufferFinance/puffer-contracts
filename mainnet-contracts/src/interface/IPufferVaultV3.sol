@@ -37,7 +37,14 @@ interface IPufferVaultV3 is IPufferVaultV2 {
 
     function claimGrant(uint256 amount, bool isNativePayment, bytes32[] calldata proof) external;
 
-    function getGrantInfo() external view returns (bytes32, uint256, uint256, uint256);
+    function getGrantInfo()
+        external
+        view
+        returns (bytes32 root, uint256 maxAmount, uint256 epochStartTime, uint256 epochDuration);
+
+    function getClaimableGrant(address grantee) external view returns (uint256 epoch, uint256 amount);
+
+    function calculateGrantEpoch() external view returns (uint256);
 
     /**
      * @notice Emitted when the rewards are deposited to the PufferVault
@@ -55,5 +62,5 @@ interface IPufferVaultV3 is IPufferVaultV2 {
 
     error IneligibleGrantee(address grantee);
 
-    error InsufficientGrantAmount(uint256 requestedAmount, uint256 availableAmount);
+    error UnavailableGrantAmount(uint256 requestedAmount, uint256 availableAmount);
 }
