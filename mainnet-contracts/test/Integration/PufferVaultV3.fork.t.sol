@@ -10,10 +10,11 @@ import { Merkle } from "murky/Merkle.sol";
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
 import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GRANT_MANAGER } from "../../script/Roles.sol";
+import { console } from "forge-std/console.sol";
 
 contract PufferVaultV3ForkTest is MainnetForkTestHelper {
-    address internal eigenlayerCommunityMultisig = 0xFEA47018D632A77bA579846c840d5706705Dc598;
     address internal pufferCommunityMultisig = 0x446d4d6b26815f9bA78B5D454E303315D586Cb2a;
+    address internal eigenlayerCommunityMultisig = 0xFEA47018D632A77bA579846c840d5706705Dc598;
     address internal lucidlyMultisig;
     address internal pointMarketMultisig;
     address internal grantManager;
@@ -27,16 +28,15 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 19_431_593); //(Mar-14-2024 06:53:11 AM +UTC)
 
         // Setup actors
-        vm.label(eigenlayerCommunityMultisig, "eigenlayerCommunityMultisig");
         vm.label(pufferCommunityMultisig, "pufferCommunityMultisig");
+        vm.label(eigenlayerCommunityMultisig, "eigenlayerCommunityMultisig");
 
         lucidlyMultisig = makeAddr("lucidly");
         pointMarketMultisig = makeAddr("pointMarket");
         grantManager = makeAddr("grantManager");
-        grantees = [eigenlayerCommunityMultisig, pufferCommunityMultisig, lucidlyMultisig, pointMarketMultisig];
+        grantees = [pufferCommunityMultisig, eigenlayerCommunityMultisig, lucidlyMultisig, pointMarketMultisig];
+        (grantRoot, grantProofs) = _buildMerkle(grantees);
         grantEpochStartTime = block.timestamp;
-
-        deal(grantManager, 100 ether);
 
         // Setup contracts
         _setupLiveContracts();
@@ -47,7 +47,6 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         vm.prank(address(timelock));
         accessManager.grantRole(ROLE_ID_GRANT_MANAGER, grantManager, 0);
 
-        (grantRoot, grantProofs) = _buildMerkle(grantees);
         vm.prank(grantManager);
         pufferVault.setGrantRoot(grantRoot);
     }
@@ -83,7 +82,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         pufferVault.setGrantRoot(grantRoot);
     }
 
-    function test_PayGrant_EmitGrantPaidForNativePayment() public {
+    function test_ClaimGrant_EmitGrantPaidForNativePayment() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(pufferVault), grantAmount);
 
@@ -97,10 +96,10 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         vm.prank(pufferCommunityMultisig);
         vm.expectEmit();
         emit IPufferVaultV3.GrantPaid(grantees[0], grantEpoch, grantAmount, isNative);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
-    function test_PayGrant_EmitGrantPaidForERC20Payment() public {
+    function test_ClaimGrant_EmitGrantPaidForERC20Payment() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(_WETH), address(pufferVault), grantAmount);
 
@@ -114,10 +113,10 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         vm.prank(pufferCommunityMultisig);
         vm.expectEmit();
         emit IPufferVaultV3.GrantPaid(grantees[0], grantEpoch, grantAmount, isNative);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
-    function test_PayGrant_ChangeBalancesForNativePayment() public {
+    function test_ClaimGrant_ChangeBalancesForNativePayment() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(pufferVault), grantAmount);
 
@@ -126,7 +125,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         uint256 currentVaultBalance = address(pufferVault).balance;
         assertEq(grantAmount, initialVaultBalance - currentVaultBalance);
@@ -135,7 +134,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         assertEq(grantAmount, initialGranteeBalance + currentGranteeBalance);
     }
 
-    function test_PayGrant_ChangeBalancesForERC20Payment() public {
+    function test_ClaimGrant_ChangeBalancesForERC20Payment() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(_WETH), address(pufferVault), grantAmount);
 
@@ -144,7 +143,7 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         bool isNative = false;
 
         vm.prank(pufferCommunityMultisig);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         uint256 currentVaultBalance = _WETH.balanceOf(address(pufferVault));
         assertEq(grantAmount, initialVaultBalance - currentVaultBalance);
@@ -153,109 +152,105 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
         assertEq(grantAmount, initialGranteeBalance + currentGranteeBalance);
     }
 
-    function test_PayGrant_SingleTimeWithinMultipleGrantEpochs() public {
+    function test_ClaimGrant_SingleTimeWithinMultipleGrantEpochs() public {
         uint256 grantAmount = maxGrantAmount / 2;
         deal(address(pufferVault), grantAmount * 2);
 
         bool isNative = true;
 
         vm.startPrank(pufferCommunityMultisig);
-        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.payGrant, (grantees[0], grantAmount, isNative, grantProofs[0])), 2);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.claimGrant, (grantAmount, isNative, grantProofs[0])), 2);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         // Set time to the end of the current grant epoch
         (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
         vm.warp(epochStartTime + epochDuration - 1);
 
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
         vm.stopPrank();
     }
 
-    function test_PayGrant_MultipleTimesWithinSingleGrantEpoch() public {
+    function test_ClaimGrant_MultipleTimesWithinSingleGrantEpoch() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(pufferVault), grantAmount * 2);
 
         bool isNative = true;
 
         vm.startPrank(pufferCommunityMultisig);
-        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.payGrant, (grantees[0], grantAmount, isNative, grantProofs[0])), 2);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        vm.expectCall(address(pufferVault), abi.encodeCall(IPufferVaultV3.claimGrant, (grantAmount, isNative, grantProofs[0])), 2);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         // Set time to the beginning of the next grant epoch
         (,, uint256 epochStartTime, uint256 epochDuration) = pufferVault.getGrantInfo();
         vm.warp(epochStartTime + epochDuration);
 
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         vm.stopPrank();
     }
 
-    function test_PayGrant_RevertIf_ZeroGrantAmount() public {
+    function test_ClaimGrant_RevertIf_ZeroGrantAmount() public {
         uint256 grantAmount = 0;
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidGrantAmount.selector, grantAmount));
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
-    function test_PayGrant_RevertIf_ExceedingMaxGrantAmount() public {
+    function test_ClaimGrant_RevertIf_AboveMaxGrantAmount() public {
         uint256 grantAmount = maxGrantAmount + 1;
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidGrantAmount.selector, grantAmount));
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
-    function test_PayGrant_RevertIf_InvalidGrantProof() public {
+    function test_ClaimGrant_RevertIf_IneligibleGrantee() public {
         uint256 grantAmount = maxGrantAmount;
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
-        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InvalidGrantProof.selector, grantees[0]));
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[1]);
+        vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.IneligibleGrantee.selector, grantees[0]));
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[1]);
     }
 
-    function test_PayGrant_RevertIf_InsufficientGrantAmount() public {
+    function test_ClaimGrant_RevertIf_InsufficientGrantAmount() public {
         uint256 grantAmount = maxGrantAmount;
         deal(address(pufferVault), grantAmount);
 
         bool isNative = true;
 
         vm.startPrank(pufferCommunityMultisig);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
 
         uint256 newGrantAmount = 1;
         vm.expectRevert(abi.encodeWithSelector(IPufferVaultV3.InsufficientGrantAmount.selector, newGrantAmount, 0));
-        pufferVault.payGrant(grantees[0], newGrantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(newGrantAmount, isNative, grantProofs[0]);
 
         vm.stopPrank();
     }
 
-    function test_PayGrant_RevertIf_InsufficientVaultBalance() public {
+    function test_ClaimGrant_RevertIf_InsufficientVaultBalance() public {
         uint256 grantAmount = maxGrantAmount;
-
         bool isNative = true;
 
         vm.prank(pufferCommunityMultisig);
         vm.expectRevert(abi.encodeWithSelector(Address.AddressInsufficientBalance.selector, address(pufferVault)));
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
-    function test_PayGrant_RevertIf_FailedInnerVaultCall() public {
+    function test_ClaimGrant_RevertIf_FailedInnerVaultCall() public {
         uint256 grantAmount = maxGrantAmount;
-
         bool isNative = false;
 
         vm.prank(pufferCommunityMultisig);
         vm.expectRevert(Address.FailedInnerCall.selector);
-        pufferVault.payGrant(grantees[0], grantAmount, isNative, grantProofs[0]);
+        pufferVault.claimGrant(grantAmount, isNative, grantProofs[0]);
     }
 
     function _buildMerkle(address[] memory _grantees) private returns (bytes32, bytes32[][] memory) {
-        Merkle merkle = new Merkle();
-
         uint256 granteeCount = _grantees.length;
         bytes32[] memory data = new bytes32[](granteeCount);
         bytes32[][] memory proofs = new bytes32[][](granteeCount);
@@ -264,7 +259,9 @@ contract PufferVaultV3ForkTest is MainnetForkTestHelper {
             data[i] = keccak256(abi.encodePacked(_grantees[i]));
         }
 
+        Merkle merkle = new Merkle();
         bytes32 root = merkle.getRoot(data);
+
         for (uint256 i = 0; i < granteeCount; ++i) {
             proofs[i] = merkle.getProof(data, i);
         }

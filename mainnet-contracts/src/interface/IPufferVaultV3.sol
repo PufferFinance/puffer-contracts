@@ -35,7 +35,7 @@ interface IPufferVaultV3 is IPufferVaultV2 {
 
     function setGrantRoot(bytes32 grantRoot) external;
 
-    function payGrant(address grantee, uint256 amount, bool isNativePayment, bytes32[] calldata proof) external;
+    function claimGrant(uint256 amount, bool isNativePayment, bytes32[] calldata proof) external;
 
     function getGrantInfo() external view returns (bytes32, uint256, uint256, uint256);
 
@@ -53,7 +53,7 @@ interface IPufferVaultV3 is IPufferVaultV2 {
 
     error InvalidGrantAmount(uint256 amount);
 
-    error InvalidGrantProof(address grantee);
+    error IneligibleGrantee(address grantee);
 
     error InsufficientGrantAmount(uint256 requestedAmount, uint256 availableAmount);
 }

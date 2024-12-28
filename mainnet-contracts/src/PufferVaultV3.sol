@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { PufferVaultV2 } from "./PufferVaultV2.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
@@ -10,10 +14,6 @@ import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.so
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV3 } from "./interface/IPufferVaultV3.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title PufferVaultV3
@@ -22,9 +22,9 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
  * @custom:security-contact security@puffer.fi
  */
 contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
-    using Math for uint256;
     using SafeERC20 for IWETH;
     using Address for address payable;
+    using Math for uint256;
 
     /**
      * @dev Maximum grant amount
@@ -167,19 +167,19 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         emit GrantRootSet(grantRoot);
     }
 
-    function payGrant(address grantee, uint256 amount, bool isNativePayment, bytes32[] calldata proof) external {
+    function claimGrant(uint256 amount, bool isNativePayment, bytes32[] calldata proof) external {
         VaultStorage storage $ = _getPufferVaultStorage();
         if (amount == 0 || amount > _GRANT_MAX_AMOUNT) {
             revert InvalidGrantAmount(amount);
         }
 
+        address grantee = msg.sender;
         bytes32 data = keccak256(abi.encodePacked(grantee));
         if (!MerkleProof.verify(proof, $.grantRoot, data)) {
-            revert InvalidGrantProof(grantee);
+            revert IneligibleGrantee(grantee);
         }
 
         uint256 grantEpoch = (block.timestamp - _GRANT_EPOCH_START_TIME) / _GRANT_EPOCH_DURATION;
-
         uint256 availableAmount = _GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][grantEpoch];
         if (amount > availableAmount) {
             revert InsufficientGrantAmount(amount, availableAmount);
