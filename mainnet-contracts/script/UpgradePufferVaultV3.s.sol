@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "forge-std/Script.sol";
+import { stdJson } from "forge-std/StdJson.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
-import { PufferVault } from "src/PufferVault.sol";
+import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
 import { PufferVaultV3 } from "src/PufferVaultV3.sol";
 import { IStETH } from "src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
@@ -13,12 +13,15 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 /**
  * @title DeployPufferVaultV3
  * 
  * @dev Use either --account (keystore) or --private-key (env)
- * forge script ./script/DeployPufferVaultV3.s.sol:DeployPufferVaultV3 \
+ *
+ * forge script ./script/UpgradePufferVaultV3.s.sol:UpgradePufferVaultV3
  *     --rpc-url $RPC_URL \
  *     --verify \
  *     --verifier-url if deploying on tenderly \
@@ -26,7 +29,7 @@ import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.
  *     --broadcast \
  *     --slow
  */
-contract DeployPufferVaultV3 is DeployerHelper {
+contract UpgradePufferVaultV3 is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
@@ -42,12 +45,13 @@ contract DeployPufferVaultV3 is DeployerHelper {
             grantEpochStartTime: block.timestamp,
             grantEpochDuration: 30 days
         });
-        console.log("PufferVaultV3 Implementation: %s", address(pufferVaultV3Implementation));
 
-        ERC1967Proxy pufferVaultProxy = new ERC1967Proxy{ salt: bytes32("PufferVaultV3") }(
-            address(pufferVaultV3Implementation), abi.encodeCall(PufferVault.initialize, (_getAccessManager()))
-        );
-        console.log("PufferVaultV3 Proxy: %s", address(pufferVaultProxy));
+        _consoleLogOrUpgradeUUPS({
+            proxyTarget: _getPufferVault(),
+            implementation: address(pufferVaultV3Implementation),
+            data: "",
+            contractName: "PufferVaultV3Implementation"
+        });
 
         vm.stopBroadcast();
     }
