@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { PufferVault } from "src/PufferVault.sol";
 import { PufferVaultV3 } from "src/PufferVaultV3.sol";

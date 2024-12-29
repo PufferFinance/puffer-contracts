@@ -30,7 +30,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
      * @dev Maximum grant amount
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    uint256 internal immutable _GRANT_MAX_AMOUNT;
+    uint256 internal immutable _MAX_GRANT_AMOUNT;
 
     /**
      * @dev Grant epoch start time (in seconds)
@@ -70,7 +70,7 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         uint256 grantEpochStartTime,
         uint256 grantEpochDuration
     ) PufferVaultV2(stETH, weth, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager, oracle, delegationManager) {
-        _GRANT_MAX_AMOUNT = maxGrantAmount;
+        _MAX_GRANT_AMOUNT = maxGrantAmount;
         _GRANT_EPOCH_START_TIME = grantEpochStartTime;
         _GRANT_EPOCH_DURATION = grantEpochDuration;
 
@@ -161,15 +161,23 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         _burn(msg.sender, pufETHAmount);
     }
 
+    /**
+     * @notice Set the grant Merkle root for the grantee list.
+     */
     function setGrantRoot(bytes32 grantRoot) external restricted {
         VaultStorage storage $ = _getPufferVaultStorage();
         $.grantRoot = grantRoot;
         emit GrantRootSet(grantRoot);
     }
 
+    /**
+     * @notice Claims a certain amount of grant in either the native or WETH token.
+     * In order to make a claim, the caller should provide a Merkle proof of being
+     * a part of the grantee list.
+     */
     function claimGrant(uint256 amount, bool isNativePayment, bytes32[] calldata proof) external {
         VaultStorage storage $ = _getPufferVaultStorage();
-        if (amount == 0 || amount > _GRANT_MAX_AMOUNT) {
+        if (amount == 0 || amount > _MAX_GRANT_AMOUNT) {
             revert InvalidGrantAmount(amount);
         }
 
@@ -190,17 +198,28 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
         isNativePayment ? payable(grantee).sendValue(amount) : IWETH(_WETH).safeTransfer(grantee, amount);
     }
 
+    /**
+     * @notice Returns all the grant information: the grant root, the maximum grant 
+     * amount, the grant epoch start time, the grant epoch duration.
+     */
     function getGrantInfo() external view returns (bytes32, uint256, uint256, uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
-        return ($.grantRoot, _GRANT_MAX_AMOUNT, _GRANT_EPOCH_START_TIME, _GRANT_EPOCH_DURATION);
+        return ($.grantRoot, _MAX_GRANT_AMOUNT, _GRANT_EPOCH_START_TIME, _GRANT_EPOCH_DURATION);
     }
 
+    /**
+     * @notice Return the claimable grant information: the current grant epoch and available
+     * grant amount.
+     */
     function getClaimableGrant(address grantee) public view returns (uint256 epoch, uint256 amount) {
         VaultStorage storage $ = _getPufferVaultStorage();
         epoch = calculateGrantEpoch();
-        amount = _GRANT_MAX_AMOUNT - $.granteeEpochAmounts[grantee][epoch];
+        amount = _MAX_GRANT_AMOUNT - $.granteeEpochAmounts[grantee][epoch];
     }
 
+    /**
+     * @notice Calculates the current grant epoch.
+     */
     function calculateGrantEpoch() public view returns (uint256) {
         return (block.timestamp - _GRANT_EPOCH_START_TIME) / _GRANT_EPOCH_DURATION;
     }

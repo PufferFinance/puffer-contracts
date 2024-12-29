@@ -17,7 +17,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgrade
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 /**
- * @title DeployPufferVaultV3
+ * @title UpgradePufferVaultV3
  * 
  * @dev Use either --account (keystore) or --private-key (env)
  *

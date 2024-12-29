@@ -8,9 +8,8 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
-import { IPufferVaultV3 } from "../../src/interface/IPufferVaultV3.sol";
-import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GRANT_MANAGER } from "../../script/Roles.sol";
-import { console } from "forge-std/console.sol";
+import { IPufferVaultV3 } from "src/interface/IPufferVaultV3.sol";
+import { ROLE_ID_DAO, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_GRANT_MANAGER } from "script/Roles.sol";
 
 contract PufferVaultV3ForkTest is MainnetForkTestHelper {
     address internal pufferCommunityMultisig = 0x446d4d6b26815f9bA78B5D454E303315D586Cb2a;
