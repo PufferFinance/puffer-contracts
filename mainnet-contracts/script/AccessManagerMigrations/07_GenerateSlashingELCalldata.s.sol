@@ -31,8 +31,10 @@ contract GenerateSlashingELCalldata is Script {
         paymasterSelectors[1] = PufferModuleManager.transferRewardsToTheVault.selector;
         paymasterSelectors[2] = PufferModuleManager.callQueueWithdrawals.selector;
 
-        calldatas[1] =
-            abi.encodeCall(AccessManager.setTargetFunctionRole, (pufferModuleManagerProxy, paymasterSelectors, ROLE_ID_OPERATIONS_PAYMASTER));
+        calldatas[1] = abi.encodeCall(
+            AccessManager.setTargetFunctionRole,
+            (pufferModuleManagerProxy, paymasterSelectors, ROLE_ID_OPERATIONS_PAYMASTER)
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 
