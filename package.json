@@ -1,36 +1,41 @@
 {
-  "name": "puffer-contracts",
-  "type": "module",
-  "engines": {
-    "node": ">=20.5.1",
-    "npm": ">=9.8.0"
-  },
-  "version": "1.0.0",
-  "description": "Native Liquid Restaking Protocol",
-  "scripts": {
-    "codespell": "codespell ./mainnet-contracts && codespell ./l2-contracts",
-    "semgrep": "semgrep --config ./semgrep-rules/"
-  },
-  "keywords": [
-    "ethereum",
-    "puffer",
-    "puffer-finance",
-    "solidity",
-    "LRT",
-    "eigenlayer",
-    "restaking",
-    "liquid-staking"
-  ],
-  "author": {
-    "name": "Puffer Finance",
-    "url": "https://puffer.fi"
-  },
-  "license": "ISC",
-  "private": true,
-  "workspaces": {
-    "packages": ["mainnet-contracts", "utility-scripts", "l2-contracts"],
-    "nohoist": [
-      "**/*"
-    ]
-  }
+    "name": "puffer-contracts",
+    "type": "module",
+    "engines": {
+        "node": ">=20.5.1",
+        "npm": ">=9.8.0"
+    },
+    "version": "1.0.0",
+    "description": "Native Liquid Restaking Protocol",
+    "scripts": {
+        "codespell": "codespell ./mainnet-contracts && codespell ./l2-contracts && codespell ./partners/merkle-contracts",
+        "semgrep": "semgrep --config ./semgrep-rules/"
+    },
+    "keywords": [
+        "ethereum",
+        "puffer",
+        "puffer-finance",
+        "solidity",
+        "LRT",
+        "eigenlayer",
+        "restaking",
+        "liquid-staking"
+    ],
+    "author": {
+        "name": "Puffer Finance",
+        "url": "https://puffer.fi"
+    },
+    "license": "ISC",
+    "private": true,
+    "workspaces": {
+        "packages": [
+            "mainnet-contracts",
+            "utility-scripts",
+            "l2-contracts",
+            "partners/merkle-contracts"
+        ],
+        "nohoist": [
+            "**/*"
+        ]
+    }
 }
