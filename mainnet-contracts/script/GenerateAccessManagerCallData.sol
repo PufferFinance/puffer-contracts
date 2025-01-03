@@ -7,6 +7,7 @@ import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
+import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
 import { PUBLIC_ROLE, ROLE_ID_PUFFER_PROTOCOL, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
@@ -39,12 +40,13 @@ contract GenerateAccessManagerCallData is Script {
 
     function _getPublicSelectorsCalldata(address pufferVaultProxy) internal pure returns (bytes memory) {
         // Public selectors for PufferVault
-        bytes4[] memory publicSelectors = new bytes4[](4);
+        bytes4[] memory publicSelectors = new bytes4[](6);
         publicSelectors[0] = PufferVaultV5.withdraw.selector;
         publicSelectors[1] = PufferVaultV5.redeem.selector;
         publicSelectors[2] = PufferVaultV5.depositETH.selector;
         publicSelectors[3] = PufferVaultV5.depositStETH.selector;
-        // `deposit` and `mint` are already `restricted` and allowed for PUBLIC_ROLE (PufferVault deployment)
+        publicSelectors[4] = ERC4626.deposit.selector;
+        publicSelectors[5] = ERC4626.mint.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, publicSelectors, PUBLIC_ROLE

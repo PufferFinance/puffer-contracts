@@ -56,8 +56,8 @@ contract PufferVaultTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function test_mint() public withZeroExitFeeBasisPoints {
-        vm.deal(alice, 1 ether);
+    function test_mint_vault_v5() public withZeroExitFeeBasisPoints {
+        deal(address(weth), alice, 1 ether);
 
         vm.startPrank(alice);
         weth.approve(address(pufferVault), 1 ether);
