@@ -7,7 +7,7 @@ import { Permit } from "../src/structs/Permit.sol";
 import { ValidatorKeyData } from "../src/struct/ValidatorKeyData.sol";
 import { IPufferProtocol } from "../src/interface/IPufferProtocol.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 
 /**
@@ -21,7 +21,7 @@ import { ValidatorTicket } from "../src/ValidatorTicket.sol";
  *  To broadcast the transaction on-chain, add `--broadcast --slow` flag at the end of the command
  */
 contract GenerateBLSKeysAndRegisterValidators is Script {
-    PufferVaultV2 internal pufETH;
+    PufferVaultV5 internal pufETH;
     ValidatorTicket internal validatorTicket;
     address internal protocolAddress;
     PufferProtocol internal pufferProtocol;

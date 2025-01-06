@@ -12,9 +12,9 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
@@ -41,6 +41,26 @@ contract DeployPufferModuleImplementation is DeployerHelper {
 
         console.log("From Timelock queue a tx to accessManager");
         console.logBytes(calldataToExecute);
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
+        }
+    }
+
+    function deployPufferModuleTests() public {
+        vm.startPrank(_getPaymaster());
+
+        PufferModule newImpl = new PufferModule({
+            protocol: PufferProtocol(_getPufferProtocol()),
+            eigenPodManager: _getEigenPodManager(),
+            delegationManager: IDelegationManager(_getDelegationManager()),
+            moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+        });
+
+        vm.label(address(newImpl), "PufferModuleImplementation");
+
+        bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(newImpl));
 
         if (block.chainid == holesky) {
             AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);

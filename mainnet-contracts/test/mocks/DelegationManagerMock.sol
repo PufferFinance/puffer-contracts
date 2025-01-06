@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategyManager } from "src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DelegationManagerMock {
@@ -22,14 +22,9 @@ contract DelegationManagerMock {
 
     mapping(address => address) public delegatedTo;
 
-    function registerAsOperator(
-        IDelegationManager.OperatorDetails calldata, /*registeringOperatorDetails*/
-        string calldata /*metadataURI*/
-    ) external pure { }
-
-    function updateOperatorMetadataURI(string calldata /*metadataURI*/ ) external pure { }
-
-    function updateAVSMetadataURI(string calldata /*metadataURI*/ ) external pure { }
+    function registerAsOperator(address initDelegationApprover, uint32 allocationDelay, string calldata metadataURI)
+        external
+    { }
 
     function delegateTo(
         address operator,
@@ -38,8 +33,6 @@ contract DelegationManagerMock {
     ) external {
         delegatedTo[msg.sender] = operator;
     }
-
-    function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata /*newOperatorDetails*/ ) external pure { }
 
     function delegateToBySignature(
         address, /*staker*/
@@ -162,13 +155,6 @@ contract DelegationManagerMock {
 
     function calculateWithdrawalRoot(IDelegationManager.Withdrawal memory withdrawal) external pure returns (bytes32) { }
 
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) external { }
-
-    function deregisterOperatorFromAVS(address operator) external { }
-
     function operatorSaltIsSpent(address avs, bytes32 salt) external view returns (bool) { }
 
     function queueWithdrawals(IDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams)
@@ -181,20 +167,6 @@ contract DelegationManagerMock {
         return roots;
     }
 
-    function completeQueuedWithdrawal(
-        IDelegationManager.Withdrawal calldata withdrawal,
-        IERC20[] calldata tokens,
-        uint256 middlewareTimesIndex,
-        bool receiveAsTokens
-    ) external { }
-
-    function completeQueuedWithdrawals(
-        IDelegationManager.Withdrawal[] calldata withdrawals,
-        IERC20[][] calldata tokens,
-        uint256[] calldata middlewareTimesIndexes,
-        bool[] calldata receiveAsTokens
-    ) external { }
-
     // onlyDelegationManager functions in StrategyManager
     function addShares(
         IStrategyManager strategyManager,
@@ -202,15 +174,11 @@ contract DelegationManagerMock {
         IERC20 token,
         IStrategy strategy,
         uint256 shares
-    ) external {
-        strategyManager.addShares(staker, token, strategy, shares);
-    }
+    ) external { }
 
     function removeShares(IStrategyManager strategyManager, address staker, IStrategy strategy, uint256 shares)
         external
-    {
-        strategyManager.removeShares(staker, strategy, shares);
-    }
+    { }
 
     function withdrawSharesAsTokens(
         IStrategyManager strategyManager,
@@ -218,9 +186,16 @@ contract DelegationManagerMock {
         IStrategy strategy,
         uint256 shares,
         IERC20 token
-    ) external {
-        strategyManager.withdrawSharesAsTokens(recipient, strategy, shares, token);
-    }
+    ) external { }
 
     function operatorDetails(address operator) external view returns (IDelegationManager.OperatorDetails memory) { }
+
+    function completeQueuedWithdrawals(
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        bool[] calldata receiveAsTokens
+    ) external { }
+
+    function modifyOperatorDetails(address operator, address newDelegationApprover) external pure { }
+    function updateOperatorMetadataURI(address operator, string calldata newMetadataURI) external pure { }
 }

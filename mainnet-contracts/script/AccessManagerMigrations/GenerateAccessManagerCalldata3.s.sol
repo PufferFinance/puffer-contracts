@@ -6,7 +6,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { console } from "forge-std/console.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import {
@@ -65,8 +65,8 @@ contract GenerateAccessManagerCalldata3 is Script {
         );
 
         bytes4[] memory vaultSelectors = new bytes4[](2);
-        vaultSelectors[0] = PufferVaultV3.mintRewards.selector;
-        vaultSelectors[1] = PufferVaultV3.revertMintRewards.selector;
+        vaultSelectors[0] = PufferVaultV5.mintRewards.selector;
+        vaultSelectors[1] = PufferVaultV5.revertMintRewards.selector;
         calldatas[4] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, vaultSelectors, ROLE_ID_L1_REWARD_MANAGER
         );
@@ -75,7 +75,7 @@ contract GenerateAccessManagerCalldata3 is Script {
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_L1_REWARD_MANAGER, l1RewardManagerProxy, 0);
 
         bytes4[] memory pufferModuleManagerSelectors = new bytes4[](1);
-        pufferModuleManagerSelectors[0] = PufferVaultV3.depositRewards.selector;
+        pufferModuleManagerSelectors[0] = PufferVaultV5.depositRewards.selector;
 
         calldatas[6] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
