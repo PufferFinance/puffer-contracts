@@ -109,7 +109,7 @@ contract DeployPufETH is BaseScript {
 
             // Deploy implementation contracts
             pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
-            vm.label(address(pufferVaultImplementation), "PufferVaultImplementation");
+            vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
                 new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
             vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");

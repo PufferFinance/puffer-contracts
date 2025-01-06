@@ -5,6 +5,9 @@ import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 
+/**
+ * @notice For some reason the code coverage doesn't consider that this mainnet fork tests increase the code coverage..
+ */
 contract PufferVaultForkTest is MainnetForkTestHelper {
     function setUp() public virtual override { }
 

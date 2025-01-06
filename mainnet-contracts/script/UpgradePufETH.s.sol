@@ -75,6 +75,8 @@ contract UpgradePufETH is BaseScript {
             IPufferRevenueDepositor(revenueDepositor)
         );
 
+        vm.label(address(newImplementation), "PufferVaultV5Implementation");
+
         UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(address(newImplementation), "");
     }
 }

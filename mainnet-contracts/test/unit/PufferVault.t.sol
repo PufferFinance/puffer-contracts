@@ -70,4 +70,16 @@ contract PufferVaultTest is UnitTestHelper {
 
         pufferVault.mint(1 ether, alice);
     }
+
+    // See mainnet-contracts/test/fork-tests/PufferVaultForkTest.t.sol for real test
+    // For some reason code coverage doesn't account for tests in the file above
+    function test_initiateETHWithdrawalsFromLidoDummy() public {
+        vm.startPrank(OPERATIONS_MULTISIG);
+
+        pufferVault.initiateETHWithdrawalsFromLido(new uint256[](1));
+
+        uint256[] memory requestIds = new uint256[](1);
+        requestIds[0] = 1;
+        pufferVault.claimWithdrawalsFromLido(requestIds);
+    }
 }
