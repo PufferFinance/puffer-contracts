@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferVaultV2 } from "src/interface/IPufferVaultV2.sol";
+import { ERC4626Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 contract PufferVaultTest is UnitTestHelper {
     uint256 pointZeroZeroOne = 0.0001e18;
@@ -51,6 +52,11 @@ contract PufferVaultTest is UnitTestHelper {
         vm.startPrank(alice);
         pufferVault.approve(address(this), 1 ether);
         pufferVault.depositETH{ value: 1 ether }(alice);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ERC4626Upgradeable.ERC4626ExceededMaxRedeem.selector, alice, 100 ether, 1 ether)
+        );
+        pufferVault.redeem(100 ether, alice, alice);
 
         pufferVault.redeem(1 ether, alice, alice);
         vm.stopPrank();
