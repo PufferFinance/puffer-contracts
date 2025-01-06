@@ -21,14 +21,8 @@ import { IRewardsCoordinator } from "./interface/Eigenlayer-Slashing/IRewardsCoo
  */
 contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable {
     using Address for address;
+
     // keccak256(abi.encode(uint256(keccak256("RestakingOperator.storage")) - 1)) & ~bytes32(uint256(0xff))
-    // slither-disable-next-line unused-state
-
-    /**
-     * @dev Upgradeable contract from EigenLayer
-     */
-    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
-
     bytes32 private constant _RESTAKING_OPERATOR_STORAGE =
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
 
@@ -48,6 +42,11 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
     struct RestakingOperatorStorage {
         mapping(bytes32 digestHash => address signer) hashSigners;
     }
+
+    /**
+     * @dev Upgradeable contract from EigenLayer
+     */
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
 
     /**
      * @dev Upgradeable contract from EigenLayer
