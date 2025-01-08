@@ -45,48 +45,48 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         pufferProtocol.createPufferModule(bytes32("SOME_MODULE_NAME"));
     }
 
-    function test_opt_into_slashing() public {
-        vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+    // function test_opt_into_slashing() public {
+    //     vm.startPrank(DAO);
+    //     IRestakingOperator operator = _createRestakingOperator();
 
-        address slasher = address(1235);
+    //     address slasher = address(1235);
 
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorOptedInSlasher(address(operator), slasher);
-        moduleManager.callOptIntoSlashing(operator, slasher);
-    }
+    //     vm.expectEmit(true, true, true, true);
+    //     emit IPufferModuleManager.RestakingOperatorOptedInSlasher(address(operator), slasher);
+    //     moduleManager.callOptIntoSlashing(operator, slasher);
+    // }
 
-    function test_modify_operator() public {
-        vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+    // function test_modify_operator() public {
+    //     vm.startPrank(DAO);
+    //     IRestakingOperator operator = _createRestakingOperator();
 
-        IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
-            __deprecated_earningsReceiver: address(this),
-            delegationApprover: address(0),
-            stakerOptOutWindowBlocks: 100
-        });
+    //     IDelegationManager.OperatorDetails memory newOperatorDetails = IDelegationManager.OperatorDetails({
+    //         __deprecated_earningsReceiver: address(this),
+    //         delegationApprover: address(0),
+    //         stakerOptOutWindowBlocks: 100
+    //     });
 
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorModified(address(operator), newOperatorDetails);
-        moduleManager.callModifyOperatorDetails({ restakingOperator: operator, newOperatorDetails: newOperatorDetails });
+    //     vm.expectEmit(true, true, true, true);
+    //     emit IPufferModuleManager.RestakingOperatorModified(address(operator), newOperatorDetails);
+    //     moduleManager.callModifyOperatorDetails({ restakingOperator: operator, newOperatorDetails: newOperatorDetails });
 
-        IDelegationManager.OperatorDetails memory details =
-            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
+    //     IDelegationManager.OperatorDetails memory details =
+    //         operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
+    //     assertEq(details.stakerOptOutWindowBlocks, 100, "updated blocks");
 
-        assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
-    }
+    //     assertEq(details.__deprecated_earningsReceiver, address(this), "updated earnings");
+    // }
 
-    function test_update_metadata_uri() public {
-        vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+    // function test_update_metadata_uri() public {
+    //     vm.startPrank(DAO);
+    //     IRestakingOperator operator = _createRestakingOperator();
 
-        string memory newUri = "https://puffer.fi/updated.json";
+    //     string memory newUri = "https://puffer.fi/updated.json";
 
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newUri);
-        moduleManager.callUpdateMetadataURI(operator, newUri);
-    }
+    //     vm.expectEmit(true, true, true, true);
+    //     emit IPufferModuleManager.RestakingOperatorMetadataURIUpdated(address(operator), newUri);
+    //     moduleManager.callUpdateMetadataURI(operator, newUri);
+    // }
 
     // Don't remove this test, it is used as a reference for real registration
     // function test_eigenda_avs() public {

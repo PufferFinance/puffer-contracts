@@ -3,22 +3,22 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
-import { SOON } from "../src/SOON.sol";
+import { CARROT } from "../src/CARROT.sol";
 
 /**
- * forge script script/DeploySOON.s.sol:DeploySOON --rpc-url=$RPC_URL --private-key $PK
+ * forge script script/DeployCARROT.s.sol:DeployCARROT --rpc-url=$RPC_URL --private-key $PK
  *
  * deploy along with verification:
- * forge script script/DeploySOON.s.sol:DeploySOON -vvvv --rpc-url=$RPC_URL --account puffer --verify --etherscan-api-key $ETHERSCAN_API_KEY --broadcast
+ * forge script script/DeployCARROT.s.sol:DeployCARROT -vvvv --rpc-url=$RPC_URL --account puffer --verify --etherscan-api-key $ETHERSCAN_API_KEY --broadcast
  */
-contract DeploySOON is DeployerHelper {
+contract DeployCARROT is DeployerHelper {
     function run() public {
         vm.startBroadcast();
         address multiSig = 0xE06A1ad7346Dfda7Ce9BCFba751DABFd754BAfAD;
 
-        SOON soon = new SOON(multiSig);
+        CARROT soon = new CARROT(multiSig);
 
-        vm.label(address(soon), "SOON");
+        vm.label(address(soon), "CARROT");
 
         vm.stopBroadcast();
     }
