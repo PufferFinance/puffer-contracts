@@ -16,9 +16,9 @@ contract DeployCARROT is DeployerHelper {
         vm.startBroadcast();
         address multiSig = 0xE06A1ad7346Dfda7Ce9BCFba751DABFd754BAfAD;
 
-        CARROT soon = new CARROT(multiSig);
+        CARROT carrot = new CARROT(multiSig);
 
-        vm.label(address(soon), "CARROT");
+        vm.label(address(carrot), "CARROT");
 
         vm.stopBroadcast();
     }
