@@ -71,6 +71,16 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
     }
 
     /**
+     * @notice Checks if an address is a valid grant recipient.
+     * @param account Address to check.
+     * @return True if the account is a grant recipient, false otherwise.
+     */
+    function isGrantRecipient(address account) public view returns (bool) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.grantRecipients[account];
+    }
+
+    /**
      * @notice Mints pufETH rewards for the L1RewardManager contract and returns the exchange rate.
      * @dev Restricted to L1RewardManager
      */
@@ -126,5 +136,68 @@ contract PufferVaultV3 is PufferVaultV2, IPufferVaultV3 {
 
         // msg.sender is the L1RewardManager contract
         _burn(msg.sender, pufETHAmount);
+    }
+
+    /**
+     * @notice Updates the grant recipient status for a given account.
+     * @dev Restricted to admin or governance roles.
+     * @param account Address to update.
+     * @param isRecipient Boolean indicating whether the account is a grant recipient.
+     */
+    function setGrantRecipient(address account, bool isRecipient) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.grantRecipients[account] = isRecipient;
+
+        emit GrantRecipientUpdated(account, isRecipient);
+    }
+
+    /**
+     * @notice Sets the maximum grant amount.
+     * @dev Restricted to admin or governance roles.
+     * @param amount The maximum grant amount.
+     */
+    function setMaxGrantAmount(uint256 amount) external restricted {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        $.maxGrantAmount = amount;
+
+        emit MaxGrantAmountUpdated(amount);
+    }
+
+    /**
+     * @notice Allows a grant recipient to claim a grant in either ETH or WETH.
+     * @param amount The amount of the grant being claimed.
+     * @param inWETH A boolean indicating whether the recipient wants to receive the grant in WETH.
+     * @custom:requirements The caller must be a valid grant recipient, and the Vault must have sufficient ETH or WETH liquidity.
+     */
+    function claimGrant(uint256 amount, bool inWETH) external {
+        VaultStorage storage $ = _getPufferVaultStorage();
+
+        // Ensure the caller is a valid grant recipient
+        if (!$.grantRecipients[msg.sender]) {
+            revert NotGrantRecipient();
+        }
+
+        // Ensure the requested amount does not exceed the maximum allowed
+        if (amount > $.maxGrantAmount) {
+            revert ExceedsMaxGrantAmount();
+        }
+
+        if (inWETH) {
+            // Ensure the contract has enough WETH balance
+            if (_WETH.balanceOf(address(this)) < amount) {
+                revert InsufficientWETHBalance();
+            }
+            // Transfer WETH to the recipient
+            _WETH.transfer(msg.sender, amount);
+        } else {
+            // Ensure the contract has enough ETH balance
+            if (address(this).balance < amount) {
+                revert InsufficientETHBalance();
+            }
+            // Transfer ETH to the recipient
+            payable(msg.sender).transfer(amount);
+        }
+
+        emit GrantClaimed(msg.sender, amount);
     }
 }

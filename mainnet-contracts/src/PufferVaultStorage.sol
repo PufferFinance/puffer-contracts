@@ -35,6 +35,9 @@ abstract contract PufferVaultStorage {
         // ETH rewards amount
         uint256 totalRewardDepositAmount;
         uint256 totalRewardMintAmount;
+        // Grant-related variables
+        mapping(address => bool) grantRecipients; // Tracks eligible grant recipients
+        uint256 maxGrantAmount; // Maximum grant amount that can be paid
     }
 
     // keccak256(abi.encode(uint256(keccak256("puffervault.depositTracker")) - 1)) & ~bytes32(uint256(0xff))

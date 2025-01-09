@@ -10,6 +10,26 @@ import { IPufferVaultV2 } from "./IPufferVaultV2.sol";
  */
 interface IPufferVaultV3 is IPufferVaultV2 {
     /**
+     * @dev Thrown if the caller is not a valid grant recipient.
+     */
+    error NotGrantRecipient();
+
+    /**
+     * @dev Thrown if the requested grant amount exceeds the maximum allowed.
+     */
+    error ExceedsMaxGrantAmount();
+
+    /**
+     * @dev Thrown if the Vault does not have enough ETH liquidity to transfer the grant.
+     */
+    error InsufficientETHBalance();
+
+    /**
+     * @dev Thrown if the Vault does not have enough WETH liquidity to transfer the grant.
+     */
+    error InsufficientWETHBalance();
+
+    /**
      * @notice Constructor parameters for bridging.
      * @param xToken The address of the xToken contract.
      * @param lockBox The address of the lockBox contract.
@@ -40,4 +60,24 @@ interface IPufferVaultV3 is IPufferVaultV2 {
     event UpdatedTotalRewardsAmount(
         uint256 previousTotalRewardsAmount, uint256 newTotalRewardsAmount, uint256 depositedETHAmount
     );
+
+    /**
+     * @notice Emitted when the grant recipient status of an account is updated.
+     * @param account The address of the account whose grant recipient status was updated.
+     * @param isRecipient A boolean indicating the updated grant recipient status.
+     */
+    event GrantRecipientUpdated(address indexed account, bool isRecipient);
+
+    /**
+     * @notice Emitted when the maximum grant amount is updated.
+     * @param maxGrantAmount The new maximum grant amount.
+     */
+    event MaxGrantAmountUpdated(uint256 maxGrantAmount);
+
+    /**
+     * @notice Emitted when a grant is claimed by a recipient.
+     * @param recipient The address of the grant recipient who claimed the grant.
+     * @param amount The amount of the grant that was claimed.
+     */
+    event GrantClaimed(address indexed recipient, uint256 amount);
 }
