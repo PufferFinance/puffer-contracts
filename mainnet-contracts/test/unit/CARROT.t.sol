@@ -14,7 +14,7 @@ contract CARROTTest is UnitTestHelper {
 
     function test_constructor() public view {
         assertEq(carrot.totalSupply(), 100_000_000 ether);
-        assertEq(carrot.name(), "Puffer Points");
+        assertEq(carrot.name(), "Carrot");
         assertEq(carrot.symbol(), "CARROT");
     }
 
