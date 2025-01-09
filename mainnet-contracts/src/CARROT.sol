@@ -14,7 +14,7 @@ contract CARROT is ERC20, ERC20Permit {
      * @notice Constructor for the CARROT token
      * totalSupply is 100 million CARROT
      */
-    constructor(address initialOwner) ERC20("Puffer Points", "CARROT") ERC20Permit("Puffer Points") {
+    constructor(address initialOwner) ERC20("Carrot", "CARROT") ERC20Permit("Carrot") {
         _mint(initialOwner, 100_000_000 ether);
     }
 }
