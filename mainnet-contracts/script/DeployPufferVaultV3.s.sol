@@ -13,8 +13,6 @@ import { IStrategy } from "src/interface/EigenLayer/IStrategy.sol";
 import { IEigenLayer } from "src/interface/EigenLayer/IEigenLayer.sol";
 import { IPufferOracle } from "src/interface/IPufferOracle.sol";
 import { IDelegationManager } from "src/interface/EigenLayer/IDelegationManager.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 /**
  * @title DeployPufferVaultV3
