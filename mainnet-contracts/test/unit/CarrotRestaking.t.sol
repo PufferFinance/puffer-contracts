@@ -2,12 +2,12 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { CarrotRestaking } from "../../src/CarrotRestaking.sol";
-import { ICarrotRestaking } from "../../src/interface/ICarrotRestaking.sol";
+import { CarrotStaker } from "../../src/CarrotStaker.sol";
+import { ICarrotStaker } from "../../src/interface/ICarrotStaker.sol";
 import { CARROT } from "../../src/CARROT.sol";
 
-contract CarrotRestakingTest is UnitTestHelper {
-    CarrotRestaking public restaking;
+contract CarrotStakerTest is UnitTestHelper {
+    CarrotStaker public staker;
     CARROT public carrot;
 
     address public admin;
@@ -17,32 +17,32 @@ contract CarrotRestakingTest is UnitTestHelper {
 
         carrot = new CARROT(address(this));
 
-        restaking = new CarrotRestaking(address(carrot), admin);
+        staker = new CarrotStaker(address(carrot), admin);
 
         carrot.transfer(alice, 1000 ether);
         carrot.transfer(bob, 1000 ether);
     }
 
     function test_constructor() public view {
-        assertEq(address(restaking.CARROT()), address(carrot));
-        assertEq(restaking.owner(), admin);
-        assertEq(restaking.name(), "Staked Carrot");
-        assertEq(restaking.symbol(), "sCarrot");
+        assertEq(address(staker.CARROT()), address(carrot));
+        assertEq(staker.owner(), admin);
+        assertEq(staker.name(), "Staked Carrot");
+        assertEq(staker.symbol(), "sCarrot");
     }
 
     function test_stake() public {
         uint256 stakeAmount = 100 ether;
 
         vm.startPrank(alice);
-        carrot.approve(address(restaking), stakeAmount);
+        carrot.approve(address(staker), stakeAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit ICarrotRestaking.Staked({ staker: alice, amount: stakeAmount });
-        restaking.stake(stakeAmount);
+        emit ICarrotStaker.Staked({ staker: alice, amount: stakeAmount });
+        staker.stake(stakeAmount);
         vm.stopPrank();
 
-        assertEq(restaking.balanceOf(alice), stakeAmount);
-        assertEq(carrot.balanceOf(address(restaking)), stakeAmount);
+        assertEq(staker.balanceOf(alice), stakeAmount);
+        assertEq(carrot.balanceOf(address(staker)), stakeAmount);
         assertEq(carrot.balanceOf(alice), 900 ether);
     }
 
@@ -50,78 +50,75 @@ contract CarrotRestakingTest is UnitTestHelper {
         uint256 stakeAmount = 100 ether;
 
         vm.startPrank(alice);
-        carrot.approve(address(restaking), stakeAmount);
-        restaking.stake(stakeAmount);
+        carrot.approve(address(staker), stakeAmount);
+        staker.stake(stakeAmount);
 
-        assertEq(restaking.balanceOf(alice), stakeAmount);
-        assertEq(carrot.balanceOf(address(restaking)), stakeAmount);
+        assertEq(staker.balanceOf(alice), stakeAmount);
+        assertEq(carrot.balanceOf(address(staker)), stakeAmount);
         assertEq(carrot.balanceOf(alice), 900 ether);
 
         // Try to unstake before it's allowed
-        vm.expectRevert(ICarrotRestaking.UnstakingNotAllowed.selector);
-        restaking.unstake(stakeAmount, alice);
+        vm.expectRevert(ICarrotStaker.UnstakingNotAllowed.selector);
+        staker.unstake(stakeAmount, alice);
         vm.stopPrank();
 
         // Enable unstaking
         vm.prank(admin);
-        restaking.allowUnstake();
+        staker.allowUnstake();
 
         // Now unstake should work
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
-        emit ICarrotRestaking.Unstaked({ staker: alice, recipient: alice, amount: stakeAmount });
-        restaking.unstake(stakeAmount, alice);
+        emit ICarrotStaker.Unstaked({ staker: alice, recipient: alice, amount: stakeAmount });
+        staker.unstake(stakeAmount, alice);
         vm.stopPrank();
 
-        assertEq(restaking.balanceOf(alice), 0);
-        assertEq(carrot.balanceOf(address(restaking)), 0);
+        assertEq(staker.balanceOf(alice), 0);
+        assertEq(carrot.balanceOf(address(staker)), 0);
         assertEq(carrot.balanceOf(alice), 1000 ether);
     }
 
     function test_allowUnstake() public {
-        assertEq(restaking.isUnstakingAllowed(), false);
+        assertEq(staker.isUnstakingAllowed(), false);
 
         vm.prank(admin);
         vm.expectEmit(true, true, true, true);
-        emit ICarrotRestaking.UnstakingAllowed({ allowed: true });
-        restaking.allowUnstake();
+        emit ICarrotStaker.UnstakingAllowed({ allowed: true });
+        staker.allowUnstake();
 
-        assertEq(restaking.isUnstakingAllowed(), true);
+        assertEq(staker.isUnstakingAllowed(), true);
     }
 
     function test_transfer_reverts() public {
         uint256 stakeAmount = 100 ether;
 
         vm.startPrank(alice);
-        carrot.approve(address(restaking), stakeAmount);
-        restaking.stake(stakeAmount);
+        carrot.approve(address(staker), stakeAmount);
+        staker.stake(stakeAmount);
 
         // Should revert when transferring sCarrot
-        vm.expectRevert(ICarrotRestaking.TransferNotAllowed.selector);
-        restaking.transfer(bob, stakeAmount);
+        vm.expectRevert(ICarrotStaker.MethodNotAllowed.selector);
+        staker.transfer(bob, stakeAmount);
 
-        restaking.approve(bob, stakeAmount);
+        // Should revert even if approve method is called
+        vm.expectRevert(ICarrotStaker.MethodNotAllowed.selector);
+        staker.approve(bob, stakeAmount);
         vm.stopPrank();
-
-        vm.prank(bob);
-        // Should revert even if approved to someone else
-        vm.expectRevert(ICarrotRestaking.TransferNotAllowed.selector);
-        restaking.transferFrom(alice, bob, stakeAmount);
     }
 
     function testFuzz_stake(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1000 ether);
 
         vm.startPrank(alice);
-        carrot.approve(address(restaking), amount);
+        carrot.approve(address(staker), amount);
 
         vm.expectEmit(true, true, true, true);
-        emit ICarrotRestaking.Staked({ staker: alice, amount: amount });
-        restaking.stake(amount);
+        emit ICarrotStaker.Staked({ staker: alice, amount: amount });
+        staker.stake(amount);
         vm.stopPrank();
 
-        assertEq(restaking.balanceOf(alice), amount);
-        assertEq(carrot.balanceOf(address(restaking)), amount);
+        assertEq(staker.balanceOf(alice), amount);
+        assertEq(carrot.balanceOf(address(staker)), amount);
         assertEq(carrot.balanceOf(alice), 1000 ether - amount);
     }
 
@@ -129,22 +126,22 @@ contract CarrotRestakingTest is UnitTestHelper {
         vm.assume(amount > 0 && amount <= 1000 ether);
 
         vm.startPrank(alice);
-        carrot.approve(address(restaking), amount);
-        restaking.stake(amount);
+        carrot.approve(address(staker), amount);
+        staker.stake(amount);
         vm.stopPrank();
 
         // Enable unstaking
         vm.prank(admin);
-        restaking.allowUnstake();
+        staker.allowUnstake();
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
-        emit ICarrotRestaking.Unstaked({ staker: alice, recipient: alice, amount: amount });
-        restaking.unstake(amount, alice);
+        emit ICarrotStaker.Unstaked({ staker: alice, recipient: alice, amount: amount });
+        staker.unstake(amount, alice);
         vm.stopPrank();
 
-        assertEq(restaking.balanceOf(alice), 0);
-        assertEq(carrot.balanceOf(address(restaking)), 0);
+        assertEq(staker.balanceOf(alice), 0);
+        assertEq(carrot.balanceOf(address(staker)), 0);
         assertEq(carrot.balanceOf(alice), 1000 ether);
     }
 }

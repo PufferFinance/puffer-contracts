@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-interface ICarrotRestaking {
+interface ICarrotStaker {
     /**
      * @notice Emitted when a staker stakes CARROT tokens
      * @param staker The address of the staker who staked
@@ -18,20 +18,20 @@ interface ICarrotRestaking {
     event Unstaked(address indexed staker, address indexed recipient, uint256 amount);
 
     /**
-     * @notice Emitted when unstaking is enabled/disabled
+     * @notice Emitted when unstaking is enabled
      * @param allowed The new unstaking status
      */
     event UnstakingAllowed(bool allowed);
 
     /**
-     * @notice Error thrown when unstaking is not allowed
+     * @notice Error thrown when unstake is called but unstaking is not allowed
      */
     error UnstakingNotAllowed();
 
     /**
-     * @notice Error thrown when transferring CARROT tokens is not allowed
+     * @notice Error thrown when someone tries to approve or transfer sCarrot tokens
      */
-    error TransferNotAllowed();
+    error MethodNotAllowed();
 
     /**
      * @return Whether unstaking is allowed
@@ -53,6 +53,7 @@ interface ICarrotRestaking {
 
     /**
      * @notice Enables unstaking of CARROT tokens
+     * @notice Once enabled, the owner cannot disable unstaking (one-way switch)
      * @dev Can only be called by the owner
      */
     function allowUnstake() external;
