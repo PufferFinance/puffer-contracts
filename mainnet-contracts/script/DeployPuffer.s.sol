@@ -27,6 +27,7 @@ import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
+import { RegistryCoordinatorMock } from "../test/mocks/RegistryCoordinatorMock.sol";
 
 /**
  * @title DeployPuffer
@@ -63,6 +64,7 @@ contract DeployPuffer is BaseScript {
     address eigenSlasher;
     address treasury;
     address operationsMultisig;
+    address eigenDaRegistryCoordinator;
 
     function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
         public
@@ -79,6 +81,7 @@ contract DeployPuffer is BaseScript {
             rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
             operationsMultisig = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+            eigenDaRegistryCoordinator = 0x0BAAc79acD45A023E19345c352d8a7a83C4e5656;
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
@@ -87,6 +90,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = vm.envOr("EIGEN_SLASHER", address(1)); // @todo
             treasury = address(1);
             operationsMultisig = address(2);
+            eigenDaRegistryCoordinator = address(new RegistryCoordinatorMock());
         } else {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
@@ -137,7 +141,8 @@ contract DeployPuffer is BaseScript {
                 IDelegationManager(delegationManager),
                 ISlasher(eigenSlasher),
                 PufferModuleManager(payable(address(moduleManagerProxy))),
-                IRewardsCoordinator(rewardsCoordinator)
+                IRewardsCoordinator(rewardsCoordinator),
+                eigenDaRegistryCoordinator
             );
 
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
