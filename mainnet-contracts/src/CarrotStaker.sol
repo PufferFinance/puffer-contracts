@@ -25,6 +25,11 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
     bool public isUnstakingAllowed;
 
     /**
+     * @notice Timestamp after which anyone can enable unstaking
+     */
+    uint256 public constant UNSTAKING_OPEN_TIMESTAMP = 1746403200; // 5 May 2025 00:00:00 GMT
+
+    /**
      * @notice Initializes the contract
      * @param carrot The address of the CARROT token
      * @param initialOwner The address of the admin (IncentiveOps multisig)
@@ -57,9 +62,13 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
 
     /**
      * @inheritdoc ICarrotStaker
-     * @dev Can only be called by the owner
+     * @dev Can be called by the owner at any time, or by anyone after UNSTAKING_OPEN_TIMESTAMP
      */
-    function allowUnstake() external onlyOwner {
+    function allowUnstake() external {
+        require(
+            msg.sender == owner() || block.timestamp >= UNSTAKING_OPEN_TIMESTAMP,
+            "CarrotStaker: caller is not owner and timestamp not reached"
+        );
         isUnstakingAllowed = true;
         emit UnstakingAllowed(true);
     }
