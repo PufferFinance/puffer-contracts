@@ -61,7 +61,7 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
      */
     function allowUnstake() external onlyOwner {
         isUnstakingAllowed = true;
-        emit UnstakingAllowed({ allowed: true });
+        emit UnstakingAllowed(true);
     }
 
     /**
