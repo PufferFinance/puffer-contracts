@@ -34,6 +34,11 @@ interface ICarrotStaker {
     error MethodNotAllowed();
 
     /**
+     * @notice Error thrown when caller is not owner or unstaking is not open yet
+     */
+    error UnauthorizedUnstakeEnable();
+
+    /**
      * @return Whether unstaking is allowed
      */
     function isUnstakingAllowed() external view returns (bool);

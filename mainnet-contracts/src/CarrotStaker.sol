@@ -67,7 +67,7 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
     function allowUnstake() external {
         require(
             msg.sender == owner() || block.timestamp >= UNSTAKING_OPEN_TIMESTAMP,
-            "CarrotStaker: caller is not owner and timestamp not reached"
+            UnauthorizedUnstakeEnable()
         );
         isUnstakingAllowed = true;
         emit UnstakingAllowed(true);

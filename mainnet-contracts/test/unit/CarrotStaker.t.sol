@@ -83,7 +83,41 @@ contract CarrotStakerTest is UnitTestHelper {
 
         vm.prank(admin);
         vm.expectEmit(true, true, true, true);
-        emit ICarrotStaker.UnstakingAllowed({ allowed: true });
+        emit ICarrotStaker.UnstakingAllowed(true);
+        staker.allowUnstake();
+
+        assertEq(staker.isUnstakingAllowed(), true);
+    }
+
+    function test_allowUnstake_afterTimestamp() public {
+        assertEq(staker.isUnstakingAllowed(), false);
+
+        // Try to enable unstaking before timestamp as non-owner
+        vm.prank(alice);
+        vm.expectRevert(ICarrotStaker.UnauthorizedUnstakeEnable.selector);
+        staker.allowUnstake();
+
+        // Warp to after the unstaking open timestamp
+        vm.warp(staker.UNSTAKING_OPEN_TIMESTAMP() + 1);
+
+        // Now anyone should be able to enable unstaking
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit ICarrotStaker.UnstakingAllowed(true);
+        staker.allowUnstake();
+
+        assertEq(staker.isUnstakingAllowed(), true);
+    }
+
+    function test_allowUnstake_ownerBeforeTimestamp() public {
+        assertEq(staker.isUnstakingAllowed(), false);
+
+        // Owner should be able to enable unstaking before timestamp
+        vm.warp(staker.UNSTAKING_OPEN_TIMESTAMP() - 1 days);
+        
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit ICarrotStaker.UnstakingAllowed(true );
         staker.allowUnstake();
 
         assertEq(staker.isUnstakingAllowed(), true);
