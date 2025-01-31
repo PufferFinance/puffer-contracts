@@ -65,10 +65,7 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
      * @dev Can be called by the owner at any time, or by anyone after UNSTAKING_OPEN_TIMESTAMP
      */
     function allowUnstake() external {
-        require(
-            msg.sender == owner() || block.timestamp >= UNSTAKING_OPEN_TIMESTAMP,
-            UnauthorizedUnstakeEnable()
-        );
+        require(msg.sender == owner() || block.timestamp >= UNSTAKING_OPEN_TIMESTAMP, UnauthorizedUnstakeEnable());
         isUnstakingAllowed = true;
         emit UnstakingAllowed(true);
     }

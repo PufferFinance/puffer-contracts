@@ -114,10 +114,10 @@ contract CarrotStakerTest is UnitTestHelper {
 
         // Owner should be able to enable unstaking before timestamp
         vm.warp(staker.UNSTAKING_OPEN_TIMESTAMP() - 1 days);
-        
+
         vm.prank(admin);
         vm.expectEmit(true, true, true, true);
-        emit ICarrotStaker.UnstakingAllowed(true );
+        emit ICarrotStaker.UnstakingAllowed(true);
         staker.allowUnstake();
 
         assertEq(staker.isUnstakingAllowed(), true);
