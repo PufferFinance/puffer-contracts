@@ -243,7 +243,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         deal(address(pufferVault), recipient, pufEthAmount);
     }
 
-    function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
+    function _signPermit(bytes32, bytes32) internal view returns (Permit memory permit) {
         // TODO: Implement signing logic here
         permit = Permit({ amount: 10 ether, deadline: block.timestamp + 1 hours, v: 27, r: bytes32(0), s: bytes32(0) });
     }
