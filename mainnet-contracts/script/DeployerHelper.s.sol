@@ -58,8 +58,8 @@ abstract contract DeployerHelper is Script {
 
     function _getCARROT() internal view returns (address) {
         if (block.chainid == mainnet) {
-            // https://etherscan.io/address/0x25368c9c84F8809f52E9A8f847787e1FF3042E7c
-            return 0x25368c9c84F8809f52E9A8f847787e1FF3042E7c;
+            // https://etherscan.io/address/0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6
+            return 0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6;
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x82a44a6489936FFF841eecAF650Aa4D9708E4312
             return 0x82a44a6489936FFF841eecAF650Aa4D9708E4312;
