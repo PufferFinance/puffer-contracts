@@ -56,6 +56,18 @@ abstract contract DeployerHelper is Script {
         }
     }
 
+    function _getCARROT() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x25368c9c84F8809f52E9A8f847787e1FF3042E7c
+            return 0x25368c9c84F8809f52E9A8f847787e1FF3042E7c;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0x82a44a6489936FFF841eecAF650Aa4D9708E4312
+            return 0x82a44a6489936FFF841eecAF650Aa4D9708E4312;
+        }
+
+        revert("CARROT not available for this chain");
+    }
+
     function _getTreasury() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x946Ae7b21de3B0793Bb469e263517481B74A6950
