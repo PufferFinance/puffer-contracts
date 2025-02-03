@@ -27,7 +27,7 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
     /**
      * @notice Timestamp after which anyone can enable unstaking
      */
-    uint256 public constant UNSTAKING_OPEN_TIMESTAMP = 1746403200; // 5 May 2025 00:00:00 GMT
+    uint256 public constant UNSTAKING_OPEN_TIMESTAMP = 1745193600; // 21 April 2025 00:00:00 GMT
 
     /**
      * @notice Initializes the contract
