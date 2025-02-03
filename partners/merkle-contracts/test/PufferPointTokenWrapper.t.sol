@@ -25,7 +25,7 @@ contract PufferPointTokenWrapperTest is Test {
 
     function setUp() public {
         // Fork mainnet at specific block
-        vm.createSelectFork('mainnet', 21313975);
+        vm.createSelectFork("mainnet", 21313975);
 
         // Setup impersonated accounts
         vm.startPrank(governor);
@@ -43,7 +43,7 @@ contract PufferPointTokenWrapperTest is Test {
         // Deploy contracts
         angle = new MockToken("ANGLE", "ANGLE", 18);
         core = new MockCoreBorrow();
-        
+
         // Setup core roles
         core.toggleGuardian(guardian);
         core.toggleGovernor(governor);
@@ -57,10 +57,7 @@ contract PufferPointTokenWrapperTest is Test {
             IAccessControlManager(address(core)),
             distributionCreator
         );
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(implementation),
-            initData
-        );
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         tokenWrapper = PufferPointTokenWrapper(address(proxy));
 
         // Mint initial tokens
@@ -92,7 +89,7 @@ contract PufferPointTokenWrapperTest is Test {
         assertEq(nextClaimIndex, 0);
 
         // Test claiming before cliff
-        vm.warp(block.timestamp + CLIFF_DURATION/2);
+        vm.warp(block.timestamp + CLIFF_DURATION / 2);
         assertEq(tokenWrapper.claimable(bob), 0);
 
         // Test claiming after cliff
@@ -123,7 +120,7 @@ contract PufferPointTokenWrapperTest is Test {
         assertEq(nextClaimIndex, 1);
 
         // Third transfer to bob
-        vm.warp(block.timestamp + CLIFF_DURATION/2);
+        vm.warp(block.timestamp + CLIFF_DURATION / 2);
         assertEq(tokenWrapper.claimable(bob), 0);
         vm.startPrank(distributor);
         tokenWrapper.transfer(bob, 0.12 ether);
@@ -141,7 +138,7 @@ contract PufferPointTokenWrapperTest is Test {
         assertEq(vestings[2].unlockTimestamp, endTime3 + CLIFF_DURATION);
 
         // Test partial vesting completion
-        vm.warp(block.timestamp + CLIFF_DURATION * 3/4);
+        vm.warp(block.timestamp + CLIFF_DURATION * 3 / 4);
         assertEq(tokenWrapper.claimable(bob), 0.2 ether);
         tokenWrapper.claim(bob);
         assertEq(tokenWrapper.claimable(bob), 0);
@@ -180,7 +177,7 @@ contract PufferPointTokenWrapperTest is Test {
         vm.warp(block.timestamp + CLIFF_DURATION * 2);
         assertEq(tokenWrapper.claimable(bob), 0.22 ether);
         assertEq(tokenWrapper.claimable(alice), 0.05 ether);
-        
+
         tokenWrapper.claim(bob);
         assertEq(tokenWrapper.balanceOf(distributor), 0.03 ether);
         assertEq(angle.balanceOf(address(tokenWrapper)), 0.08 ether);
@@ -211,4 +208,4 @@ contract PufferPointTokenWrapperTest is Test {
         assertEq(angle.balanceOf(bob), 0.92 ether);
         assertEq(angle.balanceOf(alice), 999.05 ether);
     }
-} 
+}
