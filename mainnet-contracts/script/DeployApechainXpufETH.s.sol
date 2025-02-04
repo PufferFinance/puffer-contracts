@@ -22,7 +22,6 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  *
  *       forge script script/DeployApechainXpufETH.s.sol:DeployApechainXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
-
 contract DeployApechainXpufETH is BaseScript {
     address OPERATIONS_MULTISIG = 0x36E3881Ff855c264045c22179b6fBc01430F97EC;
     address COMMUNITY_MULTISIG = 0xE417FD3b116eb604De2E14715DaeB099154E597B;
