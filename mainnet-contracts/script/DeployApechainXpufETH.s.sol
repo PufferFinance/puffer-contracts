@@ -22,7 +22,6 @@ import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, PUBLIC_ROLE } from "./Roles.s
  *       forge script script/DeployApechainXpufETH.s.sol:DeployApechainXpufETH --rpc-url $RPC_URL --account puffer --broadcast
  */
 contract DeployApechainXpufETH is DeployerHelper {
-
     uint256 MINTING_LIMIT = 100 ether;
     uint256 BURNING_LIMIT = 100 ether;
 
@@ -61,7 +60,7 @@ contract DeployApechainXpufETH is DeployerHelper {
         // setup the limits for the bridge
         bytes memory setLimitsCalldata =
             abi.encodeWithSelector(xPufETH.setLimits.selector, _getEverclear(), MINTING_LIMIT, BURNING_LIMIT);
-        
+
         accessManager.execute(address(xPufETHProxy), setLimitsCalldata);
 
         // setup all access manager roles
@@ -74,9 +73,8 @@ contract DeployApechainXpufETH is DeployerHelper {
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, _getOPSMultisig(), 0);
 
-        calldatas[1] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, _getOPSMultisig(), 0
-        );
+        calldatas[1] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, _getOPSMultisig(), 0);
 
         bytes4[] memory daoSelectors = new bytes4[](2);
         daoSelectors[0] = xPufETH.setLockbox.selector;
