@@ -27,7 +27,7 @@ contract CarrotStakerTest is UnitTestHelper {
         assertEq(address(staker.CARROT()), address(carrot));
         assertEq(staker.owner(), admin);
         assertEq(staker.name(), "Staked Carrot");
-        assertEq(staker.symbol(), "sCarrot");
+        assertEq(staker.symbol(), "sCARROT");
     }
 
     function test_stake() public {

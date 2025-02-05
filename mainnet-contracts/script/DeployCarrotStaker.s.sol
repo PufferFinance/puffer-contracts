@@ -15,10 +15,8 @@ contract DeployCarrotStaker is DeployerHelper {
         vm.startBroadcast();
 
         address carrot = _getCARROT();
-        // TODO: get admin address // 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0 is dev wallet on holesky for testing
-        address admin = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
 
-        CarrotStaker staker = new CarrotStaker(address(carrot), admin);
+        CarrotStaker staker = new CarrotStaker(address(carrot), _getOPSMultisig());
 
         vm.label(address(staker), "CarrotStaker");
 
