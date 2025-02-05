@@ -3,8 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ICarrotStaker } from "./interface/ICarrotStaker.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { InvalidAddress } from "./Errors.sol";
 
 /**
  * @title CarrotStaker
@@ -13,7 +15,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice The owner cannot disable unstaking once enabled (one-way switch)
  * @custom:security-contact security@puffer.fi
  */
-contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
+contract CarrotStaker is ERC20, Ownable2Step, ICarrotStaker {
     /*
     * @notice The CARROT token contract
     */
@@ -34,7 +36,8 @@ contract CarrotStaker is ERC20, Ownable, ICarrotStaker {
      * @param carrot The address of the CARROT token
      * @param initialOwner The address of the admin (IncentiveOps multisig)
      */
-    constructor(address carrot, address initialOwner) ERC20("Staked Carrot", "sCarrot") Ownable(initialOwner) {
+    constructor(address carrot, address initialOwner) ERC20("Staked Carrot", "sCARROT") Ownable(initialOwner) {
+        require(carrot != address(0), InvalidAddress());
         CARROT = IERC20(carrot);
     }
 
