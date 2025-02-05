@@ -14,9 +14,7 @@ contract DeployCarrotStaker is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
-        address carrot = _getCARROT();
-
-        CarrotStaker staker = new CarrotStaker(address(carrot), _getOPSMultisig());
+        CarrotStaker staker = new CarrotStaker({ carrot: _getCARROT(), initialOwner: _getOPSMultisig() });
 
         vm.label(address(staker), "CarrotStaker");
 

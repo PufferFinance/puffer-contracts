@@ -37,7 +37,7 @@ contract CarrotStaker is ERC20, Ownable2Step, ICarrotStaker {
      * @param initialOwner The address of the admin (IncentiveOps multisig)
      */
     constructor(address carrot, address initialOwner) ERC20("Staked Carrot", "sCARROT") Ownable(initialOwner) {
-        require(initialOwner != address(0), InvalidAddress());
+        require(carrot != address(0), InvalidAddress());
         CARROT = IERC20(carrot);
     }
 

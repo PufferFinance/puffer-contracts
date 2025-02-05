@@ -5,6 +5,7 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { CarrotStaker } from "../../src/CarrotStaker.sol";
 import { ICarrotStaker } from "../../src/interface/ICarrotStaker.sol";
 import { CARROT } from "../../src/CARROT.sol";
+import { InvalidAddress } from "../../src/Errors.sol";
 
 contract CarrotStakerTest is UnitTestHelper {
     CarrotStaker public staker;
@@ -28,6 +29,11 @@ contract CarrotStakerTest is UnitTestHelper {
         assertEq(staker.owner(), admin);
         assertEq(staker.name(), "Staked Carrot");
         assertEq(staker.symbol(), "sCARROT");
+    }
+
+    function test_constructor_reverts_invalid_address() public {
+        vm.expectRevert(InvalidAddress.selector);
+        new CarrotStaker(address(0), address(1));
     }
 
     function test_stake() public {
