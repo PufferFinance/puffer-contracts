@@ -146,6 +146,11 @@ contract CarrotStakerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
+    function test_transferFrom_reverts() public {
+        vm.expectRevert(ICarrotStaker.MethodNotAllowed.selector);
+        staker.transferFrom(alice, bob, 100 ether);
+    }
+
     function testFuzz_stake(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 1000 ether);
 
