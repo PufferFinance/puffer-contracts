@@ -32,12 +32,7 @@ import { L1RewardManager } from "src/L1RewardManager.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
-import {
-    ROLE_ID_DAO,
-    ROLE_ID_OPERATIONS_PAYMASTER,
-    ROLE_ID_OPERATIONS_MULTISIG,
-    ROLE_ID_LOCKBOX
-} from "../../script/Roles.sol";
+import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
