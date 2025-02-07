@@ -527,4 +527,13 @@ abstract contract DeployerHelper is Script {
 
         revert("AeraVaultHooks not available for this chain");
     }
+
+    function _getRevenueDepositor() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x21660F4681aD5B6039007f7006b5ab0EF9dE7882
+            return 0x21660F4681aD5B6039007f7006b5ab0EF9dE7882;
+        }
+
+        revert("RevenueDepositor not available for this chain");
+    }
 }
