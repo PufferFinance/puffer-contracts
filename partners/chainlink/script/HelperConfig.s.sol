@@ -39,7 +39,8 @@ contract HelperConfig is Script {
             router: 0x8C8B88d827Fe14Df2bc6392947d513C86afD6977,
             rmnProxy: 0x3117f515D763652A32d3D6D447171ea7c9d57218,
             tokenAdminRegistry: 0x5ba21F6824400B91F232952CA6d7c8875C1755a4,
-            registryModuleOwnerCustom: 0x2c3D51c7B454cB045C8cEc92d2F9E717C7519106,
+            // Not updated by Chainlink; Later check directory for the correct address
+            registryModuleOwnerCustom: 0x1d0B6B3ef94dD6A68b7E16bd8B01fca9EA8e3d6E,
             link: 0x32D8F819C8080ae44375F8d383Ffd39FC642f3Ec,
             confirmations: 2,
             nativeCurrencySymbol: "ETH"
