@@ -32,6 +32,7 @@
             "mainnet-contracts",
             "utility-scripts",
             "l2-contracts",
+            "partners/chainlink",
             "partners/merkle-contracts"
         ],
         "nohoist": [

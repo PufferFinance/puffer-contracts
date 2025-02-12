@@ -1,0 +1,3 @@
+[submodule "partners/chainlink/lib/forge-std"]
+	path = partners/chainlink/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

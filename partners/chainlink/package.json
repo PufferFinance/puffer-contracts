@@ -1,0 +1,8 @@
+{
+    "name": "chainlink",
+    "version": "0.8.8",
+    "dependencies": {
+        "@chainlink/contracts-ccip": "^1.5.1-beta.0",
+        "forge-std": "github:foundry-rs/forge-std#v1.9.2"
+    }
+}
