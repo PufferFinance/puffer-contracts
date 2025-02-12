@@ -21,38 +21,15 @@ contract DeployToken is Script {
         string memory symbol = HelperUtils.getStringFromJson(vm, configPath, ".BnMToken.symbol");
         uint8 decimals = uint8(HelperUtils.getUintFromJson(vm, configPath, ".BnMToken.decimals"));
         uint256 maxSupply = HelperUtils.getUintFromJson(vm, configPath, ".BnMToken.maxSupply");
-        bool withGetCCIPAdmin = HelperUtils.getBoolFromJson(vm, configPath, ".BnMToken.withGetCCIPAdmin");
-        address ccipAdminAddress = HelperUtils.getAddressFromJson(vm, configPath, ".BnMToken.ccipAdminAddress");
 
         vm.startBroadcast();
 
-        address deployer = msg.sender;
         address tokenAddress;
 
-        // Check if the token uses getCCIPAdmin() function
-        if (withGetCCIPAdmin) {
-            // Deploy the token contract with CCIP admin functionality
-            // BurnMintERC677WithCCIPAdmin token = new BurnMintERC677WithCCIPAdmin(name, symbol, decimals, maxSupply);
-
-            // // If no CCIP admin address is specified, default to the deployer
-            // if (ccipAdminAddress == address(0)) {
-            //     ccipAdminAddress = deployer;
-            // }
-            // // Set the CCIP admin for the token
-            // token.setCCIPAdmin(ccipAdminAddress);
-
-            // tokenAddress = address(token);
-            // console.log("Deployed BurnMintERC677WithCCIPAdmin at:", tokenAddress);
-        } else {
-            // Deploy the standard token contract without CCIP admin functionality
-            BurnMintERC677 token = new BurnMintERC677(name, symbol, decimals, maxSupply);
-            tokenAddress = address(token);
-            console.log("Deployed BurnMintERC677 at:", tokenAddress);
-        }
-
-        // Grant mint and burn roles to the deployer address
-        BurnMintERC677(tokenAddress).grantMintAndBurnRoles(deployer);
-        console.log("Granted mint and burn roles to:", deployer);
+        // Deploy the standard token contract without CCIP admin functionality
+        BurnMintERC677 token = new BurnMintERC677(name, symbol, decimals, maxSupply);
+        tokenAddress = address(token);
+        console.log("Deployed BurnMintERC677 at:", tokenAddress);
 
         vm.stopBroadcast();
 
