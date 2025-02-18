@@ -248,6 +248,50 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @dev Restricted to Puffer Paymaster
+     */
+    function batchProvisionNode(
+        bytes[][] calldata guardianEnclaveSignatures,
+        bytes[] calldata validatorSignatures,
+        bytes32 depositRootHash
+    ) external {
+        if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+            revert InvalidDepositRootHash();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 numValidators = validatorSignatures.length;
+
+        for (uint256 i = 0; i < numValidators; ++i) {
+            (bytes32 moduleName, uint256 index) = getNextValidatorToProvision();
+
+            // Increment next validator to be provisioned index, panics if there is no validator for provisioning
+            $.nextToBeProvisioned[moduleName] = index + 1;
+            unchecked {
+                // Increment module selection index
+                ++$.moduleSelectIndex;
+            }
+
+            _validateSignaturesAndProvisionValidator({
+                $: $,
+                moduleName: moduleName,
+                index: index,
+                guardianEnclaveSignatures: guardianEnclaveSignatures[i],
+                validatorSignature: validatorSignatures[i]
+            });
+
+            // Update Node Operator info
+            address node = $.validators[moduleName][index].node;
+            --$.nodeOperatorInfo[node].pendingValidatorCount;
+            ++$.nodeOperatorInfo[node].activeValidatorCount;
+
+            // Mark the validator as active
+            $.validators[moduleName][index].status = Status.ACTIVE;
+        }
+    }
+
+    /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
