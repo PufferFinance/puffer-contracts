@@ -52,10 +52,6 @@ contract ApplyChainUpdatesMainnet is Script {
         require(remoteTokenAddress != address(0), "Invalid remote token address");
         require(remoteChainSelector != 0, "chainSelector is not defined for the remote chain");
 
-        vm.startBroadcast();
-
-        // Instantiate the local TokenPool contract
-        TokenPool poolContract = TokenPool(poolAddress);
 
         // Prepare chain update data for configuring cross-chain transfers
         TokenPool.ChainUpdate[] memory chainUpdates = new TokenPool.ChainUpdate[](1);
@@ -86,12 +82,13 @@ contract ApplyChainUpdatesMainnet is Script {
         uint64[] memory chainSelectorRemovals = new uint64[](0);
 
         // Log the calldata for the applyChainUpdates function, so it can be called manually by multisig on mainnet
-        console.log("Use this calldata to apply chain updates manually by multisig on mainnet (TokenPool address: ", poolAddress, "):");
+        console.log(
+            "Use this calldata to apply chain updates manually by multisig on mainnet (TokenPool address: ",
+            poolAddress,
+            "):"
+        );
         console.logBytes(
             abi.encodeWithSelector(TokenPool.applyChainUpdates.selector, chainSelectorRemovals, chainUpdates)
         );
-
-
-        vm.stopBroadcast();
     }
 }

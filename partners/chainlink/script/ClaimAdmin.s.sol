@@ -31,7 +31,7 @@ contract ClaimAdmin is Script {
 
         require(tokenAddress != address(0), "Invalid token address");
         require(registryModuleOwnerCustom != address(0), "Registry module owner custom is not defined for this network");
- (, address msgSender,) = vm.readCallers();
+        (, address msgSender,) = vm.readCallers();
         vm.startBroadcast();
 
         // Choose the appropriate admin claim method based on whether the token uses CCIP admin

@@ -62,11 +62,7 @@ contract HelperConfig is Script {
         return ethereumConfig;
     }
 
-    function getEthereumSepoliaConfig()
-        public
-        pure
-        returns (NetworkConfig memory)
-    {
+    function getEthereumSepoliaConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory ethereumSepoliaConfig = NetworkConfig({
             chainSelector: 16015286601757825753,
             router: 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59,
@@ -94,11 +90,7 @@ contract HelperConfig is Script {
         return arbitrumSepoliaConfig;
     }
 
-    function getAvalancheFujiConfig()
-        public
-        pure
-        returns (NetworkConfig memory)
-    {
+    function getAvalancheFujiConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory avalancheFujiConfig = NetworkConfig({
             chainSelector: 14767482510784806043,
             router: 0xF694E193200268f9a4868e4Aa017A0118C9a8177,
