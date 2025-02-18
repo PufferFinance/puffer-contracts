@@ -8,9 +8,7 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 library HelperUtils {
     using stdJson for string;
 
-    function getChainName(
-        uint256 chainId
-    ) internal pure returns (string memory) {
+    function getChainName(uint256 chainId) internal pure returns (string memory) {
         if (chainId == 43113) {
             return "avalancheFuji";
         } else if (chainId == 11155111) {
@@ -28,10 +26,11 @@ library HelperUtils {
         }
     }
 
-    function getNetworkConfig(
-        HelperConfig helperConfig,
-        uint256 chainId
-    ) internal pure returns (HelperConfig.NetworkConfig memory) {
+    function getNetworkConfig(HelperConfig helperConfig, uint256 chainId)
+        internal
+        pure
+        returns (HelperConfig.NetworkConfig memory)
+    {
         if (chainId == 43113) {
             return helperConfig.getAvalancheFujiConfig();
         } else if (chainId == 11155111) {
@@ -49,45 +48,27 @@ library HelperUtils {
         }
     }
 
-    function getAddressFromJson(
-        Vm vm,
-        string memory path,
-        string memory key
-    ) internal view returns (address) {
+    function getAddressFromJson(Vm vm, string memory path, string memory key) internal view returns (address) {
         string memory json = vm.readFile(path);
         return json.readAddress(key);
     }
 
-    function getBoolFromJson(
-        Vm vm,
-        string memory path,
-        string memory key
-    ) internal view returns (bool) {
+    function getBoolFromJson(Vm vm, string memory path, string memory key) internal view returns (bool) {
         string memory json = vm.readFile(path);
         return json.readBool(key);
     }
 
-    function getStringFromJson(
-        Vm vm,
-        string memory path,
-        string memory key
-    ) internal view returns (string memory) {
+    function getStringFromJson(Vm vm, string memory path, string memory key) internal view returns (string memory) {
         string memory json = vm.readFile(path);
         return json.readString(key);
     }
 
-    function getUintFromJson(
-        Vm vm,
-        string memory path,
-        string memory key
-    ) internal view returns (uint256) {
+    function getUintFromJson(Vm vm, string memory path, string memory key) internal view returns (uint256) {
         string memory json = vm.readFile(path);
         return json.readUint(key);
     }
 
-    function bytes32ToHexString(
-        bytes32 _bytes
-    ) internal pure returns (string memory) {
+    function bytes32ToHexString(bytes32 _bytes) internal pure returns (string memory) {
         bytes memory hexString = new bytes(64);
         bytes memory hexAlphabet = "0123456789abcdef";
         for (uint256 i = 0; i < 32; i++) {
