@@ -21,6 +21,8 @@ library HelperUtils {
             return "soneium";
         } else if (chainId == 1) {
             return "ethereum";
+        } else if (chainId == 42161) {
+            return "arbitrum";
         } else {
             revert("Unsupported chain ID");
         }
@@ -43,6 +45,8 @@ library HelperUtils {
             return helperConfig.getSoneiumConfig();
         } else if (chainId == 1) {
             return helperConfig.getEthereumConfig();
+        } else if (chainId == 42161) {
+            return helperConfig.getArbitrumConfig();
         } else {
             revert("Unsupported chain ID");
         }
