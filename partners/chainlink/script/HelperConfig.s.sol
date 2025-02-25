@@ -30,9 +30,24 @@ contract HelperConfig is Script {
             activeNetworkConfig = getSoneiumConfig();
         } else if (block.chainid == 1) {
             activeNetworkConfig = getEthereumConfig();
+        } else if (block.chainid == 42161) {
+            activeNetworkConfig = getArbitrumConfig();
         }
     }
 
+    function getArbitrumConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory arbitrumConfig = NetworkConfig({
+            chainSelector: 4949039107694359620,
+            router: 0x141fa059441E0ca23ce184B6A78bafD2A517DdE8 ,
+            rmnProxy: 0xC311a21e6fEf769344EB1515588B9d535662a145,
+            tokenAdminRegistry: 0x39AE1032cF4B334a1Ed41cdD0833bdD7c7E7751E ,
+            registryModuleOwnerCustom: 0x1f1df9f7fc939E71819F766978d8F900B816761b,
+            link: 0xf97f4df75117a78c1A5a0DBb814Af92458539FB4,
+            confirmations: 2,
+            nativeCurrencySymbol: "ETH"
+        });
+        return arbitrumConfig;
+    }
     function getSoneiumConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory soneiumConfig = NetworkConfig({
             chainSelector: 12505351618335765396,
