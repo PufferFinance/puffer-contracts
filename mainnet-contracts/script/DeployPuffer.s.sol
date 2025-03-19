@@ -27,6 +27,8 @@ import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { IRewardsCoordinator } from "../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
+import { PufferNoRestakingValidator } from "../src/PufferNoRestakingValidator.sol";
+import { MockWithdrawalRequestPredeploy } from "../test/mocks/MockWithdrawalRequestPredeploy.sol";
 
 /**
  * @title DeployPuffer
@@ -56,6 +58,9 @@ contract DeployPuffer is BaseScript {
     OperationsCoordinator operationsCoordinator;
     ValidatorTicketPricer validatorTicketPricer;
     AVSContractsRegistry aVSContractsRegistry;
+    PufferNoRestakingValidator noRestakingETHRecipient;
+    MockWithdrawalRequestPredeploy withdrawalRequestPredeploy;
+    ValidatorTicket validatorTicketImplementation;
 
     address eigenPodManager;
     address delegationManager;
@@ -101,7 +106,7 @@ contract DeployPuffer is BaseScript {
         validatorTicketPricer = new ValidatorTicketPricer(PufferOracleV2(oracle), address(accessManager));
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
-        ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
+        validatorTicketImplementation = new ValidatorTicket({
             guardianModule: payable(guardiansDeployment.guardianModule),
             treasury: payable(treasury),
             pufferVault: payable(pufferVault),
@@ -146,6 +151,15 @@ contract DeployPuffer is BaseScript {
 
             aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
 
+            withdrawalRequestPredeploy = new MockWithdrawalRequestPredeploy();
+
+            noRestakingETHRecipient = new PufferNoRestakingValidator({
+                protocol: address(proxy),
+                accessManager: address(accessManager),
+                beaconDepositContract: getStakingContract(),
+                withdrawalRequestPredeploy: address(withdrawalRequestPredeploy)
+            });
+
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultV2(payable(pufferVault)),
@@ -153,7 +167,8 @@ contract DeployPuffer is BaseScript {
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
                 oracle: IPufferOracleV2(oracle),
-                beaconDepositContract: getStakingContract()
+                beaconDepositContract: getStakingContract(),
+                noRestakingETHRecipient: noRestakingETHRecipient
             });
         }
 

@@ -14,6 +14,7 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
+import { PufferNoRestakingValidator } from "../src/PufferNoRestakingValidator.sol";
 
 /**
  * forge script script/DeployPufferProtocolImplementation.s.sol:DeployPufferProtocolImplementation --rpc-url=$RPC_URL --private-key $PK
@@ -29,7 +30,8 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
                 guardianModule: GuardianModule(payable(_getGuardianModule())),
                 moduleManager: _getPufferModuleManager(),
                 oracle: IPufferOracleV2(_getPufferOracle()),
-                beaconDepositContract: _getBeaconDepositContract()
+                beaconDepositContract: _getBeaconDepositContract(),
+                noRestakingETHRecipient: PufferNoRestakingValidator(payable(_getPufferNoRestakingETHRecipient()))
             })
         );
 

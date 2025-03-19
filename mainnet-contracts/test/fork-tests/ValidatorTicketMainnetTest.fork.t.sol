@@ -10,7 +10,6 @@ import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
 import { IPufferOracle } from "../../src/interface/IPufferOracle.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     using Math for uint256;
@@ -49,7 +48,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         vm.stopPrank();
     }
 
-    function test_initial_state() public {
+    function test_initial_state() public view {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), INITIAL_PROTOCOL_FEE);
@@ -184,7 +183,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 initialTreasuryBalance,
         uint256 initialGuardianBalance,
         uint256 initialVaultBalance
-    ) internal {
+    ) internal view {
         address treasury = validatorTicket.TREASURY();
         address guardianModule = validatorTicket.GUARDIAN_MODULE();
         address vault = validatorTicket.PUFFER_VAULT();

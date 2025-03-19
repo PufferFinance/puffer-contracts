@@ -178,6 +178,14 @@ interface IPufferProtocol {
     event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when the non-restaking validator is started
+     * These validators are ran by Puffer. Their balance is not restaked and there is no bond for them. They act as a way to get fast liquidity for the protocol.
+     * @param pubKey is the validator public key
+     * @param numberOfValidators is the number of validators started
+     */
+    event StartedNonRestakingValidator(bytes pubKey, uint256 numberOfValidators);
+
+    /**
      * @notice Returns validator information
      * @param moduleName is the staking Module
      * @param pufferModuleIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
