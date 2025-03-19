@@ -261,13 +261,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Start non restaking Validator by directly depositing into the Beacon Deposit Contract
      * @dev 1 Validator = 32 ETH = 1 VT per day
-     * If we run a validator that has 1024 ETH Balance, that Validator is consuming 32 VT per day, and we need to purchase 160 VT 
+     * If we run a validator that has 1024 ETH Balance, that Validator is consuming 32 VT per day, and we need to purchase 160 VT
      * for that validator and keep purchasing and redepositing the VT.
-     * 
+     *
      * msg.sender is the Node Operator in this case.
      * msg.sender is a trusted account.
      * restricted to Puffer
-     * 
+     *
      * @param pubKey The public key of the validator
      * @param signature The signature of the validator
      * @param numberOfValidators The number of validators to start
