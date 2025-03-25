@@ -14,6 +14,9 @@ uint64 constant ROLE_ID_OPERATIONS_COORDINATOR = 24;
 uint64 constant ROLE_ID_WITHDRAWAL_FINALIZER = 25;
 uint64 constant ROLE_ID_REVENUE_DEPOSITOR = 26;
 
+// Role for updating Operator AVS socket
+uint64 constant ROLE_ID_OPERATOR_AVS_SOCKET_UPDATER = 27;
+
 // Role assigned to validator ticket price setter
 uint64 constant ROLE_ID_VT_PRICER = 25;
 
