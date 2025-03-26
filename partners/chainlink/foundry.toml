@@ -14,6 +14,7 @@ remappings = [
 fs_permissions = [{ access = "read-write", path = "./" }]
 
 [etherscan]
+berachain = { key = "${BERASCAN_API_KEY}", chain = 80094, url = "https://api.berascan.com/api" }
 
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

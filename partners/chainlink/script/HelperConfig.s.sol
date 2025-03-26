@@ -32,9 +32,24 @@ contract HelperConfig is Script {
             activeNetworkConfig = getEthereumConfig();
         } else if (block.chainid == 42161) {
             activeNetworkConfig = getArbitrumConfig();
+        } else if (block.chainid == 80094) {
+            activeNetworkConfig = getBerachainConfig();
         }
     }
 
+    function getBerachainConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory berachainConfig = NetworkConfig({
+            chainSelector: 1294465214383781161,
+            router: 0x71a275704c283486fBa26dad3dd0DB78804426eF,
+            rmnProxy: 0x25943b8C30C47F4eF09CcF2BAE315EbaF591881d,
+            tokenAdminRegistry: 0x0944C3Fb1dB7D165336569221995B31cBE6c8A55 ,
+            registryModuleOwnerCustom:0x452b8543fdF4Da91FE914CC92c3B79632730cFC7 ,
+            link: 0x71052BAe71C25C78E37fD12E5ff1101A71d9018F,
+            confirmations: 2,
+            nativeCurrencySymbol: "BERA"
+        });
+        return berachainConfig;
+    }
     function getArbitrumConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory arbitrumConfig = NetworkConfig({
             chainSelector: 4949039107694359620,
