@@ -536,4 +536,13 @@ abstract contract DeployerHelper is Script {
 
         revert("RevenueDepositor not available for this chain");
     }
+
+    function _getOperatorAVSSocketUpdaterMultisig() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x9584b093A1cc050b5590A41DF88F46f18261b59f
+            return 0x9584b093A1cc050b5590A41DF88F46f18261b59f;
+        }
+
+        revert("OperatorAVSSocketUpdaterMultisig not available for this chain");
+    }
 }
