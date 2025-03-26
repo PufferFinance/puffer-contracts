@@ -23,6 +23,8 @@ library HelperUtils {
             return "ethereum";
         } else if (chainId == 42161) {
             return "arbitrum";
+        } else if (chainId == 80094) {
+            return "berachain";
         } else {
             revert("Unsupported chain ID");
         }
@@ -47,6 +49,8 @@ library HelperUtils {
             return helperConfig.getEthereumConfig();
         } else if (chainId == 42161) {
             return helperConfig.getArbitrumConfig();
+        } else if (chainId == 80094) {
+            return helperConfig.getBerachainConfig();
         } else {
             revert("Unsupported chain ID");
         }
