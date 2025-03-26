@@ -18,20 +18,12 @@ import { DeployerHelper } from "script/DeployerHelper.s.sol";
  * 2. ... 7 days later ...
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  *
- * forge script script/AccessManagerMigrations/07_GenerateOperatorAVSSocketRoleCalldata.s.sol:GenerateOperatorAVSSocketRoleCalldata
+ * forge script script/AccessManagerMigrations/07_GenerateOperatorAVSSocketRoleCalldata.s.sol:GenerateOperatorAVSSocketRoleCalldata --chain mainnet
  * ```
  */
 contract GenerateOperatorAVSSocketRoleCalldata is DeployerHelper {
     function run() public view returns (bytes memory) {
-        // Grant role to these addresses:
-        address[] memory addresses = new address[](5);
-        addresses[0] = 0xD70aa9d7280E6FEe89B86f53c0B2A363478D5e94;
-        addresses[1] = 0xf061f1FceFa32b3bbD5d18c5A623DB64bfBc107D;
-        addresses[2] = 0x6e7646a64324722c971F6a7C5807B65fB6cb7f59;
-        addresses[3] = 0x8F97Bf67182122D2f1745216a81724143db97E43;
-        addresses[4] = 0x1BfAec64abFddcC8c5dA134880d1E71f3E03689E;
-
-        bytes[] memory calldatas = new bytes[](addresses.length + 2);
+        bytes[] memory calldatas = new bytes[](3);
 
         bytes4[] memory operatorAVSSocketUpdaterSelectors = new bytes4[](1);
         operatorAVSSocketUpdaterSelectors[0] = PufferModuleManager.callUpdateOperatorAVSSocket.selector;
@@ -45,13 +37,12 @@ contract GenerateOperatorAVSSocketRoleCalldata is DeployerHelper {
             AccessManager.labelRole, (ROLE_ID_OPERATOR_AVS_SOCKET_UPDATER, "Operator AVS Socket Updater")
         );
 
-        for (uint256 i = 0; i < addresses.length; i++) {
-            calldatas[i + 2] =
-                abi.encodeCall(AccessManager.grantRole, (ROLE_ID_OPERATOR_AVS_SOCKET_UPDATER, addresses[i], 0));
-        }
+        // Grant role to multisig specific to the Operator AVS Socket Updater
+        calldatas[2] = abi.encodeCall(
+            AccessManager.grantRole, (ROLE_ID_OPERATOR_AVS_SOCKET_UPDATER, _getOperatorAVSSocketUpdaterMultisig(), 0)
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
-        console.log("PufferModuleManager:", _getPufferModuleManager());
         console.logBytes(encodedMulticall);
         return encodedMulticall;
     }
