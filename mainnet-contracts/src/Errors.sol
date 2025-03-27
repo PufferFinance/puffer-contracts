@@ -24,3 +24,9 @@ error InvalidAmount();
  * @dev Signature "0x90b8ec18"
  */
 error TransferFailed();
+
+/**
+ * @notice Thrown when the input is invalid
+ * @dev Signature "0xb4fa3fb3"
+ */
+error InvalidInput();

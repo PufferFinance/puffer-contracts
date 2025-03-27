@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
@@ -22,6 +22,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferVaultV2 } from "./PufferVaultV2.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
+import { PufferNoRestakingValidator } from "./PufferNoRestakingValidator.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 
 /**
@@ -56,49 +57,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
 
     /**
-     * @dev ETH Amount required to be deposited as a bond if the node operator uses SGX
-     */
-    uint256 internal constant _ENCLAVE_VALIDATOR_BOND = 1 ether;
-
-    /**
      * @dev ETH Amount required to be deposited as a bond if the node operator doesn't use SGX
      */
     uint256 internal constant _NO_ENCLAVE_VALIDATOR_BOND = 2 ether;
 
-    /**
-     * @dev Default "PUFFER_MODULE_0" module
-     */
-    bytes32 internal constant _PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     IGuardianModule public immutable override GUARDIAN_MODULE;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     ValidatorTicket public immutable override VALIDATOR_TICKET;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     PufferVaultV2 public immutable override PUFFER_VAULT;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     IPufferModuleManager public immutable override PUFFER_MODULE_MANAGER;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     IPufferOracleV2 public immutable override PUFFER_ORACLE;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
+    PufferNoRestakingValidator public immutable PUFFER_NO_RESTAKING_RECIPIENT;
 
     constructor(
         PufferVaultV2 pufferVault,
@@ -106,29 +75,30 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         address moduleManager,
         ValidatorTicket validatorTicket,
         IPufferOracleV2 oracle,
-        address beaconDepositContract
+        address beaconDepositContract,
+        PufferNoRestakingValidator noRestakingETHRecipient
     ) {
+        require(address(pufferVault) != address(0), InvalidAddress());
+        require(address(guardianModule) != address(0), InvalidAddress());
+        require(address(moduleManager) != address(0), InvalidAddress());
+        require(address(validatorTicket) != address(0), InvalidAddress());
+        require(address(oracle) != address(0), InvalidAddress());
+        require(address(beaconDepositContract) != address(0), InvalidAddress());
+        require(address(noRestakingETHRecipient) != address(0), InvalidAddress());
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV2(payable(address(pufferVault)));
         PUFFER_MODULE_MANAGER = IPufferModuleManager(moduleManager);
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
+        PUFFER_NO_RESTAKING_RECIPIENT = noRestakingETHRecipient;
         _disableInitializers();
     }
 
     /**
-     * @notice Initializes the contract
+     * @notice Receive function to allow the contract to receive ETH
      */
-    function initialize(address accessManager) external initializer {
-        if (address(accessManager) == address(0)) {
-            revert InvalidAddress();
-        }
-        __AccessManaged_init(accessManager);
-        _createPufferModule(_PUFFER_MODULE_0);
-        _changeMinimumVTAmount(28 ether); // 28 Validator Tickets
-        _setVTPenalty(10 ether); // 10 Validator Tickets
-    }
+    receive() external payable { }
 
     /**
      * @inheritdoc IPufferProtocol
@@ -198,7 +168,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        uint256 validatorBondInETH = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 validatorBondInETH = _NO_ENCLAVE_VALIDATOR_BOND;
 
         // If the node operator is paying for the bond in ETH and wants to transfer VT from their wallet, the ETH amount they send must be equal the bond amount
         if (vtPermit.amount != 0 && pufETHPermit.amount == 0 && msg.value != validatorBondInETH) {
@@ -289,6 +259,98 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @notice Start non restaking Validator by directly depositing into the Beacon Deposit Contract
+     * @dev 1 Validator = 32 ETH = 1 VT per day
+     * If we run a validator that has 1024 ETH Balance, that Validator is consuming 32 VT per day, and we need to purchase 160 VT
+     * for that validator and keep purchasing and redepositing the VT.
+     *
+     * msg.sender is the Node Operator in this case.
+     * msg.sender is a trusted account.
+     * restricted to Puffer
+     *
+     * @param pubKey The public key of the validator
+     * @param signature The signature of the validator
+     * @param numberOfValidators The number of validators to start
+     * @param depositDataRoot The deposit data root of the validator
+     */
+    function startNonRestakingValidator(
+        bytes calldata pubKey,
+        bytes calldata signature,
+        uint256 numberOfValidators,
+        bytes32 depositDataRoot
+    ) external payable restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // slither-disable-next-line unchecked-transfer
+        uint256 receivedVtAmount = VALIDATOR_TICKET.purchaseValidatorTicket{ value: msg.value }(address(this));
+
+        // We are required to deposit minimum 5 VT per validator
+        // If we are provisioning one validator with 5 * 32 ETH balance, we need to deposit 25 VT minimum
+        // That validator consumes 5 VT per day
+        // This 5 VT buffer is low because we are running the validators ourself, and they are the first ones to be exited in case of liquidity requirements
+        if (receivedVtAmount < (numberOfValidators * 5)) {
+            revert InvalidVTAmount();
+        }
+
+        // Pending validator count is always 0 for Puffer
+        $.nodeOperatorInfo[msg.sender].activeValidatorCount += SafeCast.toUint64(numberOfValidators);
+        $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(receivedVtAmount);
+
+        PUFFER_NO_RESTAKING_RECIPIENT.startNonRestakingValidators{ value: 32 ether * numberOfValidators }(
+            pubKey, signature, depositDataRoot
+        );
+
+        // This is meant to provision 0x02 validators. Those validators have a compounding balance.
+        // It is possible to deposit batches of 32 ETH for the validator.
+        for (uint256 i = 0; i < numberOfValidators; i++) {
+            PUFFER_ORACLE.provisionNode();
+        }
+
+        emit StartedNonRestakingValidator(pubKey, numberOfValidators);
+    }
+
+    /**
+     * @notice Return non restaked ETH from the PufferNoRestakingValidator to the PufferVault
+     * @param withdrawalAmount The amount of ETH to withdraw
+     * @param startEpoch The start epoch of the validator
+     * @param endEpoch The end epoch of the validator
+     * @param pufferNodeOperator The address of the Node Operator
+     * restricted to Puffer Paymaster
+     */
+    function returnNonRestakedETH(
+        uint256 withdrawalAmount,
+        uint256 startEpoch,
+        uint256 endEpoch,
+        address pufferNodeOperator
+    ) external restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 vtBurnAmount = _getVTBurnAmount({
+            node: pufferNodeOperator,
+            withdrawalAmount: withdrawalAmount,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch
+        });
+
+        // Decrease the active validator count for the Node Operator
+        --$.nodeOperatorInfo[pufferNodeOperator].activeValidatorCount;
+        // Decrease the VT balance for the Node Operator
+        $.nodeOperatorInfo[pufferNodeOperator].vtBalance -= SafeCast.toUint96(vtBurnAmount);
+
+        // Burn the VT from the Node Operator
+        VALIDATOR_TICKET.burn(vtBurnAmount);
+
+        // Calculate the number of validators that are being exited
+        uint256 validatorCount = withdrawalAmount / 32 ether;
+
+        // Return ETH to the PufferVault
+        PUFFER_NO_RESTAKING_RECIPIENT.exitValidators(validatorCount);
+
+        // Update the Oracle
+        PUFFER_ORACLE.exitValidators(validatorCount);
+    }
+
+    /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
@@ -323,7 +385,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
-            uint256 vtBurnAmount = _getVTBurnAmount($, bondWithdrawals[i].node, validatorInfos[i]);
+            uint256 vtBurnAmount = _getVTBurnAmount({
+                node: bondWithdrawals[i].node,
+                withdrawalAmount: validatorInfos[i].withdrawalAmount,
+                startEpoch: validatorInfos[i].startEpoch,
+                endEpoch: validatorInfos[i].endEpoch
+            });
 
             // Update the burnAmounts
             burnAmounts.pufETH += burnAmount;
@@ -626,7 +693,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes[] memory pubKeys = GUARDIAN_MODULE.getGuardiansEnclavePubkeys();
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
-        uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
+        uint256 validatorBond = _NO_ENCLAVE_VALIDATOR_BOND;
         uint256 ethAmount = validatorBond + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
 
         return (pubKeys, withdrawalCredentials, threshold, ethAmount);
@@ -807,15 +874,27 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
-    function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
+    function _getVTBurnAmount(address node, uint256 withdrawalAmount, uint256 startEpoch, uint256 endEpoch)
         internal
         view
         returns (uint256)
     {
-        uint256 validatedEpochs = validatorInfo.endEpoch - validatorInfo.startEpoch;
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // Because of the rounding down, we get the validator size.
+        // We measure the size in 32 ETH chunks
+        // This is related to Pectra (2048 ETH Validators, 0x02 validator credentials)
+        uint256 validatorSize = withdrawalAmount / 32 ether;
+
+        // If the validator size is 0, it rounded down, meaning 1 validator was active
+        if (validatorSize == 0) {
+            validatorSize = 1;
+        }
+
+        uint256 validatedEpochs = endEpoch - startEpoch;
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
-        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
-        uint256 vtBurnAmount = validatedEpochs * 4444444444444445;
+        // The formula is validatedEpochs * validatorSize * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
+        uint256 vtBurnAmount = validatedEpochs * validatorSize * 4444444444444445;
 
         uint256 minimumVTAmount = $.minimumVtAmount;
         uint256 nodeVTBalance = $.nodeOperatorInfo[node].vtBalance;

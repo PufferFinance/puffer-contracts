@@ -41,6 +41,27 @@ abstract contract DeployerHelper is Script {
         revert("PufferDeployer not available for this chain");
     }
 
+    function _getPufferNoRestakingETHRecipient() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            //@todo update
+            return address(55);
+        }
+
+        revert("PufferNoRestakingETHRecipient not available for this chain");
+    }
+
+    function _getWithdrawalRequestPredeploy() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x00000961Ef480Eb55e80D19ad83579A64c007002
+            return 0x00000961Ef480Eb55e80D19ad83579A64c007002;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0x00000961Ef480Eb55e80D19ad83579A64c007002
+            return 0x00000961Ef480Eb55e80D19ad83579A64c007002;
+        }
+
+        revert("WithdrawalRequestPredeploy not available for this chain");
+    }
+
     function _getDAO() internal view returns (address) {
         // ATM Ops multisig is the DAO
         return _getOPSMultisig();

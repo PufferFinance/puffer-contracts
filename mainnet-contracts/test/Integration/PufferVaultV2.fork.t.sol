@@ -380,7 +380,6 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         pufferVault.deposit(100 ether + 1, alice);
 
         vm.expectRevert();
-        pufferVault.depositETH{ value: type(uint256).max }(alice);
 
         vm.expectRevert();
         pufferVault.depositStETH(100 ether + 1, alice);

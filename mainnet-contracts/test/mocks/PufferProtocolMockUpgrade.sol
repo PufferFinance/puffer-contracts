@@ -6,20 +6,23 @@ import { GuardianModule } from "../../src/GuardianModule.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
+import { PufferNoRestakingValidator } from "../../src/PufferNoRestakingValidator.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
     function returnSomething() external pure returns (uint256) {
         return 1337;
     }
 
+    // Addresses can't be 0, you get weird compilation error
     constructor(address beacon)
         PufferProtocol(
-            PufferVaultV2(payable(address(0))),
-            GuardianModule(payable(address(0))),
-            address(0),
-            ValidatorTicket(address(0)),
-            IPufferOracleV2(address(0)),
-            address(0)
+            PufferVaultV2(payable(address(1))),
+            GuardianModule(payable(address(1))),
+            address(1),
+            ValidatorTicket(address(1)),
+            IPufferOracleV2(address(1)),
+            address(1),
+            PufferNoRestakingValidator(payable(address(1)))
         )
     { }
 }

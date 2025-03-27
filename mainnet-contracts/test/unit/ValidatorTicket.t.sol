@@ -8,18 +8,15 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
-import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER, ROLE_ID_VAULT_WITHDRAWER } from "../../script/Roles.sol";
+import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER } from "../../script/Roles.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import "forge-std/console.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
-
 contract ValidatorTicketTest is UnitTestHelper {
     using ECDSA for bytes32;
     using Address for address;
@@ -243,7 +240,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         deal(address(pufferVault), recipient, pufEthAmount);
     }
 
-    function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
+    function _signPermit() internal view returns (Permit memory permit) {
         // TODO: Implement signing logic here
         permit = Permit({ amount: 10 ether, deadline: block.timestamp + 1 hours, v: 27, r: bytes32(0), s: bytes32(0) });
     }
