@@ -125,16 +125,4 @@ interface IRestakingOperator {
      * @notice Sets the rewards claimer to `claimer` for the RestakingOperator
      */
     function callSetClaimerFor(address claimer) external;
-
-    /**
-     * @notice Sets the owner of the RestakingOperator
-     * @param operatorOwner is the address of the operator owner
-     * @dev Restricted to the PufferModuleManager
-     */
-    function setOperatorOwner(address operatorOwner) external;
-
-    /**
-     * @notice Returns the owner of the RestakingOperator
-     */
-    function operatorOwner() external view returns (address);
 }

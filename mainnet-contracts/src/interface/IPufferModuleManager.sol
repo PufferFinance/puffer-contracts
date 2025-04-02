@@ -232,14 +232,6 @@ interface IPufferModuleManager {
     function createNewPufferModule(bytes32 moduleName) external returns (IPufferModule module);
 
     /**
-     * @notice Sets the owner of a restaking operator
-     * @param operator is the address of the restaking operator
-     * @param operatorOwner is the address of the operator owner
-     * @dev Restricted to the DAO
-     */
-    function setOperatorOwner(address operator, address operatorOwner) external;
-
-    /**
      * @notice Sets proof Submitter on the Puffer Module
      * @param moduleName The name of the module
      * @param proofSubmitter The address of the proof submitter
