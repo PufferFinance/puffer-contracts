@@ -19,7 +19,8 @@ import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCallData.sol";
 import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
-import { GenerateRestakingOperatorCalldata } from "../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
+import { GenerateRestakingOperatorCalldata } from
+    "../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
 
 import {
     ROLE_ID_OPERATIONS_MULTISIG,

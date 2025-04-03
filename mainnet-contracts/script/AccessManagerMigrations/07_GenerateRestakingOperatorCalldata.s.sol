@@ -7,6 +7,7 @@ import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { ROLE_ID_DAO, ROLE_ID_REVENUE_DEPOSITOR, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
 import { PufferRevenueDepositor } from "../../src/PufferRevenueDepositor.sol";
 import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
+
 contract GenerateRestakingOperatorCalldata is Script {
     function run(address restakingOperatorController) public pure returns (bytes memory) {
         bytes[] memory calldatas = new bytes[](1);
