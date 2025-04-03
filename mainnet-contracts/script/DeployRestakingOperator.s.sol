@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { IPufferModuleManager } from "../src/interface/IPufferModuleManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
@@ -26,7 +25,8 @@ contract DeployRestakingOperator is DeployerHelper {
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
             slasher: ISlasher(_getEigenSlasher()),
             moduleManager: IPufferModuleManager(_getPufferModuleManager()),
-            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
+            restakingOperatorController: _getRestakingOperatorController()
         });
 
         vm.label(address(restakingOperatorImplementation), "RestakingOperatorImplementation");
