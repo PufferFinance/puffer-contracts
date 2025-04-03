@@ -3,15 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
-import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
-import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
-import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_VT_PRICER } from "../../script/Roles.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_VT_PRICER } from "../../script/Roles.sol";
 
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`

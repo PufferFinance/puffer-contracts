@@ -3,8 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "../struct/Validator.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
-import { IPufferModule } from "../interface/IPufferModule.sol";
-
+import { PufferModule } from "../PufferModule.sol";
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
  * @dev +-----------------------------------------------------------+
@@ -13,6 +12,7 @@ import { IPufferModule } from "../interface/IPufferModule.sol";
  *      |                                                           |
  *      +-----------------------------------------------------------+
  */
+
 struct ProtocolStorage {
     /**
      * @dev Module weights
@@ -44,7 +44,7 @@ struct ProtocolStorage {
      * @dev Mapping between module name and a module
      * Slot 5
      */
-    mapping(bytes32 moduleName => IPufferModule moduleAddress) modules;
+    mapping(bytes32 moduleName => PufferModule moduleAddress) modules;
     /**
      * @dev Mapping of Module name => Module limit
      * Slot 6

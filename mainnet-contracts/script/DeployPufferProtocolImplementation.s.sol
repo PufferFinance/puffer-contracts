@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
@@ -24,7 +24,7 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
 
         address protocolImplementation = address(
             new PufferProtocol({
-                pufferVault: PufferVaultV2(payable(_getPufferVault())),
+                pufferVault: PufferVaultV5(payable(_getPufferVault())),
                 validatorTicket: ValidatorTicket(address(_getValidatorTicket())),
                 guardianModule: GuardianModule(payable(_getGuardianModule())),
                 moduleManager: _getPufferModuleManager(),

@@ -13,7 +13,7 @@ import {
     ROLE_ID_OPERATIONS_MULTISIG
 } from "../../script/Roles.sol";
 import { PufferWithdrawalManager } from "../../src/PufferWithdrawalManager.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 
 contract Generate2StepWithdrawalsCalldata is Script {
     function run(
@@ -65,7 +65,7 @@ contract Generate2StepWithdrawalsCalldata is Script {
         calldatas[7] = abi.encodeWithSelector(AccessManager.labelRole.selector, ROLE_ID_PUFETH_BURNER, "pufETH Burner");
 
         bytes4[] memory vaultWithdrawerSelectors = new bytes4[](1);
-        vaultWithdrawerSelectors[0] = PufferVaultV2.transferETH.selector;
+        vaultWithdrawerSelectors[0] = PufferVaultV5.transferETH.selector;
 
         calldatas[8] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -75,7 +75,7 @@ contract Generate2StepWithdrawalsCalldata is Script {
         );
 
         bytes4[] memory burnerSelectors = new bytes4[](1);
-        burnerSelectors[0] = PufferVaultV2.burn.selector;
+        burnerSelectors[0] = PufferVaultV5.burn.selector;
 
         calldatas[9] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, burnerSelectors, ROLE_ID_PUFETH_BURNER
@@ -92,7 +92,7 @@ contract Generate2StepWithdrawalsCalldata is Script {
 
         // in AccessManager contract, one selector can be assigned to only one role for a target contract
         // see `AccessManager._setTargetFunctionRole` function
-        // creation of this new `ROLE_ID_VAULT_WITHDRAWER` and assigning the `PufferVaultV2.transferETH` selector to it
+        // creation of this new `ROLE_ID_VAULT_WITHDRAWER` and assigning the `PufferVaultV5.transferETH` selector to it
         // would revoke that ability from the original `ROLE_ID_PUFFER_PROTOCOL`
         // that's why we need to grant the `ROLE_ID_VAULT_WITHDRAWER` and `ROLE_ID_PUFETH_BURNER` to the pufferProtocolProxy
         calldatas[12] =

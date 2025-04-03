@@ -6,7 +6,7 @@ import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { PufferWithdrawalManager } from "../src/PufferWithdrawalManager.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
-import { PufferVaultV3 } from "../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { Generate2StepWithdrawalsCalldata } from "./AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
 
 /**
@@ -24,7 +24,7 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
         vm.startBroadcast();
 
         PufferWithdrawalManager withdrawalManagerImpl =
-            ((new PufferWithdrawalManager(BATCH_SIZE, PufferVaultV3(payable(_getPufferVault())), IWETH(_getWETH()))));
+            ((new PufferWithdrawalManager(BATCH_SIZE, PufferVaultV5(payable(_getPufferVault())), IWETH(_getWETH()))));
 
         withdrawalManager = PufferWithdrawalManager(
             (

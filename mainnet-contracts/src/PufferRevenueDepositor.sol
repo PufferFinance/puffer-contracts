@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV4 } from "./PufferVaultV4.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -32,34 +32,20 @@ contract PufferRevenueDepositor is
      * @notice The maximum rewards distribution window.
      */
     uint256 private constant _MAXIMUM_DISTRIBUTION_WINDOW = 7 days;
-
-    /**
-     * @notice PufferVault contract.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    PufferVaultV4 public immutable PUFFER_VAULT;
-
-    /**
-     * @notice AeraVault contract.
-     */
+    PufferVaultV5 public immutable PUFFER_VAULT;
     IAeraVault public immutable AERA_VAULT;
-
-    /**
-     * @notice WETH contract.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IWETH public immutable WETH;
 
     /**
      * @param vault PufferVault contract
      * @param weth WETH contract
-     * @custom:oz-upgrades-unsafe-allow constructor
+     * @param aeraVault AeraVault contract
      */
     constructor(address vault, address weth, address aeraVault) {
         if (vault == address(0) || weth == address(0) || aeraVault == address(0)) {
             revert InvalidAddress();
         }
-        PUFFER_VAULT = PufferVaultV4(payable(vault));
+        PUFFER_VAULT = PufferVaultV5(payable(vault));
         AERA_VAULT = IAeraVault(aeraVault);
         WETH = IWETH(weth);
         _disableInitializers();

@@ -6,6 +6,8 @@ import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.s
 import { IWETH } from "src/interface/IWETH.sol";
 import { ROLE_ID_REVENUE_DEPOSITOR } from "../../script/Roles.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAeraVault, AssetValue } from "src/interface/Other/IAeraVault.sol";
 
 contract AeraVaultMock {
     IWETH public immutable WETH;
@@ -31,12 +33,15 @@ contract AeraVaultMock {
  * forge test --mc PufferRevenueDepositorTest -vvvv
  */
 contract PufferRevenueDepositorTest is UnitTestHelper {
-    AeraVaultMock public aeraVault;
+    IAeraVault public aeraVault;
+    AeraVaultMock public aeraVaultMock;
 
     function setUp() public override {
         super.setUp();
 
-        aeraVault = new AeraVaultMock(address(weth), address(revenueDepositor));
+        aeraVault = IAeraVault(revenueDepositor.AERA_VAULT());
+        // Deposit 1000 WETH to the AeraVault
+        aeraVaultMock = new AeraVaultMock(address(weth), address(revenueDepositor));
         // Deposit 1000 WETH to the AeraVault
         deal(address(weth), address(aeraVault), 1000 ether);
 
@@ -46,9 +51,7 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
     }
 
     function test_setup() public view {
-        assertEq(address(aeraVault.WETH()), address(weth), "WETH should be the same");
         assertEq(weth.balanceOf(address(aeraVault)), 1000 ether, "AeraVault should have 1000 WETH");
-        assertEq(aeraVault.REVENUE_DEPOSITOR(), address(revenueDepositor), "Revenue depositor should be the same");
     }
 
     /**
@@ -64,6 +67,12 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
     function test_sanity() public view {
         assertTrue(address(revenueDepositor.WETH()) != address(0), "WETH should not be 0");
         assertTrue(address(revenueDepositor.PUFFER_VAULT()) != address(0), "PufferVault should not be 0");
+    }
+
+    function test_withdrawAndDeposit() public withRewardsDistributionWindow(1 days) {
+        vm.deal(address(aeraVault), 10 ether);
+        vm.startPrank(OPERATIONS_MULTISIG);
+        revenueDepositor.withdrawAndDeposit();
     }
 
     function test_setRewardsDistributionWindow() public {
@@ -196,6 +205,7 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
 
     // Withdraw 100 WETH from AeraVault and deposit it into PufferVault in 1 tx
     function test_callTargets() public {
+        deal(address(weth), address(aeraVault), 100 ether);
         vm.startPrank(OPERATIONS_MULTISIG);
 
         address[] memory targets = new address[](2);
@@ -203,7 +213,9 @@ contract PufferRevenueDepositorTest is UnitTestHelper {
         targets[1] = address(revenueDepositor);
 
         bytes[] memory data = new bytes[](2);
-        data[0] = abi.encodeCall(aeraVault.withdraw, (100 ether));
+        AssetValue[] memory amounts = new AssetValue[](1);
+        amounts[0] = AssetValue({ asset: IERC20(address(weth)), value: 100 ether });
+        data[0] = abi.encodeCall(IAeraVault.withdraw, (amounts));
         data[1] = abi.encodeCall(revenueDepositor.depositRevenue, ());
 
         vm.expectEmit(true, true, true, true);
