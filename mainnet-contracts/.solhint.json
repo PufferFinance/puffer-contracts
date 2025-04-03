@@ -6,7 +6,6 @@
     "compiler-version": ["error", ">=0.8.0 <0.9.0"],
     "contract-name-camelcase": "off",
     "const-name-snakecase": "off",
-    "custom-errors": "error",
     "func-name-mixedcase": "off",
     "func-visibility": ["error", { "ignoreConstructors": true }],
     "max-line-length": ["error", 123],
@@ -21,6 +20,7 @@
     "func-param-name-mixedcase": "error",
     "modifier-name-mixedcase": "error",
     "code-complexity": "error",
-    "explicit-types": "error"
+    "explicit-types": "error",
+    "gas-custom-errors": "off"
   }
 }

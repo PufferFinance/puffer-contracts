@@ -9,7 +9,7 @@ import { IPufferWithdrawalManager } from "../../src/interface/IPufferWithdrawalM
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
 
 contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
@@ -74,7 +74,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         // Upgrade to the implementation that has the overridden `markWithdrawalRequest` modifier
         address newImpl = address(
             new PufferWithdrawalManagerTests(
-                batchSize, PufferVaultV3(payable(address(pufferVault))), IWETH(address(_WETH))
+                batchSize, PufferVaultV5(payable(address(pufferVault))), IWETH(address(_WETH))
             )
         );
         withdrawalManager.upgradeToAndCall(newImpl, "");

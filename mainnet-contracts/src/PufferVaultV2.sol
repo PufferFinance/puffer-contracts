@@ -4,16 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVault } from "./PufferVault.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
-import { IEigenLayer } from "./interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "./interface/EigenLayer/IStrategy.sol";
-import { IDelegationManager } from "./interface/EigenLayer/IDelegationManager.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";
 import { IPufferVaultV2 } from "./interface/IPufferVaultV2.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
@@ -28,57 +24,16 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
-
-    /**
-     * @dev The Wrapped Ethereum ERC20 token
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IWETH internal immutable _WETH;
-
-    /**
-     * @dev The PufferOracle contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
     IPufferOracle public immutable PUFFER_ORACLE;
 
-    /**
-     * @notice Delegation manager from EigenLayer
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    IDelegationManager internal immutable _DELEGATION_MANAGER;
-
-    /**
-     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    address private constant _WHALE_PUFFER = 0xe6957D9b493b2f2634c8898AC09dc14Cb24BE222;
-
-    /**
-     * @dev Two wallets that transferred pufETH to the PufferVault by mistake.
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
-     */
-    address private constant _PUFFER = 0x34c912C13De7953530DBE4c32F597d1bAF77889b;
-
-    /**
-     * @custom:oz-upgrades-unsafe-allow constructor
-     */
-    constructor(
-        IStETH stETH,
-        IWETH weth,
-        ILidoWithdrawalQueue lidoWithdrawalQueue,
-        IStrategy stETHStrategy,
-        IEigenLayer eigenStrategyManager,
-        IPufferOracle oracle,
-        IDelegationManager delegationManager
-    ) PufferVault(stETH, lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager) {
+    constructor(IStETH stETH, IWETH weth, ILidoWithdrawalQueue lidoWithdrawalQueue, IPufferOracle oracle)
+        PufferVault(stETH, lidoWithdrawalQueue)
+    {
         _WETH = weth;
         PUFFER_ORACLE = oracle;
-        _DELEGATION_MANAGER = delegationManager;
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        // This redundant code is for the Echidna fuzz testing
-        _setDailyWithdrawalLimit(100 ether);
-        _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
         _disableInitializers();
     }
@@ -93,22 +48,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         // In this initialization, we swap out the underlying stETH with WETH
         ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
         erc4626Storage._asset = _WETH;
-        _setDailyWithdrawalLimit(100 ether);
-        _updateDailyWithdrawals(0);
         _setExitFeeBasisPoints(100); // 1%
-
-        // Return pufETH to Puffers
-        // If statement is necessary because we don't wan to change existing tests that rely on the original behavior
-        if (balanceOf(address(this)) > 299 ether) {
-            // Must do this.transfer (external call) because ERC20Upgradeable uses Context::_msgSender() (the msg.sender of the .initialize external call)
-
-            // https://etherscan.io/tx/0x2e02a00dbc8ba48cd65a6802d174c210d0c4869806a564cca0088e42d382b2ff
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(_WHALE_PUFFER, 299.864287100672938618 ether);
-            // https://etherscan.io/tx/0x7d309dc26cb3f0226e480e0d4c598707faee59d58bfc68bedb75cf5055ac274a
-            // slither-disable-next-line unchecked-transfer
-            this.transfer(_PUFFER, 25426113577506618);
-        }
     }
 
     /**
@@ -134,8 +74,8 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         assembly {
             callValue := callvalue()
         }
-        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + getELBackingEthAmount()
-            + _WETH.balanceOf(address(this)) + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
+        return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + _WETH.balanceOf(address(this))
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount();
     }
 
     /**
@@ -160,8 +100,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
-
-        _updateDailyWithdrawals(assets);
 
         _wrapETH(assets);
 
@@ -195,8 +133,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         }
 
         uint256 assets = previewRedeem(shares);
-
-        _updateDailyWithdrawals(assets);
 
         _wrapETH(assets);
 
@@ -253,7 +189,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function deposit(uint256 assets, address receiver)
@@ -268,7 +203,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @inheritdoc PufferVault
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function mint(uint256 shares, address receiver) public virtual override markDeposit restricted returns (uint256) {
@@ -284,7 +218,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     function initiateETHWithdrawalsFromLido(uint256[] calldata amounts)
         external
         virtual
-        override
         restricted
         returns (uint256[] memory requestIds)
     {
@@ -313,7 +246,7 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
      * @dev Restricted to Operations Multisig
      * @param requestIds An array of request IDs for the withdrawals
      */
-    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual override restricted {
+    function claimWithdrawalsFromLido(uint256[] calldata requestIds) external virtual restricted {
         require(requestIds.length != 0);
         VaultStorage storage $ = _getPufferVaultStorage();
 
@@ -388,63 +321,11 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Sets a new daily withdrawal limit
-     * @dev Restricted to the DAO
-     * @param newLimit The new daily limit to be set
-     */
-    function setDailyWithdrawalLimit(uint96 newLimit) external restricted {
-        _setDailyWithdrawalLimit(newLimit);
-        _resetDailyWithdrawals();
-    }
-
-    /**
      * @param newExitFeeBasisPoints is the new exit fee basis points
      * @dev Restricted to the DAO
      */
     function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
         _setExitFeeBasisPoints(newExitFeeBasisPoints);
-    }
-
-    /**
-     * @inheritdoc IPufferVaultV2
-     */
-    function getRemainingAssetsDailyWithdrawalLimit() public view virtual returns (uint256) {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        uint96 dailyAssetsWithdrawalLimit = $.dailyAssetsWithdrawalLimit;
-        uint96 assetsWithdrawnToday = $.assetsWithdrawnToday;
-
-        // If we are in a new day, return the full daily limit
-        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            return dailyAssetsWithdrawalLimit;
-        }
-
-        return dailyAssetsWithdrawalLimit - assetsWithdrawnToday;
-    }
-
-    /**
-     * @notice Calculates the maximum amount of assets (WETH) that can be withdrawn by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit and the `owner`'s balance.
-     * See {IERC4626-maxWithdraw}
-     * @param owner The address of the owner for which the maximum withdrawal amount is calculated.
-     * @return maxAssets The maximum amount of assets that can be withdrawn by the `owner`.
-     */
-    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
-        uint256 remainingAssets = getRemainingAssetsDailyWithdrawalLimit();
-        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
-        return remainingAssets < maxUserAssets ? remainingAssets : maxUserAssets;
-    }
-
-    /**
-     * @notice Calculates the maximum amount of shares (pufETH) that can be redeemed by the `owner`.
-     * @dev This function considers both the remaining daily withdrawal limit in terms of assets and converts it to shares, and the `owner`'s share balance.
-     * See {IERC4626-maxRedeem}
-     * @param owner The address of the owner for which the maximum redeemable shares are calculated.
-     * @return maxShares The maximum amount of shares that can be redeemed by the `owner`.
-     */
-    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
-        uint256 remainingShares = previewWithdraw(getRemainingAssetsDailyWithdrawalLimit());
-        uint256 userShares = balanceOf(owner);
-        return remainingShares < userShares ? remainingShares : userShares;
     }
 
     /**
@@ -473,84 +354,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
     }
 
     /**
-     * @notice Initiates Withdrawal from EigenLayer
-     * Restricted access to Puffer Operations multisig
-     */
-    function initiateStETHWithdrawalFromEigenLayer(uint256 sharesToWithdraw) external virtual override restricted {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        IDelegationManager.QueuedWithdrawalParams[] memory withdrawals =
-            new IDelegationManager.QueuedWithdrawalParams[](1);
-
-        IStrategy[] memory strategies = new IStrategy[](1);
-        strategies[0] = IStrategy(_EIGEN_STETH_STRATEGY);
-
-        uint256[] memory shares = new uint256[](1);
-        shares[0] = sharesToWithdraw;
-
-        $.eigenLayerPendingWithdrawalSharesAmount += sharesToWithdraw;
-
-        withdrawals[0] = IDelegationManager.QueuedWithdrawalParams({
-            strategies: strategies,
-            shares: shares,
-            withdrawer: address(this)
-        });
-
-        bytes32 withdrawalRoot = _DELEGATION_MANAGER.queueWithdrawals(withdrawals)[0];
-
-        $.eigenLayerWithdrawals.add(withdrawalRoot);
-    }
-
-    /**
-     * @notice Claims the queued withdrawal from EigenLayer
-     * Restricted access to Puffer Operations multisig
-     */
-    function claimWithdrawalFromEigenLayerM2(
-        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
-        IERC20[] calldata tokens,
-        uint256 middlewareTimesIndex,
-        uint256 nonce
-    ) external virtual restricted {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        IDelegationManager.Withdrawal memory withdrawal = IDelegationManager.Withdrawal({
-            staker: address(this),
-            delegatedTo: address(0),
-            withdrawer: address(this),
-            nonce: nonce,
-            startBlock: queuedWithdrawal.withdrawalStartBlock,
-            strategies: queuedWithdrawal.strategies,
-            shares: queuedWithdrawal.shares
-        });
-
-        bytes32 withdrawalRoot = _DELEGATION_MANAGER.calculateWithdrawalRoot(withdrawal);
-        bool isValidWithdrawal = $.eigenLayerWithdrawals.remove(withdrawalRoot);
-        if (!isValidWithdrawal) {
-            revert InvalidWithdrawal();
-        }
-
-        // nosemgrep
-        $.eigenLayerPendingWithdrawalSharesAmount -= queuedWithdrawal.shares[0];
-
-        _DELEGATION_MANAGER.completeQueuedWithdrawal({
-            withdrawal: withdrawal,
-            tokens: tokens,
-            middlewareTimesIndex: middlewareTimesIndex,
-            receiveAsTokens: true
-        });
-    }
-
-    // Not compatible anymore
-    function claimWithdrawalFromEigenLayer(
-        IEigenLayer.QueuedWithdrawal calldata queuedWithdrawal,
-        IERC20[] calldata tokens,
-        uint256 middlewareTimesIndex
-    ) external override { }
-
-    // Not needed anymore
-    function depositToEigenLayer(uint256 amount) external override { }
-
-    /**
      * @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
      * Used in {IERC4626-withdraw}.
      */
@@ -576,31 +379,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
         if (wethBalance < assets) {
             _WETH.deposit{ value: assets - wethBalance }();
         }
-    }
-
-    /**
-     * @notice Updates the amount of assets (WETH) withdrawn today
-     * @param withdrawalAmount is the assets (WETH) amount
-     */
-    function _updateDailyWithdrawals(uint256 withdrawalAmount) internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-
-        // Check if it's a new day to reset the withdrawal count
-        if ($.lastWithdrawalDay < block.timestamp / 1 days) {
-            _resetDailyWithdrawals();
-        }
-        $.assetsWithdrawnToday += uint96(withdrawalAmount);
-        emit AssetsWithdrawnToday($.assetsWithdrawnToday);
-    }
-
-    /**
-     * @notice Updates the maximum amount of assets (WETH) that can be withdrawn daily
-     * @param newLimit is the assets (WETH) amount
-     */
-    function _setDailyWithdrawalLimit(uint96 newLimit) internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        emit DailyWithdrawalLimitSet($.dailyAssetsWithdrawalLimit, newLimit);
-        $.dailyAssetsWithdrawalLimit = newLimit;
     }
 
     /**
@@ -635,13 +413,6 @@ contract PufferVaultV2 is PufferVault, IPufferVaultV2 {
             }
         }
         _;
-    }
-
-    function _resetDailyWithdrawals() internal virtual {
-        VaultStorage storage $ = _getPufferVaultStorage();
-        $.lastWithdrawalDay = uint64(block.timestamp / 1 days);
-        $.assetsWithdrawnToday = 0;
-        emit DailyWithdrawalLimitReset();
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

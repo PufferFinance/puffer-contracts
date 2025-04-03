@@ -64,7 +64,7 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, bridgingDeployment, pufferOracle, revenueDepositor);
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
 
         // `anvil` in the terminal
         if (_localAnvil) {
