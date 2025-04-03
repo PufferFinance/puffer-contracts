@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { PufferVaultV3 } from "./PufferVaultV3.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IPufferWithdrawalManager } from "./interface/IPufferWithdrawalManager.sol";
 import { PufferWithdrawalManagerStorage } from "./PufferWithdrawalManagerStorage.sol";
@@ -32,32 +32,28 @@ contract PufferWithdrawalManager is
 
     /**
      * @notice The batch size for the withdrawal manager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    PufferVaultV3 public immutable PUFFER_VAULT;
+    PufferVaultV5 public immutable PUFFER_VAULT;
     /**
      * @notice The minimum withdrawal amount
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     uint256 public constant MIN_WITHDRAWAL_AMOUNT = 0.01 ether;
     /**
      * @notice The WETH contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IWETH public immutable WETH;
     /**
      * @notice The batch size for the withdrawal manager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     uint256 public immutable BATCH_SIZE;
 
     /**
      * @dev Constructor to initialize the PufferWithdrawalManager
-     * @param pufferVault Address of the PufferVaultV3 contract
+     * @param batchSize The batch size for the withdrawal manager
+     * @param pufferVault Address of the PufferVaultV5 contract
      * @param weth Address of the WETH contract
-     * @custom:oz-upgrades-unsafe-allow constructor
      */
-    constructor(uint256 batchSize, PufferVaultV3 pufferVault, IWETH weth) {
+    constructor(uint256 batchSize, PufferVaultV5 pufferVault, IWETH weth) {
         BATCH_SIZE = batchSize;
         PUFFER_VAULT = pufferVault;
         WETH = weth;

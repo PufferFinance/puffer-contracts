@@ -56,7 +56,7 @@ contract WETH9 is IWETH {
     }
 
     function transferFrom(address src, address dst, uint256 wad) public returns (bool) {
-        require(balanceOf[src] >= wad, "?????");
+        require(balanceOf[src] >= wad, "sender does not have enough balance");
 
         if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= wad);

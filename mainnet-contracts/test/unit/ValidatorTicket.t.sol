@@ -8,11 +8,8 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracle } from "../../src/PufferOracle.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
-import { IPufferVault } from "../../src/interface/IPufferVault.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER, ROLE_ID_VAULT_WITHDRAWER } from "../../script/Roles.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
+import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER } from "../../script/Roles.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import "forge-std/console.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -44,7 +41,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         console.log("validatorTicket", address(validatorTicket));
 
         bytes4[] memory burnerSelectors = new bytes4[](1);
-        burnerSelectors[0] = PufferVaultV2.burn.selector;
+        burnerSelectors[0] = PufferVaultV5.burn.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), burnerSelectors, ROLE_ID_PUFETH_BURNER);
 
         bytes4[] memory validatorTicketPublicSelectors = new bytes4[](3);
@@ -147,6 +144,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         validatorTicket.purchaseValidatorTicket{ value: 0 }(address(this));
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_overflow_protocol_fee_rate() public {
         vm.startPrank(DAO);
         vm.expectRevert();
@@ -241,11 +239,6 @@ contract ValidatorTicketTest is UnitTestHelper {
 
     function _givePufETH(uint256 pufEthAmount, address recipient) internal {
         deal(address(pufferVault), recipient, pufEthAmount);
-    }
-
-    function _signPermit(bytes32 structHash, bytes32 domainSeparator) internal view returns (Permit memory permit) {
-        // TODO: Implement signing logic here
-        permit = Permit({ amount: 10 ether, deadline: block.timestamp + 1 hours, v: 27, r: bytes32(0), s: bytes32(0) });
     }
 
     function test_funds_splitting_with_pufETH() public {

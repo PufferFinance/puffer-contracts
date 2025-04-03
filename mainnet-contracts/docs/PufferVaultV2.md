@@ -37,7 +37,7 @@ The PufferVault maintains the addresses of important contracts related to EigenL
 
 * `uint256 lidoLockedETH`: The amount of ETH the Puffer Protocol has locked inside of Lido
 * `uint256 eigenLayerPendingWithdrawalSharesAmount`: The amount of stETH shares the Puffer vault has pending for withdrawal from EigenLayer
-* `bool isLidoWithdrawal`: Deprecated from PufferVault version 1
+* `bool deprecated_isLidoWithdrawal`: Deprecated from PufferVault version 1
 * `EnumerableSet.UintSet lidoWithdrawals`: Deprecated from PufferVault version 1
 * `EnumerableSet.Bytes32Set eigenLayerWithdrawals`: Tracks withdrawalRoots from EigenLayer withdrawals
 * `EnumerableMap.UintToUintMap lidoWithdrawalAmounts`: Tracks the amounts of corresponding to each Lido withdrawal
