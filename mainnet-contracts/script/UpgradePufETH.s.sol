@@ -54,7 +54,7 @@ contract UpgradePufETH is BaseScript {
 
     function run(
         PufferDeployment memory deployment,
-        BridgingDeployment memory bridgingDeployment,
+        BridgingDeployment memory,
         address pufferOracle,
         address revenueDepositor
     ) public broadcast {
