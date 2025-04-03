@@ -43,6 +43,7 @@ import { RestakingOperatorController } from "../src/RestakingOperatorController.
  *
  *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
+
 contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocolImpl;
     AccessManager accessManager;
@@ -136,10 +137,8 @@ contract DeployPuffer is BaseScript {
 
             aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
 
-            restakingOperatorController = new RestakingOperatorController(
-                address(accessManager),
-                address(aVSContractsRegistry)
-            );
+            restakingOperatorController =
+                new RestakingOperatorController(address(accessManager), address(aVSContractsRegistry));
 
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
@@ -152,7 +151,6 @@ contract DeployPuffer is BaseScript {
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             restakingOperatorBeacon =
                 new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
-
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
