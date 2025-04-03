@@ -144,6 +144,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         validatorTicket.purchaseValidatorTicket{ value: 0 }(address(this));
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_overflow_protocol_fee_rate() public {
         vm.startPrank(DAO);
         vm.expectRevert();

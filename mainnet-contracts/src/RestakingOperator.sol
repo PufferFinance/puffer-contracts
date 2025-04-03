@@ -6,12 +6,12 @@ import { AccessManagedUpgradeable } from
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { IRewardsCoordinator } from "./interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title RestakingOperator
