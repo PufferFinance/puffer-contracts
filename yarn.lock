@@ -3276,10 +3276,6 @@ open@^7.4.2:
     is-docker "^2.0.0"
     is-wsl "^2.1.1"
 
-"openzeppelin-foundry-upgrades@https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#patch-1":
-  version "0.3.3"
-  resolved "https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#faa33a1767287741288cf2b1f68ae0e48a8befc7"
-
 os-tmpdir@~1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/os-tmpdir/-/os-tmpdir-1.0.2.tgz#bbe67406c79aa85c5cfec766fe5734555dfa1274"

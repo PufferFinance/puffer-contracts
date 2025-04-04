@@ -1,55 +1,54 @@
 {
-  "name": "mainnet-contracts",
-  "description": "",
-  "version": "1.0.0",
-  "author": {
-    "name": "Puffer Finance",
-    "url": "https://puffer.fi"
-  },
-  "dependencies": {
-    "@connext/interfaces": "^2.0.5",
-    "@openzeppelin/contracts": "5.0.1",
-    "@openzeppelin/contracts-upgradeable": "5.0.1",
-    "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#4478eb6",
-    "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
-    "l2-contracts": "*",
-    "murky": "https://github.com/dmfxyz/murky.git",
-    "openzeppelin-foundry-upgrades": "https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#patch-1",
-    "rave": "https://github.com/PufferFinance/rave.git#57ce268",
-    "solidity-stringutils": "https://github.com/Arachnid/solidity-stringutils"
-  },
-  "devDependencies": {
-    "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
-    "@prb/test": "0.6.4",
-    "erc4626-tests": "https://github.com/a16z/erc4626-tests#232ff9b",
-    "forge-std": "github:foundry-rs/forge-std#v1.9.6",
-    "solarray": "github:evmcheb/solarray#a547630",
-    "solhint": "^5.0.1"
-  },
-  "homepage": "https://puffer.fi",
-  "keywords": [
-    "blockchain",
-    "foundry",
-    "smart-contracts",
-    "solidity",
-    "web3",
-    "ethereum",
-    "puffer",
-    "puffer-finance",
-    "solidity",
-    "LRT",
-    "eigenlayer",
-    "restaking",
-    "liquid-staking"
-  ],
-  "scripts": {
-    "fmt": "forge fmt",
-    "build": "forge build",
-    "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
-    "lint": "yarn run lint:sol",
-    "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
-    "slither": "slither .",
-    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
-    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
-  }
+    "name": "mainnet-contracts",
+    "description": "",
+    "version": "1.0.0",
+    "author": {
+        "name": "Puffer Finance",
+        "url": "https://puffer.fi"
+    },
+    "dependencies": {
+        "@connext/interfaces": "^2.0.5",
+        "@openzeppelin/contracts": "5.0.1",
+        "@openzeppelin/contracts-upgradeable": "5.0.1",
+        "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#4478eb6",
+        "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
+        "l2-contracts": "*",
+        "murky": "https://github.com/dmfxyz/murky.git",
+        "rave": "https://github.com/PufferFinance/rave.git#57ce268",
+        "solidity-stringutils": "https://github.com/Arachnid/solidity-stringutils"
+    },
+    "devDependencies": {
+        "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
+        "@prb/test": "0.6.4",
+        "erc4626-tests": "https://github.com/a16z/erc4626-tests#232ff9b",
+        "forge-std": "github:foundry-rs/forge-std#v1.9.6",
+        "solarray": "github:evmcheb/solarray#a547630",
+        "solhint": "^5.0.1"
+    },
+    "homepage": "https://puffer.fi",
+    "keywords": [
+        "blockchain",
+        "foundry",
+        "smart-contracts",
+        "solidity",
+        "web3",
+        "ethereum",
+        "puffer",
+        "puffer-finance",
+        "solidity",
+        "LRT",
+        "eigenlayer",
+        "restaking",
+        "liquid-staking"
+    ],
+    "scripts": {
+        "fmt": "forge fmt",
+        "build": "forge build",
+        "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
+        "lint": "yarn run lint:sol",
+        "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
+        "slither": "slither .",
+        "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
+        "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
+    }
 }
