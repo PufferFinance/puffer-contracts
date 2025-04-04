@@ -347,6 +347,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 4123123, "");
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_upgrade_plugin() public {
         Options memory opts;
 
