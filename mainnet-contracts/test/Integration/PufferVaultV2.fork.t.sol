@@ -375,6 +375,7 @@ contract PufferVaultV2ForkTest is MainnetForkTestHelper {
         assertApproxEqAbs(pufferVault.totalSupply(), sharesBefore + estimatedShares, 1e9, "shares change");
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_deposit_fails_when_not_enough_funds() public {
         vm.expectRevert();
         pufferVault.deposit(100 ether + 1, alice);
