@@ -124,6 +124,11 @@ contract PufferVaultV5 is
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositETH(address receiver) public payable virtual markDeposit restricted returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        if (msg.value > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
+        }
+
         uint256 shares = previewDeposit(msg.value);
         _mint(receiver, shares);
         emit Deposit(_msgSender(), receiver, msg.value, shares);
@@ -146,8 +151,14 @@ contract PufferVaultV5 is
         restricted
         returns (uint256)
     {
+        uint256 maxAssets = maxDeposit(receiver);
+
         // Get the amount of assets (stETH) that corresponds to `stETHSharesAmount` so that we can use it in our calculation
         uint256 assets = _ST_ETH.getPooledEthByShares(stETHSharesAmount);
+
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
 
         uint256 shares = previewDeposit(assets);
         // Transfer the exact number of stETH shares from the user to the vault
