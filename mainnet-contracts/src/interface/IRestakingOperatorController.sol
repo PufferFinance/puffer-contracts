@@ -11,7 +11,7 @@ interface IRestakingOperatorController {
     event OperatorOwnerUpdated(address restakingOperator, address newOwner);
     event SelectorAllowedUpdated(bytes4 selector, bool isAllowed);
 
-    function customExternalCall(address target, bytes calldata data, uint256 value) external;
+    function customExternalCall(address target, bytes calldata data, uint256 value) external payable;
     function setOperatorOwner(address restakingOperator, address owner) external;
     function setAllowedSelector(bytes4 selector, bool isAllowed) external;
     function getOperatorOwner(address restakingOperator) external view returns (address);

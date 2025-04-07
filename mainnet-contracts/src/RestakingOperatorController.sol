@@ -52,7 +52,7 @@ contract RestakingOperatorController is IRestakingOperatorController, AccessMana
      * @param data The data to call the restaking operator with
      * @param value The value to call the restaking operator with
      */
-    function customExternalCall(address target, bytes calldata data, uint256 value) external override {
+    function customExternalCall(address target, bytes calldata data, uint256 value) external payable override {
         require(_operatorOwners[target] == msg.sender, NotOperatorOwner(target, msg.sender));
         bytes4 selector = bytes4(data[:4]);
         require(_allowedSelectors[selector], NotAllowedSelector(selector));
