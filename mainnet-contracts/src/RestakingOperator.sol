@@ -93,6 +93,12 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         if (address(moduleManager) == address(0)) {
             revert InvalidAddress();
         }
+        if (address(rewardsCoordinator) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(restakingOperatorController) == address(0)) {
+            revert InvalidAddress();
+        }
         EIGEN_DELEGATION_MANAGER = delegationManager;
         EIGEN_SLASHER = slasher;
         PUFFER_MODULE_MANAGER = moduleManager;
