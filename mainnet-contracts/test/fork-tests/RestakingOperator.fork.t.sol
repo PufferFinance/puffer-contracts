@@ -143,7 +143,6 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
             IRewardsCoordinator(address(0)),
             address(0)
         );
-
     }
 
     function test_initialValues() public view {
