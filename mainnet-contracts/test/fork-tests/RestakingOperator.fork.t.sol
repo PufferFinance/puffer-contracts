@@ -15,7 +15,7 @@ import { GenerateRestakingOperatorCalldata } from
     "../../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ROLE_ID_DAO } from "../../script/Roles.sol";
-import { Unauthorized } from "../../src/Errors.sol";
+import { InvalidAddress, Unauthorized } from "../../src/Errors.sol";
 import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 
@@ -94,6 +94,56 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         );
         vm.stopPrank();
         _;
+    }
+
+    function test_constructor() public {
+        RestakingOperator newImpl;
+
+        vm.expectRevert(InvalidAddress.selector);
+        newImpl = new RestakingOperator(
+            IDelegationManager(address(0)),
+            ISlasher(SLASHER_ADDRESS),
+            IPufferModuleManager(MODULE_MANAGER_ADDRESS),
+            IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
+            address(restakingOperatorController)
+        );
+
+        vm.expectRevert(InvalidAddress.selector);
+        newImpl = new RestakingOperator(
+            IDelegationManager(DELEGATION_MANAGER_ADDRESS),
+            ISlasher(address(0)),
+            IPufferModuleManager(MODULE_MANAGER_ADDRESS),
+            IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
+            address(restakingOperatorController)
+        );
+
+        vm.expectRevert(InvalidAddress.selector);
+        newImpl = new RestakingOperator(
+            IDelegationManager(DELEGATION_MANAGER_ADDRESS),
+            ISlasher(SLASHER_ADDRESS),
+            IPufferModuleManager(address(0)),
+            IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
+            address(restakingOperatorController)
+        );
+
+        vm.expectRevert(InvalidAddress.selector);
+        newImpl = new RestakingOperator(
+            IDelegationManager(DELEGATION_MANAGER_ADDRESS),
+            ISlasher(SLASHER_ADDRESS),
+            IPufferModuleManager(MODULE_MANAGER_ADDRESS),
+            IRewardsCoordinator(address(0)),
+            address(restakingOperatorController)
+        );
+
+        vm.expectRevert(InvalidAddress.selector);
+        newImpl = new RestakingOperator(
+            IDelegationManager(DELEGATION_MANAGER_ADDRESS),
+            ISlasher(SLASHER_ADDRESS),
+            IPufferModuleManager(MODULE_MANAGER_ADDRESS),
+            IRewardsCoordinator(address(0)),
+            address(0)
+        );
+
     }
 
     function test_initialValues() public view {
