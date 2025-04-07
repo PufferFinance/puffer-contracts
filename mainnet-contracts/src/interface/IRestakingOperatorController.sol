@@ -71,11 +71,11 @@ interface IRestakingOperatorController {
     /**
      * @notice Custom external call to the restaking operator
      * @dev Restricted so only the DAO can call the function
-     * @param target The address of the restaking operator
+     * @param restakingOperator The address of the restaking operator
      * @param data The data to call the restaking operator with
      * @param value The value to call the restaking operator with
      */
-    function customExternalCall(address target, bytes calldata data, uint256 value) external payable;
+    function customExternalCall(address restakingOperator, bytes calldata data, uint256 value) external payable;
 
     /**
      * @notice Get the owner of the restaking operator
