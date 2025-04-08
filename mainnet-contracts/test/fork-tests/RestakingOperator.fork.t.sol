@@ -229,7 +229,9 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.startPrank(MODULE_MANAGER_ADDRESS);
         bytes memory cd = abi.encodeWithSelector(AvsRegistryCoordinatorMock.expensiveRegister.selector, "test");
         vm.expectEmit(true, true, true, true);
-        emit AvsRegistryCoordinatorMock.ExpensiveRegister("test", address(pufferRestakingOperator), expensiveRegisterFee);
+        emit AvsRegistryCoordinatorMock.ExpensiveRegister(
+            "test", address(pufferRestakingOperator), expensiveRegisterFee
+        );
         pufferRestakingOperator.customCalldataCall{ value: expensiveRegisterFee }(
             address(avsRegistryCoordinatorMock), cd
         );
@@ -245,7 +247,9 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit AvsRegistryCoordinatorMock.ExpensiveRegister("test", address(pufferRestakingOperator), expensiveRegisterFee);
+        emit AvsRegistryCoordinatorMock.ExpensiveRegister(
+            "test", address(pufferRestakingOperator), expensiveRegisterFee
+        );
         restakingOperatorController.customExternalCall{ value: expensiveRegisterFee }(
             PUFFER_RESTAKING_OPERATOR_ADDRESS, cd
         );
