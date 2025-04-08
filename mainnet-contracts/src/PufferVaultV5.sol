@@ -59,6 +59,17 @@ contract PufferVaultV5 is
         RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
         _disableInitializers();
     }
+    /**
+     * @notice Changes underlying asset from stETH to WETH
+     */
+    // nosemgrep tin-unprotected-initialize
+
+    function initialize() public reinitializer(2) {
+        // In this initialization, we swap out the underlying stETH with WETH
+        ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
+        erc4626Storage._asset = _WETH;
+        _setExitFeeBasisPoints(100); // 1%
+    }
 
     /**
      * @notice Accept ETH from anywhere
@@ -431,6 +442,55 @@ contract PufferVaultV5 is
      */
     function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
         _setExitFeeBasisPoints(newExitFeeBasisPoints);
+    }
+
+    /**
+     * @notice Returns the maximum amount of assets that can be withdrawn from the vault for a given owner
+     * If the user has more assets than the available liquidity, the user will be able to withdraw up to the available liquidity
+     * else the user will be able to withdraw up to their assets
+     * @param owner The address to check the maximum withdrawal amount for
+     * @return maxAssets The maximum amount of assets that can be withdrawn
+     */
+    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
+        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
+        // Get current callvalue if any
+        uint256 callValue;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            callValue := callvalue()
+        }
+
+        // Consider the vault's available liquidity (WETH + ETH balance - callvalue)
+        uint256 availableLiquidity =
+            previewWithdraw(_WETH.balanceOf(address(this)) + (address(this).balance - callValue));
+
+        // Return the minimum of user's assets and available liquidity
+        return Math.min(maxUserAssets, availableLiquidity);
+    }
+
+    /**
+     * @notice Returns the maximum amount of shares that can be redeemed from the vault for a given owner
+     * If the user has more shares than what can be redeemed given the available liquidity, the user will be able to redeem up to the available liquidity
+     * else the user will be able to redeem all their shares
+     * @param owner The address to check the maximum redeemable shares for
+     * @return maxShares The maximum amount of shares that can be redeemed
+     */
+    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
+        uint256 shares = balanceOf(owner);
+
+        // Get current callvalue if any
+        uint256 callValue;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            callValue := callvalue()
+        }
+
+        // Calculate max shares based on available liquidity (WETH + ETH balance - callvalue)
+        uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance - callValue);
+        uint256 maxSharesFromLiquidity = convertToSharesUp(availableLiquidity);
+
+        // Return the minimum of user's shares and shares from available liquidity
+        return Math.min(shares, maxSharesFromLiquidity);
     }
 
     /**
