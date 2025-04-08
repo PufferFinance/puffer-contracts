@@ -92,7 +92,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IERC20[][] calldata tokens,
         uint256[] calldata middlewareTimesIndexes,
         bool[] calldata receiveAsTokens
-    ) external virtual restricted {
+    ) external virtual override restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         IPufferModule(moduleAddress).completeQueuedWithdrawals({
@@ -119,7 +119,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev Restricted to the PufferProtocol
      * @param moduleName The name of the module
      */
-    function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (IPufferModule) {
+    function createNewPufferModule(bytes32 moduleName)
+        external
+        virtual
+        override
+        onlyPufferProtocol
+        returns (IPufferModule)
+    {
         if (moduleName == bytes32("NO_VALIDATORS")) {
             revert ForbiddenModuleName();
         }
@@ -163,7 +169,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to Puffer Paymaster
      */
-    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
+    function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual override restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
         bytes32[] memory withdrawalRoots = IPufferModule(moduleAddress).queueWithdrawals(sharesAmount);
         emit WithdrawalsQueued(moduleName, sharesAmount, withdrawalRoots[0]);
@@ -173,7 +179,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
+    function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual override restricted {
         // We can cast `moduleOrReOp` to IPufferModule/IRestakingOperator, uses the same function signature.
         IPufferModule(moduleOrReOp).callSetClaimerFor(claimer);
         emit ClaimerSet({ rewardsReceiver: moduleOrReOp, claimer: claimer });
@@ -183,7 +189,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external virtual restricted {
+    function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external virtual override restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
         IPufferModule(moduleAddress).setProofSubmitter(proofSubmitter);
         emit ProofSubmitterSet(moduleName, proofSubmitter);
@@ -197,7 +203,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         string calldata metadataURI,
         address delegationApprover,
         uint32 stakerOptOutWindowBlocks
-    ) external virtual restricted returns (IRestakingOperator) {
+    ) external virtual override restricted returns (IRestakingOperator) {
         IDelegationManager.OperatorDetails memory operatorDetails = IDelegationManager.OperatorDetails({
             __deprecated_earningsReceiver: address(this),
             delegationApprover: delegationApprover,
@@ -228,7 +234,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     function callModifyOperatorDetails(
         IRestakingOperator restakingOperator,
         IDelegationManager.OperatorDetails calldata newOperatorDetails
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.modifyOperatorDetails(newOperatorDetails);
         emit RestakingOperatorModified(address(restakingOperator), newOperatorDetails);
     }
@@ -250,7 +256,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher) external virtual restricted {
+    function callOptIntoSlashing(IRestakingOperator restakingOperator, address slasher)
+        external
+        virtual
+        override
+        restricted
+    {
         restakingOperator.optIntoSlashing(slasher);
         emit RestakingOperatorOptedInSlasher(address(restakingOperator), slasher);
     }
@@ -264,7 +275,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         address operator,
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
-    ) external virtual restricted {
+    ) external virtual override restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         IPufferModule(moduleAddress).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
@@ -276,7 +287,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate(bytes32 moduleName)
+        external
+        virtual
+        override
+        restricted
+        returns (bytes32[] memory withdrawalRoot)
+    {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         withdrawalRoot = IPufferModule(moduleAddress).callUndelegate();
@@ -295,7 +312,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         string calldata socket,
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.registerOperatorToAVS({
             avsRegistryCoordinator: avsRegistryCoordinator,
             quorumNumbers: quorumNumbers,
@@ -320,7 +337,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.registerOperatorToAVSWithChurn({
             avsRegistryCoordinator: avsRegistryCoordinator,
             quorumNumbers: quorumNumbers,
@@ -346,6 +363,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      */
     function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
         external
+        payable
         virtual
         restricted
     {
@@ -354,7 +372,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             revert Unauthorized();
         }
 
-        bytes memory response = restakingOperator.customCalldataCall(target, customCalldata);
+        bytes memory response = restakingOperator.customCalldataCall{ value: msg.value }(target, customCalldata);
 
         emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
     }
@@ -363,7 +381,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @inheritdoc IPufferModuleManager
      * @dev Restricted to the DAO
      */
-    function callStartCheckpoint(address[] calldata moduleAddresses) external virtual restricted {
+    function callStartCheckpoint(address[] calldata moduleAddresses) external virtual override restricted {
         for (uint256 i = 0; i < moduleAddresses.length; ++i) {
             // reverts if supplied with a duplicate module address
             IPufferModule(moduleAddresses[i]).startCheckpoint();
@@ -378,7 +396,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         bytes calldata quorumNumbers
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.deregisterOperatorFromAVS(avsRegistryCoordinator, quorumNumbers);
 
         emit RestakingOperatorDeregisteredFromAVS(restakingOperator, avsRegistryCoordinator, quorumNumbers);
@@ -392,7 +410,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IRestakingOperator restakingOperator,
         address avsRegistryCoordinator,
         string calldata socket
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.updateOperatorAVSSocket(avsRegistryCoordinator, socket);
 
         emit RestakingOperatorAVSSocketUpdated(restakingOperator, avsRegistryCoordinator, socket);
@@ -406,7 +424,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         IRestakingOperator restakingOperator,
         bytes32 digestHash,
         address signer
-    ) external virtual restricted {
+    ) external virtual override restricted {
         restakingOperator.updateSignatureProof(digestHash, signer);
 
         emit AVSRegistrationSignatureProofUpdated(address(restakingOperator), digestHash, signer);

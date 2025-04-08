@@ -18,6 +18,7 @@ import { ROLE_ID_DAO } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "../../src/Errors.sol";
 import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
+import { AvsRegistryCoordinatorMock } from "../mocks/AvsRegistryCoordinatorMock.sol";
 
 contract RestakingOperatorForkTest is MainnetForkTestHelper {
     // This test is used to test the RestakingOperator contract in a forked mainnet environment
@@ -44,6 +45,9 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
     UpgradeableBeacon public restakingOperatorBeacon;
     RestakingOperatorController public restakingOperatorController;
     RestakingOperator public pufferRestakingOperator;
+    AvsRegistryCoordinatorMock public avsRegistryCoordinatorMock;
+
+    uint256 public expensiveRegisterFee;
 
     function setUp() public virtual override {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20682408);
@@ -85,12 +89,24 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         restakingOperatorController.setAllowedSelector(RestakingOperator.updateOperatorAVSSocket.selector, true);
         restakingOperatorController.setAllowedSelector(RestakingOperator.customCalldataCall.selector, true);
         vm.stopPrank();
+
+        avsRegistryCoordinatorMock = new AvsRegistryCoordinatorMock();
+        expensiveRegisterFee = avsRegistryCoordinatorMock.REGISTRATION_FEE();
     }
 
     modifier allowUpdateOperatorAVSSocket() {
         vm.startPrank(OPERATIONS_MULTISIG);
         AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS).setAvsRegistryCoordinator(
             EIGEN_DA_ADDRESS, IRegistryCoordinatorExtended.updateSocket.selector, true
+        );
+        vm.stopPrank();
+        _;
+    }
+
+    modifier allowExpensiveRegister() {
+        vm.startPrank(OPERATIONS_MULTISIG);
+        AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS).setAvsRegistryCoordinator(
+            address(avsRegistryCoordinatorMock), AvsRegistryCoordinatorMock.expensiveRegister.selector, true
         );
         vm.stopPrank();
         _;
@@ -169,7 +185,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.startPrank(operatorOwner);
         bytes memory cd =
             abi.encodeWithSelector(RestakingOperator.updateOperatorAVSSocket.selector, EIGEN_DA_ADDRESS, "test");
-        restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd, 0);
+        restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd);
         vm.stopPrank();
     }
 
@@ -193,7 +209,46 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         bytes memory cdEigenDa = abi.encodeWithSelector(IRegistryCoordinatorExtended.updateSocket.selector, "test");
         bytes memory cd =
             abi.encodeWithSelector(RestakingOperator.customCalldataCall.selector, EIGEN_DA_ADDRESS, cdEigenDa);
-        restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd, 0);
+        restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd);
+        vm.stopPrank();
+    }
+
+    function test_customCalldataCall_payable_Unauthorized() public allowExpensiveRegister {
+        vm.deal(bob, expensiveRegisterFee);
+        vm.startPrank(bob);
+        bytes memory cd = abi.encodeWithSelector(AvsRegistryCoordinatorMock.expensiveRegister.selector, "test");
+        vm.expectRevert(Unauthorized.selector);
+        pufferRestakingOperator.customCalldataCall{ value: expensiveRegisterFee }(
+            address(avsRegistryCoordinatorMock), cd
+        );
+        vm.stopPrank();
+    }
+
+    function test_customCalldataCall_payable_fromPufferModuleManager() public allowExpensiveRegister {
+        vm.deal(MODULE_MANAGER_ADDRESS, expensiveRegisterFee);
+        vm.startPrank(MODULE_MANAGER_ADDRESS);
+        bytes memory cd = abi.encodeWithSelector(AvsRegistryCoordinatorMock.expensiveRegister.selector, "test");
+        vm.expectEmit(true, true, true, true);
+        emit AvsRegistryCoordinatorMock.ExpensiveRegister("test", address(pufferRestakingOperator), expensiveRegisterFee);
+        pufferRestakingOperator.customCalldataCall{ value: expensiveRegisterFee }(
+            address(avsRegistryCoordinatorMock), cd
+        );
+        vm.stopPrank();
+    }
+
+    function test_customCalldataCall_payable_fromRestakingOperatorController() public allowExpensiveRegister {
+        vm.deal(operatorOwner, expensiveRegisterFee);
+        vm.startPrank(operatorOwner);
+        bytes memory cdAvsMock = abi.encodeWithSelector(AvsRegistryCoordinatorMock.expensiveRegister.selector, "test");
+        bytes memory cd = abi.encodeWithSelector(
+            RestakingOperator.customCalldataCall.selector, address(avsRegistryCoordinatorMock), cdAvsMock
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit AvsRegistryCoordinatorMock.ExpensiveRegister("test", address(pufferRestakingOperator), expensiveRegisterFee);
+        restakingOperatorController.customExternalCall{ value: expensiveRegisterFee }(
+            PUFFER_RESTAKING_OPERATOR_ADDRESS, cd
+        );
         vm.stopPrank();
     }
 }

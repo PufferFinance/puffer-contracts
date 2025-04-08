@@ -403,5 +403,6 @@ interface IPufferModuleManager {
      * @dev Restricted to the DAO
      */
     function customExternalCall(IRestakingOperator restakingOperator, address target, bytes calldata customCalldata)
-        external;
+        external
+        payable;
 }

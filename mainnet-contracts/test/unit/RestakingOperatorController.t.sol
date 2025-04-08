@@ -85,7 +85,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
         );
 
         restakingOperatorController.customExternalCall(
-            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob), 0
+            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob)
         );
         vm.stopPrank();
     }
@@ -98,7 +98,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
             )
         );
         restakingOperatorController.customExternalCall(
-            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob), 0
+            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob)
         );
         vm.stopPrank();
     }
@@ -112,7 +112,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
             )
         );
         restakingOperatorController.customExternalCall(
-            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob), 0
+            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob)
         );
         vm.stopPrank();
     }
@@ -129,7 +129,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
             address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob), 0
         );
         restakingOperatorController.customExternalCall(
-            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob), 0
+            address(restakingOperatorMock1), abi.encodeWithSelector(callSetClaimerForSelector, bob)
         );
         vm.stopPrank();
     }
@@ -145,8 +145,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
         vm.expectRevert(IRestakingOperatorController.Unauthorized.selector);
         restakingOperatorController.customExternalCall(
             address(restakingOperatorMock1),
-            abi.encodeWithSelector(customCalldataCallSelector, AVS_REGISTRY_COORDINATOR, avsCalldata),
-            0
+            abi.encodeWithSelector(customCalldataCallSelector, AVS_REGISTRY_COORDINATOR, avsCalldata)
         );
         vm.stopPrank();
     }
@@ -169,8 +168,7 @@ contract RestakingOperatorControllerTest is UnitTestHelper {
         );
         restakingOperatorController.customExternalCall(
             address(restakingOperatorMock1),
-            abi.encodeWithSelector(customCalldataCallSelector, AVS_REGISTRY_COORDINATOR, avsCalldata),
-            0
+            abi.encodeWithSelector(customCalldataCallSelector, AVS_REGISTRY_COORDINATOR, avsCalldata)
         );
         vm.stopPrank();
     }

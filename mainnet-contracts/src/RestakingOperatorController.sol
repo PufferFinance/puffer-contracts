@@ -50,22 +50,17 @@ contract RestakingOperatorController is IRestakingOperatorController, AccessMana
      * @dev Restricted so only the DAO can call the function
      * @param restakingOperator The address of the restaking operator
      * @param data The data to call the restaking operator with
-     * @param value The value to call the restaking operator with
      */
-    function customExternalCall(address restakingOperator, bytes calldata data, uint256 value)
-        external
-        payable
-        override
-    {
+    function customExternalCall(address restakingOperator, bytes calldata data) external payable override {
         require(_operatorOwners[restakingOperator] == msg.sender, NotOperatorOwner(restakingOperator, msg.sender));
         bytes4 selector = bytes4(data[:4]);
         require(_allowedSelectors[selector], NotAllowedSelector(selector));
         if (selector == CUSTOM_CALL_SELECTOR) {
             _checkCustomCallData(data);
         }
-        (bool success,) = restakingOperator.call{ value: value }(data);
+        (bool success,) = restakingOperator.call{ value: msg.value }(data);
         require(success, CustomCallFailed());
-        emit CustomExternalCall(restakingOperator, data, value);
+        emit CustomExternalCall(restakingOperator, data, msg.value);
     }
 
     /**

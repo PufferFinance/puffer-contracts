@@ -118,7 +118,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function optIntoSlashing(address slasher) external virtual onlyAllowed {
         EIGEN_SLASHER.optIntoSlashing(slasher);
@@ -126,7 +126,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata newOperatorDetails)
         external
@@ -138,7 +138,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyAllowed {
         EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(metadataURI);
@@ -146,7 +146,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyAllowed {
         RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
@@ -156,7 +156,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function registerOperatorToAVS(
         address avsRegistryCoordinator,
@@ -175,7 +175,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function registerOperatorToAVSWithChurn(
         address avsRegistryCoordinator,
@@ -198,20 +198,21 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function customCalldataCall(address target, bytes calldata customCalldata)
         external
+        payable
         virtual
         onlyAllowed
         returns (bytes memory response)
     {
-        return target.functionCall(customCalldata);
+        return target.functionCallWithValue(customCalldata, msg.value);
     }
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
         external
@@ -223,7 +224,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to the PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function updateOperatorAVSSocket(address avsRegistryCoordinator, string calldata socket)
         external
@@ -235,7 +236,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
 
     /**
      * @inheritdoc IRestakingOperator
-     * @dev Restricted to PufferModuleManager
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function callSetClaimerFor(address claimer) external virtual onlyAllowed {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);

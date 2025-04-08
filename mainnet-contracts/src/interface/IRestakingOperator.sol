@@ -95,10 +95,13 @@ interface IRestakingOperator {
 
     /**
      * @notice Does a custom call to `target` with `customCalldata`
+     * @param target is the address of the contract to call
+     * @param customCalldata is the calldata to send to the target contract
      * @return response
      */
     function customCalldataCall(address target, bytes calldata customCalldata)
         external
+        payable
         returns (bytes memory response);
 
     /**
