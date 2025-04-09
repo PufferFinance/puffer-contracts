@@ -239,7 +239,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @param moduleName is the name of the module
      * @dev Restricted to the DAO
      */
-    function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
+    function callUndelegate(bytes32 moduleName)
+        external
+        virtual
+        restricted
+        returns (bytes32[] memory withdrawalRoot)
+    {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         withdrawalRoot = PufferModule(payable(moduleAddress)).callUndelegate();

@@ -133,6 +133,7 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
      */
     function registerOperatorToAVS(IAllocationManager.RegisterParams calldata registrationParams)
         external
+        payable
         virtual
         onlyAuthorized
     {
