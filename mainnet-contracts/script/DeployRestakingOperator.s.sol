@@ -63,4 +63,24 @@ contract DeployRestakingOperator is DeployerHelper {
             AccessManager(_getAccessManager()).execute(_getRestakingOperatorBeacon(), cd);
         }
     }
+
+    function deployRestakingOperatorTests(address restakingOperatorController) public {
+        vm.startPrank(_getPaymaster());
+
+        RestakingOperator restakingOperatorImplementation = new RestakingOperator({
+            delegationManager: IDelegationManager(_getEigenDelegationManager()),
+            allocationManager: IAllocationManager(_getEigenSlasher()),
+            moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
+            restakingOperatorController: restakingOperatorController
+        });
+
+        vm.label(address(restakingOperatorImplementation), "RestakingOperatorImplementation");
+
+        bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(restakingOperatorImplementation));
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(_getRestakingOperatorBeacon(), cd);
+        }
+    }
 }

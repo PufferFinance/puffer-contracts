@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
@@ -13,6 +14,8 @@ import { DeployRestakingOperator } from "../../script/DeployRestakingOperator.s.
 import { DeployPufferModuleImplementation } from "../../script/DeployPufferModuleImplementation.s.sol";
 import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { DeployPufferModuleManager } from "../../script/DeployPufferModuleManager.s.sol";
+import { DeployRestakingOperatorController } from "../../script/DeployRestakingOperatorController.s.sol";
+import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
 
 contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
     PufferModuleManager public pufferModuleManager;
@@ -42,7 +45,9 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
 
         deployPufferModuleManager.deployPufferModuleManagerTests();
         deployPufferModule.deployPufferModuleTests();
-        deployRestakingOperator.deployRestakingOperatorTests();
+
+        RestakingOperatorController reOpController = new DeployRestakingOperatorController().run();
+        deployRestakingOperator.deployRestakingOperatorTests(address(reOpController));
 
         pufferModuleManager = PufferModuleManager(payable(_getPufferModuleManager()));
     }

@@ -12,12 +12,14 @@ import { DeployerHelper } from "./DeployerHelper.s.sol";
  * forge script script/DeployRestakingOperatorController.s.sol:DeployRestakingOperatorController -vvvv --rpc-url=$HOLESKY_RPC_URL --account puffer --verify --etherscan-api-key $ETHERSCAN_API_KEY --broadcast
  */
 contract DeployRestakingOperatorController is DeployerHelper {
-    function run() public {
+    function run() public returns (RestakingOperatorController) {
         vm.startBroadcast();
 
         RestakingOperatorController restakingOperatorController =
             new RestakingOperatorController(_getAccessManager(), _getAVSContractsRegistry());
 
         vm.label(address(restakingOperatorController), "RestakingOperatorController");
+
+        return restakingOperatorController;
     }
 }
