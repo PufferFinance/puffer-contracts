@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { IPufferVaultV2 } from "src/interface/IPufferVaultV2.sol";
+import { IPufferVaultV5 } from "src/interface/IPufferVaultV5.sol";
 import { ERC4626Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 
 contract PufferVaultTest is UnitTestHelper {
@@ -31,7 +31,7 @@ contract PufferVaultTest is UnitTestHelper {
 
     function test_setExitFeeBasisPoints_invalid_value() public {
         vm.startPrank(address(timelock));
-        vm.expectRevert(IPufferVaultV2.InvalidExitFeeBasisPoints.selector);
+        vm.expectRevert(IPufferVaultV5.InvalidExitFeeBasisPoints.selector);
         pufferVault.setExitFeeBasisPoints(10000);
         vm.stopPrank();
     }

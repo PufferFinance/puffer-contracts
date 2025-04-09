@@ -6,7 +6,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
@@ -21,6 +21,8 @@ import { EigenLayerManagerMock } from "../test/mocks/EigenLayerManagerMock.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
+import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 /**
@@ -49,9 +51,11 @@ contract DeployPufETH is BaseScript {
     IWETH internal constant _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
+    IPufferOracleV2 internal constant _PufferOracle = IPufferOracleV2(0x0BE2aE0edbeBb517541DF217EF0074FC9a9e994f);
+    IPufferRevenueDepositor internal constant _RevenueDepositor = IPufferRevenueDepositor(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882);
 
-    PufferVault pufferVault;
-    PufferVault pufferVaultImplementation;
+    PufferVaultV5 pufferVault;
+    PufferVaultV5 pufferVaultImplementation;
 
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;
@@ -108,10 +112,10 @@ contract DeployPufETH is BaseScript {
             wethAddress = address(weth);
 
             // Deploy implementation contracts
-            pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
+            pufferVaultImplementation = new PufferVaultV5(IStETH(stETHAddress), lidoWithdrawalQueue, IWETH(wethAddress), address(_PufferOracle), address(_RevenueDepositor));
             vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
-                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
+                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVaultV5(payable(vaultProxy)) });
             vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
         }
 
@@ -121,7 +125,7 @@ contract DeployPufETH is BaseScript {
         );
         // Initialize Vault
         NoImplementation(payable(address(vaultProxy))).upgradeToAndCall(
-            address(pufferVaultImplementation), abi.encodeCall(PufferVault.initialize, (address(accessManager)))
+            address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
         );
 
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));

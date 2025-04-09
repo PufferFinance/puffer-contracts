@@ -2,8 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
-import { IPufferVault } from "../../src/interface/IPufferVault.sol";
-import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
 import { IPufferVaultV5 } from "../../src/interface/IPufferVaultV5.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -38,7 +36,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         requestIds[0] = 66473; // That is the next request id for this test
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVault.RequestedWithdrawals(requestIds);
+        emit IPufferVaultV5.RequestedWithdrawals(requestIds);
         pufferVault.initiateETHWithdrawalsFromLido(amounts);
     }
 
@@ -56,7 +54,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         uint256 balanceBefore = address(pufferVault).balance;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVault.ClaimedWithdrawals(requestIds);
+        emit IPufferVaultV5.ClaimedWithdrawals(requestIds);
         pufferVault.claimWithdrawalsFromLido(requestIds);
 
         uint256 balanceAfter = address(pufferVault).balance;
@@ -73,7 +71,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
 
         pufferVault.depositETH{ value: 1 ether }(alice);
 
-        vm.expectRevert(IPufferVaultV2.DepositAndWithdrawalForbidden.selector);
+        vm.expectRevert(IPufferVaultV5.DepositAndWithdrawalForbidden.selector);
         pufferVault.redeem(1 ether, alice, alice);
     }
 
@@ -137,12 +135,11 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             pufferOracle: IPufferOracleV2(address(mockOracle)),
-            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+            revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor())
         });
         vm.prank(address(timelock));
         pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
         IWETH weth = IWETH(_getWETH());
-        ERC20 pufETH = ERC20(address(pufferVault)); // Cast to ERC20 to access balanceOf
 
         // Set exit fee to 1% (100 basis points) for testing
         uint256 userDeposit = 1 ether;
@@ -202,7 +199,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             pufferOracle: IPufferOracleV2(address(mockOracle)),
-            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+            revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor())
         });
         vm.prank(address(timelock));
         pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
