@@ -4,9 +4,22 @@ pragma solidity >=0.8.0 <0.9.0;
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IPufferVault } from "../../src/interface/IPufferVault.sol";
 import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
+import { IPufferVaultV5 } from "../../src/interface/IPufferVaultV5.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { console } from "forge-std/Test.sol";
+import { IStETH } from "../../src/interface/Lido/IStETH.sol";
+import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
+import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
+import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 
 /**
  * @notice For some reason the code coverage doesn't consider that this mainnet fork tests increase the code coverage..
+ * @notice Added tests for maxWithdraw and maxRedeem V5 functionality.
  */
 contract PufferVaultForkTest is MainnetForkTestHelper {
     function setUp() public virtual override { }
@@ -62,5 +75,160 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
 
         vm.expectRevert(IPufferVaultV2.DepositAndWithdrawalForbidden.selector);
         pufferVault.redeem(1 ether, alice, alice);
+    }
+
+    function test_maxWithdraw_ZeroBalance() public {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
+        _setupLiveContracts();
+        assertEq(((pufferVault)).maxWithdraw(alice), 0, "maxWithdraw zero balance");
+    }
+
+    function test_maxRedeem_ZeroBalance() public {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
+        _setupLiveContracts();
+        assertEq(((pufferVault)).maxRedeem(alice), 0, "maxRedeem zero balance");
+    }
+
+    function test_maxWithdrawRedeem_UserLimited() public {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
+        _setupLiveContracts();
+        IWETH weth = IWETH(_getWETH());
+        ERC20 pufETH = ERC20(address(pufferVault)); // Cast to ERC20 to access balanceOf
+
+        // Set exit fee to 1% (100 basis points) for testing
+        vm.prank(_getOPSMultisig());
+        pufferVault.setExitFeeBasisPoints(100);
+
+        // Ensure vault has ample liquidity for this test
+        // We can check the balance, or simply assume it's high at this block
+        uint256 vaultWethBalance = weth.balanceOf(address(pufferVault));
+        uint256 vaultEthBalance = address(pufferVault).balance;
+        uint256 vaultLiquidity = vaultWethBalance + vaultEthBalance;
+        console.log("Vault Initial WETH:", vaultWethBalance);
+        console.log("Vault Initial ETH:", vaultEthBalance);
+        assertTrue(vaultLiquidity > 10 ether, "Vault needs sufficient liquidity for user-limited test");
+
+        // Give user ETH and deposit
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: 1 ether }(alice);
+        uint256 aliceShares = pufETH.balanceOf(alice);
+        assertTrue(aliceShares > 0, "Alice should have shares");
+        vm.stopPrank();
+
+        // Calculate expected max assets Alice can withdraw (this already accounts for fees via previewRedeem)
+        uint256 expectedMaxAssets = pufferVault.previewRedeem(aliceShares);
+        console.log("Expected max assets (after fees):", expectedMaxAssets);
+
+        // Max withdraw should be limited by Alice's shares (converted to assets, considering fees)
+        assertEq(pufferVault.maxWithdraw(alice), expectedMaxAssets, "maxWithdraw user limited");
+
+        // Max redeem should be limited by Alice's shares
+        assertEq(pufferVault.maxRedeem(alice), aliceShares, "maxRedeem user limited");
+    }
+
+    function test_maxWithdrawRedeem_LiquidityLimited() public {
+        // Setup
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
+        _setupLiveContracts();
+        MockPufferOracle mockOracle = new MockPufferOracle();
+        PufferVaultV5 pufferVaultWithBlocking = new PufferVaultV5({
+            stETH: IStETH(_getStETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            weth: IWETH(_getWETH()),
+            pufferOracle: IPufferOracleV2(address(mockOracle)),
+            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+        });
+        vm.prank(address(timelock));
+        pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
+        IWETH weth = IWETH(_getWETH());
+        ERC20 pufETH = ERC20(address(pufferVault)); // Cast to ERC20 to access balanceOf
+
+        // Set exit fee to 1% (100 basis points) for testing
+        uint256 userDeposit = 1 ether;
+        uint256 vaultLiquidity = 5 ether;
+        uint256 exitFeeBasisPoints = 100; // 1% fee
+        
+        // Set exit fee
+        vm.prank(_getOPSMultisig());
+        pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
+        
+        // User deposits 10 ETH
+        console.log("bob balance before", pufferVault.balanceOf(bob));
+        vm.deal(bob, userDeposit);
+        vm.prank(bob);
+        pufferVault.depositETH{value: userDeposit}(bob);
+        console.log("bob shares", pufferVault.balanceOf(bob));
+        // Simulate limited liquidity by directly setting the vault's balance
+        // First, withdraw all WETH to ETH
+        if (weth.balanceOf(address(pufferVault)) > 0) {
+            vm.prank(address(pufferVault));
+            weth.withdraw(weth.balanceOf(address(pufferVault)));
+        }
+        
+        // Then set the vault's ETH balance to the desired liquidity
+        vm.deal(address(pufferVault), vaultLiquidity);
+        
+        // Calculate expected values
+        uint256 userShares = pufferVault.balanceOf(bob);
+        uint256 fee = vaultLiquidity * exitFeeBasisPoints / 10000;
+        uint256 availableLiquidity = vaultLiquidity - fee;
+        console.log("availableLiquidity", availableLiquidity);
+        uint256 maxUserAssets = pufferVault.previewRedeem(userShares);
+        console.log("maxUserAssets", maxUserAssets);
+        // Test maxWithdraw
+        uint256 expectedMaxWithdraw = maxUserAssets > availableLiquidity ? availableLiquidity : maxUserAssets;
+        assertEq(
+            pufferVault.maxWithdraw(bob),
+            expectedMaxWithdraw,
+            "maxWithdraw should be limited by vault liquidity after fees"
+        );
+        uint256 expectedMaxRedeem = userShares > pufferVault.previewWithdraw(vaultLiquidity) ? pufferVault.previewWithdraw(vaultLiquidity) : userShares;
+        // Test maxRedeem
+        assertEq(
+            pufferVault.maxRedeem(bob),
+            expectedMaxRedeem,
+            "maxRedeem should be limited by vault liquidity after fees"
+        );
+    }
+
+    function test_maxWithdrawRedeem_ZeroLiquidity() public {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
+        _setupLiveContracts();
+        // _upgradeToMainnetPuffer();
+        MockPufferOracle mockOracle = new MockPufferOracle();
+        PufferVaultV5 pufferVaultWithBlocking = new PufferVaultV5({
+            stETH: IStETH(_getStETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            weth: IWETH(_getWETH()),
+            pufferOracle: IPufferOracleV2(address(mockOracle)),
+            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+        });
+        vm.prank(address(timelock));
+        pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
+        IWETH weth = IWETH(_getWETH());
+
+        // Give user ETH and deposit to ensure they have shares
+        vm.deal(alice, 1 ether);
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: 1 ether }(alice);
+        assertTrue(pufferVault.balanceOf(alice) > 0, "Alice should have shares");
+        vm.stopPrank();
+
+        // Set vault WETH and ETH liquidity to zero
+        // Fix: Use the correct approach to set token balances to zero
+        vm.deal(address(pufferVault), 0); // Set vault ETH balance to 0
+        // For WETH, we need to withdraw all WETH to ETH first
+        if (weth.balanceOf(address(pufferVault)) > 0) {
+            vm.prank(address(pufferVault));
+            weth.withdraw(weth.balanceOf(address(pufferVault)));
+        }
+
+        assertEq(weth.balanceOf(address(pufferVault)), 0, "Vault WETH should be 0");
+        assertEq(address(pufferVault).balance, 0, "Vault ETH should be 0");
+
+        // Max withdraw and redeem should be 0 with no liquidity
+        assertEq(pufferVault.maxWithdraw(alice), 0, "maxWithdraw zero liquidity");
+        assertEq(pufferVault.maxRedeem(alice), 0, "maxRedeem zero liquidity");
     }
 }

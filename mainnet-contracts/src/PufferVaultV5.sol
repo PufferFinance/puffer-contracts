@@ -59,17 +59,6 @@ contract PufferVaultV5 is
         RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
         _disableInitializers();
     }
-    /**
-     * @notice Changes underlying asset from stETH to WETH
-     */
-    // nosemgrep tin-unprotected-initialize
-
-    function initialize() public reinitializer(2) {
-        // In this initialization, we swap out the underlying stETH with WETH
-        ERC4626Storage storage erc4626Storage = _getERC4626StorageInternal();
-        erc4626Storage._asset = _WETH;
-        _setExitFeeBasisPoints(100); // 1%
-    }
 
     /**
      * @notice Accept ETH from anywhere
@@ -446,24 +435,17 @@ contract PufferVaultV5 is
 
     /**
      * @notice Returns the maximum amount of assets that can be withdrawn from the vault for a given owner
-     * If the user has more assets than the available liquidity, the user will be able to withdraw up to the available liquidity
+     * If the user has more assets than the available vault's liquidity, the user will be able to withdraw up to the available liquidity
      * else the user will be able to withdraw up to their assets
      * @param owner The address to check the maximum withdrawal amount for
      * @return maxAssets The maximum amount of assets that can be withdrawn
      */
     function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
         uint256 maxUserAssets = previewRedeem(balanceOf(owner));
-        // Get current callvalue if any
-        uint256 callValue;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            callValue := callvalue()
-        }
 
-        // Consider the vault's available liquidity (WETH + ETH balance - callvalue)
-        uint256 availableLiquidity =
-            previewWithdraw(_WETH.balanceOf(address(this)) + (address(this).balance - callValue));
-
+        uint256 vaultLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+        // Calculate the available liquidity after applying the exit fee
+        uint256 availableLiquidity = vaultLiquidity - _feeOnRaw(vaultLiquidity, getExitFeeBasisPoints());
         // Return the minimum of user's assets and available liquidity
         return Math.min(maxUserAssets, availableLiquidity);
     }
@@ -477,18 +459,10 @@ contract PufferVaultV5 is
      */
     function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
         uint256 shares = balanceOf(owner);
-
-        // Get current callvalue if any
-        uint256 callValue;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            callValue := callvalue()
-        }
-
-        // Calculate max shares based on available liquidity (WETH + ETH balance - callvalue)
-        uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance - callValue);
-        uint256 maxSharesFromLiquidity = convertToSharesUp(availableLiquidity);
-
+        // Calculate max shares based on available liquidity (WETH + ETH balance)
+        uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance); 
+        // Calculate how many shares can be redeemed from the available liquidity after fees
+        uint256 maxSharesFromLiquidity = previewWithdraw(availableLiquidity); 
         // Return the minimum of user's shares and shares from available liquidity
         return Math.min(shares, maxSharesFromLiquidity);
     }
