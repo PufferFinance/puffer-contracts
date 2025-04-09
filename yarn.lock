@@ -1952,6 +1952,10 @@ entities@^4.2.0, entities@^4.4.0:
   resolved "https://registry.yarnpkg.com/entities/-/entities-4.5.0.tgz#5d268ea5e7113ec74c4d033b79ea5a35a488fb48"
   integrity sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==
 
+"erc4626-tests@https://github.com/a16z/erc4626-tests#232ff9b":
+  version "0.0.0"
+  resolved "https://github.com/a16z/erc4626-tests#232ff9ba8194e406967f52ecc5cb52ed764209e9"
+
 "erc4626-tests@https://github.com/a16z/erc4626-tests#8b1d7c2":
   version "0.0.0"
   resolved "https://github.com/a16z/erc4626-tests#8b1d7c2ac248c33c3506b1bff8321758943c5e11"
@@ -2223,6 +2227,10 @@ for-each@^0.3.3:
 "forge-std@github:foundry-rs/forge-std#v1.9.2":
   version "1.9.2"
   resolved "https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d"
+
+"forge-std@github:foundry-rs/forge-std#v1.9.6":
+  version "1.9.6"
+  resolved "https://codeload.github.com/foundry-rs/forge-std/tar.gz/3b20d60d14b343ee4f908cb8079495c07f5e8981"
 
 form-data-encoder@^2.1.2:
   version "2.1.4"
@@ -3267,10 +3275,6 @@ open@^7.4.2:
   dependencies:
     is-docker "^2.0.0"
     is-wsl "^2.1.1"
-
-"openzeppelin-foundry-upgrades@https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#patch-1":
-  version "0.3.3"
-  resolved "https://github.com/bxmmm1/openzeppelin-foundry-upgrades.git#faa33a1767287741288cf2b1f68ae0e48a8befc7"
 
 os-tmpdir@~1.0.2:
   version "1.0.2"
