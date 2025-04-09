@@ -6,18 +6,17 @@ import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
 import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISlasher } from "eigenlayer/interfaces/ISlasher.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
-import { IRewardsCoordinator } from "../../src/interface/EigenLayer/IRewardsCoordinator.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { GenerateRestakingOperatorCalldata } from
     "../../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ROLE_ID_DAO } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "../../src/Errors.sol";
-import { IRegistryCoordinatorExtended } from "../../src/interface/IRegistryCoordinatorExtended.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
+import { IDelegationManager } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IAllocationManager } from "../../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IRewardsCoordinator } from "../../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { AvsRegistryCoordinatorMock } from "../mocks/AvsRegistryCoordinatorMock.sol";
 
 contract RestakingOperatorForkTest is MainnetForkTestHelper {
@@ -38,7 +37,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
 
     address public constant AVS_CONTRACTS_REGISTRY_ADDRESS = 0x1565E55B63675c703fcC3778BD33eA97F7bE882F;
     address public constant DELEGATION_MANAGER_ADDRESS = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
-    address public constant SLASHER_ADDRESS = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
+    address public constant ALLOCATION_MANAGER = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd; // Not actual address. Irrelevant for these tests
     address public constant MODULE_MANAGER_ADDRESS = 0x9E1E4fCb49931df5743e659ad910d331735C3860;
     address public constant REWARDS_COORDINATOR_ADDRESS = 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
 
@@ -48,6 +47,8 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
     AvsRegistryCoordinatorMock public avsRegistryCoordinatorMock;
 
     uint256 public expensiveRegisterFee;
+
+    bytes4 public constant UPDATE_SOCKET_SELECTOR = bytes4(keccak256("updateSocket(string)"));
 
     function setUp() public virtual override {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20682408);
@@ -70,7 +71,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
 
         RestakingOperator newImpl = new RestakingOperator(
             IDelegationManager(DELEGATION_MANAGER_ADDRESS),
-            ISlasher(SLASHER_ADDRESS),
+            IAllocationManager(ALLOCATION_MANAGER),
             IPufferModuleManager(MODULE_MANAGER_ADDRESS),
             IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
             address(restakingOperatorController)
@@ -86,7 +87,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
 
         vm.startPrank(OPERATIONS_MULTISIG);
         restakingOperatorController.setOperatorOwner(PUFFER_RESTAKING_OPERATOR_ADDRESS, operatorOwner);
-        restakingOperatorController.setAllowedSelector(RestakingOperator.updateOperatorAVSSocket.selector, true);
+        restakingOperatorController.setAllowedSelector(RestakingOperator.callSetClaimerFor.selector, true);
         restakingOperatorController.setAllowedSelector(RestakingOperator.customCalldataCall.selector, true);
         vm.stopPrank();
 
@@ -97,7 +98,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
     modifier allowUpdateOperatorAVSSocket() {
         vm.startPrank(OPERATIONS_MULTISIG);
         AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS).setAvsRegistryCoordinator(
-            EIGEN_DA_ADDRESS, IRegistryCoordinatorExtended.updateSocket.selector, true
+            EIGEN_DA_ADDRESS, UPDATE_SOCKET_SELECTOR, true
         );
         vm.stopPrank();
         _;
@@ -118,7 +119,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.expectRevert(InvalidAddress.selector);
         newImpl = new RestakingOperator(
             IDelegationManager(address(0)),
-            ISlasher(SLASHER_ADDRESS),
+            IAllocationManager(ALLOCATION_MANAGER),
             IPufferModuleManager(MODULE_MANAGER_ADDRESS),
             IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
             address(restakingOperatorController)
@@ -127,7 +128,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.expectRevert(InvalidAddress.selector);
         newImpl = new RestakingOperator(
             IDelegationManager(DELEGATION_MANAGER_ADDRESS),
-            ISlasher(address(0)),
+            IAllocationManager(address(0)),
             IPufferModuleManager(MODULE_MANAGER_ADDRESS),
             IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
             address(restakingOperatorController)
@@ -136,7 +137,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.expectRevert(InvalidAddress.selector);
         newImpl = new RestakingOperator(
             IDelegationManager(DELEGATION_MANAGER_ADDRESS),
-            ISlasher(SLASHER_ADDRESS),
+            IAllocationManager(ALLOCATION_MANAGER),
             IPufferModuleManager(address(0)),
             IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
             address(restakingOperatorController)
@@ -145,7 +146,7 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.expectRevert(InvalidAddress.selector);
         newImpl = new RestakingOperator(
             IDelegationManager(DELEGATION_MANAGER_ADDRESS),
-            ISlasher(SLASHER_ADDRESS),
+            IAllocationManager(ALLOCATION_MANAGER),
             IPufferModuleManager(MODULE_MANAGER_ADDRESS),
             IRewardsCoordinator(address(0)),
             address(restakingOperatorController)
@@ -154,44 +155,43 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
         vm.expectRevert(InvalidAddress.selector);
         newImpl = new RestakingOperator(
             IDelegationManager(DELEGATION_MANAGER_ADDRESS),
-            ISlasher(SLASHER_ADDRESS),
+            IAllocationManager(ALLOCATION_MANAGER),
             IPufferModuleManager(MODULE_MANAGER_ADDRESS),
-            IRewardsCoordinator(address(0)),
+            IRewardsCoordinator(REWARDS_COORDINATOR_ADDRESS),
             address(0)
         );
     }
 
     function test_initialValues() public view {
         assertEq(address(pufferRestakingOperator.EIGEN_DELEGATION_MANAGER()), DELEGATION_MANAGER_ADDRESS);
-        assertEq(address(pufferRestakingOperator.EIGEN_SLASHER()), SLASHER_ADDRESS);
+        assertEq(address(pufferRestakingOperator.EIGEN_ALLOCATION_MANAGER()), ALLOCATION_MANAGER);
         assertEq(address(pufferRestakingOperator.PUFFER_MODULE_MANAGER()), MODULE_MANAGER_ADDRESS);
         assertEq(address(pufferRestakingOperator.EIGEN_REWARDS_COORDINATOR()), REWARDS_COORDINATOR_ADDRESS);
     }
 
-    function test_updateOperatorAVSSocket_Unauthorized() public {
+    function test_callSetClaimerFor_Unauthorized() public {
         vm.startPrank(bob);
         vm.expectRevert(Unauthorized.selector);
-        pufferRestakingOperator.updateOperatorAVSSocket(EIGEN_DA_ADDRESS, "test");
+        pufferRestakingOperator.callSetClaimerFor(bob);
         vm.stopPrank();
     }
 
-    function test_updateOperatorAVSSocket_fromPufferModuleManager() public {
+    function test_callSetClaimerFor_fromPufferModuleManager() public {
         vm.startPrank(MODULE_MANAGER_ADDRESS);
-        pufferRestakingOperator.updateOperatorAVSSocket(EIGEN_DA_ADDRESS, "test");
+        pufferRestakingOperator.callSetClaimerFor(bob);
         vm.stopPrank();
     }
 
-    function test_updateOperatorAVSSocket_fromRestakingOperatorController() public {
+    function test_callSetClaimerFor_fromRestakingOperatorController() public {
         vm.startPrank(operatorOwner);
-        bytes memory cd =
-            abi.encodeWithSelector(RestakingOperator.updateOperatorAVSSocket.selector, EIGEN_DA_ADDRESS, "test");
+        bytes memory cd = abi.encodeWithSelector(RestakingOperator.callSetClaimerFor.selector, bob);
         restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd);
         vm.stopPrank();
     }
 
     function test_customCalldataCall_Unauthorized() public allowUpdateOperatorAVSSocket {
         vm.startPrank(bob);
-        bytes memory cd = abi.encodeWithSelector(IRegistryCoordinatorExtended.updateSocket.selector, "test");
+        bytes memory cd = abi.encodeWithSelector(UPDATE_SOCKET_SELECTOR, "test");
         vm.expectRevert(Unauthorized.selector);
         pufferRestakingOperator.customCalldataCall(EIGEN_DA_ADDRESS, cd);
         vm.stopPrank();
@@ -199,14 +199,14 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
 
     function test_customCalldataCall_fromPufferModuleManager() public allowUpdateOperatorAVSSocket {
         vm.startPrank(MODULE_MANAGER_ADDRESS);
-        bytes memory cd = abi.encodeWithSelector(IRegistryCoordinatorExtended.updateSocket.selector, "test");
+        bytes memory cd = abi.encodeWithSelector(UPDATE_SOCKET_SELECTOR, "test");
         pufferRestakingOperator.customCalldataCall(EIGEN_DA_ADDRESS, cd);
         vm.stopPrank();
     }
 
     function test_customCalldataCall_fromRestakingOperatorController() public allowUpdateOperatorAVSSocket {
         vm.startPrank(operatorOwner);
-        bytes memory cdEigenDa = abi.encodeWithSelector(IRegistryCoordinatorExtended.updateSocket.selector, "test");
+        bytes memory cdEigenDa = abi.encodeWithSelector(UPDATE_SOCKET_SELECTOR, "test");
         bytes memory cd =
             abi.encodeWithSelector(RestakingOperator.customCalldataCall.selector, EIGEN_DA_ADDRESS, cdEigenDa);
         restakingOperatorController.customExternalCall(PUFFER_RESTAKING_OPERATOR_ADDRESS, cd);

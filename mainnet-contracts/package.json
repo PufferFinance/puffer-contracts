@@ -10,8 +10,6 @@
         "@connext/interfaces": "^2.0.5",
         "@openzeppelin/contracts": "5.0.1",
         "@openzeppelin/contracts-upgradeable": "5.0.1",
-        "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#4478eb6",
-        "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a",
         "l2-contracts": "*",
         "murky": "https://github.com/dmfxyz/murky.git",
         "rave": "https://github.com/PufferFinance/rave.git#57ce268",
@@ -23,7 +21,7 @@
         "erc4626-tests": "https://github.com/a16z/erc4626-tests#232ff9b",
         "forge-std": "github:foundry-rs/forge-std#v1.9.6",
         "solarray": "github:evmcheb/solarray#a547630",
-        "solhint": "^5.0.1"
+        "solhint": "^5.0.3"
     },
     "homepage": "https://puffer.fi",
     "keywords": [
@@ -48,7 +46,7 @@
         "lint": "yarn run lint:sol",
         "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
         "slither": "slither .",
-        "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
-        "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
+        "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\"",
+        "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoleskyTestnetFFI\" --report lcov"
     }
 }

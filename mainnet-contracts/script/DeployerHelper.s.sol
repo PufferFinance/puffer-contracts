@@ -83,6 +83,40 @@ abstract contract DeployerHelper is Script {
 
         revert("CARROT not available for this chain");
     }
+    /**
+     * @dev Used only for testnet deployment and fork tests, where the _paymaster is the deployer
+     */
+
+    function _consoleLogOrUpgradeUUPSPrank(
+        address proxyTarget,
+        address implementation,
+        bytes memory data,
+        string memory contractName
+    ) internal {
+        vm.startPrank(_getPaymaster());
+        vm.label(implementation, contractName);
+        console.log("Deployed", contractName, "at", implementation);
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(
+                proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
+            );
+        } else {
+            bytes memory upgradeCallData =
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));
+            console.log("Queue TX From Timelock to -> ", proxyTarget);
+            console.logBytes(upgradeCallData);
+            console.log("================================================");
+        }
+    }
+
+    function _getBeaconChainStrategy() internal view returns (address) {
+        if (block.chainid == holesky) {
+            return 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+        }
+
+        revert("BEACON_CHAIN_STRATEGY not available for this chain");
+    }
 
     function _getTreasury() internal view returns (address) {
         if (block.chainid == mainnet) {

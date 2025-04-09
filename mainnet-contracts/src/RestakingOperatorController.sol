@@ -47,7 +47,7 @@ contract RestakingOperatorController is IRestakingOperatorController, AccessMana
 
     /**
      * @notice Custom external call to the restaking operator
-     * @dev Restricted so only the DAO can call the function
+     * @dev This function can be called by Operator owners
      * @param restakingOperator The address of the restaking operator
      * @param data The data to call the restaking operator with
      */

@@ -4,8 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Script } from "forge-std/Script.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 
 struct ScriptParameters {
     address pufferModuleManager;
@@ -32,7 +33,8 @@ contract CompleteQueuedWithdrawals is Script {
     address public BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     function run(ScriptParameters memory params) external {
-        IDelegationManager.Withdrawal[] memory withdrawals = new IDelegationManager.Withdrawal[](params.nonces.length);
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals =
+            new IDelegationManagerTypes.Withdrawal[](params.nonces.length);
 
         // Withdrawal data can be fetched from the transaction logs, for example:
         // cast run 0x3fecf92f659089b796922a11271e713bc97040f1a21b2671274577d4b294c5b9 --rpc-url=$HOLESKY_RPC_URL --verbose
@@ -45,14 +47,14 @@ contract CompleteQueuedWithdrawals is Script {
             IStrategy[] memory strategies = new IStrategy[](1);
             strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
 
-            withdrawals[i] = IDelegationManager.Withdrawal({
+            withdrawals[i] = IDelegationManagerTypes.Withdrawal({
                 staker: params.pufferModule,
                 delegatedTo: params.delegatedTo[i],
                 withdrawer: params.pufferModule,
                 nonce: params.nonces[i],
                 startBlock: params.startBlocks[i],
                 strategies: strategies,
-                shares: shares
+                scaledShares: shares
             });
         }
 
@@ -61,14 +63,12 @@ contract CompleteQueuedWithdrawals is Script {
 
         IERC20[][] memory tokens = new IERC20[][](1);
         tokens[0] = t;
-        uint256[] memory middlewareTimesIndexes = new uint256[](1); // 0
 
         vm.startBroadcast();
         PufferModuleManager(payable(params.pufferModuleManager)).callCompleteQueuedWithdrawals({
             moduleName: params.moduleName,
             withdrawals: withdrawals,
             tokens: tokens,
-            middlewareTimesIndexes: middlewareTimesIndexes,
             receiveAsTokens: params.receiveAsTokens
         });
     }

@@ -4,18 +4,24 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IRestakingOperator } from "../../src/interface/IRestakingOperator.sol";
+import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { RestakingOperator } from "src/RestakingOperator.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import { IStrategy } from "src/interface/Eigenlayer-Slashing/IStrategy.sol";
+import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { IAllocationManagerTypes } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IAllocationManager } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
+import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { InvalidAddress } from "../../src/Errors.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -24,6 +30,8 @@ contract PufferModuleUpgrade {
 }
 
 contract PufferModuleManagerTest is UnitTestHelper {
+    address public BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+
     Merkle rewardsMerkleProof;
     bytes32[] rewardsMerkleProofData;
 
@@ -34,8 +42,13 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.deal(address(this), 1000 ether);
 
+        bytes memory cd = new GenerateSlashingELCalldata().run(address(pufferModuleManager));
+
         vm.startPrank(timelock);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        (bool success,) = address(accessManager).call(cd);
+        assertTrue(success, "should succeed");
+
         vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
@@ -81,6 +94,43 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.expectRevert(Unauthorized.selector);
         PufferModule(payable(module)).call(address(0), 0, "");
+    }
+
+    function test_registerOperatorToAVS() public {
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        address mockAvs = makeAddr("mockAvs");
+
+        IAllocationManagerTypes.RegisterParams memory registerParams =
+            IAllocationManagerTypes.RegisterParams({ avs: mockAvs, operatorSetIds: new uint32[](1), data: "asdf" });
+
+        vm.expectRevert(Unauthorized.selector);
+        operator.registerOperatorToAVS(registerParams);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorRegisteredToAVS(address(operator), mockAvs, new uint32[](1), "asdf");
+        pufferModuleManager.callRegisterOperatorToAVS(operator, registerParams);
+    }
+
+    function test_deregisterOperatorFromAVS() public {
+        vm.startPrank(DAO);
+        RestakingOperator operator = _createRestakingOperator();
+
+        address mockAvs = makeAddr("mockAvs");
+
+        IAllocationManagerTypes.DeregisterParams memory deregisterParams = IAllocationManagerTypes.DeregisterParams({
+            operator: address(operator),
+            avs: mockAvs,
+            operatorSetIds: new uint32[](1)
+        });
+
+        vm.expectRevert(Unauthorized.selector);
+        operator.deregisterOperatorFromAVS(deregisterParams);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.RestakingOperatorDeregisteredFromAVS(address(operator), mockAvs, new uint32[](1));
+        pufferModuleManager.callDeregisterOperatorFromAVS(operator, deregisterParams);
     }
 
     function test_donation(bytes32 moduleName) public {
@@ -144,7 +194,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.assume(claimer != address(0));
 
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ClaimerSet({ rewardsReceiver: address(operator), claimer: claimer });
@@ -161,20 +211,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ProofSubmitterSet(moduleName, proofSubmitter);
         pufferModuleManager.callSetProofSubmitter(moduleName, proofSubmitter);
-    }
-
-    function test_startCheckpoint(bytes32 moduleName) public {
-        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
-
-        vm.startPrank(DAO);
-
-        address module = _createPufferModule(moduleName);
-        address[] memory modules = new address[](1);
-        modules[0] = module;
-
-        vm.startPrank(DAO);
-
-        pufferModuleManager.callStartCheckpoint(modules);
     }
 
     function testRevert_createPufferModuleForbiddenName() public {
@@ -214,7 +250,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         address createdModule = _createPufferModule(moduleName);
 
         vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ClaimerSet(address(createdModule), claimer);
@@ -225,19 +261,44 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.callSetClaimerFor(address(operator), claimer);
     }
 
-    function test_completeQueuedWithdrawals(bytes32 moduleName) public {
+    function test_completeQueuedWithdrawalsEmpty(bytes32 moduleName) public {
         vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
         _createPufferModule(moduleName);
 
-        IDelegationManager.Withdrawal[] memory withdrawals;
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals;
         IERC20[][] memory tokens;
-        uint256[] memory middlewareTimesIndexes;
         bool[] memory receiveAsTokens;
 
         emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
-        pufferModuleManager.callCompleteQueuedWithdrawals(
-            moduleName, withdrawals, tokens, middlewareTimesIndexes, receiveAsTokens
-        );
+        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, receiveAsTokens);
+    }
+
+    function test_completeQueuedWithdrawalsFull(bytes32 moduleName) public {
+        vm.assume(pufferProtocol.getModuleAddress(moduleName) == address(0));
+        _createPufferModule(moduleName);
+
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(BEACON_CHAIN_STRATEGY);
+
+        uint256[] memory scaledShares = new uint256[](1);
+        scaledShares[0] = 1 ether;
+
+        IDelegationManagerTypes.Withdrawal[] memory withdrawals = new IDelegationManagerTypes.Withdrawal[](1);
+        withdrawals[0] = IDelegationManagerTypes.Withdrawal({
+            staker: address(0),
+            delegatedTo: address(0),
+            withdrawer: address(0),
+            nonce: 0,
+            startBlock: 0,
+            strategies: strategies,
+            scaledShares: scaledShares
+        });
+
+        IERC20[][] memory tokens;
+        bool[] memory receiveAsTokens;
+
+        emit IPufferModuleManager.CompletedQueuedWithdrawals(moduleName, 0);
+        pufferModuleManager.callCompleteQueuedWithdrawals(moduleName, withdrawals, tokens, receiveAsTokens);
     }
 
     function test_updateAVSRegistrationSignatureProof() public {
@@ -245,7 +306,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(DAO);
 
-        IRestakingOperator operator = _createRestakingOperator();
+        RestakingOperator operator = _createRestakingOperator();
 
         bytes32 salt = 0xdebc2c61283b511dc62175c508bc9c6ad8ca754ba918164e6a9b19765c98006d;
         bytes32 digestHash = keccak256(
@@ -271,66 +332,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
             SignatureChecker.isValidERC1271SignatureNow(address(operator), fakeDigestHash, signature), "signer proof"
         );
 
-        vm.stopPrank();
-    }
-
-    function test_customExternalCall() public {
-        vm.startPrank(DAO);
-        IRestakingOperator operator = _createRestakingOperator();
-
-        bytes memory customCalldata = abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ());
-
-        // Not allowlisted, revert
-        vm.expectRevert();
-        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
-
-        // Generate allowlist cd
-        bytes memory allowlistCalldata = abi.encodeWithSelector(
-            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
-            address(this),
-            PufferModuleManagerTest.getMagicNumber.selector,
-            true
-        );
-
-        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
-        // accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
-
-        // Advance the timestamp
-        vm.warp(block.timestamp + 1 days + 1);
-        // execute the allowlist calldata
-        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
-
-        // Now it works
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.CustomCallSucceeded({
-            restakingOperator: address(operator),
-            target: address(this),
-            customCalldata: customCalldata,
-            response: abi.encode(85858585)
-        });
-        pufferModuleManager.customExternalCall(
-            operator, address(this), abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ())
-        );
-
-        // Generate allowlist cd to remove the selector from the allowlist
-        allowlistCalldata = abi.encodeWithSelector(
-            AVSContractsRegistry.setAvsRegistryCoordinator.selector,
-            address(this),
-            PufferModuleManagerTest.getMagicNumber.selector,
-            false
-        );
-
-        // Schedule adding the registry coordinator contract (this contract as a mock) to the allowlist
-        // accessManager.schedule(address(avsContractsRegistry), allowlistCalldata, 0);
-
-        // Advance the timestamp
-        vm.warp(block.timestamp + 1 days + 1);
-        // execute the allowlist calldata
-        accessManager.execute(address(avsContractsRegistry), allowlistCalldata);
-
-        // Not allowlisted, revert
-        vm.expectRevert();
-        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
         vm.stopPrank();
     }
 
@@ -360,17 +361,12 @@ contract PufferModuleManagerTest is UnitTestHelper {
         root = rewardsMerkleProof.getRoot(rewardsMerkleProofData);
     }
 
-    function _createRestakingOperator() internal returns (IRestakingOperator) {
-        IRestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
+    function _createRestakingOperator() internal returns (RestakingOperator) {
+        RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
             metadataURI: "https://puffer.fi/metadata.json",
-            delegationApprover: address(0),
-            stakerOptOutWindowBlocks: 0
+            allocationDelay: 500
         });
 
-        IDelegationManager.OperatorDetails memory details =
-            operator.EIGEN_DELEGATION_MANAGER().operatorDetails(address(operator));
-        assertEq(details.delegationApprover, address(0), "delegation approver");
-        assertEq(details.stakerOptOutWindowBlocks, 0, "blocks");
         return operator;
     }
 

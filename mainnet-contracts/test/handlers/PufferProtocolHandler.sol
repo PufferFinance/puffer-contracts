@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferModule } from "../../src/interface/IPufferModule.sol";
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -9,7 +8,6 @@ import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Validator } from "../../src/struct/Validator.sol";
@@ -27,6 +25,8 @@ import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
+import { PufferModule } from "../../src/PufferModule.sol";
 
 struct ProvisionedValidator {
     bytes32 moduleName;
@@ -106,7 +106,7 @@ contract PufferProtocolHandler is Test {
 
     address internal currentActor;
 
-    PufferVaultV2 pufferVault;
+    PufferVaultV5 pufferVault;
     PufferOracleV2 pufferOracle;
     ValidatorTicket validatorTicket;
 
@@ -114,7 +114,7 @@ contract PufferProtocolHandler is Test {
 
     constructor(
         UnitTestHelper helper,
-        PufferVaultV2 vault,
+        PufferVaultV5 vault,
         address steth,
         PufferProtocol protocol,
         uint256[] memory _guardiansEnclavePks,
@@ -693,7 +693,7 @@ contract PufferProtocolHandler is Test {
     function _enableCall(address module) internal {
         // Enable PufferProtocol to call `call` function on module
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = IPufferModule.call.selector;
+        selectors[0] = PufferModule.call.selector;
         vm.startPrank(_accessManagerAdmin);
         AccessManager(pufferProtocol.authority()).setTargetFunctionRole(module, selectors, ROLE_ID_PUFFER_PROTOCOL);
         vm.stopPrank();

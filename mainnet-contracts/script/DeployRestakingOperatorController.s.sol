@@ -15,9 +15,15 @@ contract DeployRestakingOperatorController is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
+        RestakingOperatorController restakingOperatorController = deployRestakingOperatorController();
+
+        vm.label(address(restakingOperatorController), "RestakingOperatorController");
+    }
+
+    function deployRestakingOperatorController() public returns (RestakingOperatorController) {
         RestakingOperatorController restakingOperatorController =
             new RestakingOperatorController(_getAccessManager(), _getAVSContractsRegistry());
 
-        vm.label(address(restakingOperatorController), "RestakingOperatorController");
+        return restakingOperatorController;
     }
 }
