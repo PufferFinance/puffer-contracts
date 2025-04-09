@@ -28,7 +28,8 @@ import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewar
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
-import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
