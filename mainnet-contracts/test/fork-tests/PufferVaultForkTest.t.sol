@@ -148,16 +148,16 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         uint256 userDeposit = 1 ether;
         uint256 vaultLiquidity = 5 ether;
         uint256 exitFeeBasisPoints = 100; // 1% fee
-        
+
         // Set exit fee
         vm.prank(_getOPSMultisig());
         pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
-        
+
         // User deposits 10 ETH
         console.log("bob balance before", pufferVault.balanceOf(bob));
         vm.deal(bob, userDeposit);
         vm.prank(bob);
-        pufferVault.depositETH{value: userDeposit}(bob);
+        pufferVault.depositETH{ value: userDeposit }(bob);
         console.log("bob shares", pufferVault.balanceOf(bob));
         // Simulate limited liquidity by directly setting the vault's balance
         // First, withdraw all WETH to ETH
@@ -165,10 +165,10 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
             vm.prank(address(pufferVault));
             weth.withdraw(weth.balanceOf(address(pufferVault)));
         }
-        
+
         // Then set the vault's ETH balance to the desired liquidity
         vm.deal(address(pufferVault), vaultLiquidity);
-        
+
         // Calculate expected values
         uint256 userShares = pufferVault.balanceOf(bob);
         uint256 fee = vaultLiquidity * exitFeeBasisPoints / 10000;
@@ -183,12 +183,12 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
             expectedMaxWithdraw,
             "maxWithdraw should be limited by vault liquidity after fees"
         );
-        uint256 expectedMaxRedeem = userShares > pufferVault.previewWithdraw(vaultLiquidity) ? pufferVault.previewWithdraw(vaultLiquidity) : userShares;
+        uint256 expectedMaxRedeem = userShares > pufferVault.previewWithdraw(vaultLiquidity)
+            ? pufferVault.previewWithdraw(vaultLiquidity)
+            : userShares;
         // Test maxRedeem
         assertEq(
-            pufferVault.maxRedeem(bob),
-            expectedMaxRedeem,
-            "maxRedeem should be limited by vault liquidity after fees"
+            pufferVault.maxRedeem(bob), expectedMaxRedeem, "maxRedeem should be limited by vault liquidity after fees"
         );
     }
 
