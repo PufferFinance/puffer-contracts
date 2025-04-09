@@ -19,7 +19,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { PufferModule } from "./PufferModule.sol";
-import { AVSContractsRegistry } from "./AVSContractsRegistry.sol";
 
 /**
  * @title PufferModuleManager
@@ -31,7 +30,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     address public immutable RESTAKING_OPERATOR_BEACON;
     address public immutable PUFFER_PROTOCOL;
     address payable public immutable PUFFER_VAULT;
-    AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
 
     modifier onlyPufferProtocol() {
         if (msg.sender != PUFFER_PROTOCOL) {
@@ -40,17 +38,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    constructor(
-        address pufferModuleBeacon,
-        address restakingOperatorBeacon,
-        address pufferProtocol,
-        AVSContractsRegistry avsContractsRegistry
-    ) {
+    constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
         PUFFER_VAULT = payable(address(IPufferProtocol(PUFFER_PROTOCOL).PUFFER_VAULT()));
-        AVS_CONTRACTS_REGISTRY = avsContractsRegistry;
         _disableInitializers();
     }
 
@@ -279,11 +271,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         virtual
         restricted
     {
-        // Custom external calls are only allowed to whitelisted registry coordinators
-        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target, customCalldata)) {
-            revert Unauthorized();
-        }
-
         bytes memory response = restakingOperator.customCalldataCall{ value: msg.value }(target, customCalldata);
 
         emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
