@@ -46,7 +46,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
         deployPufferModuleManager.deployPufferModuleManagerTests();
         deployPufferModule.deployPufferModuleTests();
 
-        RestakingOperatorController reOpController = new DeployRestakingOperatorController().run();
+        RestakingOperatorController reOpController = new DeployRestakingOperatorController().deployRestakingOperatorController();
         deployRestakingOperator.deployRestakingOperatorTests(address(reOpController));
 
         pufferModuleManager = PufferModuleManager(payable(_getPufferModuleManager()));
