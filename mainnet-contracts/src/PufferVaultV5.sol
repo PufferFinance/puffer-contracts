@@ -65,6 +65,19 @@ contract PufferVaultV5 is
      */
     receive() external payable virtual { }
 
+    /**
+     * @notice Initializes the PufferVaultV5 contract
+     * @dev This function is only used for Unit Tests, we will not use it in mainnet
+     */
+    // nosemgrep tin-unprotected-initialize
+    function initialize(address accessManager) public initializer {
+        __AccessManaged_init(accessManager);
+        __ERC20Permit_init("pufETH");
+        __ERC4626_init(_WETH);
+        __ERC20_init("pufETH", "pufETH");
+        _setExitFeeBasisPoints(100); // 1%
+    }
+
     modifier markDeposit() virtual {
         //solhint-disable-next-line no-inline-assembly
         assembly {
@@ -124,6 +137,11 @@ contract PufferVaultV5 is
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositETH(address receiver) public payable virtual markDeposit restricted returns (uint256) {
+        uint256 maxAssets = maxDeposit(receiver);
+        if (msg.value > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, msg.value, maxAssets);
+        }
+
         uint256 shares = previewDeposit(msg.value);
         _mint(receiver, shares);
         emit Deposit(_msgSender(), receiver, msg.value, shares);
@@ -146,8 +164,14 @@ contract PufferVaultV5 is
         restricted
         returns (uint256)
     {
+        uint256 maxAssets = maxDeposit(receiver);
+
         // Get the amount of assets (stETH) that corresponds to `stETHSharesAmount` so that we can use it in our calculation
         uint256 assets = _ST_ETH.getPooledEthByShares(stETHSharesAmount);
+
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
 
         uint256 shares = previewDeposit(assets);
         // Transfer the exact number of stETH shares from the user to the vault
@@ -420,6 +444,40 @@ contract PufferVaultV5 is
      */
     function setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) external restricted {
         _setExitFeeBasisPoints(newExitFeeBasisPoints);
+    }
+
+    /**
+     * @notice Returns the maximum amount of assets that can be withdrawn from the vault for a given owner
+     * If the user has more assets than the available vault's liquidity, the user will be able to withdraw up to the available liquidity
+     * else the user will be able to withdraw up to their assets
+     * @param owner The address to check the maximum withdrawal amount for
+     * @return maxAssets The maximum amount of assets that can be withdrawn
+     */
+    function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
+        uint256 maxUserAssets = previewRedeem(balanceOf(owner));
+
+        uint256 vaultLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+        // Calculate the available liquidity after applying the exit fee
+        uint256 availableLiquidity = vaultLiquidity - _feeOnRaw(vaultLiquidity, getExitFeeBasisPoints());
+        // Return the minimum of user's assets and available liquidity
+        return Math.min(maxUserAssets, availableLiquidity);
+    }
+
+    /**
+     * @notice Returns the maximum amount of shares that can be redeemed from the vault for a given owner
+     * If the user has more shares than what can be redeemed given the available liquidity, the user will be able to redeem up to the available liquidity
+     * else the user will be able to redeem all their shares
+     * @param owner The address to check the maximum redeemable shares for
+     * @return maxShares The maximum amount of shares that can be redeemed
+     */
+    function maxRedeem(address owner) public view virtual override returns (uint256 maxShares) {
+        uint256 shares = balanceOf(owner);
+        // Calculate max shares based on available liquidity (WETH + ETH balance)
+        uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance);
+        // Calculate how many shares can be redeemed from the available liquidity after fees
+        uint256 maxSharesFromLiquidity = previewWithdraw(availableLiquidity);
+        // Return the minimum of user's shares and shares from available liquidity
+        return Math.min(shares, maxSharesFromLiquidity);
     }
 
     /**

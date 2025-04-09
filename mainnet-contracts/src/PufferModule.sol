@@ -15,8 +15,8 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleStorage } from "./struct/ModuleStorage.sol";
-import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 
 /**
  * @title PufferModule

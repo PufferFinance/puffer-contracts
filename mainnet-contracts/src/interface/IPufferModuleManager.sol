@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { RestakingOperator } from "src/RestakingOperator.sol";
+import { RestakingOperator } from "../RestakingOperator.sol";
 
 /**
  * @title IPufferModuleManager

@@ -519,6 +519,7 @@ contract PufferProtocolTest is UnitTestHelper {
     }
 
     // Test registering the validator with a huge number of months committed
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_register_validator_with_huge_commitment() external {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
 

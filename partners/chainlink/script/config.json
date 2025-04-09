@@ -1,0 +1,19 @@
+{
+    "BnMToken": {
+        "name": "pufETH",
+        "symbol": "pufETH",
+        "decimals": 18,
+        "maxSupply": 0,
+        "withGetCCIPAdmin": false,
+        "ccipAdminAddress": "0x0000000000000000000000000000000000000000"
+    },
+    "tokenAmountToMint": 1000000000000000000000,
+    "tokenAmountToTransfer": 10000,
+    "feeType": "native",
+    "remoteChains": {
+        "1868": 1,
+        "42161": 1,
+        "80094": 1,
+        "1": 80094
+    }
+}
