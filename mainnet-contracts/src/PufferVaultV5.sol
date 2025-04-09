@@ -65,8 +65,6 @@ contract PufferVaultV5 is
      */
     receive() external payable virtual { }
 
-
-
     /**
      * @notice Initializes the PufferVaultV5 contract
      * @dev This function is only used for Unit Tests, we will not use it in mainnet
