@@ -65,6 +65,21 @@ contract PufferVaultV5 is
      */
     receive() external payable virtual { }
 
+
+
+    /**
+     * @notice Initializes the PufferVaultV5 contract
+     * @dev This function is only used for Unit Tests, we will not use it in mainnet
+     */
+    // nosemgrep tin-unprotected-initialize
+    function initialize(address accessManager) public initializer {
+        __AccessManaged_init(accessManager);
+        __ERC20Permit_init("pufETH");
+        __ERC4626_init(_WETH);
+        __ERC20_init("pufETH", "pufETH");
+        _setExitFeeBasisPoints(100); // 1%
+    }
+
     modifier markDeposit() virtual {
         //solhint-disable-next-line no-inline-assembly
         assembly {
