@@ -24,11 +24,20 @@ import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 contract PufferVaultForkTest is MainnetForkTestHelper {
     function setUp() public virtual override { }
 
-    // In this test, we initiate ETH withdrawal from Lido
-    function test_initiateETHWithdrawalsFromLido() public {
+    modifier oldFork() {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 21378494); // Dec-11-2024 09:52:59 AM +UTC
+        _setupLiveContracts();
+        _;
+    }
+
+    modifier recentFork() {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Jan-04-2025 08:13:23 AM +UTC
         _setupLiveContracts();
+        _;
+    }
 
+    // In this test, we initiate ETH withdrawal from Lido
+    function test_initiateETHWithdrawalsFromLido() public recentFork {
         vm.startPrank(_getOPSMultisig());
 
         uint256[] memory amounts = new uint256[](1);
@@ -43,11 +52,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
     }
 
     // In this test, we claim some queued withdrawal from Lido
-    function test_claimETHWithdrawalsFromLido() public {
-        // Different fork
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21378494); // Dec-11-2024 09:52:59 AM +UTC
-        _setupLiveContracts();
-
+    function test_claimETHWithdrawalsFromLido() public oldFork {
         vm.startPrank(_getOPSMultisig());
 
         uint256[] memory requestIds = new uint256[](1);
@@ -64,10 +69,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
     }
 
     // Prevent deposit and withdraw in the same transaction
-    function test_depositAndWithdrawRevertsInTheSameTx() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21378494); // Dec-11-2024 09:52:59 AM +UTC
-        _setupLiveContracts();
-
+    function test_depositAndWithdrawRevertsInTheSameTx() public oldFork {
         vm.deal(alice, 1 ether);
         vm.startPrank(alice);
 
@@ -77,21 +79,15 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         pufferVault.redeem(1 ether, alice, alice);
     }
 
-    function test_maxWithdraw_ZeroBalance() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
-        _setupLiveContracts();
+    function test_maxWithdraw_ZeroBalance() public recentFork {
         assertEq(((pufferVault)).maxWithdraw(alice), 0, "maxWithdraw zero balance");
     }
 
-    function test_maxRedeem_ZeroBalance() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
-        _setupLiveContracts();
+    function test_maxRedeem_ZeroBalance() public recentFork {
         assertEq(((pufferVault)).maxRedeem(alice), 0, "maxRedeem zero balance");
     }
 
-    function test_maxWithdrawRedeem_UserLimited() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
-        _setupLiveContracts();
+    function test_maxWithdrawRedeem_UserLimited() public recentFork {
         IWETH weth = IWETH(_getWETH());
         ERC20 pufETH = ERC20(address(pufferVault)); // Cast to ERC20 to access balanceOf
 
@@ -127,26 +123,13 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         assertEq(pufferVault.maxRedeem(alice), aliceShares, "maxRedeem user limited");
     }
 
-    function test_maxWithdrawRedeem_LiquidityLimited() public {
-        // Setup
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
-        _setupLiveContracts();
-        MockPufferOracle mockOracle = new MockPufferOracle();
-        PufferVaultV5 pufferVaultWithBlocking = new PufferVaultV5({
-            stETH: IStETH(_getStETH()),
-            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            weth: IWETH(_getWETH()),
-            pufferOracle: IPufferOracleV2(address(mockOracle)),
-            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
-        });
-        vm.prank(address(timelock));
-        pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
+    function test_maxWithdrawRedeem_LiquidityLimited() public recentFork {
+        _upgradeToV5();
         IWETH weth = IWETH(_getWETH());
-        ERC20 pufETH = ERC20(address(pufferVault)); // Cast to ERC20 to access balanceOf
 
         // Set exit fee to 1% (100 basis points) for testing
-        uint256 userDeposit = 1 ether;
-        uint256 vaultLiquidity = 5 ether;
+        uint256 userDeposit = 50 ether;
+        uint256 vaultLiquidity = 1 ether;
         uint256 exitFeeBasisPoints = 100; // 1% fee
 
         // Set exit fee
@@ -160,11 +143,9 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         pufferVault.depositETH{ value: userDeposit }(bob);
         console.log("bob shares", pufferVault.balanceOf(bob));
         // Simulate limited liquidity by directly setting the vault's balance
-        // First, withdraw all WETH to ETH
-        if (weth.balanceOf(address(pufferVault)) > 0) {
-            vm.prank(address(pufferVault));
-            weth.withdraw(weth.balanceOf(address(pufferVault)));
-        }
+
+        // First, check there is no WETH balance
+        assertEq(weth.balanceOf(address(pufferVault)), 0, "Vault WETH should be 0");
 
         // Then set the vault's ETH balance to the desired liquidity
         vm.deal(address(pufferVault), vaultLiquidity);
@@ -177,35 +158,20 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         uint256 maxUserAssets = pufferVault.previewRedeem(userShares);
         console.log("maxUserAssets", maxUserAssets);
         // Test maxWithdraw
-        uint256 expectedMaxWithdraw = maxUserAssets > availableLiquidity ? availableLiquidity : maxUserAssets;
         assertEq(
             pufferVault.maxWithdraw(bob),
-            expectedMaxWithdraw,
+            availableLiquidity,
             "maxWithdraw should be limited by vault liquidity after fees"
         );
-        uint256 expectedMaxRedeem = userShares > pufferVault.previewWithdraw(vaultLiquidity)
-            ? pufferVault.previewWithdraw(vaultLiquidity)
-            : userShares;
+        uint256 expectedMaxRedeem = pufferVault.previewWithdraw(vaultLiquidity);
         // Test maxRedeem
         assertEq(
             pufferVault.maxRedeem(bob), expectedMaxRedeem, "maxRedeem should be limited by vault liquidity after fees"
         );
     }
 
-    function test_maxWithdrawRedeem_ZeroLiquidity() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 21549844); // Use a recent block
-        _setupLiveContracts();
-        // _upgradeToMainnetPuffer();
-        MockPufferOracle mockOracle = new MockPufferOracle();
-        PufferVaultV5 pufferVaultWithBlocking = new PufferVaultV5({
-            stETH: IStETH(_getStETH()),
-            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            weth: IWETH(_getWETH()),
-            pufferOracle: IPufferOracleV2(address(mockOracle)),
-            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
-        });
-        vm.prank(address(timelock));
-        pufferVault.upgradeToAndCall(address(pufferVaultWithBlocking), "");
+    function test_maxWithdrawRedeem_ZeroLiquidity() public recentFork {
+        _upgradeToV5();
         IWETH weth = IWETH(_getWETH());
 
         // Give user ETH and deposit to ensure they have shares
@@ -230,5 +196,18 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         // Max withdraw and redeem should be 0 with no liquidity
         assertEq(pufferVault.maxWithdraw(alice), 0, "maxWithdraw zero liquidity");
         assertEq(pufferVault.maxRedeem(alice), 0, "maxRedeem zero liquidity");
+    }
+
+    function _upgradeToV5() private {
+        MockPufferOracle mockOracle = new MockPufferOracle();
+        PufferVaultV5 v5Impl = new PufferVaultV5({
+            stETH: IStETH(_getStETH()),
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
+            weth: IWETH(_getWETH()),
+            pufferOracle: IPufferOracleV2(address(mockOracle)),
+            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+        });
+        vm.prank(address(timelock));
+        pufferVault.upgradeToAndCall(address(v5Impl), "");
     }
 }
