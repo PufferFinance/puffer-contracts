@@ -603,12 +603,4 @@ contract PufferVaultV5 is
      */
     // slither-disable-next-line dead-code
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
-
-    function _getERC4626StorageInternal() private pure returns (ERC4626Storage storage $) {
-        // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.ERC4626")) - 1)) & ~bytes32(uint256(0xff))
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            $.slot := 0x0773e532dfede91f04b12a73d3d2acd361424f41f76b4fb79f090161e36b4e00
-        }
-    }
 }
