@@ -172,8 +172,7 @@ contract DeployPuffer is BaseScript {
         moduleManager = new PufferModuleManager({
             pufferModuleBeacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            pufferProtocol: address(proxy),
-            avsContractsRegistry: aVSContractsRegistry
+            pufferProtocol: address(proxy)
         });
 
         NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(

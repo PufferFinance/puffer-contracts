@@ -7,7 +7,6 @@ import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
@@ -17,28 +16,18 @@ contract DeployPufferModuleManager is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
-        PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
-            pufferModuleBeacon: address(_getPufferModuleBeacon()),
-            restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol()),
-            avsContractsRegistry: AVSContractsRegistry(_getAVSContractsRegistry())
-        });
-
-        //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS({
-            proxyTarget: _getPufferModuleManager(),
-            implementation: address(newPufferModuleManagerImplementation),
-            data: "",
-            contractName: "PufferModuleManagerImplementation"
-        });
+        _deploy();
     }
 
-    function deployPufferModuleManagerTests() public {
+    function deployPufferModuleManagerTests() public returns (PufferModuleManager) {
+        return _deploy();
+    }
+
+    function _deploy() internal returns (PufferModuleManager) {
         PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(_getPufferModuleBeacon()),
             restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol()),
-            avsContractsRegistry: AVSContractsRegistry(_getAVSContractsRegistry())
+            pufferProtocol: address(_getPufferProtocol())
         });
 
         _consoleLogOrUpgradeUUPSPrank({
@@ -47,5 +36,7 @@ contract DeployPufferModuleManager is DeployerHelper {
             data: "",
             contractName: "PufferModuleManagerImplementation"
         });
+
+        return newPufferModuleManagerImplementation;
     }
 }
