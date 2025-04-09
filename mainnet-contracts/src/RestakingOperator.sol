@@ -23,6 +23,10 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
     using Address for address;
 
     // keccak256(abi.encode(uint256(keccak256("RestakingOperator.storage")) - 1)) & ~bytes32(uint256(0xff))
+    // slither-disable-next-line unused-state
+
+    address private immutable RESTAKING_OPERATOR_CONTROLLER;
+
     bytes32 private constant _RESTAKING_OPERATOR_STORAGE =
         0x2182a68f8e463a6b4c76f5de5bb25b7b51ccc88cb3b9ba6c251c356b50555100;
 
@@ -63,10 +67,10 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
      */
     IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
-    modifier onlyPufferModuleManager() {
-        if (msg.sender != address(PUFFER_MODULE_MANAGER)) {
-            revert Unauthorized();
-        }
+    modifier onlyAuthorized() {
+        require(
+            msg.sender == RESTAKING_OPERATOR_CONTROLLER || msg.sender == address(PUFFER_MODULE_MANAGER), Unauthorized()
+        );
         _;
     }
 
@@ -75,7 +79,8 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
         IDelegationManager delegationManager,
         IAllocationManager allocationManager,
         IPufferModuleManager moduleManager,
-        IRewardsCoordinator rewardsCoordinator
+        IRewardsCoordinator rewardsCoordinator,
+        address restakingOperatorController
     ) {
         if (address(delegationManager) == address(0)) {
             revert InvalidAddress();
@@ -89,10 +94,14 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
         if (address(rewardsCoordinator) == address(0)) {
             revert InvalidAddress();
         }
+        if (address(restakingOperatorController) == address(0)) {
+            revert InvalidAddress();
+        }
         EIGEN_DELEGATION_MANAGER = delegationManager;
         EIGEN_ALLOCATION_MANAGER = allocationManager;
         PUFFER_MODULE_MANAGER = moduleManager;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
+        RESTAKING_OPERATOR_CONTROLLER = restakingOperatorController;
         _disableInitializers();
     }
 
@@ -106,52 +115,65 @@ contract RestakingOperator is IERC1271, Initializable, AccessManagedUpgradeable 
     }
 
     /**
-     * @dev Restricted to the PufferModuleManager
+     * @notice Updates a signature proof by setting the signer address of the message hash
+     * @param digestHash is message hash
+     * @param signer is the signer address
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
-    function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyPufferModuleManager {
+    function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyAuthorized {
         RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
 
         $.hashSigners[digestHash] = signer;
     }
 
     /**
-     * @dev Restricted to the PufferModuleManager
+     * @notice Registers msg.sender as an operator
+     * @param registrationParams is the struct with new operator details
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function registerOperatorToAVS(IAllocationManager.RegisterParams calldata registrationParams)
         external
         virtual
-        onlyPufferModuleManager
+        onlyAuthorized
     {
         EIGEN_ALLOCATION_MANAGER.registerForOperatorSets(address(this), registrationParams);
     }
 
     /**
-     * @dev Restricted to the PufferModuleManager
+     * @notice Deregisters msg.sender as an operator
+     * @param deregistrationParams is the struct with new operator details
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function deregisterOperatorFromAVS(IAllocationManager.DeregisterParams calldata deregistrationParams)
         external
         virtual
-        onlyPufferModuleManager
+        onlyAuthorized
     {
         EIGEN_ALLOCATION_MANAGER.deregisterFromOperatorSets(deregistrationParams);
     }
 
     /**
-     * @dev Restricted to the PufferModuleManager
+     * @notice Does a custom call to `target` with `customCalldata`
+     * @param target is the address of the contract to call
+     * @param customCalldata is the calldata to send to the target contract
+     * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
     function customCalldataCall(address target, bytes calldata customCalldata)
         external
+        payable
         virtual
-        onlyPufferModuleManager
+        onlyAuthorized
         returns (bytes memory response)
     {
-        return target.functionCall(customCalldata);
+        return target.functionCallWithValue(customCalldata, msg.value);
     }
 
     /**
-     * @dev Restricted to PufferModuleManager
+     * @notice Sets the rewards claimer to `claimer` for the RestakingOperator
+     * @param claimer is the address of the claimer
+     * @dev Restricted to PufferModuleManager or the RestakingOperatorController
      */
-    function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
+    function callSetClaimerFor(address claimer) external virtual onlyAuthorized {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 

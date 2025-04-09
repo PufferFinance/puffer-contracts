@@ -26,7 +26,8 @@ contract DeployRestakingOperator is DeployerHelper {
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
             allocationManager: IAllocationManager(_getEigenSlasher()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
-            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
+            restakingOperatorController: _getRestakingOperatorController()
         });
 
         vm.label(address(restakingOperatorImplementation), "RestakingOperatorImplementation");
@@ -50,7 +51,8 @@ contract DeployRestakingOperator is DeployerHelper {
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
             allocationManager: IAllocationManager(_getEigenSlasher()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
-            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator())
+            rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
+            restakingOperatorController: _getRestakingOperatorController()
         });
 
         vm.label(address(restakingOperatorImplementation), "RestakingOperatorImplementation");

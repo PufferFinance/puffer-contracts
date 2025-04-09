@@ -8,6 +8,7 @@ import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
+import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
 import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -102,6 +103,7 @@ contract UnitTestHelper is Test, BaseScript {
     IEnclaveVerifier public verifier;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
+    RestakingOperatorController public restakingOperatorController;
     ValidatorTicketPricer public validatorTicketPricer;
     xPufETH public xpufETH;
     XERC20Lockbox public lockBox;
@@ -212,6 +214,7 @@ contract UnitTestHelper is Test, BaseScript {
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
+        restakingOperatorController = RestakingOperatorController(payable(pufferDeployment.restakingOperatorController));
         xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
         lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));

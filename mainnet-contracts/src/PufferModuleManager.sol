@@ -19,6 +19,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { PufferModule } from "./PufferModule.sol";
+import { AVSContractsRegistry } from "./AVSContractsRegistry.sol";
 
 /**
  * @title PufferModuleManager
@@ -30,6 +31,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     address public immutable RESTAKING_OPERATOR_BEACON;
     address public immutable PUFFER_PROTOCOL;
     address payable public immutable PUFFER_VAULT;
+    AVSContractsRegistry public immutable AVS_CONTRACTS_REGISTRY;
 
     modifier onlyPufferProtocol() {
         if (msg.sender != PUFFER_PROTOCOL) {
@@ -38,11 +40,17 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
+    constructor(
+        address pufferModuleBeacon,
+        address restakingOperatorBeacon,
+        address pufferProtocol,
+        AVSContractsRegistry avsContractsRegistry
+    ) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
         PUFFER_VAULT = payable(address(IPufferProtocol(PUFFER_PROTOCOL).PUFFER_VAULT()));
+        AVS_CONTRACTS_REGISTRY = avsContractsRegistry;
         _disableInitializers();
     }
 
@@ -57,7 +65,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
     /**
      * @notice Completes queued withdrawals
-     *
+     * @param moduleName The name of the module
+     * @param withdrawals The list of withdrawals to complete
+     * @param tokens The list of tokens to withdraw
+     * @param receiveAsTokens Whether to receive the tokens as ERC20 tokens
      * @dev Restricted to Puffer Paymaster
      */
     function callCompleteQueuedWithdrawals(
@@ -87,7 +98,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Create a new Puffer module
+     * @dev This function creates a new Puffer module with the given module name
      * @param moduleName The name of the module
+     * @return module The newly created Puffer module
+     * @dev Restricted to Puffer Protocol
      */
     function createNewPufferModule(bytes32 moduleName) external virtual onlyPufferProtocol returns (PufferModule) {
         if (moduleName == bytes32("NO_VALIDATORS")) {
@@ -133,6 +148,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Queues the withdrawals for the given module
+     * @param moduleName The name of the module
+     * @param sharesAmount The amount of shares to withdraw
      * @dev Restricted to Puffer Paymaster
      */
     function callQueueWithdrawals(bytes32 moduleName, uint256 sharesAmount) external virtual restricted {
@@ -142,6 +160,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Calls the `callSetClaimerFor` function on the target module or restaking operator contract
+     * @param moduleOrReOp is the address of the target module or restaking operator contract
+     * @param claimer is the address of the claimer to be set
      * @dev Restricted to the DAO
      */
     function callSetClaimerFor(address moduleOrReOp, address claimer) external virtual restricted {
@@ -151,6 +172,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Sets proof Submitter on the Puffer Module
+     * @param moduleName The name of the module
+     * @param proofSubmitter The address of the proof submitter
      * @dev Restricted to the DAO
      */
     function callSetProofSubmitter(bytes32 moduleName, address proofSubmitter) external virtual restricted {
@@ -160,6 +184,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Create a new Restaking Operator
+     * @param metadataURI is a URI for the operator's metadata, i.e. a link providing more details on the operator.
+     * @param allocationDelay is the delay in seconds before the operator can be used for allocation
+     * @return restakingOperator The address of the newly created Restaking Operator
      * @dev Restricted to the DAO
      */
     function createNewRestakingOperator(string calldata metadataURI, uint32 allocationDelay)
@@ -186,6 +214,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Calls the callDelegateTo function on the target module
+     * @param moduleName is the name of the module
+     * @param operator is the address of the restaking operator
+     * @param approverSignatureAndExpiry the signature of the delegation approver
+     * @param approverSalt salt for the signature
      * @dev Restricted to the DAO
      */
     function callDelegateTo(
@@ -202,6 +235,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Calls the callUndelegate function on the target module
+     * @param moduleName is the name of the module
      * @dev Restricted to the DAO
      */
     function callUndelegate(bytes32 moduleName) external virtual restricted returns (bytes32[] memory withdrawalRoot) {
@@ -213,6 +248,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Calls the callRegisterOperatorToAVS function on the target restaking operator
+     * @param restakingOperator is the address of the restaking operator
+     * @param registrationParams is the struct with new operator details
      * @dev Restricted to the DAO
      */
     function callRegisterOperatorToAVS(
@@ -229,19 +267,32 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Calls the `target` contract with `customCalldata` from the Restaking Operator contract
+     * @param restakingOperator is the Restaking Operator contract
+     * @param target is the address of the target contract that ReOp will call
+     * @param customCalldata is the calldata to be passed to the target contract
      * @dev Restricted to the DAO
      */
     function customExternalCall(RestakingOperator restakingOperator, address target, bytes calldata customCalldata)
         external
+        payable
         virtual
         restricted
     {
-        bytes memory response = restakingOperator.customCalldataCall(target, customCalldata);
+        // Custom external calls are only allowed to whitelisted registry coordinators
+        if (!AVS_CONTRACTS_REGISTRY.isAllowedRegistryCoordinator(target, customCalldata)) {
+            revert Unauthorized();
+        }
+
+        bytes memory response = restakingOperator.customCalldataCall{ value: msg.value }(target, customCalldata);
 
         emit CustomCallSucceeded(address(restakingOperator), target, customCalldata, response);
     }
 
     /**
+     * @notice Calls the callDeregisterOperatorFromAVS function on the target restaking operator
+     * @param restakingOperator is the address of the restaking operator
+     * @param deregistrationParams is the struct with new operator details
      * @dev Restricted to the DAO
      */
     function callDeregisterOperatorFromAVS(
@@ -256,6 +307,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @notice Updates AVS registration signature proof
+     * @param restakingOperator is the address of the restaking operator
+     * @param digestHash is the message hash
+     * @param signer is the address of the signature signer
      * @dev Restricted to the DAO
      */
     function updateAVSRegistrationSignatureProof(

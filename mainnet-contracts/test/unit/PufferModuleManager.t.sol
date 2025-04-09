@@ -54,41 +54,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         _skipDefaultFuzzAddresses();
     }
 
-    function test_createBadRestakingOperator() public {
-        // Bad Delegation Manager
-        vm.expectRevert(InvalidAddress.selector);
-        new RestakingOperator({
-            delegationManager: IDelegationManager(address(0)),
-            allocationManager: IAllocationManager(address(0)),
-            moduleManager: IPufferModuleManager(address(0)),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
-        });
-        // Bad Allocation Manager
-        vm.expectRevert(InvalidAddress.selector);
-        new RestakingOperator({
-            delegationManager: IDelegationManager(address(5)),
-            allocationManager: IAllocationManager(address(0)),
-            moduleManager: IPufferModuleManager(address(0)),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
-        });
-        // Bad Module Manager
-        vm.expectRevert(InvalidAddress.selector);
-        new RestakingOperator({
-            delegationManager: IDelegationManager(address(5)),
-            allocationManager: IAllocationManager(address(6)),
-            moduleManager: IPufferModuleManager(address(0)),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
-        });
-        // Bad Rewards Coordinator
-        vm.expectRevert(InvalidAddress.selector);
-        new RestakingOperator({
-            delegationManager: IDelegationManager(address(5)),
-            allocationManager: IAllocationManager(address(6)),
-            moduleManager: IPufferModuleManager(address(7)),
-            rewardsCoordinator: IRewardsCoordinator(address(0))
-        });
-    }
-
     function test_beaconUpgrade() public {
         address moduleBeacon = pufferModuleManager.PUFFER_MODULE_BEACON();
 
@@ -367,20 +332,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
             SignatureChecker.isValidERC1271SignatureNow(address(operator), fakeDigestHash, signature), "signer proof"
         );
 
-        vm.stopPrank();
-    }
-
-    function test_customExternalCall() public {
-        vm.startPrank(DAO);
-        RestakingOperator operator = _createRestakingOperator();
-
-        bytes memory customCalldata = abi.encodeCall(PufferModuleManagerTest.getMagicNumber, ());
-
-        vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.CustomCallSucceeded(
-            address(operator), address(this), customCalldata, abi.encode(85858585)
-        );
-        pufferModuleManager.customExternalCall(operator, address(this), customCalldata);
         vm.stopPrank();
     }
 

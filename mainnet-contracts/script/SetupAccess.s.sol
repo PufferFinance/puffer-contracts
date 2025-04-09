@@ -19,6 +19,8 @@ import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCallData.sol";
 import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
+import { GenerateRestakingOperatorCalldata } from
+    "../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
 
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -73,6 +75,11 @@ contract SetupAccess is BaseScript {
         cd = new GenerateAccessManagerCalldata2().run(deployment.moduleManager);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateAccessManagerCalldata2");
+
+        // RestakingOperatorController setup
+        cd = new GenerateRestakingOperatorCalldata().run(deployment.restakingOperatorController);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateRestakingOperatorCalldata");
     }
 
     function _generateAccessCalldata(

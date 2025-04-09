@@ -27,6 +27,7 @@ struct PufferProtocolDeployment {
     address pufferOracle;
     address operationsCoordinator;
     address aVSContractsRegistry;
+    address restakingOperatorController;
     address pufferDepositor; // from pufETH repository (dependency)
     address pufferVault; // from pufETH repository (dependency)
     address stETH; // from pufETH repository (dependency)

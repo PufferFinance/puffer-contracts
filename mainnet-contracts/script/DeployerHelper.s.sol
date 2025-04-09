@@ -418,6 +418,18 @@ abstract contract DeployerHelper is Script {
         revert("PufferProtocol not available for this chain");
     }
 
+    function _getRestakingOperatorController() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/TODO
+            return address(0); // TODO
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/TODO
+            return address(0); // TODO
+        }
+
+        revert("RestakingOperatorController not available for this chain");
+    }
+
     function _getXPufETH() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xD7D2802f6b19843ac4DfE25022771FD83b5A7464

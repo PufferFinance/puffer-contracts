@@ -28,6 +28,7 @@ import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewar
 import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol";
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
+import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -57,6 +58,7 @@ contract DeployPuffer is BaseScript {
     OperationsCoordinator operationsCoordinator;
     ValidatorTicketPricer validatorTicketPricer;
     AVSContractsRegistry aVSContractsRegistry;
+    RestakingOperatorController restakingOperatorController;
 
     address eigenPodManager;
     address delegationManager;
@@ -134,18 +136,22 @@ contract DeployPuffer is BaseScript {
             });
             vm.label(address(moduleImplementation), "PufferModuleImplementation");
 
+            aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
+
+            restakingOperatorController =
+                new RestakingOperatorController(address(accessManager), address(aVSContractsRegistry));
+
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
                 IAllocationManager(eigenSlasher),
                 PufferModuleManager(payable(address(moduleManagerProxy))),
-                IRewardsCoordinator(rewardsCoordinator)
+                IRewardsCoordinator(rewardsCoordinator),
+                address(restakingOperatorController)
             );
 
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             restakingOperatorBeacon =
                 new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
-
-            aVSContractsRegistry = new AVSContractsRegistry(address(accessManager));
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
@@ -165,7 +171,8 @@ contract DeployPuffer is BaseScript {
         moduleManager = new PufferModuleManager({
             pufferModuleBeacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            pufferProtocol: address(proxy)
+            pufferProtocol: address(proxy),
+            avsContractsRegistry: aVSContractsRegistry
         });
 
         NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
@@ -201,6 +208,7 @@ contract DeployPuffer is BaseScript {
             pufferOracle: address(oracle),
             operationsCoordinator: address(operationsCoordinator),
             aVSContractsRegistry: address(aVSContractsRegistry),
+            restakingOperatorController: address(restakingOperatorController),
             timelock: address(0), // overwritten in DeployEverything
             stETH: address(0), // overwritten in DeployEverything
             pufferVault: address(0), // overwritten in DeployEverything

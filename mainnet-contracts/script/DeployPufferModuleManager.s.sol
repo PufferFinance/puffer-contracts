@@ -7,6 +7,7 @@ import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
+import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
@@ -19,7 +20,8 @@ contract DeployPufferModuleManager is DeployerHelper {
         PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(_getPufferModuleBeacon()),
             restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol())
+            pufferProtocol: address(_getPufferProtocol()),
+            avsContractsRegistry: AVSContractsRegistry(_getAVSContractsRegistry())
         });
 
         //@todo Double check reinitialization
@@ -35,7 +37,8 @@ contract DeployPufferModuleManager is DeployerHelper {
         PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(_getPufferModuleBeacon()),
             restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol())
+            pufferProtocol: address(_getPufferProtocol()),
+            avsContractsRegistry: AVSContractsRegistry(_getAVSContractsRegistry())
         });
 
         _consoleLogOrUpgradeUUPSPrank({
