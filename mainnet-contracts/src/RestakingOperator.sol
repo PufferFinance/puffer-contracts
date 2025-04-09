@@ -69,7 +69,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      */
     IPufferModuleManager public immutable PUFFER_MODULE_MANAGER;
 
-    modifier onlyAllowed() {
+    modifier onlyAuthorized() {
         require(
             msg.sender == RESTAKING_OPERATOR_CONTROLLER || msg.sender == address(PUFFER_MODULE_MANAGER), Unauthorized()
         );
@@ -120,7 +120,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
-    function optIntoSlashing(address slasher) external virtual onlyAllowed {
+    function optIntoSlashing(address slasher) external virtual onlyAuthorized {
         EIGEN_SLASHER.optIntoSlashing(slasher);
     }
 
@@ -131,7 +131,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     function modifyOperatorDetails(IDelegationManager.OperatorDetails calldata newOperatorDetails)
         external
         virtual
-        onlyAllowed
+        onlyAuthorized
     {
         EIGEN_DELEGATION_MANAGER.modifyOperatorDetails(newOperatorDetails);
     }
@@ -140,7 +140,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
-    function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyAllowed {
+    function updateOperatorMetadataURI(string calldata metadataURI) external virtual onlyAuthorized {
         EIGEN_DELEGATION_MANAGER.updateOperatorMetadataURI(metadataURI);
     }
 
@@ -148,7 +148,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
-    function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyAllowed {
+    function updateSignatureProof(bytes32 digestHash, address signer) external virtual onlyAuthorized {
         RestakingOperatorStorage storage $ = _getRestakingOperatorStorage();
 
         $.hashSigners[digestHash] = signer;
@@ -164,7 +164,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         string calldata socket,
         IBLSApkRegistry.PubkeyRegistrationParams calldata params,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual onlyAllowed {
+    ) external virtual onlyAuthorized {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperator({
             quorumNumbers: quorumNumbers,
             socket: socket,
@@ -185,7 +185,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         IRegistryCoordinator.OperatorKickParam[] calldata operatorKickParams,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata churnApproverSignature,
         ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external virtual onlyAllowed {
+    ) external virtual onlyAuthorized {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).registerOperatorWithChurn({
             quorumNumbers: quorumNumbers,
             socket: socket,
@@ -204,7 +204,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
         external
         payable
         virtual
-        onlyAllowed
+        onlyAuthorized
         returns (bytes memory response)
     {
         return target.functionCallWithValue(customCalldata, msg.value);
@@ -217,7 +217,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     function deregisterOperatorFromAVS(address avsRegistryCoordinator, bytes calldata quorumNumbers)
         external
         virtual
-        onlyAllowed
+        onlyAuthorized
     {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).deregisterOperator(quorumNumbers);
     }
@@ -229,7 +229,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
     function updateOperatorAVSSocket(address avsRegistryCoordinator, string calldata socket)
         external
         virtual
-        onlyAllowed
+        onlyAuthorized
     {
         IRegistryCoordinatorExtended(avsRegistryCoordinator).updateSocket(socket);
     }
@@ -238,7 +238,7 @@ contract RestakingOperator is IRestakingOperator, IERC1271, Initializable, Acces
      * @inheritdoc IRestakingOperator
      * @dev Restricted to the PufferModuleManager or the RestakingOperatorController
      */
-    function callSetClaimerFor(address claimer) external virtual onlyAllowed {
+    function callSetClaimerFor(address claimer) external virtual onlyAuthorized {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
