@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { PufferVaultV5Tests } from "../test/mocks/PufferVaultV5Tests.sol";
 import { PufferDepositorV2 } from "../src/PufferDepositorV2.sol";
@@ -168,7 +167,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.startPrank(COMMUNITY_MULTISIG);
 
         bytes memory upgradeCd = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ()))
+            UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, ()))
         );
 
         (bool success,) = address(timelock).call(
@@ -178,12 +177,12 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV2.initialize, ())
+            address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, ())
         );
 
         // Upgrade PufferDepositor
         PufferDepositorV2 newDepositorImplementation =
-            new PufferDepositorV2(PufferVaultV2(payable(pufferVault)), IStETH(_getStETH()));
+            new PufferDepositorV2(PufferVaultV5(payable(pufferVault)), IStETH(_getStETH()));
 
         upgradeCd = abi.encodeCall(
             UUPSUpgradeable.upgradeToAndCall,

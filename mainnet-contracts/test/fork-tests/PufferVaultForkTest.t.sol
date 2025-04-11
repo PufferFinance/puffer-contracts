@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { IPufferVault } from "../../src/interface/IPufferVault.sol";
-import { IPufferVaultV2 } from "../../src/interface/IPufferVaultV2.sol";
+import { IPufferVaultV5 } from "../../src/interface/IPufferVaultV5.sol";
 import { IPufferVaultV5 } from "../../src/interface/IPufferVaultV5.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -75,7 +75,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
 
         pufferVault.depositETH{ value: 1 ether }(alice);
 
-        vm.expectRevert(IPufferVaultV2.DepositAndWithdrawalForbidden.selector);
+        vm.expectRevert(IPufferVaultV5.DepositAndWithdrawalForbidden.selector);
         pufferVault.redeem(1 ether, alice, alice);
     }
 

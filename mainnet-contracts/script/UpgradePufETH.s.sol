@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { stdJson } from "forge-std/StdJson.sol";
 import { BaseScript } from ".//BaseScript.s.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
-import { PufferVaultV2 } from "../src/PufferVaultV2.sol";
 import { PufferVaultV5Tests } from "../test/mocks/PufferVaultV5Tests.sol";
 import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
 import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
@@ -53,19 +52,6 @@ contract UpgradePufETH is BaseScript {
     function run(PufferDeployment memory deployment, address pufferOracle, address revenueDepositor) public broadcast {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
-
-        PufferVaultV2 newImplementationV2 = new PufferVaultV2(
-            IStETH(deployment.stETH),
-            IWETH(deployment.weth),
-            ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
-            IPufferOracle(pufferOracle)
-        );
-
-        // It is necessary to upgrade to VaultV2 because in that upgrade we changed the underlying asset from stETH to WETH
-        // Initialize VaultV2 to swap stETH for WETH as the asset
-        UUPSUpgradeable(deployment.pufferVault).upgradeToAndCall(
-            address(newImplementationV2), abi.encodeCall(PufferVaultV2.initialize, ())
-        );
 
         PufferVaultV5 newImplementation = new PufferVaultV5Tests(
             IStETH(deployment.stETH),

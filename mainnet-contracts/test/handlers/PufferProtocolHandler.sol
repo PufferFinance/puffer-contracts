@@ -137,7 +137,7 @@ contract PufferProtocolHandler is Test {
 
         testhelper = helper;
         pufferProtocol = protocol;
-        // This is after the upgrade to PufferVaultV2, when the WETH is the underlying asset
+        // This is after the upgrade to PufferVaultV5, when the WETH is the underlying asset
         weth = IWETH(vault.asset());
         stETH = stETHMock(steth);
         guardiansEnclavePks.push(_guardiansEnclavePks[0]);

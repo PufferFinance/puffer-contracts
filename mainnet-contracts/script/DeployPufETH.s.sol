@@ -6,7 +6,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
@@ -50,8 +50,8 @@ contract DeployPufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    PufferVault pufferVault;
-    PufferVault pufferVaultImplementation;
+    PufferVaultV5 pufferVault;
+    PufferVaultV5 pufferVaultImplementation;
 
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;

@@ -8,7 +8,7 @@ import { ValidatorKeyData } from "mainnet-contracts/src/struct/ValidatorKeyData.
 import { IPufferProtocol } from "mainnet-contracts/src/interface/IPufferProtocol.sol";
 import { PufferProtocol } from "mainnet-contracts/src/PufferProtocol.sol";
 import { ModuleLimit } from "mainnet-contracts/src/struct/ProtocolStorage.sol";
-import { PufferVaultV2 } from "mainnet-contracts/src/PufferVaultV2.sol";
+import { PufferVaultV5 } from "mainnet-contracts/src/PufferVaultV5.sol";
 import { ValidatorTicket } from "mainnet-contracts/src/ValidatorTicket.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -24,7 +24,7 @@ import { console } from "forge-std/console.sol";
  */
 contract GenerateBLSKeysAndRegisterValidatorsCalldata is Script {
     address validatorTicketAddress;
-    PufferVaultV2 internal pufETH;
+    PufferVaultV5 internal pufETH;
     ValidatorTicket internal validatorTicket;
     address internal protocolAddress;
     PufferProtocol internal pufferProtocol;
