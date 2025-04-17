@@ -489,6 +489,16 @@ abstract contract DeployerHelper is Script {
 
     function _getPaymaster() internal view returns (address) {
         if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xb4F1f4d59bd7590e92c386083Aa260C1e09cC58b
+            return 0xb4F1f4d59bd7590e92c386083Aa260C1e09cC58b;
+        }
+
+        revert("Paymaster not available for this chain");
+    }
+    // Keep this address for revoking old paymaster in future
+
+    function _getDeprecatedPaymaster() internal view returns (address) {
+        if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x65d2dd7A66a2733a36559fE900A236280A05FBD6
             return 0x65d2dd7A66a2733a36559fE900A236280A05FBD6;
         } else if (block.chainid == holesky) {
@@ -545,15 +555,6 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("OPSMultisig not available for this chain");
-    }
-
-    function _getCommunityMultisig() internal view returns (address) {
-        if (block.chainid == mainnet) {
-            // https://etherscan.io/address/0x446d4d6b26815f9bA78B5D454E303315D586Cb2a
-            return 0x446d4d6b26815f9bA78B5D454E303315D586Cb2a;
-        }
-
-        revert("CommunityMultisig not available for this chain");
     }
 
     function _getAeraVault() internal view returns (address) {
