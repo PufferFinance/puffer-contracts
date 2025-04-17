@@ -4,8 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "../struct/Validator.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
 import { IGuardianModule } from "../interface/IGuardianModule.sol";
-import { IPufferModuleManager } from "../interface/IPufferModuleManager.sol";
-import { PufferVaultV2 } from "../PufferVaultV2.sol";
+import { PufferModuleManager } from "../PufferModuleManager.sol";
+import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
 import { Status } from "../struct/Status.sol";
 import { Permit } from "../structs/Permit.sol";
@@ -233,30 +233,6 @@ interface IPufferProtocol {
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
 
     /**
-     * @notice Sets the module weights array to `newModuleWeights`
-     * @dev Restricted to the DAO
-     */
-    function setModuleWeights(bytes32[] calldata newModuleWeights) external;
-
-    /**
-     * @notice Sets the module limits for `moduleName` to `limit`
-     * @dev Restricted to the DAO
-     */
-    function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external;
-
-    /**
-     * @notice Sets the Validator Ticket penalty amount to `newPenaltyAmount`
-     * @dev Restricted to the DAO
-     */
-    function setVTPenalty(uint256 newPenaltyAmount) external;
-
-    /**
-     * @notice Changes the minimum number amount of VT that must be locked per validator
-     * @dev Restricted to the DAO
-     */
-    function changeMinimumVTAmount(uint256 newMinimumVTAmount) external;
-
-    /**
      * @notice Returns the guardian module
      */
     function GUARDIAN_MODULE() external view returns (IGuardianModule);
@@ -269,12 +245,12 @@ interface IPufferProtocol {
     /**
      * @notice Returns the Puffer Vault
      */
-    function PUFFER_VAULT() external view returns (PufferVaultV2);
+    function PUFFER_VAULT() external view returns (PufferVaultV5);
 
     /**
      * @notice Returns the Puffer Module Manager
      */
-    function PUFFER_MODULE_MANAGER() external view returns (IPufferModuleManager);
+    function PUFFER_MODULE_MANAGER() external view returns (PufferModuleManager);
 
     /**
      * @notice Returns the Puffer Oracle

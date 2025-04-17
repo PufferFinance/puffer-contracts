@@ -10,8 +10,8 @@ import { PufferVault } from "../src/PufferVault.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
-import { IEigenLayer } from "../src/interface/EigenLayer/IEigenLayer.sol";
-import { IStrategy } from "../src/interface/EigenLayer/IStrategy.sol";
+import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.sol";
+import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { stETHMock } from "../test/mocks/stETHMock.sol";
@@ -108,9 +108,8 @@ contract DeployPufETH is BaseScript {
             wethAddress = address(weth);
 
             // Deploy implementation contracts
-            pufferVaultImplementation =
-                new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue, stETHStrategy, eigenStrategyManager);
-            vm.label(address(pufferVaultImplementation), "PufferVaultImplementation");
+            pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
+            vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
                 new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
             vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
@@ -201,23 +200,13 @@ contract DeployPufETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](5);
-
-        bytes4[] memory selectors = new bytes4[](3);
-        selectors[0] = PufferVault.depositToEigenLayer.selector;
-        selectors[1] = PufferVault.initiateETHWithdrawalsFromLido.selector;
-        selectors[2] = PufferVault.initiateStETHWithdrawalFromEigenLayer.selector;
-
-        // Setup setup role
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(vaultProxy), selectors, ROLE_ID_OPERATIONS_MULTISIG
-        );
+        bytes[] memory calldatas = new bytes[](3);
 
         // Setup role members (no delay)
-        calldatas[1] =
+        calldatas[0] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         // Grant admin role to timelock
-        calldatas[2] =
+        calldatas[1] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);
 
         // Setup public access for PufferDepositor
@@ -229,18 +218,8 @@ contract DeployPufETH is BaseScript {
         publicSelectors[4] = PufferDepositor.swapAndDeposit1Inch.selector;
         publicSelectors[5] = PufferDepositor.depositStETH.selector;
 
-        calldatas[3] = abi.encodeCall(
+        calldatas[2] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
-        );
-
-        // Setup public access for PufferVault
-        bytes4[] memory publicSelectorsPufferVault = new bytes4[](2);
-        publicSelectorsPufferVault[0] = PufferVault.deposit.selector;
-        publicSelectorsPufferVault[1] = PufferVault.mint.selector;
-
-        calldatas[4] = abi.encodeCall(
-            AccessManager.setTargetFunctionRole,
-            (address(vaultProxy), publicSelectorsPufferVault, accessManager.PUBLIC_ROLE())
         );
 
         return calldatas;

@@ -6,7 +6,11 @@ import { IAeraVault, AssetValue } from "src/interface/Other/IAeraVault.sol";
 contract MockAeraVault is IAeraVault {
     function deposit(AssetValue[] memory amounts) external { }
 
-    function withdraw(AssetValue[] memory amounts) external { }
+    function withdraw(AssetValue[] memory amounts) external {
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            amounts[i].asset.transfer(msg.sender, amounts[i].value);
+        }
+    }
 
     function setGuardianAndFeeRecipient(address, address) external { }
 

@@ -7,29 +7,36 @@ import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { AVSContractsRegistry } from "../src/AVSContractsRegistry.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
+
 /**
  * forge script script/DeployPufferModuleManager.s.sol:DeployPufferModuleManager -vvvv --rpc-url=$RPC_URL --broadcast --verify
  */
-
 contract DeployPufferModuleManager is DeployerHelper {
     function run() public {
         vm.startBroadcast();
 
+        _deploy();
+    }
+
+    function deployPufferModuleManagerTests() public returns (PufferModuleManager) {
+        return _deploy();
+    }
+
+    function _deploy() internal returns (PufferModuleManager) {
         PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(_getPufferModuleBeacon()),
             restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol()),
-            avsContractsRegistry: AVSContractsRegistry(_getAVSContractsRegistry())
+            pufferProtocol: address(_getPufferProtocol())
         });
 
-        //@todo Double check reinitialization
-        _consoleLogOrUpgradeUUPS({
+        _consoleLogOrUpgradeUUPSPrank({
             proxyTarget: _getPufferModuleManager(),
             implementation: address(newPufferModuleManagerImplementation),
             data: "",
             contractName: "PufferModuleManagerImplementation"
         });
+
+        return newPufferModuleManagerImplementation;
     }
 }

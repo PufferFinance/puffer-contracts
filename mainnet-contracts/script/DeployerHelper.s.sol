@@ -18,11 +18,27 @@ abstract contract DeployerHelper is Script {
     uint256 public base = 8453;
     uint256 public sepolia = 11155111;
     uint256 public opSepolia = 11155420;
+    uint256 public ape = 33139;
 
     function _getDeployer() internal returns (address) {
         (, address msgSender,) = vm.readCallers();
         console.log("Deployer:", block.chainid, msgSender);
         return msgSender;
+    }
+
+    function _getPufferDeployer() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76
+            return 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+            return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else if (block.chainid == ape) {
+            // https://apescan.io/address/0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76
+            return 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76;
+        }
+
+        revert("PufferDeployer not available for this chain");
     }
 
     function _getDAO() internal view returns (address) {
@@ -54,6 +70,52 @@ abstract contract DeployerHelper is Script {
             console.logBytes(upgradeCallData);
             console.log("================================================");
         }
+    }
+
+    function _getCARROT() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6
+            return 0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0x82a44a6489936FFF841eecAF650Aa4D9708E4312
+            return 0x82a44a6489936FFF841eecAF650Aa4D9708E4312;
+        }
+
+        revert("CARROT not available for this chain");
+    }
+    /**
+     * @dev Used only for testnet deployment and fork tests, where the _paymaster is the deployer
+     */
+
+    function _consoleLogOrUpgradeUUPSPrank(
+        address proxyTarget,
+        address implementation,
+        bytes memory data,
+        string memory contractName
+    ) internal {
+        vm.startPrank(_getPaymaster());
+        vm.label(implementation, contractName);
+        console.log("Deployed", contractName, "at", implementation);
+
+        if (block.chainid == holesky) {
+            AccessManager(_getAccessManager()).execute(
+                proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
+            );
+        } else {
+            bytes memory upgradeCallData =
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));
+            console.log("Queue TX From Timelock to -> ", proxyTarget);
+            console.logBytes(upgradeCallData);
+            console.log("================================================");
+        }
+    }
+
+    function _getBeaconChainStrategy() internal view returns (address) {
+        if (block.chainid == holesky) {
+            return 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+        }
+
+        revert("BEACON_CHAIN_STRATEGY not available for this chain");
     }
 
     function _getTreasury() internal view returns (address) {
@@ -356,6 +418,18 @@ abstract contract DeployerHelper is Script {
         revert("PufferProtocol not available for this chain");
     }
 
+    function _getRestakingOperatorController() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/TODO
+            return address(0); // TODO
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/TODO
+            return address(0); // TODO
+        }
+
+        revert("RestakingOperatorController not available for this chain");
+    }
+
     function _getXPufETH() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xD7D2802f6b19843ac4DfE25022771FD83b5A7464
@@ -405,7 +479,11 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == sepolia) {
             // https://sepolia.etherscan.io/address/0x445fbf9cCbaf7d557fd771d56937E94397f43965
             return 0x445fbf9cCbaf7d557fd771d56937E94397f43965;
+        } else if (block.chainid == ape) {
+            // https://apescan.io/address/0xD1daF260951B8d350a4AeD5C80d74Fd7298C93F4
+            return 0xD1daF260951B8d350a4AeD5C80d74Fd7298C93F4;
         }
+
         revert("Everclear not available for this chain");
     }
 
@@ -421,6 +499,30 @@ abstract contract DeployerHelper is Script {
         revert("Paymaster not available for this chain");
     }
 
+    function _getCommunityMultisig() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x446d4d6b26815f9bA78B5D454E303315D586Cb2a
+            return 0x446d4d6b26815f9bA78B5D454E303315D586Cb2a;
+        } else if (block.chainid == ape) {
+            // https://apescan.io/address/0xE417FD3b116eb604De2E14715DaeB099154E597B
+            return 0xE417FD3b116eb604De2E14715DaeB099154E597B;
+        }
+
+        revert("CommunityMultisig not available for this chain");
+    }
+
+    function _getPauserMultisig() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x1ba8e3aA853F73ae8093E26B7B8F2520c3620Df4
+            return 0x1ba8e3aA853F73ae8093E26B7B8F2520c3620Df4;
+        } else if (block.chainid == ape) {
+            // https://apescan.io/address/0x0B975bB578e9111977Bc75b667f3C18f96cD03E7
+            return 0x0B975bB578e9111977Bc75b667f3C18f96cD03E7;
+        }
+
+        revert("PauserMultisig not available for this chain");
+    }
+
     function _getOPSMultisig() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d
@@ -428,6 +530,18 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else if (block.chainid == ape) {
+            // https://apescan.io/address/0x36E3881Ff855c264045c22179b6fBc01430F97EC
+            return 0x36E3881Ff855c264045c22179b6fBc01430F97EC;
+        }
+
+        revert("OPSMultisig not available for this chain");
+    }
+
+    function _getCarrotMultisig() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xE06A1ad7346Dfda7Ce9BCFba751DABFd754BAfAD
+            return 0xE06A1ad7346Dfda7Ce9BCFba751DABFd754BAfAD;
         }
 
         revert("OPSMultisig not available for this chain");
@@ -467,5 +581,14 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("AeraVaultHooks not available for this chain");
+    }
+
+    function _getRevenueDepositor() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x21660F4681aD5B6039007f7006b5ab0EF9dE7882
+            return 0x21660F4681aD5B6039007f7006b5ab0EF9dE7882;
+        }
+
+        revert("RevenueDepositor not available for this chain");
     }
 }

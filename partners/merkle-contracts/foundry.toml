@@ -1,0 +1,10 @@
+[profile.default]
+allow_paths = ["../node_modules", "./node_modules"]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+[rpc_endpoints]
+mainnet="${ETH_RPC_URL}"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

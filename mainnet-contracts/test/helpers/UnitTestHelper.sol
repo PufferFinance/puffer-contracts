@@ -8,6 +8,7 @@ import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
+import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
 import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -19,8 +20,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
 import { PufferVault } from "../../src/PufferVault.sol";
-import { PufferVaultV2 } from "../../src/PufferVaultV2.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
@@ -33,6 +33,7 @@ import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { ConnextMock } from "../mocks/ConnextMock.sol";
 import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
+import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -81,7 +82,7 @@ contract UnitTestHelper is Test, BaseScript {
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
 
     PufferDepositor public pufferDepositor;
-    PufferVaultV3 public pufferVault;
+    PufferVaultV5 public pufferVault;
     stETHMock public stETH;
     IWETH public weth;
 
@@ -97,6 +98,7 @@ contract UnitTestHelper is Test, BaseScript {
     IEnclaveVerifier public verifier;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
+    RestakingOperatorController public restakingOperatorController;
     ValidatorTicketPricer public validatorTicketPricer;
     xPufETH public xpufETH;
     XERC20Lockbox public lockBox;
@@ -207,6 +209,7 @@ contract UnitTestHelper is Test, BaseScript {
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
+        restakingOperatorController = RestakingOperatorController(payable(pufferDeployment.restakingOperatorController));
         xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
         lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
@@ -215,7 +218,7 @@ contract UnitTestHelper is Test, BaseScript {
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
 
         // pufETH dependencies
-        pufferVault = PufferVaultV3(payable(pufferDeployment.pufferVault));
+        pufferVault = PufferVaultV5(payable(pufferDeployment.pufferVault));
         pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));
         stETH = stETHMock(payable(pufferDeployment.stETH));
         weth = IWETH(payable(pufferDeployment.weth));
@@ -317,7 +320,7 @@ contract UnitTestHelper is Test, BaseScript {
         accessManager.grantRole(protocolRoleId, address(pufferProtocol), 0);
 
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferVaultV2.transferETH.selector;
+        selectors[0] = PufferVaultV5.transferETH.selector;
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, protocolRoleId);
 
         vm.stopPrank();

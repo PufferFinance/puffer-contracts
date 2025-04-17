@@ -10,7 +10,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicketStorage } from "./ValidatorTicketStorage.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { PufferVaultV3 } from "./PufferVaultV3.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
 import { IValidatorTicket } from "./interface/IValidatorTicket.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -78,7 +78,7 @@ contract ValidatorTicket is
     ) {
         if (
             guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
-                || address(pufferOracle) == address(0)
+                || address(pufferOracle) == address(0) || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
@@ -112,8 +112,6 @@ contract ValidatorTicket is
         restricted
         returns (uint256 mintedAmount)
     {
-        ValidatorTicket storage $ = _getValidatorTicketStorage();
-
         uint256 mintPrice = PUFFER_ORACLE.getValidatorTicketPrice();
         mintedAmount = (msg.value * 1 ether) / mintPrice; // * 1 ether is to upscale amount to 18 decimals
 
@@ -128,6 +126,8 @@ contract ValidatorTicket is
             emit DispersedETH({ treasury: msg.value, guardians: 0, vault: 0 });
             return mintedAmount;
         }
+
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
         uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
@@ -273,7 +273,7 @@ contract ValidatorTicket is
 
         uint256 requiredETH = vtAmount.mulDiv(mintPrice, 1 ether, Math.Rounding.Ceil);
 
-        pufEthUsed = PufferVaultV3(PUFFER_VAULT).convertToSharesUp(requiredETH);
+        pufEthUsed = PufferVaultV5(PUFFER_VAULT).convertToSharesUp(requiredETH);
 
         IERC20(PUFFER_VAULT).transferFrom(msg.sender, address(this), pufEthUsed);
 
@@ -292,7 +292,7 @@ contract ValidatorTicket is
         uint256 guardiansAmount = _sendPufETH(OPERATIONS_MULTISIG, pufEthUsed, $.guardiansFeeRate);
         uint256 burnAmount = pufEthUsed - (treasuryAmount + guardiansAmount);
 
-        PufferVaultV3(PUFFER_VAULT).burn(burnAmount);
+        PufferVaultV5(PUFFER_VAULT).burn(burnAmount);
 
         emit DispersedPufETH({ treasury: treasuryAmount, guardians: guardiansAmount, burned: burnAmount });
 

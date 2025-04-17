@@ -6,11 +6,10 @@ import { MainnetForkTestHelper } from "../MainnetForkTestHelper.sol";
 import { UpgradeValidatorTicket } from "../../script/UpgradeValidatorTicket.s.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IValidatorTicket } from "../../src/interface/IValidatorTicket.sol";
-import { PufferVaultV3 } from "../../src/PufferVaultV3.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { IPufferOracle } from "../../src/interface/IPufferOracle.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     using Math for uint256;
@@ -68,7 +67,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
         uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
         uint256 expectedPufEthUsed =
-            PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
+            PufferVaultV5(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
 
         // Give whale some pufETH
         deal(address(validatorTicket.PUFFER_VAULT()), recipient, expectedPufEthUsed * 2);
@@ -91,7 +90,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
 
         uint256 vtPrice = IPufferOracle(address(validatorTicket.PUFFER_ORACLE())).getValidatorTicketPrice();
         uint256 requiredETH = vtAmount.mulDiv(vtPrice, 1 ether, Math.Rounding.Ceil);
-        uint256 pufEthAmount = PufferVaultV3(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
+        uint256 pufEthAmount = PufferVaultV5(payable(validatorTicket.PUFFER_VAULT())).convertToSharesUp(requiredETH);
 
         deal(address(validatorTicket.PUFFER_VAULT()), recipient, pufEthAmount);
 
