@@ -489,6 +489,19 @@ abstract contract DeployerHelper is Script {
 
     function _getPaymaster() internal view returns (address) {
         if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xb4F1f4d59bd7590e92c386083Aa260C1e09cC58b
+            return 0xb4F1f4d59bd7590e92c386083Aa260C1e09cC58b;
+        } else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
+            return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        }
+
+        revert("Paymaster not available for this chain");
+    }
+    // Keep this address for revoking old paymaster in future
+
+    function _getDeprecatedPaymaster() internal view returns (address) {
+        if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x65d2dd7A66a2733a36559fE900A236280A05FBD6
             return 0x65d2dd7A66a2733a36559fE900A236280A05FBD6;
         } else if (block.chainid == holesky) {
@@ -581,5 +594,14 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("RevenueDepositor not available for this chain");
+    }
+
+    function _getPufferWithdrawalManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xDdA0483184E75a5579ef9635ED14BacCf9d50283
+            return 0xDdA0483184E75a5579ef9635ED14BacCf9d50283;
+        }
+
+        revert("PufferWithdrawalManager not available for this chain");
     }
 }
