@@ -595,4 +595,13 @@ abstract contract DeployerHelper is Script {
 
         revert("RevenueDepositor not available for this chain");
     }
+
+    function _getPufferWithdrawalManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0xDdA0483184E75a5579ef9635ED14BacCf9d50283
+            return 0xDdA0483184E75a5579ef9635ED14BacCf9d50283;
+        }
+
+        revert("PufferWithdrawalManager not available for this chain");
+    }
 }

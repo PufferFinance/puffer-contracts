@@ -44,7 +44,7 @@ import { ROLE_ID_VT_PRICER, ROLE_ID_WITHDRAWAL_FINALIZER } from "../../script/Ro
 contract AccessManagerCleanup is DeployerHelper {
     function run() public view {
         address duplicateOperationsCoordinator = 0xe6d798165A32F37927AF20D7Ccb1f80fB731a3C0;
-        address withdrawalManagerProxy = 0xDdA0483184E75a5579ef9635ED14BacCf9d50283;
+        address withdrawalManagerProxy = _getPufferWithdrawalManager();
 
         address paymaster = _getPaymaster();
         address withdrawalFinalizer = _getOPSMultisig();
