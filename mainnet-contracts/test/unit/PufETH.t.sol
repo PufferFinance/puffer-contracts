@@ -5,7 +5,7 @@ import "erc4626-tests/ERC4626.test.sol";
 import { IStETH } from "../../src/interface/Lido/IStETH.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
-import { PufferVault } from "../../src/PufferVault.sol";
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
@@ -13,7 +13,7 @@ import { DeployPufETH } from "script/DeployPufETH.s.sol";
 
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
-    PufferVault public pufferVault;
+    PufferVaultV5 public pufferVault;
     AccessManager public accessManager;
     IStETH public stETH;
 
@@ -24,7 +24,7 @@ contract PufETHTest is ERC4626Test {
         PufferDeployment memory deployment = new DeployPufETH().run();
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
-        pufferVault = PufferVault(payable(deployment.pufferVault));
+        pufferVault = PufferVaultV5(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         stETH = IStETH(payable(deployment.stETH));
 

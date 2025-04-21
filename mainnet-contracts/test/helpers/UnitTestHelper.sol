@@ -19,7 +19,6 @@ import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } f
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
-import { PufferVault } from "../../src/PufferVault.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";

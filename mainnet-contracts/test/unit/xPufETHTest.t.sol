@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { PufferDepositor } from "src/PufferDepositor.sol";
 import { Timelock } from "src/Timelock.sol";
-import { PufferVault } from "src/PufferVault.sol";
+import { PufferVaultV5 } from "src/PufferVaultV5.sol";
 import { xPufETH } from "src/l2/xPufETH.sol";
 import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { stETHMock } from "test/mocks/stETHMock.sol";
@@ -17,7 +17,7 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 
 contract xPufETHTest is Test {
     PufferDepositor public pufferDepositor;
-    PufferVault public pufferVault;
+    PufferVaultV5 public pufferVault;
     AccessManager public accessManager;
     stETHMock public stETH;
     Timelock public timelock;
@@ -27,7 +27,7 @@ contract xPufETHTest is Test {
     function setUp() public {
         PufferDeployment memory deployment = new DeployPufETH().run();
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
-        pufferVault = PufferVault(payable(deployment.pufferVault));
+        pufferVault = PufferVaultV5(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         stETH = stETHMock(payable(deployment.stETH));
         timelock = Timelock(payable(deployment.timelock));
