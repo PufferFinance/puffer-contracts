@@ -17,7 +17,7 @@ contract RestakingOperatorController is IRestakingOperatorController, AccessMana
     AVSContractsRegistry private immutable _avsContractsRegistry;
 
     // Selector for the `customCalldataCall` function in the RestakingOperator contract
-    bytes4 private constant CUSTOM_CALL_SELECTOR = 0x58fa420c; // bytes4(keccak256("customCalldataCall(address,bytes)(address,bytes,uint256)"))
+    bytes4 private constant CUSTOM_CALL_SELECTOR = 0x58fa420c; // bytes4(keccak256("customCalldataCall(address,bytes)"))
 
     constructor(address initialAuthority, address avsContractsRegistry) AccessManaged(initialAuthority) {
         _avsContractsRegistry = AVSContractsRegistry(avsContractsRegistry);
