@@ -420,8 +420,8 @@ abstract contract DeployerHelper is Script {
 
     function _getRestakingOperatorController() internal view returns (address) {
         if (block.chainid == mainnet) {
-            // https://etherscan.io/address/TODO
-            return address(0); // TODO
+            // https://etherscan.io/address/0x953b4113716CE71596F7Ba6B0E75050c25c493c1
+            return 0x953b4113716CE71596F7Ba6B0E75050c25c493c1;
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/TODO
             return address(0); // TODO
