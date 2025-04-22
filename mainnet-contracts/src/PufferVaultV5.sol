@@ -457,10 +457,8 @@ contract PufferVaultV5 is
         uint256 maxUserAssets = previewRedeem(balanceOf(owner));
 
         uint256 vaultLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
-        // Calculate the available liquidity after applying the exit fee
-        uint256 availableLiquidity = vaultLiquidity - _feeOnRaw(vaultLiquidity, getExitFeeBasisPoints());
         // Return the minimum of user's assets and available liquidity
-        return Math.min(maxUserAssets, availableLiquidity);
+        return Math.min(maxUserAssets, vaultLiquidity);
     }
 
     /**

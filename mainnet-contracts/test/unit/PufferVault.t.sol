@@ -82,4 +82,75 @@ contract PufferVaultTest is UnitTestHelper {
         requestIds[0] = 1;
         pufferVault.claimWithdrawalsFromLido(requestIds);
     }
+
+    function testFuzz_maxWithdrawRedeem(uint256 userDeposit, uint256 vaultLiquidity, uint256 exitFeeBasisPoints)
+        public
+    {
+        // Bound inputs to reasonable ranges
+        userDeposit = bound(userDeposit, 0.1 ether, 1000 ether);
+        vaultLiquidity = bound(vaultLiquidity, 0.1 ether, 1000 ether);
+        exitFeeBasisPoints = bound(exitFeeBasisPoints, 0, 200); // Max 2% fee
+
+        // Set exit fee
+        vm.prank(address(timelock));
+        pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
+
+        // User deposits
+        vm.deal(alice, userDeposit);
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: userDeposit }(alice);
+        vm.stopPrank();
+
+        // Set vault liquidity
+        assertEq(weth.balanceOf(address(pufferVault)), 0, "Vault WETH should be 0");
+        vm.deal(address(pufferVault), vaultLiquidity);
+
+        // Get user's potential assets based on shares
+        uint256 maxUserAssets = pufferVault.previewRedeem(pufferVault.balanceOf(alice));
+
+        // Test maxWithdraw
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
+        uint256 expectedMaxWithdraw = maxUserAssets < vaultLiquidity ? maxUserAssets : vaultLiquidity;
+        assertEq(maxWithdraw, expectedMaxWithdraw, "maxWithdraw should return min of user assets and vault liquidity");
+
+        // Test maxRedeem
+        uint256 maxRedeem = pufferVault.maxRedeem(alice);
+        uint256 expectedMaxRedeem = pufferVault.balanceOf(alice) < pufferVault.previewWithdraw(vaultLiquidity)
+            ? pufferVault.balanceOf(alice)
+            : pufferVault.previewWithdraw(vaultLiquidity);
+        assertEq(maxRedeem, expectedMaxRedeem, "maxRedeem should return min of user shares and shares from liquidity");
+
+        // Additional invariant checks
+        assertTrue(maxWithdraw <= vaultLiquidity, "maxWithdraw cannot exceed vault liquidity");
+        assertTrue(maxRedeem <= pufferVault.balanceOf(alice), "maxRedeem cannot exceed user shares");
+
+        // If user has more shares than vault liquidity
+        if (maxUserAssets > vaultLiquidity) {
+            assertEq(maxWithdraw, vaultLiquidity, "When liquidity limited, maxWithdraw should equal vault liquidity");
+            assertEq(
+                maxRedeem,
+                pufferVault.previewWithdraw(vaultLiquidity),
+                "When liquidity limited, maxRedeem should be shares equivalent to vault liquidity"
+            );
+        }
+
+        // If user has less shares than vault liquidity
+        if (maxUserAssets < vaultLiquidity) {
+            assertEq(maxWithdraw, maxUserAssets, "When user limited, maxWithdraw should equal user's assets");
+            assertEq(maxRedeem, pufferVault.balanceOf(alice), "When user limited, maxRedeem should equal user's shares");
+        }
+    }
+
+    function testFuzz_maxWithdrawRedeem_ZeroValues() public {
+        // Test with zero liquidity
+        vm.deal(address(pufferVault), 0);
+        assertEq(pufferVault.maxWithdraw(alice), 0, "maxWithdraw should be 0 with zero liquidity");
+        assertEq(pufferVault.maxRedeem(alice), 0, "maxRedeem should be 0 with zero liquidity");
+
+        // Test with zero shares but non-zero liquidity
+        vm.deal(address(pufferVault), 1 ether);
+        address userWithNoShares = address(0xdead);
+        assertEq(pufferVault.maxWithdraw(userWithNoShares), 0, "maxWithdraw should be 0 with zero shares");
+        assertEq(pufferVault.maxRedeem(userWithNoShares), 0, "maxRedeem should be 0 with zero shares");
+    }
 }
