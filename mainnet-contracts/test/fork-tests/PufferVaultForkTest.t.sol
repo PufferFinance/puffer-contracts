@@ -17,6 +17,8 @@ import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 
+using Math for uint256;
+
 /**
  * @notice For some reason the code coverage doesn't consider that this mainnet fork tests increase the code coverage..
  * @notice Added tests for maxWithdraw and maxRedeem V5 functionality.
@@ -152,17 +154,13 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
 
         // Calculate expected values
         uint256 userShares = pufferVault.balanceOf(bob);
-        uint256 fee = vaultLiquidity * exitFeeBasisPoints / 10000;
-        uint256 availableLiquidity = vaultLiquidity - fee;
-        console.log("availableLiquidity", availableLiquidity);
         uint256 maxUserAssets = pufferVault.previewRedeem(userShares);
         console.log("maxUserAssets", maxUserAssets);
         // Test maxWithdraw
-        assertEq(
-            pufferVault.maxWithdraw(bob),
-            availableLiquidity,
-            "maxWithdraw should be limited by vault liquidity after fees"
-        );
+        // We don't subtract fees from vault liquidity because:
+        // 1. Fees are already accounted for in previewRedeem when converting shares to assets
+        // 2. When liquidity is the limiting factor, the user should be able to withdraw up to the full liquidity
+        assertEq(pufferVault.maxWithdraw(bob), vaultLiquidity, "maxWithdraw should be limited by vault liquidity");
         uint256 expectedMaxRedeem = pufferVault.previewWithdraw(vaultLiquidity);
         // Test maxRedeem
         assertEq(
@@ -209,5 +207,67 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         });
         vm.prank(address(timelock));
         pufferVault.upgradeToAndCall(address(v5Impl), "");
+    }
+
+    function testFuzz_maxWithdrawRedeem(uint256 userDeposit, uint256 vaultLiquidity, uint256 exitFeeBasisPoints)
+        public
+        recentFork
+    {
+        setUp();
+        _upgradeToV5();
+        IWETH weth = IWETH(_getWETH());
+
+        // Bound inputs to reasonable ranges
+        userDeposit = bound(userDeposit, 0.1 ether, 1000 ether);
+        vaultLiquidity = bound(vaultLiquidity, 0.1 ether, 1000 ether);
+        exitFeeBasisPoints = bound(exitFeeBasisPoints, 0, 200); // Max 2% fee
+
+        // Set exit fee
+        vm.prank(_getOPSMultisig());
+        pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
+
+        // User deposits
+        vm.deal(bob, userDeposit);
+        vm.prank(bob);
+        pufferVault.depositETH{ value: userDeposit }(bob);
+
+        // Set vault liquidity
+        assertEq(weth.balanceOf(address(pufferVault)), 0, "Vault WETH should be 0");
+        vm.deal(address(pufferVault), vaultLiquidity);
+
+        // Get user's potential assets based on shares
+        uint256 maxUserAssets = pufferVault.previewRedeem(pufferVault.balanceOf(bob));
+
+        // Test maxWithdraw
+        uint256 maxWithdraw = pufferVault.maxWithdraw(bob);
+        uint256 expectedMaxWithdraw = maxUserAssets < vaultLiquidity ? maxUserAssets : vaultLiquidity;
+        assertEq(maxWithdraw, expectedMaxWithdraw, "maxWithdraw should return min of user assets and vault liquidity");
+
+        // Test maxRedeem
+        uint256 maxRedeem = pufferVault.maxRedeem(bob);
+        uint256 expectedMaxRedeem = pufferVault.balanceOf(bob) < pufferVault.previewWithdraw(vaultLiquidity)
+            ? pufferVault.balanceOf(bob)
+            : pufferVault.previewWithdraw(vaultLiquidity);
+        assertEq(maxRedeem, expectedMaxRedeem, "maxRedeem should return min of user shares and shares from liquidity");
+
+        // Additional invariant checks
+        assertTrue(maxWithdraw <= vaultLiquidity, "maxWithdraw cannot exceed vault liquidity");
+        assertTrue(maxRedeem <= pufferVault.balanceOf(bob), "maxRedeem cannot exceed user shares");
+
+        // If user has more shares than vault liquidity
+        if (maxUserAssets > vaultLiquidity) {
+            assertEq(maxWithdraw, vaultLiquidity, "When liquidity limited, maxWithdraw should equal vault liquidity");
+            assertEq(
+                maxRedeem,
+                pufferVault.previewWithdraw(vaultLiquidity),
+                "When liquidity limited, maxRedeem should be shares equivalent to vault liquidity"
+            );
+        }
+
+        // If user has less shares than vault liquidity
+        if (maxUserAssets < vaultLiquidity) {
+            assertEq(maxWithdraw, maxUserAssets, "When user limited, maxWithdraw should equal user's assets");
+            assertEq(maxRedeem, pufferVault.balanceOf(bob), "When user limited, maxRedeem should equal user's shares");
+        }
     }
 }
