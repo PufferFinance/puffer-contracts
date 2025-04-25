@@ -18,6 +18,8 @@ import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferRevenueDepositorMock } from "../mocks/PufferRevenueDepositorMock.sol";
+import { ROLE_ID_DAO } from "script/Roles.sol";
+
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
     PufferVaultV5 public pufferVault;
@@ -27,6 +29,10 @@ contract PufETHTest is ERC4626Test {
 
     address operationsMultisig = makeAddr("operations");
     address communityMultisig = makeAddr("communityMultisig");
+
+    // Needed to set access
+    uint256 internal _deployerPrivateKey = uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
+    address internal _broadcaster = vm.addr(_deployerPrivateKey);
 
     function setUp() public override {
         PufferDeployment memory deployment = new DeployPufETH().run();
@@ -99,6 +105,18 @@ contract PufETHTest is ERC4626Test {
 
     function _useTestVersion(PufferDeployment memory deployment) private {
 
+        vm.startPrank(_broadcaster);
+
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
+
+        accessManager.setTargetFunctionRole(address(pufferVault), publicSelectors, ROLE_ID_DAO);
+
+        // Give DAO role to community multisig
+        accessManager.grantRole(ROLE_ID_DAO, communityMultisig, 0);
+
+        vm.stopPrank();
+
         MockPufferOracle mockOracle = new MockPufferOracle();
         PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
         PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
@@ -113,7 +131,7 @@ contract PufETHTest is ERC4626Test {
         vm.startPrank(communityMultisig);
 
         UUPSUpgradeable(pufferVault).upgradeToAndCall(address(pufferVaultNonBlocking), "");
-
+        pufferVault.setExitFeeBasisPoints(0);
         vm.stopPrank();
     }
 }
