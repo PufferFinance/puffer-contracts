@@ -53,6 +53,9 @@ For more detailed information on the contract deployments (Mainnet, Holesky, etc
 
 
 ## Audits
+- Cantina/Spearbit:
+  - [Cantina-VaultV5](./audits/Cantina-VaultV5.pdf)
+  - [Cantina-sCARROT](./audits/Cantina-sCARROT.pdf)
 - BlockSec: 
   - [pufETH V1](./audits/BlockSec-pufETH-v1.pdf)
   - [pufETH V2 & PufferProtocol](./audits/BlockSec%20-%20pufETHV2%20&%20PufferProtocol.pdf)
