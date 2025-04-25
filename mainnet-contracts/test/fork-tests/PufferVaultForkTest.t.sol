@@ -15,6 +15,8 @@ import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
 
+using Math for uint256;
+
 /**
  * @notice For some reason the code coverage doesn't consider that this mainnet fork tests increase the code coverage..
  * @notice Added tests for maxWithdraw and maxRedeem V5 functionality.
@@ -150,17 +152,13 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
 
         // Calculate expected values
         uint256 userShares = pufferVault.balanceOf(bob);
-        uint256 fee = vaultLiquidity * exitFeeBasisPoints / 10000;
-        uint256 availableLiquidity = vaultLiquidity - fee;
-        console.log("availableLiquidity", availableLiquidity);
         uint256 maxUserAssets = pufferVault.previewRedeem(userShares);
         console.log("maxUserAssets", maxUserAssets);
         // Test maxWithdraw
-        assertEq(
-            pufferVault.maxWithdraw(bob),
-            availableLiquidity,
-            "maxWithdraw should be limited by vault liquidity after fees"
-        );
+        // We don't subtract fees from vault liquidity because:
+        // 1. Fees are already accounted for in previewRedeem when converting shares to assets
+        // 2. When liquidity is the limiting factor, the user should be able to withdraw up to the full liquidity
+        assertEq(pufferVault.maxWithdraw(bob), vaultLiquidity, "maxWithdraw should be limited by vault liquidity");
         uint256 expectedMaxRedeem = pufferVault.previewWithdraw(vaultLiquidity);
         // Test maxRedeem
         assertEq(
