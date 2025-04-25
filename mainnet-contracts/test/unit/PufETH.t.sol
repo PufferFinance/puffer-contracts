@@ -18,6 +18,7 @@ import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferRevenueDepositorMock } from "../mocks/PufferRevenueDepositorMock.sol";
+import { Timelock } from "../../src/Timelock.sol";
 import { ROLE_ID_DAO } from "script/Roles.sol";
 
 contract PufETHTest is ERC4626Test {
@@ -26,13 +27,10 @@ contract PufETHTest is ERC4626Test {
     AccessManager public accessManager;
     IStETH public stETH;
     IWETH public weth;
+    Timelock public timelock;
 
     address operationsMultisig = makeAddr("operations");
     address communityMultisig = makeAddr("communityMultisig");
-
-    // Needed to set access
-    uint256 internal _deployerPrivateKey = uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80);
-    address internal _broadcaster = vm.addr(_deployerPrivateKey);
 
     function setUp() public override {
         PufferDeployment memory deployment = new DeployPufETH().run();
@@ -42,6 +40,7 @@ contract PufETHTest is ERC4626Test {
         accessManager = AccessManager(payable(deployment.accessManager));
         stETH = IStETH(payable(deployment.stETH));
         weth = IWETH(payable(deployment.weth));
+        timelock = Timelock(payable(deployment.timelock));
 
         _useTestVersion(deployment);
 
@@ -105,7 +104,7 @@ contract PufETHTest is ERC4626Test {
 
     function _useTestVersion(PufferDeployment memory deployment) private {
 
-        vm.startPrank(_broadcaster);
+        vm.startPrank(address(timelock));
 
         bytes4[] memory publicSelectors = new bytes4[](1);
         publicSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
