@@ -70,7 +70,6 @@ contract xPufETHTest is Test {
         bytes4[] memory vaultSelectors = new bytes4[](1);
         vaultSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
 
-
         // Public selectors
         vm.startPrank(address(timelock));
         accessManager.setTargetFunctionRole(address(xPufETHProxy), lockBoxSelectors, accessManager.PUBLIC_ROLE());
@@ -87,7 +86,7 @@ contract xPufETHTest is Test {
 
         // Mint mock weth to this contract
         deal(address(this), type(uint128).max);
-        weth.deposit{value:type(uint128).max/2}();
+        weth.deposit{ value: type(uint128).max / 2 }();
     }
 
     // We deposit pufETH to get xpufETH to this contract using .depositTo
@@ -143,7 +142,6 @@ contract xPufETHTest is Test {
     }
 
     function _useTestVersion(PufferDeployment memory deployment) private {
-
         vm.startPrank(address(timelock));
 
         vm.stopPrank();
@@ -157,7 +155,6 @@ contract xPufETHTest is Test {
             oracle: mockOracle,
             revenueDepositor: revenueDepositor
         });
-
 
         vm.startPrank(communityMultisig);
 

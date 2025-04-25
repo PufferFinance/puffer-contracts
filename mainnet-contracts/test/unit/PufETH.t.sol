@@ -44,8 +44,6 @@ contract PufETHTest is ERC4626Test {
 
         _useTestVersion(deployment);
 
-
-
         // Check vault underlying is weth
         assertEq(pufferVault.asset(), address(deployment.weth), "bad asset");
 
@@ -54,11 +52,10 @@ contract PufETHTest is ERC4626Test {
         _delta_ = 0;
         _vaultMayBeEmpty = false;
         _unlimitedAmount = false;
-
     }
 
     function test_erc4626_interface() public {
-        WETH9(payable(address(weth))).deposit{value: 2000 ether}();
+        WETH9(payable(address(weth))).deposit{ value: 2000 ether }();
         weth.approve(address(pufferVault), type(uint256).max);
 
         // Deposit works
@@ -103,7 +100,6 @@ contract PufETHTest is ERC4626Test {
     function test_withdraw(Init memory init, uint256 assets, uint256 allowance) public override { }
 
     function _useTestVersion(PufferDeployment memory deployment) private {
-
         vm.startPrank(address(timelock));
 
         bytes4[] memory publicSelectors = new bytes4[](1);
@@ -125,7 +121,6 @@ contract PufETHTest is ERC4626Test {
             oracle: mockOracle,
             revenueDepositor: revenueDepositor
         });
-
 
         vm.startPrank(communityMultisig);
 

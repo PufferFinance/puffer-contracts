@@ -7,8 +7,7 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferVaultV5 {
-
-        /**
+    /**
      * @dev Thrown if the Vault doesn't have ETH liquidity to transfer to PufferModule
      */
     error ETHTransferFailed();
@@ -61,7 +60,7 @@ interface IPufferVaultV5 {
      */
     function depositStETH(uint256 stETHSharesAmount, address receiver) external returns (uint256);
 
-        /**
+    /**
      * @notice Emitted when we request withdrawals from Lido
      */
     event RequestedWithdrawals(uint256[] requestIds);
