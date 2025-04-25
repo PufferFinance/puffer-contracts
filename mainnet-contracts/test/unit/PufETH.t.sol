@@ -17,7 +17,7 @@ import { PufferVaultV5Tests } from "../mocks/PufferVaultV5Tests.sol";
 import { PufferDeployment } from "../../src/structs/PufferDeployment.sol";
 import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
+import { PufferRevenueDepositorMock } from "../mocks/PufferRevenueDepositorMock.sol";
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
     PufferVaultV5 public pufferVault;
@@ -40,9 +40,6 @@ contract PufETHTest is ERC4626Test {
         _useTestVersion(deployment);
 
 
-        console.log('pufferVault', address(pufferVault));
-        // log puffer vault implementation
-        console.log('pufferVaultImplementation', address(uint160(uint256(vm.load(address(pufferVault), 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)))));
 
         // Check vault underlying is weth
         assertEq(pufferVault.asset(), address(deployment.weth), "bad asset");
@@ -103,16 +100,15 @@ contract PufETHTest is ERC4626Test {
     function _useTestVersion(PufferDeployment memory deployment) private {
 
         MockPufferOracle mockOracle = new MockPufferOracle();
-
+        PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
         PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: stETH,
             lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
-            revenueDepositor: IPufferRevenueDepositor(address(0))
+            revenueDepositor: revenueDepositor
         });
 
-        console.log("pufferVaultNonBlocking", address(pufferVaultNonBlocking));
 
         vm.startPrank(communityMultisig);
 

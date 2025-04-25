@@ -24,7 +24,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
 import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
-
+import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -209,7 +209,7 @@ contract DeployPufETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](4);
 
         // Setup role members (no delay)
         calldatas[0] =
@@ -229,6 +229,14 @@ contract DeployPufETH is BaseScript {
 
         calldatas[2] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
+        );
+
+        publicSelectors = new bytes4[](2);
+        publicSelectors[0] = ERC4626.deposit.selector;
+        publicSelectors[1] = ERC4626.mint.selector;
+
+        calldatas[3] = abi.encodeCall(
+            AccessManager.setTargetFunctionRole, (address(vaultProxy), publicSelectors, accessManager.PUBLIC_ROLE())
         );
 
         return calldatas;
