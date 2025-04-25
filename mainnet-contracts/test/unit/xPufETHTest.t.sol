@@ -14,6 +14,12 @@ import { DeployPufETH } from "script/DeployPufETH.s.sol";
 import { ROLE_ID_DAO } from "script/Roles.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { PufferRevenueDepositorMock } from "test/mocks/PufferRevenueDepositorMock.sol";
+import { MockPufferOracle } from "test/mocks/MockPufferOracle.sol";
+import { PufferVaultV5Tests } from "test/mocks/PufferVaultV5Tests.sol";
+import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IWETH } from "src/interface/Other/IWETH.sol";
 
 contract xPufETHTest is Test {
     PufferDepositor public pufferDepositor;
@@ -23,6 +29,8 @@ contract xPufETHTest is Test {
     Timelock public timelock;
     xPufETH public xPufETHProxy;
     XERC20Lockbox public xERC20Lockbox;
+    IWETH public weth;
+    address communityMultisig = makeAddr("communityMultisig");
 
     function setUp() public {
         PufferDeployment memory deployment = new DeployPufETH().run();
@@ -31,7 +39,7 @@ contract xPufETHTest is Test {
         accessManager = AccessManager(payable(deployment.accessManager));
         stETH = stETHMock(payable(deployment.stETH));
         timelock = Timelock(payable(deployment.timelock));
-
+        weth = IWETH(payable(deployment.weth));
         // Deploy implementation
         xPufETH newImplementation = new xPufETH();
 
@@ -59,23 +67,32 @@ contract xPufETHTest is Test {
         lockBoxSelectors[0] = xPufETH.mint.selector;
         lockBoxSelectors[1] = xPufETH.burn.selector;
 
+        bytes4[] memory vaultSelectors = new bytes4[](1);
+        vaultSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
+
+
         // Public selectors
         vm.startPrank(address(timelock));
         accessManager.setTargetFunctionRole(address(xPufETHProxy), lockBoxSelectors, accessManager.PUBLIC_ROLE());
         accessManager.setTargetFunctionRole(address(xPufETHProxy), daoSelectors, ROLE_ID_DAO);
+        accessManager.setTargetFunctionRole(address(pufferVault), vaultSelectors, ROLE_ID_DAO);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0); // this contract is the dao for simplicity
+        accessManager.grantRole(ROLE_ID_DAO, communityMultisig, 0); // this contract is the dao for simplicity
         vm.stopPrank();
+
+        _useTestVersion(deployment);
 
         // Set the Lockbox)
         xPufETHProxy.setLockbox(address(xERC20Lockbox));
 
-        // Mint mock steth to this contract
-        stETH.mint(address(this), type(uint128).max);
+        // Mint mock weth to this contract
+        deal(address(this), type(uint128).max);
+        weth.deposit{value:type(uint128).max/2}();
     }
 
     // We deposit pufETH to get xpufETH to this contract using .depositTo
     function test_mint_xpufETH(uint8 amount) public {
-        stETH.approve(address(pufferVault), type(uint256).max);
+        weth.approve(address(pufferVault), type(uint256).max);
         pufferVault.deposit(uint256(amount), address(this));
 
         pufferVault.approve(address(xERC20Lockbox), type(uint256).max);
@@ -86,7 +103,7 @@ contract xPufETHTest is Test {
 
     // We deposit pufETH to get xpufETH to this contract using .deposit
     function test_deposit_pufETH_for_xpufETH(uint8 amount) public {
-        stETH.approve(address(pufferVault), type(uint256).max);
+        weth.approve(address(pufferVault), type(uint256).max);
         pufferVault.deposit(uint256(amount), address(this));
 
         pufferVault.approve(address(xERC20Lockbox), type(uint256).max);
@@ -123,5 +140,29 @@ contract xPufETHTest is Test {
 
         vm.expectRevert();
         xERC20Lockbox.depositNative();
+    }
+
+    function _useTestVersion(PufferDeployment memory deployment) private {
+
+        vm.startPrank(address(timelock));
+
+        vm.stopPrank();
+
+        MockPufferOracle mockOracle = new MockPufferOracle();
+        PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
+        PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
+            stETH: stETH,
+            lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
+            weth: IWETH(deployment.weth),
+            oracle: mockOracle,
+            revenueDepositor: revenueDepositor
+        });
+
+
+        vm.startPrank(communityMultisig);
+
+        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(pufferVaultNonBlocking), "");
+        pufferVault.setExitFeeBasisPoints(0);
+        vm.stopPrank();
     }
 }
