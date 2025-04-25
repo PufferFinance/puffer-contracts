@@ -45,7 +45,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         requestIds[0] = 66473; // That is the next request id for this test
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVault.RequestedWithdrawals(requestIds);
+        emit IPufferVaultV5.RequestedWithdrawals(requestIds);
         pufferVault.initiateETHWithdrawalsFromLido(amounts);
     }
 
@@ -59,7 +59,7 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         uint256 balanceBefore = address(pufferVault).balance;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferVault.ClaimedWithdrawals(requestIds);
+        emit IPufferVaultV5.ClaimedWithdrawals(requestIds);
         pufferVault.claimWithdrawalsFromLido(requestIds);
 
         uint256 balanceAfter = address(pufferVault).balance;

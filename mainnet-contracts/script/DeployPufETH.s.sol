@@ -14,6 +14,8 @@ import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.so
 import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 import { stETHMock } from "../test/mocks/stETHMock.sol";
 import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
 import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
@@ -108,11 +110,17 @@ contract DeployPufETH is BaseScript {
             wethAddress = address(weth);
 
             // Deploy implementation contracts
-            // pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
-            pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue); // TODO Use V5
+
+            pufferVaultImplementation = new PufferVaultV5(
+                IStETH(stETHAddress),
+                lidoWithdrawalQueue,
+                weth,
+                IPufferOracleV2(address(0)), // Will be set in the upgrade
+                IPufferRevenueDepositor(address(0)) // Will be set in the upgrade
+            );
             vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
-                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
+                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVaultV5(payable(vaultProxy)) });
             vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
         }
 
@@ -122,7 +130,7 @@ contract DeployPufETH is BaseScript {
         );
         // Initialize Vault
         NoImplementation(payable(address(vaultProxy))).upgradeToAndCall(
-            address(pufferVaultImplementation), abi.encodeCall(PufferVault.initialize, (address(accessManager)))
+            address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
         );
 
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));

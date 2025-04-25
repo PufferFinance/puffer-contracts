@@ -159,7 +159,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             stETH: IStETH(_getStETH()),
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
-            pufferOracle: IPufferOracleV2(address(mockOracle)),
+            pufferOracle: mockOracle,
             revenueDepositor: IPufferRevenueDepositor(address(0))
         });
 
@@ -167,7 +167,8 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.startPrank(COMMUNITY_MULTISIG);
 
         bytes memory upgradeCd = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, ()))
+            UUPSUpgradeable.upgradeToAndCall,
+            (address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, address(accessManager)))
         );
 
         (bool success,) = address(timelock).call(
@@ -177,7 +178,7 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, ())
+            address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, address(accessManager))
         );
 
         // Upgrade PufferDepositor
@@ -210,27 +211,6 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
         );
         require(success, "failed upgrade tx");
-
-        vm.stopPrank();
-    }
-
-    function _upgradeToMainnetV4Puffer() internal {
-        pufferVaultNonBlocking = new PufferVaultV5Tests({
-            stETH: IStETH(_getStETH()),
-            lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
-            weth: IWETH(_getWETH()),
-            oracle: IPufferOracleV2(_getPufferOracle()),
-            revenueDepositor: IPufferRevenueDepositor(address(0))
-        });
-
-        // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
-        // At this time, we stop accepting stETH, and we accept only native ETH
-        PufferVaultV5 newImplementation = PufferVaultV5(payable(address(pufferVaultNonBlocking)));
-
-        vm.startPrank(address(timelock));
-        vm.expectEmit(true, true, true, true);
-        emit ERC1967Utils.Upgraded(address(newImplementation));
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(address(newImplementation), "");
 
         vm.stopPrank();
     }
