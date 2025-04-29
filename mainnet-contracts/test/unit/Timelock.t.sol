@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Test } from "forge-std/Test.sol";
 import { PufferDepositor } from "src/PufferDepositor.sol";
 import { Timelock } from "src/Timelock.sol";
-import { PufferVault } from "src/PufferVault.sol";
+import { PufferVaultV5 } from "src/PufferVaultV5.sol";
 import { stETHMock } from "test/mocks/stETHMock.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "src/structs/PufferDeployment.sol";
@@ -13,7 +13,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 
 contract TimelockTest is Test {
     PufferDepositor public pufferDepositor;
-    PufferVault public pufferVault;
+    PufferVaultV5 public pufferVault;
     AccessManager public accessManager;
     stETHMock public stETH;
     Timelock public timelock;
@@ -22,7 +22,7 @@ contract TimelockTest is Test {
         PufferDeployment memory deployment = new DeployPufETH().run();
 
         pufferDepositor = PufferDepositor(payable(deployment.pufferDepositor));
-        pufferVault = PufferVault(payable(deployment.pufferVault));
+        pufferVault = PufferVaultV5(payable(deployment.pufferVault));
         accessManager = AccessManager(payable(deployment.accessManager));
         stETH = stETHMock(payable(deployment.stETH));
         timelock = Timelock(payable(deployment.timelock));

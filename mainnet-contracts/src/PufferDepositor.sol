@@ -8,7 +8,7 @@ import { AccessManagedUpgradeable } from
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { IWstETH } from "./interface/Lido/IWstETH.sol";
-import { PufferVault } from "./PufferVault.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { PufferDepositorStorage } from "./PufferDepositorStorage.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISushiRouter } from "./interface/Other/ISushiRouter.sol";
@@ -36,9 +36,9 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
     /**
      * @dev The Puffer Vault contract address
      */
-    PufferVault public immutable PUFFER_VAULT;
+    PufferVaultV5 public immutable PUFFER_VAULT;
 
-    constructor(PufferVault pufferVault, IStETH stETH) payable {
+    constructor(PufferVaultV5 pufferVault, IStETH stETH) payable {
         PUFFER_VAULT = pufferVault;
         _ST_ETH = stETH;
         _disableInitializers();

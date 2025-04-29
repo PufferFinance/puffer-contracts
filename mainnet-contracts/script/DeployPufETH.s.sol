@@ -6,7 +6,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDepositor } from "../src/PufferDepositor.sol";
-import { PufferVault } from "../src/PufferVault.sol";
+import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { Timelock } from "../src/Timelock.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
@@ -14,6 +14,8 @@ import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.so
 import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IStETH } from "../src/interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "../src/interface/Lido/ILidoWithdrawalQueue.sol";
+import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
+import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 import { stETHMock } from "../test/mocks/stETHMock.sol";
 import { LidoWithdrawalQueueMock } from "../test/mocks/LidoWithdrawalQueueMock.sol";
 import { stETHStrategyMock } from "../test/mocks/stETHStrategyMock.sol";
@@ -22,7 +24,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
 import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
-
+import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -39,6 +41,7 @@ import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
  *
  *         PK=${deployer_pk} forge script script/DeployPufETH.s.sol:DeployPufETH -vvvv --rpc-url=... --broadcast
  */
+
 contract DeployPufETH is BaseScript {
     /**
      * @dev Ethereum Mainnet addresses
@@ -50,8 +53,8 @@ contract DeployPufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    PufferVault pufferVault;
-    PufferVault pufferVaultImplementation;
+    PufferVaultV5 pufferVault;
+    PufferVaultV5 pufferVaultImplementation;
 
     PufferDepositor pufferDepositor;
     PufferDepositor pufferDepositorImplementation;
@@ -108,10 +111,17 @@ contract DeployPufETH is BaseScript {
             wethAddress = address(weth);
 
             // Deploy implementation contracts
-            pufferVaultImplementation = new PufferVault(IStETH(stETHAddress), lidoWithdrawalQueue);
+
+            pufferVaultImplementation = new PufferVaultV5(
+                IStETH(stETHAddress),
+                lidoWithdrawalQueue,
+                weth,
+                IPufferOracleV2(address(0)), // Will be set in the upgrade
+                IPufferRevenueDepositor(address(0)) // Will be set in the upgrade
+            );
             vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
-                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVault(payable(vaultProxy)) });
+                new PufferDepositor({ stETH: IStETH(stETHAddress), pufferVault: PufferVaultV5(payable(vaultProxy)) });
             vm.label(address(pufferDepositorImplementation), "PufferDepositorImplementation");
         }
 
@@ -121,7 +131,7 @@ contract DeployPufETH is BaseScript {
         );
         // Initialize Vault
         NoImplementation(payable(address(vaultProxy))).upgradeToAndCall(
-            address(pufferVaultImplementation), abi.encodeCall(PufferVault.initialize, (address(accessManager)))
+            address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
         );
 
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));
@@ -200,7 +210,7 @@ contract DeployPufETH is BaseScript {
     }
 
     function _setupOther() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](4);
 
         // Setup role members (no delay)
         calldatas[0] =
@@ -220,6 +230,14 @@ contract DeployPufETH is BaseScript {
 
         calldatas[2] = abi.encodeCall(
             AccessManager.setTargetFunctionRole, (address(depositorProxy), publicSelectors, accessManager.PUBLIC_ROLE())
+        );
+
+        publicSelectors = new bytes4[](2);
+        publicSelectors[0] = ERC4626.deposit.selector;
+        publicSelectors[1] = ERC4626.mint.selector;
+
+        calldatas[3] = abi.encodeCall(
+            AccessManager.setTargetFunctionRole, (address(vaultProxy), publicSelectors, accessManager.PUBLIC_ROLE())
         );
 
         return calldatas;

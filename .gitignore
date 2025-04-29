@@ -21,3 +21,4 @@ partners/merkle-contracts/cache/*
 **/lcov.info
 **/broadcast/
 solidity-docs/
+mainnet-contracts/output/puffer.json
