@@ -9,6 +9,7 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
@@ -26,6 +27,9 @@ import { PufferModule } from "./PufferModule.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, UUPSUpgradeable {
+    using Address for address;
+    using Address for address payable;
+
     address public immutable PUFFER_MODULE_BEACON;
     address public immutable RESTAKING_OPERATOR_BEACON;
     address public immutable PUFFER_PROTOCOL;
@@ -237,6 +241,28 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         withdrawalRoot = PufferModule(payable(moduleAddress)).callUndelegate();
 
         emit PufferModuleUndelegated(moduleName);
+    }
+
+    /**
+     * @notice Triggers the validators exit for the given pubkeys
+     * @param moduleName The name of the Puffer module
+     * @param pubkeys The pubkeys of the validators to exit
+     * @dev Restricted to the DAO
+     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function triggerValidatorsExit(bytes32 moduleName, bytes[] calldata pubkeys) external virtual payable restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        uint256 oldBalance = address(this).balance - msg.value;
+        PufferModule(payable(moduleAddress)).triggerValidatorsExit{value: msg.value}(pubkeys);
+        uint256 excessAmount = address(this).balance - oldBalance;
+        if (excessAmount > 0) {
+            Address.sendValue(payable(msg.sender), excessAmount);
+        }
+
+        emit ValidatorsExitTriggered(moduleName, pubkeys);
     }
 
     /**
