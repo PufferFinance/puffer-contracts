@@ -28,7 +28,8 @@ import {
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_COORDINATOR,
-    ROLE_ID_VT_PRICER
+    ROLE_ID_VT_PRICER,
+    ROLE_ID_VALIDATOR_EXITOR
 } from "../script/Roles.sol";
 
 contract SetupAccess is BaseScript {
@@ -153,7 +154,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](7);
@@ -181,6 +182,16 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
+        // ValidatorExitor selectors
+        bytes4[] memory validatorExitorSelectors = new bytes4[](1);
+        validatorExitorSelectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            validatorExitorSelectors,
+            ROLE_ID_VALIDATOR_EXITOR
+        );
         return calldatas;
     }
 
