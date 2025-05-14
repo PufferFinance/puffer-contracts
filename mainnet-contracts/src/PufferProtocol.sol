@@ -56,14 +56,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
 
     /**
-     * @dev ETH Amount required to be deposited as a bond if the node operator uses SGX
+     * @dev ETH Amount required to be deposited as a bond
      */
-    uint256 internal constant _ENCLAVE_VALIDATOR_BOND = 1 ether;
-
-    /**
-     * @dev ETH Amount required to be deposited as a bond if the node operator doesn't use SGX
-     */
-    uint256 internal constant _NO_ENCLAVE_VALIDATOR_BOND = 2 ether;
+    uint256 internal constant VALIDATOR_BOND = 2 ether;
 
     /**
      * @dev Default "PUFFER_MODULE_0" module
@@ -198,14 +193,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        uint256 validatorBondInETH = data.raveEvidence.length > 0 ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-
         // If the node operator is paying for the bond in ETH and wants to transfer VT from their wallet, the ETH amount they send must be equal the bond amount
-        if (vtPermit.amount != 0 && pufETHPermit.amount == 0 && msg.value != validatorBondInETH) {
+        if (vtPermit.amount != 0 && pufETHPermit.amount == 0 && msg.value != VALIDATOR_BOND) {
             revert InvalidETHAmount();
         }
 
-        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - validatorBondInETH : msg.value;
+        uint256 vtPayment = pufETHPermit.amount == 0 ? msg.value - VALIDATOR_BOND : msg.value;
 
         uint256 receivedVtAmount;
         // If the VT permit amount is zero, that means that the user is paying for VT with ETH
@@ -228,10 +221,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
             // Mint pufETH by depositing ETH and store the bond amount
-            bondAmount = PUFFER_VAULT.depositETH{ value: validatorBondInETH }(address(this));
+            bondAmount = PUFFER_VAULT.depositETH{ value: VALIDATOR_BOND }(address(this));
         } else {
             // Calculate the pufETH amount that we need to transfer from the user
-            bondAmount = PUFFER_VAULT.convertToShares(validatorBondInETH);
+            bondAmount = PUFFER_VAULT.convertToShares(VALIDATOR_BOND);
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
 
             // slither-disable-next-line unchecked-transfer
@@ -251,11 +244,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
-    function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external restricted {
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external restricted {
         if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
             revert InvalidDepositRootHash();
         }
@@ -275,7 +264,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             $: $,
             moduleName: moduleName,
             index: index,
-            guardianEnclaveSignatures: guardianEnclaveSignatures,
             validatorSignature: validatorSignature
         });
 
@@ -612,20 +600,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave)
-        external
-        view
-        returns (bytes[] memory, bytes memory, uint256, uint256)
-    {
+    function getPayload(bytes32 moduleName) external view returns (bytes memory, uint256, uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        bytes[] memory pubKeys = GUARDIAN_MODULE.getGuardiansEnclavePubkeys();
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
-        uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
-        uint256 ethAmount = validatorBond + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
+        uint256 ethAmount = VALIDATOR_BOND + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
 
-        return (pubKeys, withdrawalCredentials, threshold, ethAmount);
+        return (withdrawalCredentials, threshold, ethAmount);
     }
 
     /**
@@ -669,7 +651,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, (data.raveEvidence.length > 0));
+        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName);
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
@@ -770,7 +752,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $,
         bytes32 moduleName,
         uint256 index,
-        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
@@ -779,16 +760,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         bytes32 depositDataRoot =
             LibBeaconchainContract.getDepositDataRoot(validatorPubKey, validatorSignature, withdrawalCredentials);
-
-        // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateProvisionNode({
-            pufferModuleIndex: index,
-            pubKey: validatorPubKey,
-            signature: validatorSignature,
-            depositDataRoot: depositDataRoot,
-            withdrawalCredentials: withdrawalCredentials,
-            guardianEnclaveSignatures: guardianEnclaveSignatures
-        });
 
         PufferModule module = $.modules[moduleName];
 

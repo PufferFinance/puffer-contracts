@@ -499,10 +499,7 @@ contract PufferProtocolHandler is Test {
         ProvisioningData memory validatorData = _validatorQueue[moduleName][nextIdx];
 
         if (validatorData.status == Status.PENDING) {
-            bytes memory sig = _getPubKey(validatorData.pubKeypart);
-
-            bytes[] memory signatures = _getGuardianSignatures(sig);
-            pufferProtocol.provisionNode(signatures, mockValidatorSignature, bytes32(0));
+            pufferProtocol.provisionNode(mockValidatorSignature, bytes32(0));
 
             ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 
@@ -553,9 +550,8 @@ contract PufferProtocolHandler is Test {
                 withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(1) // Guardians are checking it off chain
-         });
+            blsPubKeySet: new bytes(48)
+        });
 
         return validatorData;
     }
@@ -587,55 +583,12 @@ contract PufferProtocolHandler is Test {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
             validatorKeyData, moduleName, emptyPermit, emptyPermit
         );
 
         return (smoothingCommitment + bond);
-    }
-
-    // Copied from PufferProtocol.t.sol
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
-        // If there is no module return empty byte array
-        if (validator.module == address(0)) {
-            return new bytes[](0);
-        }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
-
-        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pendingIdx,
-            pubKey,
-            mockValidatorSignature,
-            withdrawalCredentials,
-            pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: mockValidatorSignature,
-                withdrawalCredentials: withdrawalCredentials
-            })
-        );
-
-        return _getGuardianEnclaveSignatures(digest);
-    }
-
-    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
     }
 
     function _getGuardianEOASignatures(bytes32 digest) internal returns (bytes[] memory) {

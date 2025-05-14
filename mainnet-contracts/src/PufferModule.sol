@@ -203,7 +203,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function triggerValidatorsExit(bytes[] calldata pubkeys) external virtual payable onlyPufferModuleManager {
+    function triggerValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
@@ -211,10 +211,10 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
             requests[i] = IEigenPodTypes.WithdrawalRequest({
                 pubkey: pubkeys[i],
                 amountGwei: 0 // This means full exit. Only value supported for 0x01 validators
-            });
+             });
         }
         uint256 oldBalance = address(this).balance - msg.value;
-        $.eigenPod.requestWithdrawal{value: msg.value}(requests);
+        $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
         uint256 excessAmount = address(this).balance - oldBalance;
         if (excessAmount > 0) {
             Address.sendValue(payable(PUFFER_MODULE_MANAGER), excessAmount);
