@@ -706,16 +706,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
             revert InvalidBLSPubKey();
         }
-
-        // Every guardian needs to receive a share
-        if (data.blsEncryptedPrivKeyShares.length != GUARDIAN_MODULE.getGuardians().length) {
-            revert InvalidBLSPrivateKeyShares();
-        }
-
-        // blsPubKeySet is for a subset of guardians and because of that we use .getThreshold()
-        if (data.blsPubKeySet.length != (GUARDIAN_MODULE.getThreshold() * _BLS_PUB_KEY_LENGTH)) {
-            revert InvalidBLSPublicKeySet();
-        }
     }
 
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {

@@ -146,24 +146,6 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.createPufferModule(PUFFER_MODULE_0);
     }
 
-    // Invalid pub key shares length
-    function test_register_invalid_pubkey_shares_length() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), PUFFER_MODULE_0);
-        data.blsPubKeySet = new bytes(22); // Invalid length
-
-        vm.expectRevert(IPufferProtocol.InvalidBLSPublicKeySet.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, PUFFER_MODULE_0, emptyPermit, emptyPermit);
-    }
-
-    // Invalid private key shares length
-    function test_register_invalid_privKey_shares() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), PUFFER_MODULE_0);
-        data.blsEncryptedPrivKeyShares = new bytes[](2); // we have 3 guardians, and we try to give 2 priv key shares
-
-        vm.expectRevert(IPufferProtocol.InvalidBLSPrivateKeyShares.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, PUFFER_MODULE_0, emptyPermit, emptyPermit);
-    }
-
     // Try registering with invalid module
     function test_register_to_invalid_module() public {
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice() * 30;
@@ -246,8 +228,9 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48)
+            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
+            deprecated_blsPubKeySet: new bytes(48),
+            deprecated_raveEvidence: new bytes(0)
         });
 
         vm.expectEmit(true, true, true, true);
@@ -272,8 +255,9 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: hex"aeaa", // invalid key
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(144)
+            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
+            deprecated_blsPubKeySet: new bytes(48),
+            deprecated_raveEvidence: new bytes(0)
         });
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
@@ -1889,8 +1873,9 @@ contract PufferProtocolTest is UnitTestHelper {
                 signature: validatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48)
+            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
+            deprecated_blsPubKeySet: new bytes(48),
+            deprecated_raveEvidence: new bytes(0)
         });
 
         return validatorData;

@@ -27,12 +27,6 @@ interface IPufferProtocol {
     error InvalidDepositRootHash();
 
     /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians threshold number
-     * @dev Signature "0x8cdea6a6"
-     */
-    error InvalidBLSPublicKeySet();
-
-    /**
      * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
      * @dev Signature "0x22242546"
      */
@@ -49,12 +43,6 @@ interface IPufferProtocol {
      * @dev Signature "0xb75c5781"
      */
     error ValidatorLimitForModuleReached();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
 
     /**
      * @notice Thrown when the BLS public key is not valid
