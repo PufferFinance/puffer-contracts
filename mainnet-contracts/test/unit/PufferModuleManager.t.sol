@@ -25,6 +25,7 @@ import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsC
 import { InvalidAddress } from "../../src/Errors.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { console } from "forge-std/console.sol";
+
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
         return 1337;
@@ -365,7 +366,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-
     function test_triggerValidatorsExitExactFee2() public {
         _createPufferModule(MOCK_MODULE);
 
@@ -378,10 +378,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
         // Verify we get the fee back
-        pufferModuleManager.triggerValidatorsExit{ value: 2*EXIT_FEE }(MOCK_MODULE, pubkeys);
+        pufferModuleManager.triggerValidatorsExit{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys);
         vm.stopPrank();
     }
-
 
     function test_triggerValidatorsExitExcessFee() public {
         _createPufferModule(MOCK_MODULE);
@@ -391,8 +390,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(validatorExitor);
 
-         uint256 initialBalance = validatorExitor.balance;
-
+        uint256 initialBalance = validatorExitor.balance;
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
@@ -400,14 +398,13 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
 
         // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance -  EXIT_FEE;
+        uint256 expectedBalance = initialBalance - EXIT_FEE;
 
         // Verify the balance change accounting for gas
         assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
 
         vm.stopPrank();
     }
-
 
     function test_triggerValidatorsExitExcessFee2() public {
         _createPufferModule(MOCK_MODULE);
@@ -418,8 +415,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(validatorExitor);
 
-         uint256 initialBalance = validatorExitor.balance;
-
+        uint256 initialBalance = validatorExitor.balance;
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
@@ -427,7 +423,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
 
         // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance -  2 * EXIT_FEE;
+        uint256 expectedBalance = initialBalance - 2 * EXIT_FEE;
 
         // Verify the balance change accounting for gas
         assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
