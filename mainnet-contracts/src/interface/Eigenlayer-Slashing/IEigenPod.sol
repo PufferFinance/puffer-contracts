@@ -84,7 +84,7 @@ interface IEigenPodErrors {
 
 interface IEigenPodTypes {
     enum VALIDATOR_STATUS {
-        INACTIVE, // doesnt exist
+        INACTIVE, // does not exist
         ACTIVE, // staked on ethpos and withdrawal credentials are pointed to the EigenPod
         WITHDRAWN // withdrawn from the Beacon Chain
 

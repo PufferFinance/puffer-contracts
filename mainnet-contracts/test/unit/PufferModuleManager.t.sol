@@ -5,12 +5,13 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
-import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_VALIDATOR_EXITOR } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
@@ -22,7 +23,8 @@ import { IAllocationManagerTypes } from "src/interface/Eigenlayer-Slashing/IAllo
 import { IAllocationManager } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { InvalidAddress } from "../../src/Errors.sol";
-
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { console } from "forge-std/console.sol";
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
         return 1337;
@@ -37,15 +39,28 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     bytes32 CRAZY_GAINS = bytes32("CRAZY_GAINS");
 
+    bytes32 MOCK_MODULE = bytes32("MOCK_MODULE");
+
+    address validatorExitor = makeAddr("validatorExitor");
+
+    uint256 EXIT_FEE = 0.0001 ether;
+
     function setUp() public override {
         super.setUp();
 
         vm.deal(address(this), 1000 ether);
 
+        vm.deal(validatorExitor, 3 ether);
+
         bytes memory cd = new GenerateSlashingELCalldata().run(address(pufferModuleManager));
 
         vm.startPrank(timelock);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_VALIDATOR_EXITOR, validatorExitor, 0);
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+        accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_VALIDATOR_EXITOR);
+
         (bool success,) = address(accessManager).call(cd);
         assertTrue(success, "should succeed");
 
@@ -331,6 +346,118 @@ contract PufferModuleManagerTest is UnitTestHelper {
         assertFalse(
             SignatureChecker.isValidERC1271SignatureNow(address(operator), fakeDigestHash, signature), "signer proof"
         );
+
+        vm.stopPrank();
+    }
+
+    function test_triggerValidatorsExitExactFee1() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+        // Verify we get the fee back
+        pufferModuleManager.triggerValidatorsExit{ value: EXIT_FEE }(MOCK_MODULE, pubkeys);
+        vm.stopPrank();
+    }
+
+
+    function test_triggerValidatorsExitExactFee2() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+        // Verify we get the fee back
+        pufferModuleManager.triggerValidatorsExit{ value: 2*EXIT_FEE }(MOCK_MODULE, pubkeys);
+        vm.stopPrank();
+    }
+
+
+    function test_triggerValidatorsExitExcessFee() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.startPrank(validatorExitor);
+
+         uint256 initialBalance = validatorExitor.balance;
+
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+
+        // Calculate expected balance: initial - gas costs
+        uint256 expectedBalance = initialBalance -  EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+
+        vm.stopPrank();
+    }
+
+
+    function test_triggerValidatorsExitExcessFee2() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+
+        vm.startPrank(validatorExitor);
+
+         uint256 initialBalance = validatorExitor.balance;
+
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+
+        // Calculate expected balance: initial - gas costs
+        uint256 expectedBalance = initialBalance -  2 * EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+
+        vm.stopPrank();
+    }
+
+    function test_triggerValidatorsExitNoFee() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(); // panic underflow when subtracting fee
+        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+        vm.stopPrank();
+    }
+
+    function test_triggerValidatorsExitUnauthorized() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.startPrank(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
+        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
 
         vm.stopPrank();
     }
