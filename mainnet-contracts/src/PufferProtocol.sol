@@ -598,19 +598,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @notice Returns necessary information to make Guardian's life easier
-     */
-    function getPayload(bytes32 moduleName) external view returns (bytes memory, uint256, uint256) {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
-        uint256 threshold = GUARDIAN_MODULE.getThreshold();
-        uint256 ethAmount = VALIDATOR_BOND + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
-
-        return (withdrawalCredentials, threshold, ethAmount);
-    }
-
-    /**
      * @inheritdoc IPufferProtocol
      */
     function getModuleLimitInformation(bytes32 moduleName) external view returns (ModuleLimit memory info) {

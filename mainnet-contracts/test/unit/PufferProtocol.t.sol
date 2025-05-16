@@ -266,12 +266,6 @@ contract PufferProtocolTest is UnitTestHelper {
         );
     }
 
-    function test_get_payload() public view {
-        (, uint256 threshold,) = pufferProtocol.getPayload(PUFFER_MODULE_0);
-
-        assertEq(threshold, 1, "threshold");
-    }
-
     // Try to provision a validator when there is nothing to provision
     function test_provision_reverts() public {
         (, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
