@@ -17,6 +17,7 @@ import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
  * @title Guardian module
  * @author Puffer Finance
  * @dev This contract is responsible for storing enclave keys and validation of guardian's EOA/Enclave signatures
+ * * @dev Some of these functions are no longer used since enclaves have been deprecated
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -38,6 +39,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @notice Enclave Verifier smart contract
+     * @dev DEPRECATED
      */
     IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
 
@@ -53,11 +55,13 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @dev MRSIGNER value for SGX
+     * @dev DEPRECATED
      */
     bytes32 internal _mrsigner;
 
     /**
      * @dev MRENCLAVE value for SGX
+     * @dev DEPRECATED
      */
     bytes32 internal _mrenclave;
 
@@ -77,6 +81,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @dev Mapping of a Guardian's EOA to enclave data
+     * @dev DEPRECATED
      */
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
@@ -139,6 +144,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function validateProvisionNode(
         uint256 pufferModuleIndex,
@@ -220,6 +226,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
         public
@@ -240,6 +247,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
+     * @dev DEPRECATED
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrEnclave, bytes32 newMrSigner) external restricted {
         emit MrEnclaveChanged(_mrenclave, newMrEnclave);
@@ -298,6 +306,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
         address guardian = msg.sender;
@@ -341,6 +350,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function getGuardiansEnclaveAddress(address guardian) external view returns (address) {
         return _guardianEnclaves[guardian].enclaveAddress;
@@ -348,6 +358,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function getGuardiansEnclaveAddresses() public view returns (address[] memory) {
         uint256 guardiansLength = _guardians.length();
@@ -367,6 +378,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory) {
         uint256 guardiansLength = _guardians.length();
@@ -381,6 +393,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function getMrenclave() external view returns (bytes32) {
         return _mrenclave;
@@ -388,6 +401,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
     /**
      * @inheritdoc IGuardianModule
+     * @dev DEPRECATED
      */
     function getMrsigner() external view returns (bytes32) {
         return _mrsigner;

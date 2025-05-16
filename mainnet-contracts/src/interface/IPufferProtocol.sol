@@ -27,12 +27,6 @@ interface IPufferProtocol {
     error InvalidDepositRootHash();
 
     /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians threshold number
-     * @dev Signature "0x8cdea6a6"
-     */
-    error InvalidBLSPublicKeySet();
-
-    /**
      * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
      * @dev Signature "0x22242546"
      */
@@ -49,12 +43,6 @@ interface IPufferProtocol {
      * @dev Signature "0xb75c5781"
      */
     error ValidatorLimitForModuleReached();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
 
     /**
      * @notice Thrown when the BLS public key is not valid
@@ -145,12 +133,9 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @param usingEnclave is indicating if the validator is using secure enclave
-     * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
+     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
      */
-    event ValidatorKeyRegistered(
-        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
-    );
+    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator exited and stopped validating
@@ -278,14 +263,10 @@ interface IPufferProtocol {
     function getModuleAddress(bytes32 moduleName) external view returns (address);
 
     /**
-     * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @notice Provisions the next node that is in line for provisioning
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external;
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external;
 
     /**
      * @notice Returns the deposit_data_root

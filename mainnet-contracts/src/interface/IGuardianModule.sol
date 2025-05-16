@@ -8,6 +8,7 @@ import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 /**
  * @title IGuardianModule interface
  * @author Puffer Finance
+ * @dev Some of these functions are no longer used since enclaves have been deprecated
  */
 interface IGuardianModule {
     /**
@@ -19,6 +20,7 @@ interface IGuardianModule {
     /**
      * @notice Thrown when the RAVE evidence is not valid
      * @dev Signature "0x2b3c629b"
+     * @dev DEPRECATED
      */
     error InvalidRAVE();
 
@@ -64,23 +66,27 @@ interface IGuardianModule {
      * @param guardianEnclave is the enclave address
      * @param pubKey is the public key
      * @dev Signature "0x14720919b20fceff2a396c4973d37c6087e4619d40c8f4003d8e44ee127461a2"
+     * @dev DEPRECATED
      */
     event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
 
     /**
      * @notice Emitted when the mrenclave value is changed
      * @dev Signature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
+     * @dev DEPRECATED
      */
     event MrEnclaveChanged(bytes32 oldMrEnclave, bytes32 newMrEnclave);
 
     /**
      * @notice Emitted when the mrsigner value is changed
      * @dev Signature "0x1a1fe271c5533136fccd1c6df515ca1f227d95822bfe78b9dd93debf3d709ae6"
+     * @dev DEPRECATED
      */
     event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
 
     /**
      * @notice Returns the enclave address registered to `guardian`
+     * @dev DEPRECATED
      */
     function getGuardiansEnclaveAddress(address guardian) external view returns (address);
 
@@ -95,6 +101,7 @@ interface IGuardianModule {
 
     /**
      * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
+     * @dev DEPRECATED
      */
     function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
 
@@ -109,6 +116,7 @@ interface IGuardianModule {
 
     /**
      * @notice Returns the enclave verifier
+     * @dev DEPRECATED
      */
     function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
@@ -128,6 +136,7 @@ interface IGuardianModule {
      * @notice Validates the node provisioning calldata
      * @dev The order of the signatures is important
      * The order of the signatures MUST the same as the order of the guardians in the guardian module
+     * @dev DEPRECATED
      * @param pufferModuleIndex is the validator index in Puffer
      * @param pubKey The public key
      * @param signature The signature
@@ -198,6 +207,7 @@ interface IGuardianModule {
 
     /**
      * @dev Validates the signatures of the guardians' enclave signatures
+     * @dev DEPRECATED
      * @param enclaveSignatures The array of enclave signatures
      * @param signedMessageHash The hash of the signed message
      * @return A boolean indicating whether the signatures are valid
@@ -221,6 +231,7 @@ interface IGuardianModule {
     /**
      * @notice Rotates guardian's key
      * @dev If he caller is not a valid guardian or if the RAVE evidence is not valid the tx will revert
+     * @dev DEPRECATED
      * @param blockNumber is the block number
      * @param pubKey is the public key of the new signature
      * @param evidence is the RAVE evidence
@@ -229,11 +240,13 @@ interface IGuardianModule {
 
     /**
      * @notice Returns the guardians enclave addresses
+     * @dev DEPRECATED
      */
     function getGuardiansEnclaveAddresses() external view returns (address[] memory);
 
     /**
      * @notice Returns the guardians enclave public keys
+     * @dev DEPRECATED
      */
     function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
 
@@ -246,11 +259,13 @@ interface IGuardianModule {
 
     /**
      * @notice Returns the mrenclave value
+     * @dev DEPRECATED
      */
     function getMrenclave() external view returns (bytes32);
 
     /**
      * @notice Returns the mrsigner value
+     * @dev DEPRECATED
      */
     function getMrsigner() external view returns (bytes32);
 }

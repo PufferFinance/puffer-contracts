@@ -74,6 +74,13 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when the validators exit is triggered
+     * @param moduleName the module name to be undelegated
+     * @dev Signature "0x456e0aba5f7f36ec541f2f550d3f5895eb7d1ae057f45e8683952ac182254e5d"
+     */
+    event ValidatorsExitTriggered(bytes32 indexed moduleName, bytes[] pubkeys);
+
+    /**
      * @notice Emitted when the restaking operator avs signature proof is updated
      * @param restakingOperator is the address of the restaking operator
      * @param digestHash is the message hash
