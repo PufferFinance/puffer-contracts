@@ -244,25 +244,39 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @notice Triggers the validators exit for the given pubkeys
-     * @param moduleName The name of the Puffer module
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param moduleName The name of the module
      * @param pubkeys The pubkeys of the validators to exit
-     * @dev Restricted to the VALIDATOR_EXITOR
+     * @param gweiAmounts The amounts of the validators to exit, in Gwei
+     * @dev Restricted to the VALIDATOR_EXITOR role and the PufferProtocol
      * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function triggerValidatorsExit(bytes32 moduleName, bytes[] calldata pubkeys) external payable virtual restricted {
+    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        payable
+        virtual
+        restricted
+    {
+        if (pubkeys.length == 0) {
+            revert InputArrayLengthZero();
+        }
+        if (pubkeys.length != gweiAmounts.length) {
+            revert InputArrayLengthMismatch();
+        }
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
         uint256 oldBalance = address(this).balance - msg.value;
-        PufferModule(payable(moduleAddress)).triggerValidatorsExit{ value: msg.value }(pubkeys);
+        PufferModule(payable(moduleAddress)).requestWithdrawal{ value: msg.value }(pubkeys, gweiAmounts);
         uint256 excessAmount = address(this).balance - oldBalance;
         if (excessAmount > 0) {
             Address.sendValue(payable(msg.sender), excessAmount);
         }
 
-        emit ValidatorsExitTriggered(moduleName, pubkeys);
+        emit WithdrawalRequested(moduleName, pubkeys, gweiAmounts);
     }
 
     /**

@@ -196,22 +196,27 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
-     * @notice Triggers the validators exit for the given pubkeys
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
      * @param pubkeys The pubkeys of the validators to exit
+     * @param gweiAmounts The amounts of the validators to exit, in Gwei
      * @dev Only callable by the PufferModuleManager
      * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function triggerValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        payable
+        virtual
+        onlyPufferModuleManager
+    {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            requests[i] = IEigenPodTypes.WithdrawalRequest({
-                pubkey: pubkeys[i],
-                amountGwei: 0 // This means full exit. Only value supported for 0x01 validators
-             });
+            requests[i] = IEigenPodTypes.WithdrawalRequest({ pubkey: pubkeys[i], amountGwei: gweiAmounts[i] });
         }
         uint256 oldBalance = address(this).balance - msg.value;
         $.eigenPod.requestWithdrawal{ value: msg.value }(requests);

@@ -154,7 +154,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](3);
+        bytes[] memory calldatas = new bytes[](4);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](7);
@@ -183,14 +183,21 @@ contract SetupAccess is BaseScript {
         );
 
         // ValidatorExitor selectors
-        bytes4[] memory validatorExitorSelectors = new bytes4[](1);
-        validatorExitorSelectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+        bytes4[] memory requestWithdrawalSelector = new bytes4[](1);
+        requestWithdrawalSelector[0] = PufferModuleManager.requestWithdrawal.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.moduleManager,
-            validatorExitorSelectors,
+            requestWithdrawalSelector,
             ROLE_ID_VALIDATOR_EXITOR
+        );
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            requestWithdrawalSelector,
+            ROLE_ID_PUFFER_PROTOCOL
         );
         return calldatas;
     }

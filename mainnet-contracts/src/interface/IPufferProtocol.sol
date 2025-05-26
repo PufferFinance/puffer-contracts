@@ -75,6 +75,12 @@ interface IPufferProtocol {
     error Failed();
 
     /**
+     * @notice Thrown if the validator is not valid
+     * @dev Signature "0x682a6e7c"
+     */
+    error InvalidValidator();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
@@ -194,6 +200,20 @@ interface IPufferProtocol {
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
+
+    /**
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param moduleName The name of the module
+     * @param pubkeys The pubkeys of the validators to exit
+     * @param gweiAmounts The amounts of the validators to exit, in Gwei
+     * @dev Restricted to Node Operators
+     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts) external;
 
     /**
      * @notice Batch settling of validator withdrawals

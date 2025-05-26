@@ -278,6 +278,43 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        restricted
+    {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // validate pubkeys belong to that node
+
+        uint256 pendingValidatorIndex = $.pendingValidatorIndices[moduleName];
+
+        bool correct;
+        bytes32 pubkeyHash;
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            correct = false;
+            pubkeyHash = keccak256(pubkeys[i]);
+            for (uint256 j = 0; j < pendingValidatorIndex; j++) {
+                Validator memory validator = $.validators[moduleName][j];
+                if (
+                    validator.node == msg.sender && validator.status == Status.ACTIVE
+                        && keccak256(validator.pubKey) == pubkeyHash
+                ) {
+                    correct = true;
+                    break;
+                }
+            }
+            if (!correct) {
+                revert InvalidValidator();
+            }
+        }
+
+        PUFFER_MODULE_MANAGER.requestWithdrawal(moduleName, pubkeys, gweiAmounts);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
     function batchHandleWithdrawals(
