@@ -18,6 +18,7 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
@@ -283,6 +284,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
         restricted
+        payable
     {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -310,7 +312,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             }
         }
 
-        PUFFER_MODULE_MANAGER.requestWithdrawal(moduleName, pubkeys, gweiAmounts);
+        uint256 oldBalance = address(this).balance - msg.value;
+
+        PUFFER_MODULE_MANAGER.requestWithdrawal{value:msg.value}(moduleName, pubkeys, gweiAmounts);
+
+        uint256 excessAmount = address(this).balance - oldBalance;
+        if (excessAmount > 0) {
+            Address.sendValue(payable(msg.sender), excessAmount);
+        }
     }
 
     /**
