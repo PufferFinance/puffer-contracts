@@ -213,7 +213,9 @@ interface IPufferProtocol {
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts) external payable;
+    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        payable;
 
     /**
      * @notice Batch settling of validator withdrawals

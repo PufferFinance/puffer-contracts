@@ -96,6 +96,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
 
+    modifier returnExcessFee() {
+        uint256 oldBalance = address(this).balance - msg.value;
+        _;
+        uint256 excessAmount = address(this).balance - oldBalance;
+        if (excessAmount > 0) {
+            Address.sendValue(payable(msg.sender), excessAmount);
+        }
+    }
+
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
@@ -283,8 +292,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
-        restricted
         payable
+        restricted
+        returnExcessFee
     {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -312,14 +322,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             }
         }
 
-        uint256 oldBalance = address(this).balance - msg.value;
-
-        PUFFER_MODULE_MANAGER.requestWithdrawal{value:msg.value}(moduleName, pubkeys, gweiAmounts);
-
-        uint256 excessAmount = address(this).balance - oldBalance;
-        if (excessAmount > 0) {
-            Address.sendValue(payable(msg.sender), excessAmount);
-        }
+        PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
     }
 
     /**
