@@ -257,10 +257,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
      *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
      * @param moduleName The name of the module
-     * @param pubkeys The pubkeys of the validators to exit
-     * @param gweiAmounts The amounts of the validators to exit, in Gwei
+     * @param pubkeys The pubkeys of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
      * @dev Restricted to the VALIDATOR_EXITOR role and the PufferProtocol
-     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */

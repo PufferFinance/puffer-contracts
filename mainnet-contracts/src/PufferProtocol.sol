@@ -288,7 +288,63 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Restricted to Node Operators
+     */
+    function requestConsolidation(bytes32 moduleName, bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
+        external
+        payable
+        virtual
+        restricted
+        returnExcessFee
+    {
+        if (srcPubkeys.length == 0) {
+            revert InputArrayLengthZero();
+        }
+        if (srcPubkeys.length != targetPubkeys.length) {
+            revert InputArrayLengthMismatch();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // validate pubkeys belong to that node
+        bool alreadyChecked;
+        bytes32 pubkeyHashSrc;
+        bytes32 pubkeyHashTarget;
+        uint256 pendingValidatorIndex = $.pendingValidatorIndices[moduleName];
+        for (uint256 i = 0; i < srcPubkeys.length; i++) {
+            pubkeyHashSrc = keccak256(srcPubkeys[i]);
+            pubkeyHashTarget = keccak256(targetPubkeys[i]);
+            if (pubkeyHashSrc == pubkeyHashTarget) {
+                revert InvalidValidator();
+            }
+            assembly {
+                let slot := keccak256(add(pubkeyHashSrc, 0x20), 0x20)
+                alreadyChecked := tload(slot)
+                tstore(slot, true)
+            }
+            // Preemptively storing it to true to save slot calculation
+            if (!alreadyChecked) {
+                _checkValidator(pendingValidatorIndex, $, pubkeyHashSrc, moduleName);
+            }
+            assembly {
+                let slot := keccak256(add(pubkeyHashTarget, 0x20), 0x20)
+                alreadyChecked := tload(slot)
+                tstore(slot, true)
+            }
+            // Preemptively storing it to true to save slot calculation
+            if (!alreadyChecked) {
+                _checkValidator(pendingValidatorIndex, $, pubkeyHashTarget, moduleName);
+            }
+        }
+
+        $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
+
+        emit ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to Node Operators
      */
     function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
@@ -302,24 +358,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         uint256 pendingValidatorIndex = $.pendingValidatorIndices[moduleName];
 
-        bool correct;
         bytes32 pubkeyHash;
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            correct = false;
             pubkeyHash = keccak256(pubkeys[i]);
-            for (uint256 j = 0; j < pendingValidatorIndex; j++) {
-                Validator memory validator = $.validators[moduleName][j];
-                if (
-                    validator.node == msg.sender && validator.status == Status.ACTIVE
-                        && keccak256(validator.pubKey) == pubkeyHash
-                ) {
-                    correct = true;
-                    break;
-                }
-            }
-            if (!correct) {
-                revert InvalidValidator();
-            }
+            _checkValidator(pendingValidatorIndex, $, pubkeyHash, moduleName);
         }
 
         PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
@@ -843,6 +885,26 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+    }
+
+    function _checkValidator(uint256 numValidators, ProtocolStorage storage $, bytes32 pubkeyHash, bytes32 moduleName)
+        internal
+        view
+    {
+        bool correct;
+        for (uint256 j = 0; j < numValidators; j++) {
+            Validator memory validator = $.validators[moduleName][j];
+            if (
+                validator.node == msg.sender && validator.status == Status.ACTIVE
+                    && keccak256(validator.pubKey) == pubkeyHash
+            ) {
+                correct = true;
+                break;
+            }
+        }
+        if (!correct) {
+            revert InvalidValidator();
+        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

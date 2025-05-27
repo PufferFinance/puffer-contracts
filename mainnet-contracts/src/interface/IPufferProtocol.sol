@@ -81,6 +81,18 @@ interface IPufferProtocol {
     error InvalidValidator();
 
     /**
+     * @notice Thrown if the input array length mismatch
+     * @dev Signature "0x43714afd"
+     */
+    error InputArrayLengthMismatch();
+
+    /**
+     * @notice Thrown if the input array length is zero
+     * @dev Signature "0x796cc525"
+     */
+    error InputArrayLengthZero();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
@@ -160,6 +172,15 @@ interface IPufferProtocol {
     );
 
     /**
+     * @notice Emitted when a consolidation is requested
+     * @param moduleName is the module name
+     * @param srcPubkeys is the list of pubkeys to consolidate from
+     * @param targetPubkeys is the list of pubkeys to consolidate to
+     * @dev Signature "0xdc26585f08f92fc2f54b80496c32d3c20cfa17f1e91d9afc8449c17d1b4f85bb"
+     */
+    event ConsolidationRequested(bytes32 indexed moduleName, bytes[] srcPubkeys, bytes[] targetPubkeys);
+
+    /**
      * @notice Emitted when the Validator is provisioned
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
@@ -202,14 +223,26 @@ interface IPufferProtocol {
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
+     * @notice Requests a consolidation for the given validators. This consolidation consists on merging one validator into another one
+     * @param moduleName The module name of the validators to consolidate
+     * @param srcPubkeys The pubkeys of the validators to consolidate from
+     * @param targetPubkeys The pubkeys of the validators to consolidate to
+     * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function requestConsolidation(bytes32 moduleName, bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
+        external
+        payable;
+
+    /**
      * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
      *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
      *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
      * @param moduleName The name of the module
-     * @param pubkeys The pubkeys of the validators to exit
-     * @param gweiAmounts The amounts of the validators to exit, in Gwei
-     * @dev Restricted to Node Operators
-     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     * @param pubkeys The pubkeys of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
