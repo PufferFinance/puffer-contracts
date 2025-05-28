@@ -8,6 +8,7 @@ contract BeaconMock {
 
     function deposit(bytes calldata, bytes calldata, bytes calldata, bytes32) external payable {
         if (msg.value != 32 ether) {
+            // TODO Change this for pectra
             revert BadValue();
         }
         emit StartedStaking();

@@ -102,16 +102,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
     }
 
-    function test_pufferModuleAuthorization(bytes32 moduleName) public {
-        address module = _createPufferModule(moduleName);
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).callStake("", "", "");
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).call(address(0), 0, "");
-    }
-
     function test_registerOperatorToAVS() public {
         vm.startPrank(DAO);
         RestakingOperator operator = _createRestakingOperator();

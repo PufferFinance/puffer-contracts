@@ -839,7 +839,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Increase lockedETH on Puffer Oracle
         PUFFER_ORACLE.provisionNode();
 
-        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+        BEACON_DEPOSIT_CONTRACT.deposit(
+            validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
+        );
     }
 
     function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
