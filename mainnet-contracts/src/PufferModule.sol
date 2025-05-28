@@ -270,7 +270,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     function getWithdrawalCredentials() public view returns (bytes memory) {
         // Withdrawal credentials for EigenLayer modules are EigenPods
         ModuleStorage storage $ = _getPufferModuleStorage();
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
+        return abi.encodePacked(bytes1(uint8(2)), bytes11(0), $.eigenPod);
     }
 
     /**
