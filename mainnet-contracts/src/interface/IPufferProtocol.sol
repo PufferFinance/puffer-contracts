@@ -224,14 +224,13 @@ interface IPufferProtocol {
 
     /**
      * @notice Requests a consolidation for the given validators. This consolidation consists on merging one validator into another one
-     * @param moduleName The module name of the validators to consolidate
      * @param srcPubkeys The pubkeys of the validators to consolidate from
      * @param targetPubkeys The pubkeys of the validators to consolidate to
      * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function requestConsolidation(bytes32 moduleName, bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
+    function requestConsolidation(bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
         external
         payable;
 
@@ -239,14 +238,14 @@ interface IPufferProtocol {
      * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
      *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
      *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
-     * @param moduleName The name of the module
      * @param pubkeys The pubkeys of the validators to withdraw
      * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @dev The pubkeys should be active validators on the same module
      * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
         payable;
 

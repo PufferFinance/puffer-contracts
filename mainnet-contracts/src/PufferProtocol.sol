@@ -12,6 +12,7 @@ import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
+import { ValidatorPosition } from "./struct/ValidatorPosition.sol";
 import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
@@ -24,7 +25,6 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
-
 /**
  * @title PufferProtocol
  * @author Puffer Finance
@@ -290,7 +290,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Node Operators
      */
-    function requestConsolidation(bytes32 moduleName, bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
+    function requestConsolidation(bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
         external
         payable
         virtual
@@ -310,7 +310,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bool alreadyChecked;
         bytes32 pubkeyHashSrc;
         bytes32 pubkeyHashTarget;
-        uint256 pendingValidatorIndex = $.pendingValidatorIndices[moduleName];
+        pubkeyHashSrc = keccak256(srcPubkeys[0]);
+        ValidatorPosition memory validatorPosition = $.validatorPositions[pubkeyHashSrc];
+        address moduleAddress = validatorPosition.moduleAddress;
+        bytes32 moduleName = PufferModule(payable(moduleAddress)).NAME();
         for (uint256 i = 0; i < srcPubkeys.length; i++) {
             pubkeyHashSrc = keccak256(srcPubkeys[i]);
             pubkeyHashTarget = keccak256(targetPubkeys[i]);
@@ -324,7 +327,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             }
             // Preemptively storing it to true to save slot calculation
             if (!alreadyChecked) {
-                _checkValidator(pendingValidatorIndex, $, pubkeyHashSrc, moduleName);
+                validatorPosition = $.validatorPositions[pubkeyHashSrc];
+                require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+                Validator memory validator = $.validators[moduleName][validatorPosition.index];
+                require (
+                    validator.node == msg.sender && validator.status == Status.ACTIVE,
+                    InvalidValidator()
+                );
             }
             assembly {
                 let slot := keccak256(add(pubkeyHashTarget, 0x20), 0x20)
@@ -333,11 +342,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             }
             // Preemptively storing it to true to save slot calculation
             if (!alreadyChecked) {
-                _checkValidator(pendingValidatorIndex, $, pubkeyHashTarget, moduleName);
+                validatorPosition = $.validatorPositions[pubkeyHashTarget];
+                require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+                Validator memory validator = $.validators[moduleName][validatorPosition.index];
+                require (
+                    validator.node == msg.sender && validator.status == Status.ACTIVE,
+                    InvalidValidator()
+                );
             }
         }
 
-        $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
+        PufferModule(payable(moduleAddress)).requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
 
         emit ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
     }
@@ -346,22 +361,35 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Node Operators
      */
-    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
         payable
         restricted
         returnExcessFee
     {
+        if (pubkeys.length == 0) {
+            revert InputArrayLengthZero();
+        }
+        if (pubkeys.length != gweiAmounts.length) {
+            revert InputArrayLengthMismatch();
+        }
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        // validate pubkeys belong to that node
+        // validate pubkeys belong to that node and are active
 
-        uint256 pendingValidatorIndex = $.pendingValidatorIndices[moduleName];
-
-        bytes32 pubkeyHash;
+        bytes32 pubkeyHash = keccak256(pubkeys[0]);
+        ValidatorPosition memory validatorPosition = $.validatorPositions[pubkeyHash];
+        address moduleAddress = validatorPosition.moduleAddress;
+        bytes32 moduleName = PufferModule(payable(moduleAddress)).NAME();
         for (uint256 i = 0; i < pubkeys.length; i++) {
             pubkeyHash = keccak256(pubkeys[i]);
-            _checkValidator(pendingValidatorIndex, $, pubkeyHash, moduleName);
+            validatorPosition = $.validatorPositions[pubkeyHash];
+            require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+            Validator memory validator = $.validators[moduleName][validatorPosition.index];
+            require (
+                validator.node == msg.sender && validator.status == Status.ACTIVE,
+                InvalidValidator()
+            );
         }
 
         PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
@@ -432,6 +460,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             delete validator.module;
             delete validator.status;
             delete validator.pubKey;
+
+            delete $.validatorPositions[keccak256(validator.pubKey)];
         }
 
         VALIDATOR_TICKET.burn(burnAmounts.vt);
@@ -537,6 +567,22 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _setVTPenalty(newPenaltyAmount);
     }
 
+    /**
+     * @notice Admin function to set the positions of the validators
+     * @param pubkeys The pubkeys of the validators
+     * @param moduleAddresses The addresses of the modules
+     * @param indices The indices of the validators in the modules
+     * @dev Restricted to the DAO
+     */
+    function setValidatorsPositions(bytes[] calldata pubkeys, address[] calldata moduleAddresses, uint96[] calldata indices) external restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            $.validatorPositions[keccak256(pubkeys[i])] = ValidatorPosition({
+                moduleAddress: moduleAddresses[i],
+                index: indices[i]
+            });
+        }
+    }
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -711,13 +757,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     ) internal {
         uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
+        address moduleAddress = address($.modules[moduleName]);
+
         // No need for SafeCast
         $.validators[moduleName][pufferModuleIndex] = Validator({
             pubKey: data.blsPubKey,
             status: Status.PENDING,
-            module: address($.modules[moduleName]),
+            module: moduleAddress,
             bond: uint96(pufETHAmount),
             node: msg.sender
+        });
+
+        $.validatorPositions[keccak256(data.blsPubKey)] = ValidatorPosition({
+            moduleAddress: moduleAddress,
+            index: uint96(pufferModuleIndex)
         });
 
         $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(vtAmount);
