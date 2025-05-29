@@ -7,5 +7,9 @@ pragma solidity >=0.8.0 <0.9.0;
 struct NodeInfo {
     uint64 activeValidatorCount; // Number of active validators
     uint64 pendingValidatorCount; // Number of pending validators (registered but not yet provisioned)
-    uint96 vtBalance; // Validator ticket balance
+    uint96 deprecated_vtBalance; // Validator ticket balance
+    // @dev The node operators deposit ETH, and that ETH is used to calculate the validation time for the node
+    uint256 validationTime;
+    uint256 epochPrice;
+    uint256 totalEpochsValidated;
 }

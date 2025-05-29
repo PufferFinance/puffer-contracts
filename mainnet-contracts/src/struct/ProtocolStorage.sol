@@ -62,11 +62,10 @@ struct ProtocolStorage {
      */
     uint256 minimumVtAmount;
     /**
-     * @dev Amount of VT tokens to burn for a validator penalty
-     * 1 VT = 1e18
+     * @dev Amount of epochs to burn for a penalty if a validator is skipped
      * Slot 9
      */
-    uint256 vtPenalty;
+    uint256 vtPenaltyEpochs;
 }
 
 struct ModuleLimit {

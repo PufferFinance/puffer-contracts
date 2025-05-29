@@ -325,11 +325,13 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](4);
+        bytes4[] memory publicSelectors = new bytes4[](6);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
         publicSelectors[3] = PufferProtocol.revertIfPaused.selector;
+        publicSelectors[4] = PufferProtocol.depositValidationTime.selector;
+        publicSelectors[5] = PufferProtocol.withdrawValidationTime.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
