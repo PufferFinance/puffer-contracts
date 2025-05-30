@@ -84,6 +84,14 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when validators of a module are upgraded to consolidating (0x02)
+     * @param moduleName the module name
+     * @param pubkeys the pubkeys of the validators to uppgrade
+     * @dev Signature "0x591863087d102c41b3f4d214fefc262505274cf32ef4e08ef20184140796614a"
+     */
+    event PufferModuleUpgradedToConsolidating(bytes32 indexed moduleName, bytes[] pubkeys);
+
+    /**
      * @notice Emitted when a withdrawal is requested
      * @param moduleName the module name to be undelegated
      * @param pubkeys the pubkeys of the validators to exit
