@@ -93,6 +93,12 @@ interface IPufferProtocol {
     error InputArrayLengthZero();
 
     /**
+     * @notice Thrown if the number of batches is 0 or greater than 64
+     * @dev Signature "0x4ea54df9"
+     */
+    error InvalidNumberOfBatches();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
@@ -230,9 +236,7 @@ interface IPufferProtocol {
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function requestConsolidation(bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
-        external
-        payable;
+    function requestConsolidation(bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys) external payable;
 
     /**
      * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
@@ -245,9 +249,7 @@ interface IPufferProtocol {
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
      *      to the caller from the EigenPod
      */
-    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
-        external
-        payable;
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts) external payable;
 
     /**
      * @notice Batch settling of validator withdrawals

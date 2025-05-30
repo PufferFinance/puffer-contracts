@@ -32,6 +32,7 @@ import { PufferModule } from "./PufferModule.sol";
  * @dev Upgradeable smart contract for the Puffer Protocol
  * Storage variables are located in PufferProtocolStorage.sol
  */
+
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
     /**
      * @dev Helper struct for the full withdrawals accounting
@@ -194,12 +195,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         Permit calldata pufETHPermit,
         Permit calldata vtPermit
     ) external payable restricted {
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        // Check number of batches between 1 (32 ETH) and 64 (2048 ETH)
+        require(0 < data.numBatches && data.numBatches <= 64, InvalidNumberOfBatches());
 
         // Revert if the permit amounts are non zero, but the msg.value is also non zero
         if (vtPermit.amount != 0 && pufETHPermit.amount != 0 && msg.value > 0) {
             revert InvalidETHAmount();
         }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
@@ -226,15 +230,16 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidVTAmount();
         }
 
+        uint256 bondAmountEth = VALIDATOR_BOND * data.numBatches;
         uint256 bondAmount;
 
         // If the pufETH permit amount is zero, that means that the user is paying the bond with ETH
         if (pufETHPermit.amount == 0) {
             // Mint pufETH by depositing ETH and store the bond amount
-            bondAmount = PUFFER_VAULT.depositETH{ value: VALIDATOR_BOND }(address(this));
+            bondAmount = PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
         } else {
             // Calculate the pufETH amount that we need to transfer from the user
-            bondAmount = PUFFER_VAULT.convertToShares(VALIDATOR_BOND);
+            bondAmount = PUFFER_VAULT.convertToShares(bondAmountEth);
             _callPermit(address(PUFFER_VAULT), pufETHPermit);
 
             // slither-disable-next-line unchecked-transfer
@@ -282,6 +287,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         --$.nodeOperatorInfo[node].pendingValidatorCount;
         ++$.nodeOperatorInfo[node].activeValidatorCount;
 
+        // Update numBatches now that validator becomes active
+        $.nodeOperatorInfo[node].numBatches += $.validators[moduleName][index].numBatches;
+
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
     }
@@ -328,12 +336,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Preemptively storing it to true to save slot calculation
             if (!alreadyChecked) {
                 validatorPosition = $.validatorPositions[pubkeyHashSrc];
-                require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+                require(validatorPosition.moduleAddress == moduleAddress, InvalidValidator());
                 Validator memory validator = $.validators[moduleName][validatorPosition.index];
-                require (
-                    validator.node == msg.sender && validator.status == Status.ACTIVE,
-                    InvalidValidator()
-                );
+                require(validator.node == msg.sender && validator.status == Status.ACTIVE, InvalidValidator());
             }
             assembly {
                 let slot := keccak256(add(pubkeyHashTarget, 0x20), 0x20)
@@ -343,12 +348,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Preemptively storing it to true to save slot calculation
             if (!alreadyChecked) {
                 validatorPosition = $.validatorPositions[pubkeyHashTarget];
-                require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+                require(validatorPosition.moduleAddress == moduleAddress, InvalidValidator());
                 Validator memory validator = $.validators[moduleName][validatorPosition.index];
-                require (
-                    validator.node == msg.sender && validator.status == Status.ACTIVE,
-                    InvalidValidator()
-                );
+                require(validator.node == msg.sender && validator.status == Status.ACTIVE, InvalidValidator());
             }
         }
 
@@ -384,12 +386,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         for (uint256 i = 0; i < pubkeys.length; i++) {
             pubkeyHash = keccak256(pubkeys[i]);
             validatorPosition = $.validatorPositions[pubkeyHash];
-            require(validatorPosition.moduleAddress == moduleAddress,  InvalidValidator());
+            require(validatorPosition.moduleAddress == moduleAddress, InvalidValidator());
             Validator memory validator = $.validators[moduleName][validatorPosition.index];
-            require (
-                validator.node == msg.sender && validator.status == Status.ACTIVE,
-                InvalidValidator()
-            );
+            require(validator.node == msg.sender && validator.status == Status.ACTIVE, InvalidValidator());
         }
 
         PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
@@ -410,6 +409,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         BurnAmounts memory burnAmounts;
         Withdrawals[] memory bondWithdrawals = new Withdrawals[](validatorInfos.length);
 
+        uint256 numExitedBatches;
+
         // We MUST NOT do the burning/oracle update/transferring ETH from the PufferModule -> PufferVault
         // because it affects pufETH exchange rate
 
@@ -422,6 +423,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             if (validator.status != Status.ACTIVE) {
                 revert InvalidValidatorState(validator.status);
             }
+
+            numExitedBatches += validator.numBatches;
 
             // Save the Node address for the bond transfer
             bondWithdrawals[i].node = validator.node;
@@ -454,12 +457,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // nosemgrep basic-arithmetic-underflow
             $.nodeOperatorInfo[validator.node].vtBalance -= SafeCast.toUint96(vtBurnAmount);
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
+            $.nodeOperatorInfo[validator.node].numBatches -= validator.numBatches;
 
             delete validator.node;
             delete validator.bond;
             delete validator.module;
             delete validator.status;
             delete validator.pubKey;
+            delete validator.numBatches;
 
             delete $.validatorPositions[keccak256(validator.pubKey)];
         }
@@ -467,15 +472,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         VALIDATOR_TICKET.burn(burnAmounts.vt);
         // Because we've calculated everything in the previous loop, we can do the burning
         PUFFER_VAULT.burn(burnAmounts.pufETH);
-        // Deduct 32 ETH from the `lockedETHAmount` on the PufferOracle
-        PUFFER_ORACLE.exitValidators(validatorInfos.length);
+        // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
+        PUFFER_ORACLE.exitValidators(validatorInfos.length, numExitedBatches);
 
         // In this loop, we transfer back the bonds, and do the accounting that affects the exchange rate
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
             // If the withdrawal amount is bigger than 32 ETH, we cap it to 32 ETH
             // The excess is the rewards amount for that Node Operator
             uint256 transferAmount =
-                validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
+                validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount; // @todo: adapt to Pectra
             //solhint-disable-next-line avoid-low-level-calls
             (bool success,) =
                 PufferModule(payable(validatorInfos[i].module)).call(address(PUFFER_VAULT), transferAmount, "");
@@ -574,18 +579,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @param indices The indices of the validators in the modules
      * @dev Restricted to the DAO
      */
-    function setValidatorsPositions(bytes[] calldata pubkeys, address[] calldata moduleAddresses, uint96[] calldata indices) external restricted {
+    function setValidatorsPositions(
+        bytes[] calldata pubkeys,
+        address[] calldata moduleAddresses,
+        uint96[] calldata indices
+    ) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            $.validatorPositions[keccak256(pubkeys[i])] = ValidatorPosition({
-                moduleAddress: moduleAddresses[i],
-                index: indices[i]
-            });
+            $.validatorPositions[keccak256(pubkeys[i])] =
+                ValidatorPosition({ moduleAddress: moduleAddresses[i], index: indices[i] });
         }
     }
     /**
      * @inheritdoc IPufferProtocol
      */
+
     function getVTPenalty() external view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.vtPenalty;
@@ -765,13 +773,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             status: Status.PENDING,
             module: moduleAddress,
             bond: uint96(pufETHAmount),
-            node: msg.sender
+            node: msg.sender,
+            numBatches: data.numBatches
         });
 
-        $.validatorPositions[keccak256(data.blsPubKey)] = ValidatorPosition({
-            moduleAddress: moduleAddress,
-            index: uint96(pufferModuleIndex)
-        });
+        $.validatorPositions[keccak256(data.blsPubKey)] =
+            ValidatorPosition({ moduleAddress: moduleAddress, index: uint96(pufferModuleIndex) });
 
         $.nodeOperatorInfo[msg.sender].vtBalance += SafeCast.toUint96(vtAmount);
 
@@ -862,6 +869,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Case 2:
         // The withdrawal amount is less than 32 ETH, we burn the difference to cover up the loss for inactivity
         if (validatorInfo.withdrawalAmount < 32 ether) {
+            // @todo Adapt to Pectra
             pufETHBurnAmount = PUFFER_VAULT.convertToSharesUp(32 ether - validatorInfo.withdrawalAmount);
         }
         // Case 3:
@@ -876,6 +884,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+        uint8 numBatches = $.validators[moduleName][index].numBatches;
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 
@@ -884,15 +893,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         PufferModule module = $.modules[moduleName];
 
-        // Transfer 32 ETH to the module
-        PUFFER_VAULT.transferETH(address(module), 32 ether);
+        // Transfer 32 ETH to this contract for each batch
+        PUFFER_VAULT.transferETH(address(this), numBatches * 32 ether);
 
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         // Increase lockedETH on Puffer Oracle
-        PUFFER_ORACLE.provisionNode();
+        PUFFER_ORACLE.provisionNode(numBatches);
 
-        BEACON_DEPOSIT_CONTRACT.deposit(
+        BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
             validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
         );
     }
@@ -940,26 +949,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
-    }
-
-    function _checkValidator(uint256 numValidators, ProtocolStorage storage $, bytes32 pubkeyHash, bytes32 moduleName)
-        internal
-        view
-    {
-        bool correct;
-        for (uint256 j = 0; j < numValidators; j++) {
-            Validator memory validator = $.validators[moduleName][j];
-            if (
-                validator.node == msg.sender && validator.status == Status.ACTIVE
-                    && keccak256(validator.pubKey) == pubkeyHash
-            ) {
-                correct = true;
-                break;
-            }
-        }
-        if (!correct) {
-            revert InvalidValidator();
-        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

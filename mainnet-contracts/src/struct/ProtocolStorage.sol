@@ -14,7 +14,6 @@ import { ValidatorPosition } from "../struct/ValidatorPosition.sol";
  *      |                                                           |
  *      +-----------------------------------------------------------+
  */
-
 struct ProtocolStorage {
     /**
      * @dev Module weights

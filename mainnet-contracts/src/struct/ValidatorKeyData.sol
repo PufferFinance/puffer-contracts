@@ -11,4 +11,5 @@ struct ValidatorKeyData {
     bytes[] deprecated_blsEncryptedPrivKeyShares;
     bytes deprecated_blsPubKeySet;
     bytes deprecated_raveEvidence;
+    uint8 numBatches;
 }

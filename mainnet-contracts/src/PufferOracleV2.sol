@@ -51,6 +51,12 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     uint256 internal _validatorTicketPrice;
 
+    /**
+     * @dev Number of active batches
+     * Slot 4
+     */
+    uint256 internal _numberOfActiveBatches;
+
     constructor(IGuardianModule guardianModule, address payable vault, address accessManager)
         AccessManaged(accessManager)
     {
@@ -58,6 +64,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         PUFFER_VAULT = vault;
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _epochNumber = 268828; // Oracle will be updated with the correct value
+        _numberOfActiveBatches = 927122; // Oracle will be updated with the correct value
         _setMintPrice(0.01 ether);
     }
 
@@ -65,10 +72,13 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @notice Exits the validator from the Beacon chain
      * @dev Restricted to PufferProtocol contract
      */
-    function exitValidators(uint256 numberOfExits) public restricted {
+    function exitValidators(uint256 numberOfExits, uint256 numberOfBatchesExited) public restricted {
         // nosemgrep basic-arithmetic-underflow
         _numberOfActivePufferValidators -= numberOfExits;
+        // nosemgrep basic-arithmetic-underflow
+        _numberOfActiveBatches -= numberOfBatchesExited;
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
+        emit NumberOfActiveBatches(_numberOfActiveBatches);
     }
 
     /**
@@ -77,11 +87,13 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * The PufferVault balance is decreased by the same amount
      * @dev Restricted to PufferProtocol contract
      */
-    function provisionNode() external restricted {
+    function provisionNode(uint256 numberOfBatches) external restricted {
         unchecked {
             ++_numberOfActivePufferValidators;
+            _numberOfActiveBatches += numberOfBatches;
         }
         emit NumberOfActiveValidators(_numberOfActivePufferValidators);
+        emit NumberOfActiveBatches(_numberOfActiveBatches);
     }
 
     /**
@@ -96,9 +108,13 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
     /**
      * @notice Updates the total number of validators
      * @param newTotalNumberOfValidators The new number of validators
+     * @param newNumActiveBatches The new number of active batches
+     * @param epochNumber The epoch number of the update
+     * @param guardianEOASignatures The guardian EOA signatures
      */
     function setTotalNumberOfValidators(
         uint256 newTotalNumberOfValidators,
+        uint256 newNumActiveBatches,
         uint256 epochNumber,
         bytes[] calldata guardianEOASignatures
     ) external restricted {
@@ -108,6 +124,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
         emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
         _totalNumberOfValidators = newTotalNumberOfValidators;
+        _numberOfActiveBatches = newNumActiveBatches;
         _epochNumber = epochNumber;
     }
 
@@ -115,7 +132,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @inheritdoc IPufferOracle
      */
     function getLockedEthAmount() external view returns (uint256) {
-        return _numberOfActivePufferValidators * 32 ether;
+        return _numberOfActiveBatches * 32 ether;
     }
 
     /**
@@ -126,10 +143,17 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
     }
 
     /**
+     * @inheritdoc IPufferOracleV2
+     */
+    function getNumberOfActiveBatches() external view returns (uint256) {
+        return _numberOfActiveBatches;
+    }
+
+    /**
      * @inheritdoc IPufferOracle
      */
     function isOverBurstThreshold() external view returns (bool) {
-        return ((_numberOfActivePufferValidators * 100 / _totalNumberOfValidators) > _BURST_THRESHOLD);
+        return (((_numberOfActivePufferValidators * 100) / _totalNumberOfValidators) > _BURST_THRESHOLD);
     }
 
     /**
