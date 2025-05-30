@@ -42,15 +42,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    modifier returnExcessFee() {
-        uint256 oldBalance = address(this).balance - msg.value;
-        _;
-        uint256 excessAmount = address(this).balance - oldBalance;
-        if (excessAmount > 0) {
-            Address.sendValue(payable(msg.sender), excessAmount);
-        }
-    }
-
     constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
@@ -269,7 +260,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         payable
         virtual
         restricted
-        returnExcessFee
     {
         if (pubkeys.length == 0) {
             revert InputArrayLengthZero();

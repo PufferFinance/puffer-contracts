@@ -43,15 +43,6 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
         0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
 
-    modifier returnExcessFee() {
-        uint256 oldBalance = address(this).balance - msg.value;
-        _;
-        uint256 excessAmount = address(this).balance - oldBalance;
-        if (excessAmount > 0) {
-            Address.sendValue(payable(msg.sender), excessAmount);
-        }
-    }
-
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
@@ -206,7 +197,6 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
         payable
         virtual
         onlyPufferProtocol
-        returnExcessFee
     {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
@@ -234,7 +224,6 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
         payable
         virtual
         onlyPufferModuleManager
-        returnExcessFee
     {
         ModuleStorage storage $ = _getPufferModuleStorage();
 

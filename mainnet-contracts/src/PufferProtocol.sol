@@ -19,7 +19,6 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
@@ -96,15 +95,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      */
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
-
-    modifier returnExcessFee() {
-        uint256 oldBalance = address(this).balance - msg.value;
-        _;
-        uint256 excessAmount = address(this).balance - oldBalance;
-        if (excessAmount > 0) {
-            Address.sendValue(payable(msg.sender), excessAmount);
-        }
-    }
 
     constructor(
         PufferVaultV5 pufferVault,
@@ -303,7 +293,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         payable
         virtual
         restricted
-        returnExcessFee
     {
         if (srcPubkeys.length == 0) {
             revert InputArrayLengthZero();
@@ -363,12 +352,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Node Operators
      */
-    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
-        external
-        payable
-        restricted
-        returnExcessFee
-    {
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts) external payable restricted {
         if (pubkeys.length == 0) {
             revert InputArrayLengthZero();
         }
