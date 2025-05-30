@@ -9,5 +9,5 @@ struct NodeInfo {
     uint64 pendingValidatorCount; // Number of pending validators (registered but not yet provisioned)
     uint96 vtBalance; // Validator ticket balance
     uint8 numBatches; // Number of batches
-    // @todo: Adapt with VT rework to fit a single slot
+        // @todo: Adapt with VT rework to fit a single slot
 }
