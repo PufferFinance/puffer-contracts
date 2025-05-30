@@ -243,7 +243,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         emit PufferModuleUndelegated(moduleName);
     }
 
-
     /**
      * @notice Upgrades the given validators to consolidating (0x02)
      * @param moduleName The name of the module
