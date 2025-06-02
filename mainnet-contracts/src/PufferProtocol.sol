@@ -304,15 +304,23 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         bytes[] memory srcPubkeys = new bytes[](srcIndices.length);
         bytes[] memory targetPubkeys = new bytes[](targetIndices.length);
-        Validator memory validator;
+        Validator storage validatorSrc;
+        Validator storage validatorTarget;
         for (uint256 i = 0; i < srcPubkeys.length; i++) {
             require(srcIndices[i] != targetIndices[i], InvalidValidator());
-            validator = $.validators[moduleName][srcIndices[i]];
-            require(validator.node == msg.sender && validator.status == Status.ACTIVE, InvalidValidator());
-            srcPubkeys[i] = validator.pubKey;
-            validator = $.validators[moduleName][targetIndices[i]];
-            require(validator.node == msg.sender && validator.status == Status.ACTIVE, InvalidValidator());
-            targetPubkeys[i] = validator.pubKey;
+            validatorSrc = $.validators[moduleName][srcIndices[i]];
+            require(validatorSrc.node == msg.sender && validatorSrc.status == Status.ACTIVE, InvalidValidator());
+            srcPubkeys[i] = validatorSrc.pubKey;
+            validatorTarget = $.validators[moduleName][targetIndices[i]];
+            require(validatorTarget.node == msg.sender && validatorTarget.status == Status.ACTIVE, InvalidValidator());
+            targetPubkeys[i] = validatorTarget.pubKey;
+
+            // Update accounting
+            validatorTarget.bond += validatorSrc.bond;
+            validatorTarget.numBatches += validatorSrc.numBatches;
+
+            _deleteValidator(validatorSrc);
+            // Node info needs no update since all stays in the same node operator
         }
 
         $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
@@ -414,12 +422,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             --$.nodeOperatorInfo[validator.node].activeValidatorCount;
             $.nodeOperatorInfo[validator.node].numBatches -= validator.numBatches;
 
-            delete validator.node;
-            delete validator.bond;
-            delete validator.module;
-            delete validator.status;
-            delete validator.pubKey;
-            delete validator.numBatches;
+            _deleteValidator(validator);
         }
 
         VALIDATOR_TICKET.burn(burnAmounts.vt);
@@ -880,6 +883,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+    }
+
+    function _deleteValidator(Validator storage validator) internal {
+        delete validator.node;
+        delete validator.bond;
+        delete validator.module;
+        delete validator.status;
+        delete validator.pubKey;
+        delete validator.numBatches;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
