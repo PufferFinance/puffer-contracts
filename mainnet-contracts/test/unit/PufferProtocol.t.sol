@@ -1696,6 +1696,8 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
+        // We would handle this case on the backend, the guardians would return a value + a signature to mitigate this
+
         // Alice exited after 1 day
         _executeFullWithdrawal(
             StoppedValidatorInfo({
@@ -1703,8 +1705,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 moduleName: PUFFER_MODULE_0,
                 pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
-                totalEpochsValidated: 1 * EPOCHS_PER_DAY,
-                vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 1 * EPOCHS_PER_DAY),
+                totalEpochsValidated: 10 * EPOCHS_PER_DAY, // penalty is 10
+                vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 10 * EPOCHS_PER_DAY), // penalty is 10
                 wasSlashed: false
             })
         );

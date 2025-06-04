@@ -204,6 +204,17 @@ interface IPufferProtocol {
     function depositValidatorTickets(Permit calldata permit, address node) external;
 
     /**
+     * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`).
+     * Deposits Validation Time for the `node`. Validation Time is in native ETH.
+     * @param node is the node operator address
+     * @param totalEpochsValidated is the total number of epochs validated by that node operator
+     * @param vtConsumptionSignature is the signature from the guardians over the total number of epochs validated
+     */
+    function depositValidationTime(address node, uint256 totalEpochsValidated, bytes[] calldata vtConsumptionSignature)
+        external
+        payable;
+
+    /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
      * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked

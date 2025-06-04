@@ -175,11 +175,10 @@ contract PufferProtocol is
     }
 
     /**
-     * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`)
-     * This ETH is used as a VT payment.
+     * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositValidationTime(address node, uint256 vtConsumptionAmount, bytes[] calldata vtConsumptionSignature)
+    function depositValidationTime(address node, uint256 totalEpochsValidated, bytes[] calldata vtConsumptionSignature)
         external
         payable
         restricted
@@ -192,7 +191,7 @@ contract PufferProtocol is
         _settleVTAccounting({
             $: $,
             node: node,
-            totalEpochsValidated: vtConsumptionAmount,
+            totalEpochsValidated: totalEpochsValidated,
             vtConsumptionSignature: vtConsumptionSignature,
             deprecated_burntVTs: 0
         });
@@ -890,10 +889,6 @@ contract PufferProtocol is
 
         uint256 amountToConsume =
             (totalEpochsValidated - previousTotalEpochsValidated - validatorTicketsBurnt) * meanPrice;
-
-        if (amountToConsume <= $.vtPenaltyEpochs * meanPrice) {
-            amountToConsume = $.vtPenaltyEpochs * meanPrice;
-        }
 
         // Update the current epoch VT price for the node operator
         $.nodeOperatorInfo[node].epochPrice = epochCurrentPrice;
