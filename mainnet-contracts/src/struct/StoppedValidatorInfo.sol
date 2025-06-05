@@ -19,4 +19,6 @@ struct StoppedValidatorInfo {
     uint256 pufferModuleIndex;
     /// @dev Amount of funds withdrawn upon validator stoppage.
     uint256 withdrawalAmount;
+    /// @dev Indicates whether the validator was downsized instead of exited
+    bool isDownsize;
 }

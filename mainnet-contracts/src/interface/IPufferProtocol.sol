@@ -8,6 +8,7 @@ import { PufferModuleManager } from "../PufferModuleManager.sol";
 import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
 import { Status } from "../struct/Status.sol";
+import { WithdrawalType } from "../struct/WithdrawalType.sol";
 import { Permit } from "../structs/Permit.sol";
 import { ValidatorTicket } from "../ValidatorTicket.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
@@ -99,6 +100,12 @@ interface IPufferProtocol {
     error InvalidNumberOfBatches();
 
     /**
+     * @notice Thrown if the withdrawal amount is invalid
+     * @dev Signature "0xdb73cdf0"
+     */
+    error InvalidWithdrawAmount();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
@@ -178,6 +185,29 @@ interface IPufferProtocol {
     );
 
     /**
+     * @notice Emitted when a validator is downsized
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param moduleName is the staking Module
+     * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
+     * @param vtBurnAmount The amount of Validator Tickets burned from the Node Operator
+     * @param epoch The epoch of the downsize
+     * @param numBatchesBefore The number of batches before the downsize
+     * @param numBatchesAfter The number of batches after the downsize
+     * @dev Signature "0x708d62f89df6fdb944118762f267baa489a8512915584a6b271365c6baec6df4"
+     */
+    event ValidatorDownsized(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        uint256 pufETHBurnAmount,
+        uint256 vtBurnAmount,
+        uint256 epoch,
+        uint256 numBatchesBefore,
+        uint256 numBatchesAfter
+    );
+
+    /**
      * @notice Emitted when a consolidation is requested
      * @param moduleName is the module name
      * @param srcPubkeys is the list of pubkeys to consolidate from
@@ -248,14 +278,19 @@ interface IPufferProtocol {
      * @param moduleName The name of the module
      * @param indices The indices of the validators to withdraw
      * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @param withdrawalType The type of withdrawal
+     * @param validatorAmountsSignatures The signatures of the guardians to validate the amount of the validators to withdraw
      * @dev The pubkeys should be active validators on the same module
      * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
-     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
-     *      to the caller from the EigenPod
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
-    function requestWithdrawal(bytes32 moduleName, uint256[] calldata indices, uint64[] calldata gweiAmounts)
-        external
-        payable;
+    function requestWithdrawal(
+        bytes32 moduleName,
+        uint256[] calldata indices,
+        uint64[] calldata gweiAmounts,
+        WithdrawalType[] calldata withdrawalType,
+        bytes[][] calldata validatorAmountsSignatures
+    ) external payable;
 
     /**
      * @notice Batch settling of validator withdrawals

@@ -216,8 +216,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
      * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
      * @dev Only callable by the PufferModuleManager
      * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
-     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
-     *      to the caller from the EigenPod
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
     function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
         external
