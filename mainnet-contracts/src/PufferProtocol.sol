@@ -426,7 +426,7 @@ contract PufferProtocol is
                     numBatches: validator.numBatches
                 });
 
-                // However the burned part of the bond will be distributed between part of the bond returned and bond remaining (proportional to downsizing)
+                // However the burned part of the bond will be distributed between the bond returned and bond remaining (proportional to downsizing)
 
                 // We burn the VT according to previous burn rate (before downsize)
                 uint256 vtBurnAmount =
@@ -436,11 +436,13 @@ contract PufferProtocol is
                 burnAmounts.pufETH += burnAmount;
                 burnAmounts.vt += vtBurnAmount;
 
+                // The bond to be returned is proportional to the num of batches we are downsizing (after burning)
                 uint256 exitingBond = (validator.bond - burnAmount) * numDownsizeBatches / validator.numBatches;
 
                 // We update the bondWithdrawals
                 bondWithdrawals[i].pufETHAmount = exitingBond;
                 bondWithdrawals[i].numBatches = numDownsizeBatches;
+
                 emit ValidatorDownsized({
                     pubKey: validator.pubKey,
                     pufferModuleIndex: validatorInfos[i].pufferModuleIndex,

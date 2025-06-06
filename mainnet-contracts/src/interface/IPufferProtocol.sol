@@ -281,6 +281,12 @@ interface IPufferProtocol {
      * @param withdrawalType The type of withdrawal
      * @param validatorAmountsSignatures The signatures of the guardians to validate the amount of the validators to withdraw
      * @dev The pubkeys should be active validators on the same module
+     * @dev There are 3 types of withdrawal:
+     *      EXIT_VALIDATOR: The validator is fully exited. The gweiAmount needs to be 0
+     *      DOWNSIZE: The number of batches of the validator is reduced. The gweiAmount needs to be exactly a multiple of a batch size (32 ETH in gwei)
+     *              And the validator should have more than the requested number of batches
+     *      WITHDRAW_REWARDS: The amount cannot be higher than what the protocol provisioned for the validator and must be validated by the guardians via the `validatorAmountsSignatures`
+     * @dev The validatorAmountsSignatures is only needed when the withdrawal type is WITHDRAW_REWARDS
      * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
@@ -297,11 +303,12 @@ interface IPufferProtocol {
      *
      * @notice Settles a validator withdrawal
      * @dev This is one of the most important methods in the protocol
-     * It has multiple tasks:
-     * 1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH)
-     * 2. Burn the Validator Tickets from the node operator
-     * 3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
-     * 4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
+     *      The withdrawals might be partial or total, and the validator might be downsized or fully exited
+     *      It has multiple tasks:
+     *      1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH * numBatches or completely if the validator was slashed)
+     *      2. Burn the Validator Tickets from the node operator
+     *      3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
+     *      4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
