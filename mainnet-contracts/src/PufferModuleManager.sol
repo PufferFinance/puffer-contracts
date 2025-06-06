@@ -247,7 +247,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @notice Upgrades the given validators to consolidating (0x02)
      * @param moduleName The name of the module
      * @param pubkeys The pubkeys of the validators to upgrade
-     * @dev The funcion does not check that the pubkeys belong to the module
+     * @dev The function does not check that the pubkeys belong to the module
      * @dev Restricted to the DAO
      * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
