@@ -398,6 +398,7 @@ contract PufferProtocol is
         Withdrawals[] memory bondWithdrawals = new Withdrawals[](validatorInfos.length);
 
         uint256 numExitedBatches;
+        uint256 numExitedValidators;
 
         // We MUST NOT do the burning/oracle update/transferring ETH from the PufferModule -> PufferVault
         // because it affects pufETH exchange rate
@@ -461,6 +462,7 @@ contract PufferProtocol is
                 validator.numBatches -= numDownsizeBatches;
             } else {
                 numExitedBatches += validator.numBatches;
+                numExitedValidators++;
 
                 // Save the Node address for the bond transfer
                 bondWithdrawals[i].node = validator.node;
@@ -509,7 +511,7 @@ contract PufferProtocol is
         // Because we've calculated everything in the previous loop, we can do the burning
         PUFFER_VAULT.burn(burnAmounts.pufETH);
         // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
-        PUFFER_ORACLE.exitValidators(validatorInfos.length, numExitedBatches);
+        PUFFER_ORACLE.exitValidators(numExitedValidators, numExitedBatches);
 
         // In this loop, we transfer back the bonds, and do the accounting that affects the exchange rate
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
