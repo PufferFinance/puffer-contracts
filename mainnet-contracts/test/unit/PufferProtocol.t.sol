@@ -185,6 +185,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferOracle.setTotalNumberOfValidators(
             5,
+            5,
             99999999,
             _getGuardianEOASignatures(
                 LibGuardianMessages._getSetNumberOfValidatorsMessage({ numberOfValidators: 5, epochNumber: 99999999 })
@@ -228,9 +229,7 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         vm.expectEmit(true, true, true, true);
@@ -255,9 +254,7 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: hex"aeaa", // invalid key
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
@@ -754,7 +751,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(16 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Valid proof
@@ -1061,7 +1059,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(28 days, 100),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -1086,7 +1085,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(28 days, 100),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
     }
@@ -1135,7 +1135,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1145,7 +1146,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](2);
@@ -1201,7 +1203,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(35 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[1] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1210,7 +1213,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.9 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[2] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1219,7 +1223,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(34 days, 100),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
         stopInfos[3] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1228,7 +1233,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.8 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(48 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[4] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1237,7 +1243,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.5 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(2 days, 100),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -1307,7 +1314,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1317,7 +1325,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -1403,7 +1412,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 29 ether,
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns two bonds from Alice (she registered 2 validators, but only one got activated)
@@ -1454,7 +1464,8 @@ contract PufferProtocolTest is UnitTestHelper {
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
             withdrawalAmount: 29.5 ether,
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1504,7 +1515,8 @@ contract PufferProtocolTest is UnitTestHelper {
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
             withdrawalAmount: 30 ether,
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1562,7 +1574,8 @@ contract PufferProtocolTest is UnitTestHelper {
             startEpoch: 100,
             endEpoch: _getEpochNumber(28 days, 100),
             withdrawalAmount: 31.9 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1612,7 +1625,8 @@ contract PufferProtocolTest is UnitTestHelper {
             startEpoch: 100,
             endEpoch: _getEpochNumber(15 days, 100),
             withdrawalAmount: 32.1 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1650,7 +1664,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(1 days, 100),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -1682,7 +1697,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 startEpoch: 100,
                 endEpoch: _getEpochNumber(3 days, 100),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -1845,9 +1861,7 @@ contract PufferProtocolTest is UnitTestHelper {
                 signature: validatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         return validatorData;

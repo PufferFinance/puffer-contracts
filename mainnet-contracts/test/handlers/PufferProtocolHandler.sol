@@ -549,9 +549,7 @@ contract PufferProtocolHandler is Test {
                 signature: mockValidatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         return validatorData;

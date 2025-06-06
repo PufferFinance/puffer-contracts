@@ -102,9 +102,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 blsPubKey: stdJson.readBytes(registrationJson, ".bls_pub_key"),
                 signature: stdJson.readBytes(registrationJson, ".signature"),
                 depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root"),
-                deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-                deprecated_blsPubKeySet: new bytes(48),
-                deprecated_raveEvidence: new bytes(0)
+                numBatches: 1
             });
 
             Permit memory pufETHPermit = _signPermit({
