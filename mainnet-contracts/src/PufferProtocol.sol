@@ -21,7 +21,7 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
-import { InvalidAddress } from "./Errors.sol";
+import { InvalidAddress, Unauthorized } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
@@ -121,6 +121,10 @@ contract PufferProtocol is
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
         _disableInitializers();
+    }
+
+    receive() external payable {
+        require(msg.sender == address(PUFFER_VAULT), Unauthorized());
     }
 
     /**
