@@ -259,16 +259,12 @@ contract PufferProtocolTest is UnitTestHelper {
         });
 
         vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
-        pufferProtocol.registerValidatorKey{ value: vtPrice }(
-            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
-        );
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit);
 
         validatorData.numBatches = 65;
 
         vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
-        pufferProtocol.registerValidatorKey{ value: vtPrice }(
-            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
-        );
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit);
     }
 
     // Try registering with invalid BLS key length
