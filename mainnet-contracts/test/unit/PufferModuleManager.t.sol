@@ -352,7 +352,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
-        // Verify we get the fee back
+
         pufferModuleManager.requestWithdrawal{ value: EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
         vm.stopPrank();
     }
@@ -369,13 +369,13 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
-        // Verify we get the fee back
+
         pufferModuleManager.requestWithdrawal{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
         vm.stopPrank();
     }
 
     function test_requestWithdrawalExcessFee() public {
-        _createPufferModule(MOCK_MODULE);
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = bytes("0x1234");
@@ -383,24 +383,24 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(validatorExitor);
 
-        uint256 initialBalance = validatorExitor.balance;
+        uint256 initialBalance = moduleAddress.balance;
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
 
         pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance - EXIT_FEE;
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - EXIT_FEE;
 
         // Verify the balance change accounting for gas
-        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
 
         vm.stopPrank();
     }
 
     function test_requestWithdrawalExcessFee2() public {
-        _createPufferModule(MOCK_MODULE);
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](2);
         pubkeys[0] = bytes("0x1234");
@@ -409,18 +409,18 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(validatorExitor);
 
-        uint256 initialBalance = validatorExitor.balance;
+        uint256 initialBalance = moduleAddress.balance;
 
         vm.expectEmit(true, true, true, true);
         emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
 
         pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance - 2 * EXIT_FEE;
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - 2 * EXIT_FEE;
 
         // Verify the balance change accounting for gas
-        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
 
         vm.stopPrank();
     }

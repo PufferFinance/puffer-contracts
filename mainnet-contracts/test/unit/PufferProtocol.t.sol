@@ -11,7 +11,6 @@ import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
-import { Unauthorized } from "../../src/Errors.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
@@ -235,6 +234,39 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
         pufferProtocol.registerValidatorKey{ value: vtPrice + 2 ether }(
+            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+        );
+    }
+
+    // Try registering with an invalid number of batches
+    function test_register_invalid_num_batches() public {
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * 30;
+
+        bytes memory pubKey = _getPubKey(bytes32("something"));
+
+        bytes[] memory newSetOfPubKeys = new bytes[](3);
+
+        // we have 3 guardians in TestHelper.sol
+        newSetOfPubKeys[0] = bytes("key1");
+        newSetOfPubKeys[0] = bytes("key2");
+        newSetOfPubKeys[0] = bytes("key3");
+
+        ValidatorKeyData memory validatorData = ValidatorKeyData({
+            blsPubKey: pubKey, // key length must be 48 byte
+            signature: new bytes(0),
+            depositDataRoot: bytes32(""),
+            numBatches: 0
+        });
+
+        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(
+            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+        );
+
+        validatorData.numBatches = 65;
+
+        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(
             validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
         );
     }
