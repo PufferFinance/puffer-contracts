@@ -64,7 +64,6 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
         PUFFER_VAULT = vault;
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _epochNumber = 268828; // Oracle will be updated with the correct value
-        _numberOfActiveBatches = 927122; // Oracle will be updated with the correct value
         _setMintPrice(0.01 ether);
     }
 
