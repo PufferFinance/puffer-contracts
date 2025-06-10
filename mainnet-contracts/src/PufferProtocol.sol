@@ -366,13 +366,17 @@ contract PufferProtocol is
 
             if (withdrawalType[i] == WithdrawalType.EXIT_VALIDATOR) {
                 require(gweiAmount == 0, InvalidWithdrawAmount());
-            } else if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
-                uint256 batches = gweiAmount / _BATCH_SIZE_GWEIS;
-                require(
-                    batches > $.validators[moduleName][indices[i]].numBatches && gweiAmount % _BATCH_SIZE_GWEIS == 0,
-                    InvalidWithdrawAmount()
-                );
-            } else if (withdrawalType[i] == WithdrawalType.WITHDRAW_REWARDS) {
+            } else {
+
+                if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
+                    uint256 batches = gweiAmount / _BATCH_SIZE_GWEIS;
+                    require(
+                        batches > $.validators[moduleName][indices[i]].numBatches && gweiAmount % _BATCH_SIZE_GWEIS == 0,
+                        InvalidWithdrawAmount()
+                    );
+                }
+
+                // If downsize or rewards withdrawal, backend needs to validate the amount
                 bytes32 messageHash =
                     keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(msg.sender)));
 
@@ -402,7 +406,6 @@ contract PufferProtocol is
         Withdrawals[] memory bondWithdrawals = new Withdrawals[](validatorInfos.length);
 
         uint256 numExitedBatches;
-        uint256 numExitedValidators;
 
         // We MUST NOT do the burning/oracle update/transferring ETH from the PufferModule -> PufferVault
         // because it affects pufETH exchange rate
@@ -430,7 +433,6 @@ contract PufferProtocol is
                     _downsizeValidators($, validatorInfos, validator, numDownsizeBatches, i, burnAmounts);
             } else {
                 numExitedBatches += validator.numBatches;
-                numExitedValidators++;
                 bondWithdrawals[i].numBatches = validator.numBatches;
 
                 // We update the bondWithdrawals
@@ -441,8 +443,9 @@ contract PufferProtocol is
         VALIDATOR_TICKET.burn(burnAmounts.vt);
         // Because we've calculated everything in the previous loop, we can do the burning
         PUFFER_VAULT.burn(burnAmounts.pufETH);
+
         // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
-        PUFFER_ORACLE.exitValidators(numExitedValidators, numExitedBatches);
+        PUFFER_ORACLE.exitValidators(numExitedBatches);
 
         // In this loop, we transfer back the bonds, and do the accounting that affects the exchange rate
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
@@ -848,7 +851,9 @@ contract PufferProtocol is
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         // Increase lockedETH on Puffer Oracle
-        PUFFER_ORACLE.provisionNode(numBatches);
+        for (uint256 i = 0; i < numBatches; i++) {
+            PUFFER_ORACLE.provisionNode();
+        }
 
         BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
             validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
@@ -925,8 +930,11 @@ contract PufferProtocol is
         burnAmounts.pufETH += burnAmount;
         burnAmounts.vt += vtBurnAmount;
 
-        // The bond to be returned is proportional to the num of batches we are downsizing (after burning)
-        exitingBond = (validator.bond - burnAmount) * numDownsizeBatches / validator.numBatches;
+        // The bond to be returned is proportional to the num of batches we are downsizing minus the burned amount
+        exitingBond = validator.bond * numDownsizeBatches / validator.numBatches;
+
+        require(exitingBond >= burnAmount, InvalidWithdrawAmount());
+        exitingBond -= burnAmount;
 
         emit ValidatorDownsized({
             pubKey: validator.pubKey,

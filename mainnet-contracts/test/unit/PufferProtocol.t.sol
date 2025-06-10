@@ -184,7 +184,6 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferOracle.setTotalNumberOfValidators(
             5,
-            5,
             99999999,
             _getGuardianEOASignatures(
                 LibGuardianMessages._getSetNumberOfValidatorsMessage({ numberOfValidators: 5, epochNumber: 99999999 })

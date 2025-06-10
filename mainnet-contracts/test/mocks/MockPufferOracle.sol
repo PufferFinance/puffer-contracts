@@ -29,9 +29,9 @@ contract MockPufferOracle is IPufferOracleV2 {
         return 99999;
     }
 
-    function provisionNode(uint256) external { }
+    function provisionNode() external { }
 
-    function exitValidators(uint256, uint256) external { }
+    function exitValidators(uint256) external { }
 
     function getValidatorTicketPrice() external view returns (uint256 pricePerVT) { }
 
@@ -40,6 +40,4 @@ contract MockPufferOracle is IPufferOracleV2 {
     function isOverBurstThreshold() external view returns (bool) { }
 
     function getNumberOfActiveValidators() external view returns (uint256) { }
-
-    function getNumberOfActiveBatches() external view returns (uint256) { }
 }

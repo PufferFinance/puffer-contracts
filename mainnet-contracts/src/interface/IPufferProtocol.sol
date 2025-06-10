@@ -286,7 +286,7 @@ interface IPufferProtocol {
      *      DOWNSIZE: The number of batches of the validator is reduced. The gweiAmount needs to be exactly a multiple of a batch size (32 ETH in gwei)
      *              And the validator should have more than the requested number of batches
      *      WITHDRAW_REWARDS: The amount cannot be higher than what the protocol provisioned for the validator and must be validated by the guardians via the `validatorAmountsSignatures`
-     * @dev The validatorAmountsSignatures is only needed when the withdrawal type is WITHDRAW_REWARDS
+     * @dev The validatorAmountsSignatures is only needed when the withdrawal type is DOWNSIZE orWITHDRAW_REWARDS
      * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
