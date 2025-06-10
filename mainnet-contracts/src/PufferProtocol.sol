@@ -367,7 +367,6 @@ contract PufferProtocol is
             if (withdrawalType[i] == WithdrawalType.EXIT_VALIDATOR) {
                 require(gweiAmount == 0, InvalidWithdrawAmount());
             } else {
-
                 if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
                     uint256 batches = gweiAmount / _BATCH_SIZE_GWEIS;
                     require(
