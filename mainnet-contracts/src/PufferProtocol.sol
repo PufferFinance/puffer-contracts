@@ -740,7 +740,7 @@ contract PufferProtocol is
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName);
+        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, data.numBatches);
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {

@@ -164,9 +164,10 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
+     * @param numBatches is the number of batches the validator has
      * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
      */
-    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint8 numBatches);
 
     /**
      * @notice Emitted when the Validator exited and stopped validating
