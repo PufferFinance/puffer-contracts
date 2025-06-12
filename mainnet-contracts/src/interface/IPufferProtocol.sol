@@ -192,11 +192,7 @@ interface IPufferProtocol {
      * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
      */
     event ValidatorExited(
-        bytes pubKey,
-        uint256 indexed pufferModuleIndex,
-        bytes32 indexed moduleName,
-        uint256 pufETHBurnAmount,
-        uint256 vtBurnAmount
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 pufETHBurnAmount
     );
 
     /**
@@ -205,22 +201,29 @@ interface IPufferProtocol {
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
-     * @param vtBurnAmount The amount of Validator Tickets burned from the Node Operator
      * @param epoch The epoch of the downsize
      * @param numBatchesBefore The number of batches before the downsize
      * @param numBatchesAfter The number of batches after the downsize
-     * @dev Signature "0x708d62f89df6fdb944118762f267baa489a8512915584a6b271365c6baec6df4"
+     * @dev Signature "0x75afd977bd493b29a8e699e6b7a9ab85df6b62f4ba5664e370bd5cb0b0e2b776"
      */
     event ValidatorDownsized(
         bytes pubKey,
         uint256 indexed pufferModuleIndex,
         bytes32 indexed moduleName,
         uint256 pufETHBurnAmount,
-        uint256 vtBurnAmount,
         uint256 epoch,
         uint256 numBatchesBefore,
         uint256 numBatchesAfter
     );
+
+    /**
+     * @notice Emitted when validation time is consumed
+     * @param node is the node operator address
+     * @param consumedAmount is the amount of validation time that was consumed
+     * @param deprecated_burntVTs is the amount of VT that was burnt
+     * @dev Signature "0x4b16b7334c6437660b5530a3a5893e7a10fa5424e5c0d67806687147553544ef"
+     */
+    event ValidationTimeConsumed(address indexed node, uint256 consumedAmount, uint256 deprecated_burntVTs);
 
     /**
      * @notice Emitted when a consolidation is requested

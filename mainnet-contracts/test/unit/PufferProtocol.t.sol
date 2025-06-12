@@ -932,9 +932,11 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
+        emit IPufferProtocol.ValidationTimeConsumed(
+            alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
         _executeFullWithdrawal(
             StoppedValidatorInfo({
                 module: NoRestakingModule,
@@ -1051,12 +1053,18 @@ contract PufferProtocolTest is UnitTestHelper {
         stopInfos[1] = bobInfo;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, epochsValidated * BURN_RATE_PER_EPOCH
+        emit IPufferProtocol.ValidationTimeConsumed(
+            alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, epochsValidated * BURN_RATE_PER_EPOCH
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidationTimeConsumed(
+            bob, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0);
+
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
 
         assertEq(_getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, "protocol should have 0 eth bond");
@@ -1141,44 +1149,30 @@ contract PufferProtocolTest is UnitTestHelper {
         });
 
         vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidationTimeConsumed(alice, 0, 35 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidationTimeConsumed(bob, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 35 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
+            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.1 ether)
         );
         vm.expectEmit(true, true, true, true);
-
+        emit IPufferProtocol.ValidationTimeConsumed(charlie, 0, 34 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")),
-            1,
-            PUFFER_MODULE_0,
-            pufferVault.convertToSharesUp(0.1 ether),
-            28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
-        );
-        vm.expectEmit(true, true, true, true);
-
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("charlie")),
-            2,
-            PUFFER_MODULE_0,
-            pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2).bond,
-            34 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
+            _getPubKey(bytes32("charlie")), 2, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2).bond
         ); // got slashed
         vm.expectEmit(true, true, true, true);
-
+        emit IPufferProtocol.ValidationTimeConsumed(dianna, 0, 48 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("dianna")),
-            3,
-            PUFFER_MODULE_0,
-            pufferVault.convertToSharesUp(0.2 ether),
-            48 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
+            _getPubKey(bytes32("dianna")), 3, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.2 ether)
         );
         vm.expectEmit(true, true, true, true);
-
+        emit IPufferProtocol.ValidationTimeConsumed(eve, 0, 2 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("eve")),
-            4,
-            PUFFER_MODULE_0,
-            pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond,
-            2.00000000000000025 ether // because of rounding we take a little more (28 days of VT)
+            _getPubKey(bytes32("eve")), 4, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond
         ); // got slashed
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
 
@@ -1369,14 +1363,12 @@ contract PufferProtocolTest is UnitTestHelper {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
-        ); // 10 days of VT
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0); // 10 days of VT
+        emit IPufferProtocol.ValidationTimeConsumed(alice, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
         _executeFullWithdrawal(aliceInfo);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH
-        ); // 10 days of VT
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0); // 10 days of VT
+        emit IPufferProtocol.ValidationTimeConsumed(bob, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
         _executeFullWithdrawal(bobInfo);
 
         assertApproxEqAbs(
@@ -1996,14 +1988,7 @@ contract PufferProtocolTest is UnitTestHelper {
         return amount * 1 ether;
     }
 
-    function _getVTBurnAmount(uint256 startEpoch, uint256 endEpoch) internal pure returns (uint256) {
-        uint256 validatedEpochs = endEpoch - startEpoch;
-        // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
-        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
-        return validatedEpochs * 4444444444444445;
-    }
-
-    function test_getNodeInfo() public {
+    function test_getNodeInfo() public view {
         // Test non-existent node
         NodeInfo memory nodeInfo = pufferProtocol.getNodeInfo(address(0x123));
         assertEq(nodeInfo.activeValidatorCount, 0);
