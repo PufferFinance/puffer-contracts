@@ -43,10 +43,6 @@ contract PufferProtocolTest is UnitTestHelper {
     // 1 VT is burned per 225 epochs
     uint256 internal constant BURN_RATE_PER_EPOCH = 4444444444444445;
 
-    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed);
-    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed, bytes32 indexed);
-    event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
-
     bytes zeroPubKey = new bytes(48);
     bytes32 zeroPubKeyPart;
 
@@ -180,7 +176,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(idx, 1, "idx should be 1");
 
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
         moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
         assertEq(moduleSelectionIndex, 1, "module idx changed");
@@ -227,8 +223,8 @@ contract PufferProtocolTest is UnitTestHelper {
         }
     }
 
-    // Try registering without RAVE evidence
-    function test_register_no_sgx() public {
+    // Try registering with an invalid number of batches
+    function test_register_invalid_num_batches() public {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * 30;
 
         bytes memory pubKey = _getPubKey(bytes32("something"));
@@ -244,16 +240,16 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 0
         });
 
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
-        pufferProtocol.registerValidatorKey{ value: vtPrice + 2 ether }(
-            validatorData, PUFFER_MODULE_0, 0, new bytes[](0)
-        );
+        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(validatorData, PUFFER_MODULE_0, 0, new bytes[](0));
+
+        validatorData.numBatches = 65;
+
+        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(validatorData, PUFFER_MODULE_0, 0, new bytes[](0));
     }
 
     // Try registering with invalid BLS key length
@@ -271,9 +267,7 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: hex"aeaa", // invalid key
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
@@ -340,12 +334,12 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // 1. provision zero key
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 1);
@@ -354,7 +348,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
-        emit SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Get validators
@@ -383,7 +377,7 @@ contract PufferProtocolTest is UnitTestHelper {
         newWeights[3] = CRAZY_GAINS;
 
         vm.expectEmit(true, true, true, true);
-        emit ModuleWeightsChanged(oldWeights, newWeights);
+        emit IPufferProtocol.ModuleWeightsChanged(oldWeights, newWeights);
         pufferProtocol.setModuleWeights(newWeights);
 
         vm.deal(address(pufferVault), 10000 ether);
@@ -403,7 +397,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -413,7 +407,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertTrue(nextId == 0, "module id");
 
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -453,7 +447,7 @@ contract PufferProtocolTest is UnitTestHelper {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
@@ -504,7 +498,7 @@ contract PufferProtocolTest is UnitTestHelper {
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
         pufferProtocol.registerValidatorKey{ value: amount }(data, PUFFER_MODULE_0, 0, new bytes[](0));
 
         assertApproxEqAbs(
@@ -527,7 +521,7 @@ contract PufferProtocolTest is UnitTestHelper {
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
         pufferProtocol.registerValidatorKey{ value: amount }(data, PUFFER_MODULE_0, 0, new bytes[](0));
         vm.stopPrank();
 
@@ -627,7 +621,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 16 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 16 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Valid proof
@@ -948,7 +943,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 totalEpochsValidated: 28 * EPOCHS_PER_DAY,
                 vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -981,7 +977,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 totalEpochsValidated: 28 * EPOCHS_PER_DAY,
                 vtConsumptionSignature: vtConsumptionSignature,
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
     }
@@ -1022,6 +1019,8 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
         _registerAndProvisionNode(bytes32("bob"), PUFFER_MODULE_0, bob);
 
+        assertEq(_getUnderlyingETHAmount(address(pufferProtocol)), 3 ether, "protocol should have 3 eth bond");
+
         // 28 days of epochs
         uint256 epochsValidated = 28 * EPOCHS_PER_DAY;
 
@@ -1032,7 +1031,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: epochsValidated,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, epochsValidated),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1042,7 +1042,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: epochsValidated,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, epochsValidated),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](2);
@@ -1095,7 +1096,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 35 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 35 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[1] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1104,7 +1106,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.9 ether,
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(bob, 28 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[2] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1113,7 +1116,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31 ether,
             totalEpochsValidated: 34 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(charlie, 34 * EPOCHS_PER_DAY),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
         stopInfos[3] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1122,7 +1126,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.8 ether,
             totalEpochsValidated: 48 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(dianna, 48 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[4] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
@@ -1131,7 +1136,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 31.5 ether,
             totalEpochsValidated: 2 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(eve, 2 * EPOCHS_PER_DAY),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -1227,7 +1233,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 65 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 65 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Exchange rate remained unchanged, 1 wei diff (rounding)
@@ -1294,7 +1301,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 120 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 120 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Exchange rate remained unchanged, 1 wei diff (rounding)
@@ -1345,7 +1353,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1355,7 +1364,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
@@ -1410,7 +1420,7 @@ contract PufferProtocolTest is UnitTestHelper {
         });
     }
 
-    // Register 2 validators and provision 1 validator and post full withdrawal proof for 29 eth (slash 3 ETH on one validator)
+    // Register 2 validators and provision 1 validator and post full withdrawal proof for 29 eth (slash 1.5 ETH from NoOp)
     // Case 1
     function test_slashing_case_1() public {
         vm.deal(alice, 10 ether);
@@ -1425,8 +1435,6 @@ contract PufferProtocolTest is UnitTestHelper {
         // This is because VT settlement now happens later, so the exchange rate is 1:1
         assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Give funds to modules
@@ -1442,7 +1450,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 29 ether,
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns two bonds from Alice (she registered 2 validators, but only one got activated)
@@ -1452,8 +1461,6 @@ contract PufferProtocolTest is UnitTestHelper {
         // 1 ETH gives you more pufETH after the `retrieveBond` call, meaning it is worse than before
         assertLt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
 
-        // The other validator has less than 1 ETH in the bond
-        // Bad dept is shared between all pufETH holders
         assertApproxEqRel(
             pufferVault.balanceOf(address(pufferProtocol)),
             1.5 ether,
@@ -1461,6 +1468,9 @@ contract PufferProtocolTest is UnitTestHelper {
             "1.5 ETH worth of pufETH in the protocol"
         );
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH alice");
+
+        // Provision another Alice Validator works
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     // Register 2 validators, provision 1, slash 2.5 whole validator bond owned by node operator
@@ -1493,7 +1503,8 @@ contract PufferProtocolTest is UnitTestHelper {
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
             withdrawalAmount: 29.5 ether,
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1552,7 +1563,8 @@ contract PufferProtocolTest is UnitTestHelper {
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
             withdrawalAmount: 30.9 ether, // 1.1 ETH slashed
-            wasSlashed: true
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1613,7 +1625,8 @@ contract PufferProtocolTest is UnitTestHelper {
             totalEpochsValidated: 28 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY),
             withdrawalAmount: 31.9 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1665,7 +1678,8 @@ contract PufferProtocolTest is UnitTestHelper {
             totalEpochsValidated: 15 * EPOCHS_PER_DAY,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 15 * EPOCHS_PER_DAY),
             withdrawalAmount: 32.1 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
@@ -1707,7 +1721,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 totalEpochsValidated: 10 * EPOCHS_PER_DAY, // penalty is 10
                 vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 10 * EPOCHS_PER_DAY), // penalty is 10
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -1743,7 +1758,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 withdrawalAmount: 32 ether,
                 totalEpochsValidated: 3 * EPOCHS_PER_DAY,
                 vtConsumptionSignature: _getGuardianSignaturesForRegistration(alice, 3 * EPOCHS_PER_DAY),
-                wasSlashed: false
+                wasSlashed: false,
+                isDownsize: false
             })
         );
 
@@ -1761,7 +1777,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeDeposited({ node: address(this), ethAmount: 7.5 ether });
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
         pufferProtocol.registerValidatorKey{ value: 9 ether }(data, PUFFER_MODULE_0, 0, new bytes[](0));
 
         // Protocol holds 7.5 ETHER
@@ -1875,7 +1891,7 @@ contract PufferProtocolTest is UnitTestHelper {
             hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
     }
 
-    // Generates a mock validator data for 2 ETH case
+    // Generates a mock validator data for 1.5 ETH case
     function _getMockValidatorKeyData(bytes memory pubKey, bytes32 moduleName)
         internal
         view
@@ -1902,9 +1918,7 @@ contract PufferProtocolTest is UnitTestHelper {
                 signature: validatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         return validatorData;
@@ -1951,7 +1965,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // Empty permit means that the node operator is paying with ETH for both bond & VT in the registration transaction
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, moduleName);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
         pufferProtocol.registerValidatorKey{ value: amount }(
             validatorKeyData, moduleName, epochsValidated, vtConsumptionSignatures
         );
@@ -2038,7 +2052,8 @@ contract PufferProtocolTest is UnitTestHelper {
             withdrawalAmount: 32 ether,
             totalEpochsValidated: type(uint256).max,
             vtConsumptionSignature: _getGuardianSignaturesForRegistration(bob, type(uint256).max),
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo[] memory validatorInfos = new StoppedValidatorInfo[](1);

@@ -19,4 +19,6 @@ struct StoppedValidatorInfo {
     uint256 totalEpochsValidated;
     /// @dev Signature of the guardian module that consumed the validator tickets.
     bytes[] vtConsumptionSignature;
+    /// @dev Indicates whether the validator was downsized instead of exited
+    bool isDownsize;
 }

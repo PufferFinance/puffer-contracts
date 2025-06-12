@@ -8,6 +8,7 @@ import { PufferModuleManager } from "../PufferModuleManager.sol";
 import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
 import { Status } from "../struct/Status.sol";
+import { WithdrawalType } from "../struct/WithdrawalType.sol";
 import { Permit } from "../structs/Permit.sol";
 import { ValidatorTicket } from "../ValidatorTicket.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
@@ -73,6 +74,36 @@ interface IPufferProtocol {
      * @dev Signature "0x625a40e6"
      */
     error Failed();
+
+    /**
+     * @notice Thrown if the validator is not valid
+     * @dev Signature "0x682a6e7c"
+     */
+    error InvalidValidator();
+
+    /**
+     * @notice Thrown if the input array length mismatch
+     * @dev Signature "0x43714afd"
+     */
+    error InputArrayLengthMismatch();
+
+    /**
+     * @notice Thrown if the input array length is zero
+     * @dev Signature "0x796cc525"
+     */
+    error InputArrayLengthZero();
+
+    /**
+     * @notice Thrown if the number of batches is 0 or greater than 64
+     * @dev Signature "0x4ea54df9"
+     */
+    error InvalidNumberOfBatches();
+
+    /**
+     * @notice Thrown if the withdrawal amount is invalid
+     * @dev Signature "0xdb73cdf0"
+     */
+    error InvalidWithdrawAmount();
 
     /**
      * @notice Emitted when the number of active validators changes
@@ -145,9 +176,12 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
+     * @param numBatches is the number of batches the validator has
      * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
      */
-    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+    event ValidatorKeyRegistered(
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint8 numBatches
+    );
 
     /**
      * @notice Emitted when the Validator exited and stopped validating
@@ -164,6 +198,38 @@ interface IPufferProtocol {
         uint256 pufETHBurnAmount,
         uint256 vtBurnAmount
     );
+
+    /**
+     * @notice Emitted when a validator is downsized
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
+     * @param moduleName is the staking Module
+     * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
+     * @param vtBurnAmount The amount of Validator Tickets burned from the Node Operator
+     * @param epoch The epoch of the downsize
+     * @param numBatchesBefore The number of batches before the downsize
+     * @param numBatchesAfter The number of batches after the downsize
+     * @dev Signature "0x708d62f89df6fdb944118762f267baa489a8512915584a6b271365c6baec6df4"
+     */
+    event ValidatorDownsized(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        uint256 pufETHBurnAmount,
+        uint256 vtBurnAmount,
+        uint256 epoch,
+        uint256 numBatchesBefore,
+        uint256 numBatchesAfter
+    );
+
+    /**
+     * @notice Emitted when a consolidation is requested
+     * @param moduleName is the module name
+     * @param srcPubkeys is the list of pubkeys to consolidate from
+     * @param targetPubkeys is the list of pubkeys to consolidate to
+     * @dev Signature "0xdc26585f08f92fc2f54b80496c32d3c20cfa17f1e91d9afc8449c17d1b4f85bb"
+     */
+    event ConsolidationRequested(bytes32 indexed moduleName, bytes[] srcPubkeys, bytes[] targetPubkeys);
 
     /**
      * @notice Emitted when the Validator is provisioned
@@ -222,15 +288,56 @@ interface IPufferProtocol {
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
+     * @notice Requests a consolidation for the given validators. This consolidation consists on merging one validator into another one
+     * @param moduleName The name of the module
+     * @param srcIndices The indices of the validators to consolidate from
+     * @param targetIndices The indices of the validators to consolidate to
+     * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
+        external
+        payable;
+
+    /**
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param moduleName The name of the module
+     * @param indices The indices of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @param withdrawalType The type of withdrawal
+     * @param validatorAmountsSignatures The signatures of the guardians to validate the amount of the validators to withdraw
+     * @dev The pubkeys should be active validators on the same module
+     * @dev There are 3 types of withdrawal:
+     *      EXIT_VALIDATOR: The validator is fully exited. The gweiAmount needs to be 0
+     *      DOWNSIZE: The number of batches of the validator is reduced. The gweiAmount needs to be exactly a multiple of a batch size (32 ETH in gwei)
+     *              And the validator should have more than the requested number of batches
+     *      WITHDRAW_REWARDS: The amount cannot be higher than what the protocol provisioned for the validator and must be validated by the guardians via the `validatorAmountsSignatures`
+     * @dev The validatorAmountsSignatures is only needed when the withdrawal type is DOWNSIZE orWITHDRAW_REWARDS
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function requestWithdrawal(
+        bytes32 moduleName,
+        uint256[] calldata indices,
+        uint64[] calldata gweiAmounts,
+        WithdrawalType[] calldata withdrawalType,
+        bytes[][] calldata validatorAmountsSignatures
+    ) external payable;
+
+    /**
      * @notice Batch settling of validator withdrawals
      *
      * @notice Settles a validator withdrawal
      * @dev This is one of the most important methods in the protocol
-     * It has multiple tasks:
-     * 1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH)
-     * 2. Burn the Validator Tickets from the node operator
-     * 3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
-     * 4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
+     *      The withdrawals might be partial or total, and the validator might be downsized or fully exited
+     *      It has multiple tasks:
+     *      1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH * numBatches or completely if the validator was slashed)
+     *      2. Burn the Validator Tickets from the node operator
+     *      3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
+     *      4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,

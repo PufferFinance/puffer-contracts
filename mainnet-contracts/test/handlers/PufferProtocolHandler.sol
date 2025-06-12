@@ -549,9 +549,7 @@ contract PufferProtocolHandler is Test {
                 signature: mockValidatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-            deprecated_blsPubKeySet: new bytes(48),
-            deprecated_raveEvidence: new bytes(0)
+            numBatches: 1
         });
 
         return validatorData;
@@ -584,7 +582,7 @@ contract PufferProtocolHandler is Test {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
             validatorKeyData, moduleName, 0, new bytes[](0)
         );

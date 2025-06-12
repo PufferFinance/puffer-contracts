@@ -14,13 +14,14 @@ import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
 import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
+import { WithdrawalType } from "./struct/WithdrawalType.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
-import { InvalidAddress } from "./Errors.sol";
+import { InvalidAddress, Unauthorized } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
@@ -56,6 +57,7 @@ contract PufferProtocol is
     struct Withdrawals {
         uint256 pufETHAmount;
         address node;
+        uint256 numBatches;
     }
 
     /**
@@ -83,6 +85,11 @@ contract PufferProtocol is
      * @dev Default "PUFFER_MODULE_0" module
      */
     bytes32 internal constant _PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
+
+    /**
+     * @dev 32 ETH in Gwei
+     */
+    uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -137,6 +144,8 @@ contract PufferProtocol is
         PUFFER_REVENUE_DISTRIBUTOR = pufferRevenueDistributor;
         _disableInitializers();
     }
+
+    receive() external payable { }
 
     /**
      * @notice Initializes the contract
@@ -277,9 +286,9 @@ contract PufferProtocol is
         // At the moment thats roughly 30 days * 225 (there is rougly 225 epochs per day)
         uint256 minimumETHRequired = _VALIDATOR_BOND + (_MINIMUM_EPOCHS_VALIDATION * epochCurrentPrice);
 
-        emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - _VALIDATOR_BOND) });
-
         require(msg.value >= minimumETHRequired, InvalidETHAmount());
+
+        emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - _VALIDATOR_BOND) });
 
         _settleVTAccounting({
             $: $,
@@ -289,8 +298,10 @@ contract PufferProtocol is
             deprecated_burntVTs: 0
         });
 
+        uint256 bondAmountEth = _VALIDATOR_BOND * data.numBatches;
+
         // The bond is converted to pufETH at the current exchange rate
-        uint256 pufETHBondAmount = PUFFER_VAULT.depositETH{ value: _VALIDATOR_BOND }(address(this));
+        uint256 pufETHBondAmount = PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
 
         uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
@@ -300,7 +311,8 @@ contract PufferProtocol is
             status: Status.PENDING,
             module: address($.modules[moduleName]),
             bond: uint96(pufETHBondAmount),
-            node: msg.sender
+            node: msg.sender,
+            numBatches: data.numBatches
         });
 
         // Increment indices for this module and number of validators registered
@@ -312,8 +324,16 @@ contract PufferProtocol is
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
 
-        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName);
+        emit NumberOfRegisteredValidatorsChanged({
+            moduleName: moduleName,
+            newNumberOfRegisteredValidators: $.moduleLimits[moduleName].numberOfRegisteredValidators
+        });
+        emit ValidatorKeyRegistered({
+            pubKey: data.blsPubKey,
+            pufferModuleIndex: pufferModuleIndex,
+            moduleName: moduleName,
+            numBatches: data.numBatches
+        });
     }
 
     /**
@@ -348,8 +368,101 @@ contract PufferProtocol is
         --$.nodeOperatorInfo[node].pendingValidatorCount;
         ++$.nodeOperatorInfo[node].activeValidatorCount;
 
+        // Update numBatches now that validator becomes active
+        $.nodeOperatorInfo[node].numBatches += $.validators[moduleName][index].numBatches;
+
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to Node Operators
+     */
+    function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
+        external
+        payable
+        virtual
+        restricted
+    {
+        if (srcIndices.length == 0) {
+            revert InputArrayLengthZero();
+        }
+        if (srcIndices.length != targetIndices.length) {
+            revert InputArrayLengthMismatch();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        bytes[] memory srcPubkeys = new bytes[](srcIndices.length);
+        bytes[] memory targetPubkeys = new bytes[](targetIndices.length);
+        Validator storage validatorSrc;
+        Validator storage validatorTarget;
+        for (uint256 i = 0; i < srcPubkeys.length; i++) {
+            require(srcIndices[i] != targetIndices[i], InvalidValidator());
+            validatorSrc = $.validators[moduleName][srcIndices[i]];
+            require(validatorSrc.node == msg.sender && validatorSrc.status == Status.ACTIVE, InvalidValidator());
+            srcPubkeys[i] = validatorSrc.pubKey;
+            validatorTarget = $.validators[moduleName][targetIndices[i]];
+            require(validatorTarget.node == msg.sender && validatorTarget.status == Status.ACTIVE, InvalidValidator());
+            targetPubkeys[i] = validatorTarget.pubKey;
+
+            // Update accounting
+            validatorTarget.bond += validatorSrc.bond;
+            validatorTarget.numBatches += validatorSrc.numBatches;
+
+            delete $.validators[moduleName][srcIndices[i]];
+            // Node info needs no update since all stays in the same node operator
+        }
+
+        $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
+
+        emit ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to Node Operators
+     */
+    function requestWithdrawal(
+        bytes32 moduleName,
+        uint256[] calldata indices,
+        uint64[] calldata gweiAmounts,
+        WithdrawalType[] calldata withdrawalType,
+        bytes[][] calldata validatorAmountsSignatures
+    ) external payable restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        bytes[] memory pubkeys = new bytes[](indices.length);
+
+        // validate pubkeys belong to that node and are active
+        for (uint256 i = 0; i < indices.length; ++i) {
+            require($.validators[moduleName][indices[i]].node == msg.sender, InvalidValidator());
+            pubkeys[i] = $.validators[moduleName][indices[i]].pubKey;
+
+            if (withdrawalType[i] == WithdrawalType.EXIT_VALIDATOR) {
+                require(gweiAmounts[i] == 0, InvalidWithdrawAmount());
+            } else {
+                if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
+                    uint256 batches = gweiAmounts[i] / _32_ETH_GWEI;
+                    require(
+                        batches > $.validators[moduleName][indices[i]].numBatches && gweiAmounts[i] % _32_ETH_GWEI == 0,
+                        InvalidWithdrawAmount()
+                    );
+                }
+
+                // If downsize or rewards withdrawal, backend needs to validate the amount
+                bytes32 messageHash =
+                    keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(msg.sender)));
+
+                GUARDIAN_MODULE.validateGuardiansEOASignatures({
+                    eoaSignatures: validatorAmountsSignatures[i],
+                    signedMessageHash: messageHash
+                });
+            }
+        }
+
+        PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
     }
 
     function _batchHandleWithdrawalsAccounting(
@@ -358,10 +471,11 @@ contract PufferProtocol is
     ) internal {
         // In this loop, we transfer back the bonds, and do the accounting that affects the exchange rate
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
-            // If the withdrawal amount is bigger than 32 ETH, we cap it to 32 ETH
+            // If the withdrawal amount is bigger than 32 ETH * numBatches, we cap it to 32 ETH * numBatches
             // The excess is the rewards amount for that Node Operator
-            uint256 transferAmount =
-                validatorInfos[i].withdrawalAmount > 32 ether ? 32 ether : validatorInfos[i].withdrawalAmount;
+            uint256 transferAmount = validatorInfos[i].withdrawalAmount > (32 ether * bondWithdrawals[i].numBatches)
+                ? 32 ether * bondWithdrawals[i].numBatches
+                : validatorInfos[i].withdrawalAmount;
             //solhint-disable-next-line avoid-low-level-calls
             (bool success,) =
                 PufferModule(payable(validatorInfos[i].module)).call(address(PUFFER_VAULT), transferAmount, "");
@@ -394,6 +508,10 @@ contract PufferProtocol is
         BurnAmounts memory burnAmounts;
         Withdrawals[] memory bondWithdrawals = new Withdrawals[](validatorInfos.length);
 
+        uint256 numExitedBatches;
+
+        //@todo triggers when validator exits fully or it is downsized
+
         // We MUST NOT do the burning/oracle update/transferring ETH from the PufferModule -> PufferVault
         // because it affects pufETH exchange rate
 
@@ -410,11 +528,19 @@ contract PufferProtocol is
             // Save the Node address for the bond transfer
             bondWithdrawals[i].node = validator.node;
 
+            // Not all validators have the number of batches populated, for the validators that are registered a while ago, we assume 1 batch
+            bondWithdrawals[i].numBatches = validator.numBatches > 0 ? validator.numBatches : 1;
+            // Do the accounting for the total number of batches exited
+            numExitedBatches += bondWithdrawals[i].numBatches;
+
             uint96 bondAmount = validator.bond;
             // Get the burnAmount for the withdrawal at the current exchange rate
-            uint256 burnAmount =
-                _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
-            uint256 vtBurnAmount = _getVTBurnAmount($, validatorInfos[i]);
+            uint256 burnAmount = _getBondBurnAmount({
+                validatorInfo: validatorInfos[i],
+                validatorBondAmount: bondAmount,
+                numBatches: validator.numBatches
+            });
+            uint256 vtBurnAmount = _getVTBurnAmount($, validator.node, validatorInfos[i]);
 
             // We need to scope the variables to avoid stack too deep errors
             {
@@ -455,8 +581,9 @@ contract PufferProtocol is
         VALIDATOR_TICKET.burn(burnAmounts.vt);
         // Because we've calculated everything in the previous loop, we can do the burning
         PUFFER_VAULT.burn(burnAmounts.pufETH);
-        // Deduct 32 ETH from the `lockedETHAmount` on the PufferOracle
-        PUFFER_ORACLE.exitValidators(validatorInfos.length);
+
+        // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
+        PUFFER_ORACLE.exitValidators(numExitedBatches);
 
         _batchHandleWithdrawalsAccounting(bondWithdrawals, validatorInfos);
     }
@@ -702,6 +829,39 @@ contract PufferProtocol is
      */
     function revertIfPaused() external restricted { }
 
+    function _storeValidatorInformation(
+        ProtocolStorage storage $,
+        ValidatorKeyData calldata data,
+        uint256 pufETHAmount,
+        bytes32 moduleName,
+        uint256 vtAmount
+    ) internal {
+        uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
+
+        address moduleAddress = address($.modules[moduleName]);
+
+        // No need for SafeCast
+        $.validators[moduleName][pufferModuleIndex] = Validator({
+            pubKey: data.blsPubKey,
+            status: Status.PENDING,
+            module: moduleAddress,
+            bond: uint96(pufETHAmount),
+            node: msg.sender,
+            numBatches: data.numBatches
+        });
+
+        $.nodeOperatorInfo[msg.sender].deprecated_vtBalance += SafeCast.toUint96(vtAmount);
+
+        // Increment indices for this module and number of validators registered
+        unchecked {
+            ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
+            ++$.pendingValidatorIndices[moduleName];
+            ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
+        }
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, data.numBatches);
+    }
+
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (limit < $.moduleLimits[moduleName].numberOfRegisteredValidators) {
@@ -745,15 +905,17 @@ contract PufferProtocol is
         ValidatorKeyData calldata data,
         bytes32 moduleName
     ) internal view {
+        // Check number of batches between 1 (32 ETH) and 64 (2048 ETH)
+        require(0 < data.numBatches && data.numBatches < 65, InvalidNumberOfBatches());
+
         // This acts as a validation if the module is existent
         // +1 is to validate the current transaction registration
-        if (($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
-            revert ValidatorLimitForModuleReached();
-        }
+        require(
+            ($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) <= $.moduleLimits[moduleName].allowedLimit,
+            ValidatorLimitForModuleReached()
+        );
 
-        if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
-            revert InvalidBLSPubKey();
-        }
+        require(data.blsPubKey.length == _BLS_PUB_KEY_LENGTH, InvalidBLSPubKey());
     }
 
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
@@ -765,11 +927,11 @@ contract PufferProtocol is
         $.minimumVtAmount = newMinimumVtAmount;
     }
 
-    function _getBondBurnAmount(StoppedValidatorInfo calldata validatorInfo, uint256 validatorBondAmount)
-        internal
-        view
-        returns (uint256 pufETHBurnAmount)
-    {
+    function _getBondBurnAmount(
+        StoppedValidatorInfo calldata validatorInfo,
+        uint256 validatorBondAmount,
+        uint256 numBatches
+    ) internal view returns (uint256 pufETHBurnAmount) {
         // Case 1:
         // The Validator was slashed, we burn the whole bond for that validator
         if (validatorInfo.wasSlashed) {
@@ -777,12 +939,14 @@ contract PufferProtocol is
         }
 
         // Case 2:
-        // The withdrawal amount is less than 32 ETH, we burn the difference to cover up the loss for inactivity
-        if (validatorInfo.withdrawalAmount < 32 ether) {
-            pufETHBurnAmount = PUFFER_VAULT.convertToSharesUp(32 ether - validatorInfo.withdrawalAmount);
+        // The withdrawal amount is less than 32 ETH * numBatches, we burn the difference to cover up the loss for inactivity
+        if (validatorInfo.withdrawalAmount < (uint256(32 ether) * numBatches)) {
+            pufETHBurnAmount =
+                PUFFER_VAULT.convertToSharesUp((uint256(32 ether) * numBatches) - validatorInfo.withdrawalAmount);
         }
+
         // Case 3:
-        // Withdrawal amount was >= 32 ether, we don't burn anything
+        // Withdrawal amount was >= 32 ETH * numBatches, we don't burn anything
         return pufETHBurnAmount;
     }
 
@@ -793,6 +957,7 @@ contract PufferProtocol is
         bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+        uint256 numBatches = $.validators[moduleName][index].numBatches;
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
 
@@ -801,15 +966,19 @@ contract PufferProtocol is
 
         PufferModule module = $.modules[moduleName];
 
-        // Transfer 32 ETH to the module
-        PUFFER_VAULT.transferETH(address(module), 32 ether);
+        // Transfer 32 ETH to this contract for each batch
+        PUFFER_VAULT.transferETH(address(this), numBatches * 32 ether);
 
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
 
         // Increase lockedETH on Puffer Oracle
-        PUFFER_ORACLE.provisionNode();
+        for (uint256 i = 0; i < numBatches; ++i) {
+            PUFFER_ORACLE.provisionNode();
+        }
 
-        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
+        BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
+            validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
+        );
     }
 
     function _useVTOrValidationTime(
@@ -904,7 +1073,7 @@ contract PufferProtocol is
         ERC20(weth).transfer(PUFFER_REVENUE_DISTRIBUTOR, amountToConsume);
     }
 
-    function _getVTBurnAmount(ProtocolStorage storage $, StoppedValidatorInfo calldata validatorInfo)
+    function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
         internal
         view
         returns (uint256)
@@ -914,8 +1083,24 @@ contract PufferProtocol is
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
         uint256 vtBurnAmount = validatedEpochs * 4444444444444445;
 
-        // Return the bigger of the two
-        return vtBurnAmount > $.minimumVtAmount ? vtBurnAmount : $.minimumVtAmount;
+        uint256 minimumVTAmount = $.minimumVtAmount;
+        uint256 nodeVTBalance = $.nodeOperatorInfo[node].deprecated_vtBalance;
+
+        //@todo might be buggy
+
+        // If the VT burn amount is less than the minimum VT amount that means that the node operator exited early
+        // If we don't penalize it, the node operator can exit early and re-register with the same VTs.
+        // By doing that, they can lower the APY for the pufETH holders
+        if (minimumVTAmount > vtBurnAmount) {
+            // Case when the node operator registered the validator but afterwards the DAO increases the minimum VT amount
+            if (nodeVTBalance < minimumVTAmount) {
+                return nodeVTBalance;
+            }
+
+            return minimumVTAmount;
+        }
+
+        return vtBurnAmount;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
@@ -933,6 +1118,99 @@ contract PufferProtocol is
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+    }
+
+    function _downsizeValidators(
+        ProtocolStorage storage $,
+        StoppedValidatorInfo[] calldata validatorInfos,
+        Validator storage validator,
+        uint256 numDownsizeBatches,
+        uint256 i,
+        BurnAmounts memory burnAmounts
+    ) internal returns (uint256 exitingBond) {
+        // We burn the bond according to previous burn rate (before downsize)
+        uint256 burnAmount = _getBondBurnAmount({
+            validatorInfo: validatorInfos[i],
+            validatorBondAmount: validator.bond,
+            numBatches: validator.numBatches
+        });
+
+        // However the burned part of the bond will be distributed between the bond returned and bond remaining (proportional to downsizing)
+
+        // We burn the VT according to previous burn rate (before downsize)
+        uint256 vtBurnAmount = _getVTBurnAmount($, validator.node, validatorInfos[i]);
+
+        // We update the burnAmounts
+        burnAmounts.pufETH += burnAmount;
+        burnAmounts.vt += vtBurnAmount;
+
+        // The bond to be returned is proportional to the num of batches we are downsizing minus the burned amount
+        exitingBond = validator.bond * numDownsizeBatches / validator.numBatches;
+
+        require(exitingBond >= burnAmount, InvalidWithdrawAmount());
+        exitingBond -= burnAmount;
+
+        emit ValidatorDownsized({
+            pubKey: validator.pubKey,
+            pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
+            moduleName: validatorInfos[i].moduleName,
+            pufETHBurnAmount: burnAmount,
+            vtBurnAmount: vtBurnAmount,
+            epoch: validatorInfos[i].totalEpochsValidated,
+            numBatchesBefore: validator.numBatches,
+            numBatchesAfter: validator.numBatches - numDownsizeBatches
+        });
+
+        $.nodeOperatorInfo[validator.node].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
+        $.nodeOperatorInfo[validator.node].numBatches -= SafeCast.toUint8(numDownsizeBatches);
+
+        validator.bond -= uint96(exitingBond);
+        validator.numBatches -= SafeCast.toUint8(numDownsizeBatches);
+
+        return exitingBond;
+    }
+
+    function _exitValidator(
+        ProtocolStorage storage $,
+        StoppedValidatorInfo[] calldata validatorInfos,
+        Validator storage validator,
+        uint256 i,
+        BurnAmounts memory burnAmounts
+    ) internal returns (uint256) {
+        uint96 bondAmount = validator.bond;
+        // Get the burnAmount for the withdrawal at the current exchange rate
+        uint256 burnAmount = _getBondBurnAmount({
+            validatorInfo: validatorInfos[i],
+            validatorBondAmount: bondAmount,
+            numBatches: validator.numBatches
+        });
+        uint256 vtBurnAmount = _getVTBurnAmount($, validator.node, validatorInfos[i]);
+
+        // Update the burnAmounts
+        burnAmounts.pufETH += burnAmount;
+        burnAmounts.vt += vtBurnAmount;
+
+        emit ValidatorExited({
+            pubKey: validator.pubKey,
+            pufferModuleIndex: validatorInfos[i].pufferModuleIndex,
+            moduleName: validatorInfos[i].moduleName,
+            pufETHBurnAmount: burnAmount,
+            vtBurnAmount: vtBurnAmount
+        });
+
+        // Decrease the number of registered validators for that module
+        _decreaseNumberOfRegisteredValidators($, validatorInfos[i].moduleName);
+        // Storage VT and the active validator count update for the Node Operator
+        // nosemgrep basic-arithmetic-underflow
+        $.nodeOperatorInfo[validator.node].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
+        --$.nodeOperatorInfo[validator.node].activeValidatorCount;
+        $.nodeOperatorInfo[validator.node].numBatches -= validator.numBatches;
+
+        delete $.validators[validatorInfos[i].moduleName][
+            validatorInfos[i].pufferModuleIndex
+        ];
+        // nosemgrep basic-arithmetic-underflow
+        return bondAmount - burnAmount;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

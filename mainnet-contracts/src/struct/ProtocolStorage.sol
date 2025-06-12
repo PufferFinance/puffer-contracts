@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "../struct/Validator.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { PufferModule } from "../PufferModule.sol";
+
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
  * @dev +-----------------------------------------------------------+
@@ -12,7 +13,6 @@ import { PufferModule } from "../PufferModule.sol";
  *      |                                                           |
  *      +-----------------------------------------------------------+
  */
-
 struct ProtocolStorage {
     /**
      * @dev Module weights

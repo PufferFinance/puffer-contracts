@@ -41,12 +41,12 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
         if (block.chainid == 17000) {
             // Holesky
             protocolAddress = 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
-            pufferProtocol = PufferProtocol(protocolAddress);
+            pufferProtocol = PufferProtocol(payable(protocolAddress));
             forkVersion = "0x01017000";
         } else if (block.chainid == 1) {
             // Mainnet
             protocolAddress = 0xf7b6B32492c2e13799D921E84202450131bd238B;
-            pufferProtocol = PufferProtocol(protocolAddress);
+            pufferProtocol = PufferProtocol(payable(protocolAddress));
             forkVersion = "0x00000000";
         }
 
@@ -102,9 +102,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 blsPubKey: stdJson.readBytes(registrationJson, ".bls_pub_key"),
                 signature: stdJson.readBytes(registrationJson, ".signature"),
                 depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root"),
-                deprecated_blsEncryptedPrivKeyShares: new bytes[](3),
-                deprecated_blsPubKeySet: new bytes(48),
-                deprecated_raveEvidence: new bytes(0)
+                numBatches: 1
             });
 
             IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, 0, new bytes[](0));

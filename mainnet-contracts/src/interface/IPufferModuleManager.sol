@@ -15,6 +15,16 @@ interface IPufferModuleManager {
     error ForbiddenModuleName();
 
     /**
+     * @notice Thrown if the input array length mismatch
+     */
+    error InputArrayLengthMismatch();
+
+    /**
+     * @notice Thrown if the input array length is zero
+     */
+    error InputArrayLengthZero();
+
+    /**
      * @notice Emitted when the Custom Call from the restakingOperator is successful
      * @dev Signature "0x80b240e4b7a31d61bdee28b97592a7c0ad486cb27d11ee5c6b90530db4e949ff"
      */
@@ -74,11 +84,21 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
-     * @notice Emitted when the validators exit is triggered
-     * @param moduleName the module name to be undelegated
-     * @dev Signature "0x456e0aba5f7f36ec541f2f550d3f5895eb7d1ae057f45e8683952ac182254e5d"
+     * @notice Emitted when validators of a module are upgraded to consolidating (0x02)
+     * @param moduleName the module name
+     * @param pubkeys the pubkeys of the validators to uppgrade
+     * @dev Signature "0x591863087d102c41b3f4d214fefc262505274cf32ef4e08ef20184140796614a"
      */
-    event ValidatorsExitTriggered(bytes32 indexed moduleName, bytes[] pubkeys);
+    event PufferModuleUpgradedToConsolidating(bytes32 indexed moduleName, bytes[] pubkeys);
+
+    /**
+     * @notice Emitted when a withdrawal is requested
+     * @param moduleName the module name to be undelegated
+     * @param pubkeys the pubkeys of the validators to exit
+     * @param gweiAmounts the amounts of the validators to exit, in Gwei
+     * @dev Signature "0x8de190edd50136636ef6acd43f071508e34713f6dbaf117f74cc92322e32a387"
+     */
+    event WithdrawalRequested(bytes32 indexed moduleName, bytes[] pubkeys, uint64[] gweiAmounts);
 
     /**
      * @notice Emitted when the restaking operator avs signature proof is updated

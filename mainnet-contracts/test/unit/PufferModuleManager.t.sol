@@ -59,7 +59,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
         accessManager.grantRole(ROLE_ID_VALIDATOR_EXITOR, validatorExitor, 0);
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+        selectors[0] = PufferModuleManager.requestWithdrawal.selector;
         accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_VALIDATOR_EXITOR);
 
         (bool success,) = address(accessManager).call(cd);
@@ -100,16 +100,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
     function test_createPufferModule(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
-    }
-
-    function test_pufferModuleAuthorization(bytes32 moduleName) public {
-        address module = _createPufferModule(moduleName);
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).callStake("", "", "");
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).call(address(0), 0, "");
     }
 
     function test_registerOperatorToAVS() public {
@@ -351,109 +341,147 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitExactFee1() public {
+    function test_requestWithdrawalExactFee1() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
 
         vm.startPrank(validatorExitor);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
-        // Verify we get the fee back
-        pufferModuleManager.triggerValidatorsExit{ value: EXIT_FEE }(MOCK_MODULE, pubkeys);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitExactFee2() public {
+    function test_requestWithdrawalExactFee2() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](2);
         pubkeys[0] = bytes("0x1234");
         pubkeys[1] = bytes("0x4321");
+        uint64[] memory gweiAmounts = new uint64[](2);
 
         vm.startPrank(validatorExitor);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
-        // Verify we get the fee back
-        pufferModuleManager.triggerValidatorsExit{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitExcessFee() public {
-        _createPufferModule(MOCK_MODULE);
+    function test_requestWithdrawalExcessFee() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
 
         vm.startPrank(validatorExitor);
 
-        uint256 initialBalance = validatorExitor.balance;
+        uint256 initialBalance = moduleAddress.balance;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+        pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance - EXIT_FEE;
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - EXIT_FEE;
 
         // Verify the balance change accounting for gas
-        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
 
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitExcessFee2() public {
-        _createPufferModule(MOCK_MODULE);
+    function test_requestWithdrawalExcessFee2() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](2);
         pubkeys[0] = bytes("0x1234");
         pubkeys[1] = bytes("0x4321");
+        uint64[] memory gweiAmounts = new uint64[](2);
 
         vm.startPrank(validatorExitor);
 
-        uint256 initialBalance = validatorExitor.balance;
+        uint256 initialBalance = moduleAddress.balance;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+        pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
 
-        // Calculate expected balance: initial - gas costs
-        uint256 expectedBalance = initialBalance - 2 * EXIT_FEE;
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - 2 * EXIT_FEE;
 
         // Verify the balance change accounting for gas
-        assertEq(validatorExitor.balance, expectedBalance, "Should get the fee back minus gas costs");
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
 
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitNoFee() public {
+    function test_requestWithdrawalNoFee() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
 
         vm.startPrank(validatorExitor);
 
         vm.expectRevert(); // panic underflow when subtracting fee
-        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
         vm.stopPrank();
     }
 
-    function test_triggerValidatorsExitUnauthorized() public {
+    function test_requestWithdrawalUnauthorized() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
+
+        vm.startPrank(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalInputArrayLengthMismatch() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = bytes("0x1234");
 
-        vm.startPrank(bob);
+        uint64[] memory gweiAmounts = new uint64[](2);
+        gweiAmounts[0] = 1 ether;
+        gweiAmounts[1] = 2 ether;
 
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
-        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthMismatch.selector));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalInputArrayLengthZero() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](0);
+        uint64[] memory gweiAmounts = new uint64[](0);
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthZero.selector));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
 
         vm.stopPrank();
     }

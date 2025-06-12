@@ -30,6 +30,7 @@ contract MockPufferOracle is IPufferOracleV2 {
     }
 
     function provisionNode() external { }
+
     function exitValidators(uint256) external { }
 
     function getValidatorTicketPrice() external view returns (uint256 pricePerVT) { }

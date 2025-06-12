@@ -12,4 +12,6 @@ struct NodeInfo {
     uint256 validationTime;
     uint256 epochPrice;
     uint256 totalEpochsValidated;
+    uint8 numBatches; // Number of batches
+        // @todo: Adapt with VT rework to fit a single slot
 }
