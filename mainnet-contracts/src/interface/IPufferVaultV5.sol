@@ -58,6 +58,21 @@ interface IPufferVaultV5 {
     function getExitFeeBasisPoints() external view returns (uint256);
 
     /**
+     * @notice Returns the current treasury exit fee basis points
+     */
+    function getTreasuryExitFeeBasisPoints() external view returns (uint256);
+
+    /**
+     * @notice Returns the total exit fee basis points
+     */
+    function getTotalExitFeeBasisPoints() external view returns (uint256);
+
+    /**
+     * @notice Returns the treasury address
+     */
+    function getTreasury() external view returns (address);
+
+    /**
      * @notice Deposits native ETH into the Puffer Vault
      * @param receiver The recipient of pufETH tokens
      * @return shares The amount of pufETH received from the deposit

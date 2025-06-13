@@ -292,11 +292,21 @@ contract PufferVaultV5 is
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
+        VaultStorage storage $ = _getPufferVaultStorage();
 
-        _wrapETH(assets);
+        uint256 exitFee = _feeOnTotal(assets, $.exitFeeBasisPoints);
+        uint256 treasuryFee = _feeOnTotal(assets, $.treasuryExitFeeBasisPoints);
 
-        uint256 shares = previewWithdraw(assets);
+        uint256 shares = super.previewWithdraw(assets + exitFee + treasuryFee);
+
+        _wrapETH(assets + exitFee + treasuryFee);
+
         _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
+
+        // Transfer fee to treasury if needed
+        if (treasuryFee > 0) {
+            SafeERC20.safeTransfer(_WETH, $.treasury, treasuryFee);
+        }
 
         return shares;
     }
@@ -325,11 +335,24 @@ contract PufferVaultV5 is
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
         }
 
-        uint256 assets = previewRedeem(shares);
+        VaultStorage storage $ = _getPufferVaultStorage();
 
-        _wrapETH(assets);
+        uint256 assetsWithoutFee = super.previewRedeem(shares);
+
+        uint256 exitFee = _feeOnTotal(assetsWithoutFee, $.exitFeeBasisPoints);
+        uint256 treasuryFee = _feeOnTotal(assetsWithoutFee, $.treasuryExitFeeBasisPoints);
+
+        // nosemgrep basic-arithmetic-underflow
+        uint256 assets = assetsWithoutFee - exitFee - treasuryFee;
+
+        _wrapETH(assets + treasuryFee);
 
         _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
+
+        // Transfer fee to treasury if needed
+        if (treasuryFee > 0) {
+            SafeERC20.safeTransfer(_WETH, $.treasury, treasuryFee);
+        }
 
         return assets;
     }
@@ -504,7 +527,7 @@ contract PufferVaultV5 is
      * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
      */
     function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
-        uint256 fee = _feeOnRaw(assets, getExitFeeBasisPoints());
+        uint256 fee = _feeOnRaw(assets, getTotalExitFeeBasisPoints());
         return super.previewWithdraw(assets + fee);
     }
 
@@ -514,7 +537,7 @@ contract PufferVaultV5 is
     function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewRedeem(shares);
         // nosemgrep basic-arithmetic-underflow
-        return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
+        return assets - _feeOnTotal(assets, getTotalExitFeeBasisPoints());
     }
 
     /**
@@ -523,6 +546,30 @@ contract PufferVaultV5 is
     function getExitFeeBasisPoints() public view virtual returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.exitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the current treasury exit fee basis points
+     */
+    function getTreasuryExitFeeBasisPoints() public view virtual returns (uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.treasuryExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the total exit fee basis points
+     */
+    function getTotalExitFeeBasisPoints() public view virtual returns (uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.exitFeeBasisPoints + $.treasuryExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the treasury address
+     */
+    function getTreasury() public view virtual returns (address) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.treasury;
     }
 
     /**
