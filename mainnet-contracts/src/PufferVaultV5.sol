@@ -19,6 +19,7 @@ import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableM
 import { IPufferVaultV5 } from "./interface/IPufferVaultV5.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
+import { InvalidAddress } from "./Errors.sol";
 
 /**
  * @title PufferVaultV5
@@ -39,6 +40,7 @@ contract PufferVaultV5 is
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
+    uint256 private constant _MAX_EXIT_FEE_BASIS_POINTS = 2_00; // 2%
     IStETH internal immutable _ST_ETH;
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
     IWETH internal immutable _WETH;
@@ -70,12 +72,14 @@ contract PufferVaultV5 is
      * @dev This function is only used for Unit Tests, we will not use it in mainnet
      */
     // nosemgrep tin-unprotected-initialize
-    function initialize(address accessManager) public initializer {
+    function initialize(address accessManager, address treasury) public initializer {
         __AccessManaged_init(accessManager);
         __ERC20Permit_init("pufETH");
         __ERC4626_init(_WETH);
         __ERC20_init("pufETH", "pufETH");
         _setExitFeeBasisPoints(100); // 1%
+        _setTreasury(treasury);
+        _setTreasuryExitFeeBasisPoints(100); // 1%
     }
 
     modifier markDeposit() virtual {
@@ -447,6 +451,24 @@ contract PufferVaultV5 is
     }
 
     /**
+     * @param newTreasuryExitFeeBasisPoints is the new treasury exit fee basis points
+     *
+     * @dev Restricted to the DAO
+     */
+    function setTreasuryExitFeeBasisPoints(uint256 newTreasuryExitFeeBasisPoints) external restricted {
+        _setTreasuryExitFeeBasisPoints(newTreasuryExitFeeBasisPoints);
+    }
+
+    /**
+     * @param newTreasury is the new treasury address
+     *
+     * @dev Restricted to the DAO
+     */
+    function setTreasury(address newTreasury) external restricted {
+        _setTreasury(newTreasury);
+    }
+
+    /**
      * @notice Returns the maximum amount of assets that can be withdrawn from the vault for a given owner
      * If the user has more assets than the available vault's liquidity, the user will be able to withdraw up to the available liquidity
      * else the user will be able to withdraw up to their assets
@@ -575,11 +597,41 @@ contract PufferVaultV5 is
     function _setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) internal virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
         // 2% is the maximum exit fee
-        if (newExitFeeBasisPoints > 200) {
+        if (newExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
             revert InvalidExitFeeBasisPoints();
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Sets the treasury exit fee basis points
+     * @param newTreasuryExitFeeBasisPoints The new treasury exit fee basis points
+     * @dev 200 Basis points = 2% is the maximum exit fee
+     * @dev If we are setting a treasury exit fee >0, the treasury address must be set
+     */
+    function _setTreasuryExitFeeBasisPoints(uint256 newTreasuryExitFeeBasisPoints) internal virtual {
+        // 2% is the maximum exit fee
+        if (newTreasuryExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
+            revert InvalidExitFeeBasisPoints();
+        }
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // If we are setting a treasury exit fee >0, the treasury address must be set
+        require(newTreasuryExitFeeBasisPoints == 0 || $.treasury != address(0), InvalidAddress());
+        emit TreasuryExitFeeBasisPointsSet($.treasuryExitFeeBasisPoints, newTreasuryExitFeeBasisPoints);
+        $.treasuryExitFeeBasisPoints = newTreasuryExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Sets the treasury that receives the treasury exit fee
+     * @param newTreasury The address of the new treasury
+     * @dev The treasury address must not be the zero address
+     */
+    function _setTreasury(address newTreasury) internal virtual {
+        require(newTreasury != address(0), InvalidAddress());
+        VaultStorage storage $ = _getPufferVaultStorage();
+        emit TreasurySet($.treasury, newTreasury);
+        $.treasury = newTreasury;
     }
 
     /**
