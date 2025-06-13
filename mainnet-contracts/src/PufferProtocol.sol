@@ -286,7 +286,7 @@ contract PufferProtocol is
         uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
 
         // The node operator must deposit 1.5 ETH or more + minimum validation time for ~30 days
-        // At the moment thats roughly 30 days * 225 (there is rougly 225 epochs per day)
+        // At the moment that's roughly 30 days * 225 (there is roughly 225 epochs per day)
         uint256 minimumETHRequired = _VALIDATOR_BOND + (_MINIMUM_EPOCHS_VALIDATION * epochCurrentPrice);
 
         require(msg.value >= minimumETHRequired, InvalidETHAmount());

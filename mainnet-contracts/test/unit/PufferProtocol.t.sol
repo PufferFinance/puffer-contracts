@@ -37,7 +37,7 @@ contract PufferProtocolTest is UnitTestHelper {
      */
     uint256 internal constant MINIMUM_EPOCHS_VALIDATION = 6750;
 
-    // Eth has rougly 225 epochs per day
+    // Eth has 225 epochs per day
     uint256 internal constant EPOCHS_PER_DAY = 225;
 
     // 1 VT is burned per 225 epochs
