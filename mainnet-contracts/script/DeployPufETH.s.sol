@@ -71,6 +71,7 @@ contract DeployPufETH is BaseScript {
     address operationsMultisig = vm.envOr("OPERATIONS_MULTISIG", makeAddr("operationsMultisig"));
     address pauserMultisig = vm.envOr("PAUSER_MULTISIG", makeAddr("pauserMultisig"));
     address communityMultisig = vm.envOr("COMMUNITY_MULTISIG", makeAddr("communityMultisig"));
+    address treasury = vm.envOr("TREASURY", makeAddr("treasury"));
 
     IStETH stETH;
     IWETH weth;
@@ -131,7 +132,8 @@ contract DeployPufETH is BaseScript {
         );
         // Initialize Vault
         NoImplementation(payable(address(vaultProxy))).upgradeToAndCall(
-            address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
+            address(pufferVaultImplementation),
+            abi.encodeCall(PufferVaultV5.initialize, (address(accessManager), treasury))
         );
 
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));

@@ -168,7 +168,10 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
 
         bytes memory upgradeCd = abi.encodeCall(
             UUPSUpgradeable.upgradeToAndCall,
-            (address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, address(accessManager)))
+            (
+                address(newImplementation),
+                abi.encodeCall(PufferVaultV5.initialize, (address(accessManager), _getPaymaster()))
+            )
         );
 
         (bool success,) = address(timelock).call(
@@ -178,7 +181,8 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
         UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, address(accessManager))
+            address(newImplementation),
+            abi.encodeCall(PufferVaultV5.initialize, (address(accessManager), _getPaymaster()))
         );
 
         // Upgrade PufferDepositor
