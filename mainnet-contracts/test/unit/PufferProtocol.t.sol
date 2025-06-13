@@ -533,21 +533,25 @@ contract PufferProtocolTest is UnitTestHelper {
         // Provision a newly registered validator
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
-        // 30 Days later, Alice wants to top-up more VT
-        vm.warp(block.timestamp + 10 days);
-
-        // reduced by 100000000000 wei
-        pufferOracle.setMintPrice(9703921568628);
-
-        // alice validated for 10 days * 225 epochs = 2250 epochs with 1 validator
-        // uint256 vtBurnAmount = validatedEpochs * 4444444444444445
-        uint256 validatedEpochs = 2250;
+        // alice validated for 20 days * 225 epochs = 4500 epochs with 1 validator
+        uint256 validatedEpochs = 4500;
 
         bytes[] memory vtConsumptionSignatures = _getGuardianSignaturesForRegistration(alice, validatedEpochs);
 
+        // We deposit 10 VT for alice (legacy VT)
+        deal(address(validatorTicket), address(this), 10 ether);
+        validatorTicket.approve(address(pufferProtocol), 10 ether);
+        emptyPermit.amount = 10 ether;
+        pufferProtocol.depositValidatorTickets(emptyPermit, alice);
+
         vm.startPrank(alice);
+
+        // We then deposit validation time for Alice, it should burn 10 legacy VTs, and 10 of the validation time
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidationTimeConsumed(
+            alice, 10 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 10 ether
+        ); // 10 Legacy VTs got burned
         pufferProtocol.depositValidationTime{ value: 1 ether }(alice, validatedEpochs, vtConsumptionSignatures);
-        vm.stopPrank();
     }
 
     function testRevert_invalidETHPayment() external {
@@ -604,15 +608,10 @@ contract PufferProtocolTest is UnitTestHelper {
 
         assertEq(validator.bond, pufferVault.balanceOf(address(pufferProtocol)), "alice bond is in the protocol");
 
-        vm.warp(startTimestamp);
-
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Didn't claim the bond yet
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
-
-        // 15 days later (+16 is because 1 day is the start offset)
-        vm.warp(startTimestamp + 16 days);
 
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
@@ -634,9 +633,6 @@ contract PufferProtocolTest is UnitTestHelper {
         assertApproxEqAbs(
             pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1.5 ether, 1, "assets owned by alice"
         );
-
-        // Alice doesn't withdraw her VT's right away
-        vm.warp(startTimestamp + 50 days);
     }
 
     // Alice deposits VT for herself
@@ -1479,8 +1475,6 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
         assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1532,8 +1526,6 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(address(pufferVault).balance, 1003 ether, "1003 ETH in the vault");
         assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // We provision one validator
@@ -1601,8 +1593,6 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
         assertEq(exchangeRateBefore, 1 ether, "shares before provisioning");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
@@ -1654,8 +1644,6 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
         assertEq(exchangeRateBefore, 1 ether, "shares before provisioning");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);

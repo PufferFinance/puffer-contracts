@@ -197,13 +197,16 @@ contract PufferProtocol is
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        _settleVTAccounting({
+        uint256 burnAmount = _useVTOrValidationTime({
             $: $,
-            node: node,
+            nodeOperator: node,
             totalEpochsValidated: totalEpochsValidated,
-            vtConsumptionSignature: vtConsumptionSignature,
-            deprecated_burntVTs: 0
+            vtConsumptionSignature: vtConsumptionSignature
         });
+
+        if (burnAmount > 0) {
+            VALIDATOR_TICKET.burn(burnAmount);
+        }
 
         $.nodeOperatorInfo[node].validationTime += SafeCast.toUint96(msg.value);
         emit ValidationTimeDeposited({ node: node, ethAmount: msg.value });
@@ -524,14 +527,12 @@ contract PufferProtocol is
             bondWithdrawals[i].node = validator.node;
             uint256 bondBurnAmount;
 
-            uint256 vtBurnAmount = _getVTBurnAmount($, bondWithdrawals[i].node, validatorInfos[i]);
-
             // We need to scope the variables to avoid stack too deep errors
             {
                 uint256 epochValidated = validatorInfos[i].totalEpochsValidated;
                 bytes[] calldata vtConsumptionSignature = validatorInfos[i].vtConsumptionSignature;
                 burnAmounts.vt +=
-                    _useVTOrValidationTime($, validator, vtBurnAmount, epochValidated, vtConsumptionSignature);
+                    _useVTOrValidationTime($, bondWithdrawals[i].node, epochValidated, vtConsumptionSignature);
             }
 
             if (validatorInfos[i].isDownsize) {
@@ -963,51 +964,48 @@ contract PufferProtocol is
 
     function _useVTOrValidationTime(
         ProtocolStorage storage $,
-        Validator storage validator,
-        uint256 vtBurnAmount,
+        address nodeOperator,
         uint256 totalEpochsValidated,
         bytes[] calldata vtConsumptionSignature
-    ) internal returns (uint256 burnedAmount) {
+    ) internal returns (uint256 vtAmountToBurn) {
         // Burn the VT first, then fallback to ETH from the node operator
-        uint256 nodeVTBalance = $.nodeOperatorInfo[validator.node].deprecated_vtBalance;
+        uint256 nodeVTBalance = $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance;
+
+        uint256 vtBurnAmount = _getVTBurnAmount($, nodeOperator, totalEpochsValidated);
 
         // If the node operator has VT, we burn it first
         if (nodeVTBalance > 0) {
             if (nodeVTBalance >= vtBurnAmount) {
                 // Burn the VT first, and update the node operator VT balance
-                burnedAmount = vtBurnAmount;
+                vtAmountToBurn = vtBurnAmount;
                 // nosemgrep basic-arithmetic-underflow
-                $.nodeOperatorInfo[validator.node].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
+                $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
 
-                emit ValidationTimeConsumed({
-                    node: validator.node,
-                    consumedAmount: 0,
-                    deprecated_burntVTs: vtBurnAmount
-                });
+                emit ValidationTimeConsumed({ node: nodeOperator, consumedAmount: 0, deprecated_burntVTs: vtBurnAmount });
 
-                return burnedAmount;
+                return vtAmountToBurn;
             }
 
             // If the node operator has less VT than the amount to burn, we burn all of it, and we use the validation time
-            burnedAmount = nodeVTBalance;
+            vtAmountToBurn = nodeVTBalance;
             // nosemgrep basic-arithmetic-underflow
-            $.nodeOperatorInfo[validator.node].deprecated_vtBalance -= SafeCast.toUint96(nodeVTBalance);
+            $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(nodeVTBalance);
 
             _settleVTAccounting({
                 $: $,
-                node: validator.node,
+                node: nodeOperator,
                 totalEpochsValidated: totalEpochsValidated,
                 vtConsumptionSignature: vtConsumptionSignature,
                 deprecated_burntVTs: nodeVTBalance
             });
 
-            return burnedAmount;
+            return vtAmountToBurn;
         }
 
         // If the node operator has no VT, we use the validation time
         _settleVTAccounting({
             $: $,
-            node: validator.node,
+            node: nodeOperator,
             totalEpochsValidated: totalEpochsValidated,
             vtConsumptionSignature: vtConsumptionSignature,
             deprecated_burntVTs: 0
@@ -1040,37 +1038,37 @@ contract PufferProtocol is
 
         uint256 previousTotalEpochsValidated = $.nodeOperatorInfo[node].totalEpochsValidated;
 
-        uint256 validatorTicketsBurnt = deprecated_burntVTs * 225 / 1 ether; // 1 VT = 1 DAY = 225 Epochs
+        // convert burned validator tickets to epochs
+        uint256 epochsBurntFromDeprecatedVT = deprecated_burntVTs * 225 / 1 ether; // 1 VT = 1 DAY. 1 DAY = 225 Epochs
 
-        uint256 amountToConsume =
-            (totalEpochsValidated - previousTotalEpochsValidated - validatorTicketsBurnt) * meanPrice;
+        uint256 validationTimeToConsume =
+            (totalEpochsValidated - previousTotalEpochsValidated - epochsBurntFromDeprecatedVT) * meanPrice;
 
         // Update the current epoch VT price for the node operator
         $.nodeOperatorInfo[node].epochPrice = epochCurrentPrice;
         $.nodeOperatorInfo[node].totalEpochsValidated = totalEpochsValidated;
-        $.nodeOperatorInfo[node].validationTime -= amountToConsume;
+        $.nodeOperatorInfo[node].validationTime -= validationTimeToConsume;
 
         emit ValidationTimeConsumed({
             node: node,
-            consumedAmount: amountToConsume,
+            consumedAmount: validationTimeToConsume,
             deprecated_burntVTs: deprecated_burntVTs
         });
 
         address weth = PUFFER_VAULT.asset();
 
         // WETH is a contract that has a fallback function that accepts ETH, and never reverts
-        weth.call{ value: amountToConsume }("");
+        weth.call{ value: validationTimeToConsume }("");
 
         // Transfer WETH to the Revenue Distributor, it will be slow released to the PufferVault
-        ERC20(weth).transfer(PUFFER_REVENUE_DISTRIBUTOR, amountToConsume);
+        ERC20(weth).transfer(PUFFER_REVENUE_DISTRIBUTOR, validationTimeToConsume);
     }
 
-    function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
+    function _getVTBurnAmount(ProtocolStorage storage $, address node, uint256 validatedEpochs)
         internal
         view
         returns (uint256)
     {
-        uint256 validatedEpochs = validatorInfo.totalEpochsValidated;
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
         uint256 vtBurnAmount = validatedEpochs * 4444444444444445;
