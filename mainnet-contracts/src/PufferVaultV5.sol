@@ -477,7 +477,15 @@ contract PufferVaultV5 is
      * @dev Restricted to the DAO
      */
     function setTreasuryExitFeeBasisPoints(uint256 newTreasuryExitFeeBasisPoints) external restricted {
-        _setTreasuryExitFeeBasisPoints(newTreasuryExitFeeBasisPoints);
+        // 2% is the maximum exit fee
+        if (newTreasuryExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
+            revert InvalidExitFeeBasisPoints();
+        }
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // If we are setting a treasury exit fee >0, the treasury address must be set
+        require(newTreasuryExitFeeBasisPoints == 0 || $.treasury != address(0), InvalidAddress());
+        emit TreasuryExitFeeBasisPointsSet($.treasuryExitFeeBasisPoints, newTreasuryExitFeeBasisPoints);
+        $.treasuryExitFeeBasisPoints = newTreasuryExitFeeBasisPoints;
     }
 
     /**
@@ -486,7 +494,10 @@ contract PufferVaultV5 is
      * @dev Restricted to the DAO
      */
     function setTreasury(address newTreasury) external restricted {
-        _setTreasury(newTreasury);
+        require(newTreasury != address(0), InvalidAddress());
+        VaultStorage storage $ = _getPufferVaultStorage();
+        emit TreasurySet($.treasury, newTreasury);
+        $.treasury = newTreasury;
     }
 
     /**
@@ -647,36 +658,6 @@ contract PufferVaultV5 is
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
         $.exitFeeBasisPoints = newExitFeeBasisPoints;
-    }
-
-    /**
-     * @notice Sets the treasury exit fee basis points
-     * @param newTreasuryExitFeeBasisPoints The new treasury exit fee basis points
-     * @dev 200 Basis points = 2% is the maximum exit fee
-     * @dev If we are setting a treasury exit fee >0, the treasury address must be set
-     */
-    function _setTreasuryExitFeeBasisPoints(uint256 newTreasuryExitFeeBasisPoints) internal virtual {
-        // 2% is the maximum exit fee
-        if (newTreasuryExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
-            revert InvalidExitFeeBasisPoints();
-        }
-        VaultStorage storage $ = _getPufferVaultStorage();
-        // If we are setting a treasury exit fee >0, the treasury address must be set
-        require(newTreasuryExitFeeBasisPoints == 0 || $.treasury != address(0), InvalidAddress());
-        emit TreasuryExitFeeBasisPointsSet($.treasuryExitFeeBasisPoints, newTreasuryExitFeeBasisPoints);
-        $.treasuryExitFeeBasisPoints = newTreasuryExitFeeBasisPoints;
-    }
-
-    /**
-     * @notice Sets the treasury that receives the treasury exit fee
-     * @param newTreasury The address of the new treasury
-     * @dev The treasury address must not be the zero address
-     */
-    function _setTreasury(address newTreasury) internal virtual {
-        require(newTreasury != address(0), InvalidAddress());
-        VaultStorage storage $ = _getPufferVaultStorage();
-        emit TreasurySet($.treasury, newTreasury);
-        $.treasury = newTreasury;
     }
 
     /**

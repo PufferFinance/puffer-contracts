@@ -4,9 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IPufferVaultV5 } from "src/interface/IPufferVaultV5.sol";
 import { ERC4626Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import { InvalidAddress } from "src/Errors.sol";
 
 contract PufferVaultTest is UnitTestHelper {
     uint256 pointZeroZeroOne = 0.0001e18;
+
+    address treasury = makeAddr("treasury");
 
     function test_setup_vault() public view {
         assertEq(pufferVault.asset(), address(weth), "asset should be WETH");
@@ -21,6 +24,21 @@ contract PufferVaultTest is UnitTestHelper {
         pufferVault.setExitFeeBasisPoints(0);
         vm.stopPrank();
         _;
+    }
+
+    function test_setTreasury_invalidAddress() public {
+        vm.startPrank(address(timelock));
+        vm.expectRevert(InvalidAddress.selector);
+        pufferVault.setTreasury(address(0));
+        vm.stopPrank();
+    }
+
+    function test_setTreasury() public {
+        vm.startPrank(address(timelock));
+        pufferVault.setTreasury(address(treasury));
+        vm.stopPrank();
+
+        assertEq(pufferVault.getTreasury(), address(treasury), "treasury should be set");
     }
 
     function test_setExitFeeBasisPoints() public withZeroExitFeeBasisPoints {
