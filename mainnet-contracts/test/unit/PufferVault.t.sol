@@ -26,19 +26,19 @@ contract PufferVaultTest is UnitTestHelper {
         _;
     }
 
-    function test_setTreasury_invalidAddress() public {
+    function test_setTreasury() public {
+        vm.startPrank(address(timelock));
+        pufferVault.setTreasury(treasury);
+        vm.stopPrank();
+
+        assertEq(pufferVault.getTreasury(), address(treasury), "treasury should be set");
+    }
+
+    function test_setTreasury_invalid_address() public {
         vm.startPrank(address(timelock));
         vm.expectRevert(InvalidAddress.selector);
         pufferVault.setTreasury(address(0));
         vm.stopPrank();
-    }
-
-    function test_setTreasury() public {
-        vm.startPrank(address(timelock));
-        pufferVault.setTreasury(address(treasury));
-        vm.stopPrank();
-
-        assertEq(pufferVault.getTreasury(), address(treasury), "treasury should be set");
     }
 
     function test_setExitFeeBasisPoints() public withZeroExitFeeBasisPoints {
@@ -51,6 +51,29 @@ contract PufferVaultTest is UnitTestHelper {
         vm.startPrank(address(timelock));
         vm.expectRevert(IPufferVaultV5.InvalidExitFeeBasisPoints.selector);
         pufferVault.setExitFeeBasisPoints(10000);
+        vm.stopPrank();
+    }
+
+    function test_setTreasuryExitFeeBasisPoints() public {
+        vm.startPrank(address(timelock));
+        pufferVault.setTreasury(treasury);
+        pufferVault.setTreasuryExitFeeBasisPoints(100);
+        vm.stopPrank();
+
+        assertEq(pufferVault.getTreasuryExitFeeBasisPoints(), 100, "treasuryExitFeeBasisPoints should be set");
+    }
+
+    function test_setTreasuryExitFeeBasisPoints_invalid_value() public {
+        vm.startPrank(address(timelock));
+        vm.expectRevert(IPufferVaultV5.InvalidExitFeeBasisPoints.selector);
+        pufferVault.setTreasuryExitFeeBasisPoints(10000);
+        vm.stopPrank();
+    }
+
+    function test_setTreasuryExitFeeBasisPoints_invalid_address() public {
+        vm.startPrank(address(timelock));
+        vm.expectRevert(InvalidAddress.selector);
+        pufferVault.setTreasuryExitFeeBasisPoints(100);
         vm.stopPrank();
     }
 
@@ -101,17 +124,20 @@ contract PufferVaultTest is UnitTestHelper {
         pufferVault.claimWithdrawalsFromLido(requestIds);
     }
 
-    function testFuzz_maxWithdrawRedeem(uint256 userDeposit, uint256 vaultLiquidity, uint256 exitFeeBasisPoints)
+    function testFuzz_maxWithdrawRedeem(uint256 userDeposit, uint256 vaultLiquidity, uint256 exitFeeBasisPoints, uint256 treasuryExitFeeBasisPoints)
         public
     {
         // Bound inputs to reasonable ranges
         userDeposit = bound(userDeposit, 0.1 ether, 1000 ether);
         vaultLiquidity = bound(vaultLiquidity, 0.1 ether, 1000 ether);
         exitFeeBasisPoints = bound(exitFeeBasisPoints, 0, 200); // Max 2% fee
-
+        treasuryExitFeeBasisPoints = bound(treasuryExitFeeBasisPoints, 0, 200); // Max 2% fee
         // Set exit fee
-        vm.prank(address(timelock));
+        vm.startPrank(address(timelock));
         pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
+        pufferVault.setTreasury(treasury);
+        pufferVault.setTreasuryExitFeeBasisPoints(treasuryExitFeeBasisPoints);
+        vm.stopPrank();
 
         // User deposits
         vm.deal(alice, userDeposit);
