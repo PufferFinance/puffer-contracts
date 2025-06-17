@@ -292,12 +292,13 @@ contract PufferVaultV5 is
         }
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        uint256 exitFee = _feeOnTotal(assets, $.exitFeeBasisPoints);
-        uint256 treasuryFee = _feeOnTotal(assets, $.treasuryExitFeeBasisPoints);
+        uint256 assetsWithFeeIncluded = _assetsWithFee(assets, $.exitFeeBasisPoints + $.treasuryExitFeeBasisPoints);
 
-        uint256 shares = super.previewWithdraw(assets + exitFee + treasuryFee);
+        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, $.treasuryExitFeeBasisPoints);
 
-        _wrapETH(assets + exitFee + treasuryFee);
+        uint256 shares = super.previewWithdraw(assetsWithFeeIncluded);
+
+        _wrapETH(assets + treasuryFee);
 
         _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
 
@@ -335,13 +336,13 @@ contract PufferVaultV5 is
 
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        uint256 assetsWithoutFee = super.previewRedeem(shares);
+        uint256 assetsWithFeeIncluded = super.previewRedeem(shares);
 
-        uint256 exitFee = _feeOnTotal(assetsWithoutFee, $.exitFeeBasisPoints);
-        uint256 treasuryFee = _feeOnTotal(assetsWithoutFee, $.treasuryExitFeeBasisPoints);
+        uint256 exitFee = _feeOnRaw(assetsWithFeeIncluded, $.exitFeeBasisPoints);
+        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, $.treasuryExitFeeBasisPoints);
 
         // nosemgrep basic-arithmetic-underflow
-        uint256 assets = assetsWithoutFee - exitFee - treasuryFee;
+        uint256 assets = assetsWithFeeIncluded - exitFee - treasuryFee;
 
         _wrapETH(assets + treasuryFee);
 
@@ -536,8 +537,7 @@ contract PufferVaultV5 is
      * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
      */
     function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
-        uint256 fee = _feeOnRaw(assets, getTotalExitFeeBasisPoints());
-        return super.previewWithdraw(assets + fee);
+        return super.previewWithdraw(_assetsWithFee(assets, getTotalExitFeeBasisPoints()));
     }
 
     /**
@@ -546,7 +546,7 @@ contract PufferVaultV5 is
     function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewRedeem(shares);
         // nosemgrep basic-arithmetic-underflow
-        return assets - _feeOnTotal(assets, getTotalExitFeeBasisPoints());
+        return assets - _feeOnRaw(assets, getTotalExitFeeBasisPoints());
     }
 
     /**
@@ -639,11 +639,11 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @dev Calculates the fee part of an amount `assets` that already includes fees.
-     * Used in {IERC4626-redeem}.
+     * @dev Calculates the amount of assets that includes fees.
+     * Used in {IERC4626-previewWithdraw}.
      */
-    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
-        return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
+    function _assetsWithFee(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
+        return assets.mulDiv(_BASIS_POINT_SCALE, (_BASIS_POINT_SCALE - feeBasisPoints));
     }
 
     /**
