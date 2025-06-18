@@ -36,6 +36,16 @@ contract PufferVaultTest is UnitTestHelper {
         _;
     }
 
+    modifier withZeroExitFeeAnd2TreasuryExitFee() {
+        vm.startPrank(address(timelock));
+        pufferVault.setExitFeeBasisPoints(0);
+        pufferVault.setTreasury(treasury);
+        pufferVault.setTreasuryExitFeeBasisPoints(200);
+        vm.stopPrank();
+        assertEq(pufferVault.getTotalExitFeeBasisPoints(), 200, "totalExitFeeBasisPoints should be 200");
+        _;
+    }
+
     function test_setTreasury() public {
         vm.startPrank(address(timelock));
         pufferVault.setTreasury(treasury);
@@ -550,4 +560,88 @@ contract PufferVaultTest is UnitTestHelper {
         // Check exchange rate has now changed
         assertGt(pufferVault.convertToAssets(1 ether), 1 ether, "exchange rate should be higher");
     }
+
+    // Only treasuryExitFee (2%)
+
+    function test_redeem2TreasuryExitFee() public withZeroExitFeeAnd2TreasuryExitFee {
+        uint256 userDeposit = 1 ether;
+        // User deposits
+        vm.deal(alice, userDeposit);
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: userDeposit }(alice);
+        vm.stopPrank();
+
+        uint256 aliceBalance = pufferVault.balanceOf(alice);
+        uint256 pufEthAmount = pufferVault.convertToShares(userDeposit);
+        assertEq(pufEthAmount, aliceBalance, "pufEthAmount should be equal to user's balance");
+        assertEq(pufferVault.maxRedeem(alice), aliceBalance, "maxRedeem should be equal to user's balance");
+
+        assertEq(pufEthAmount, 1 ether, "pufEthAmount should be 1 ether");
+
+        uint256 expectedPreviewRedeem = 98 * userDeposit / 100;
+        uint256 expectedTreasuryFee = pufferVault.getTreasuryExitFeeBasisPoints() * userDeposit / 100_00;
+
+        assertApproxEqRel(
+            pufferVault.previewRedeem(aliceBalance),
+            expectedPreviewRedeem,
+            pointZeroZeroOne,
+            "previewRedeem should be 2% lower"
+        );
+        assertApproxEqRel(
+            pufferVault.maxWithdraw(alice), expectedPreviewRedeem, pointZeroZeroOne, "maxWithdraw should be 2% lower"
+        );
+        vm.prank(alice);
+        uint256 assets = pufferVault.redeem(aliceBalance, alice, alice);
+
+        assertEq(assets, expectedPreviewRedeem, "assets should be equal to expectedPreviewRedeem");
+        assertApproxEqRel(
+            weth.balanceOf(treasury), expectedTreasuryFee, pointZeroZeroOne, "treasury should have 2% of the deposit"
+        );
+
+        // Check exchange rate has not changed
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "exchange rate should be the same");
+    }
+
+    function test_withdraw2TreasuryExitFee() public withZeroExitFeeAnd2TreasuryExitFee {
+        uint256 userDeposit = 1 ether;
+        // User deposits
+        vm.deal(alice, userDeposit);
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: userDeposit }(alice);
+        vm.stopPrank();
+
+        uint256 aliceBalance = pufferVault.balanceOf(alice);
+        uint256 pufEthAmount = pufferVault.convertToShares(userDeposit);
+        assertEq(pufEthAmount, aliceBalance, "pufEthAmount should be equal to user's balance");
+        assertEq(pufferVault.maxRedeem(alice), aliceBalance, "maxRedeem should be equal to user's balance");
+
+        assertEq(pufEthAmount, 1 ether, "pufEthAmount should be 1 ether");
+
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
+
+        // Expected 2% less due to fees
+        uint256 expectedMaxWithdraw = 98 * userDeposit / 100;
+        uint256 expectedTreasuryFee = pufferVault.getTreasuryExitFeeBasisPoints() * userDeposit / 100_00;
+
+        assertApproxEqRel(maxWithdraw, expectedMaxWithdraw, pointZeroZeroOne, "maxWithdraw should be 2% lower");
+
+        uint256 expectedShares = pufferVault.previewWithdraw(maxWithdraw);
+
+        vm.prank(alice);
+        uint256 shares = pufferVault.withdraw(maxWithdraw, alice, alice);
+
+        assertEq(shares, expectedShares, "shares should be equal to expectedShares");
+        assertApproxEqRel(
+            weth.balanceOf(alice), expectedMaxWithdraw, pointZeroZeroOne, "alice should have 2% less than deposited"
+        );
+        assertEq(pufferVault.balanceOf(alice), 0, "alice's balance should be 0");
+
+        assertApproxEqRel(
+            weth.balanceOf(treasury), expectedTreasuryFee, pointZeroZeroOne, "treasury should have 2% of the deposit"
+        );
+
+        // Check exchange rate has not changed
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "exchange rate should be the same");
+    }
+
 }
