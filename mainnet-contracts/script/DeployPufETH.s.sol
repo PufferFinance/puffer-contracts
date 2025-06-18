@@ -139,7 +139,6 @@ contract DeployPufETH is BaseScript {
         vm.serializeAddress(obj, "PufferVault", address(vaultProxy));
         vm.serializeAddress(obj, "PufferVaultImplementation", address(pufferVaultImplementation));
 
-
         _setupAccess();
 
         return PufferDeployment({

@@ -101,7 +101,6 @@ contract DeployEverything is BaseScript {
         vm.serializeAddress(obj, "vault", deployment.pufferVault);
         vm.serializeAddress(obj, "stETH/stETH Mock", deployment.stETH);
         vm.serializeAddress(obj, "weth/weth Mock", deployment.weth);
-
     }
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
