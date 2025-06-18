@@ -643,5 +643,4 @@ contract PufferVaultTest is UnitTestHelper {
         // Check exchange rate has not changed
         assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "exchange rate should be the same");
     }
-
 }
