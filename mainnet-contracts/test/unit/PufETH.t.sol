@@ -102,10 +102,9 @@ contract PufETHTest is ERC4626Test {
     function _useTestVersion(PufferDeployment memory deployment) private {
         vm.startPrank(address(timelock));
 
-        bytes4[] memory publicSelectors = new bytes4[](3);
+        bytes4[] memory publicSelectors = new bytes4[](2);
         publicSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
         publicSelectors[1] = PufferVaultV5.setTreasuryExitFeeBasisPoints.selector;
-        publicSelectors[2] = PufferVaultV5.setTreasury.selector;
 
         accessManager.setTargetFunctionRole(address(pufferVault), publicSelectors, ROLE_ID_DAO);
 

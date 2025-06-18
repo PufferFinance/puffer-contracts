@@ -67,10 +67,9 @@ contract xPufETHTest is Test {
         lockBoxSelectors[0] = xPufETH.mint.selector;
         lockBoxSelectors[1] = xPufETH.burn.selector;
 
-        bytes4[] memory vaultSelectors = new bytes4[](3);
+        bytes4[] memory vaultSelectors = new bytes4[](2);
         vaultSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
         vaultSelectors[1] = PufferVaultV5.setTreasuryExitFeeBasisPoints.selector;
-        vaultSelectors[2] = PufferVaultV5.setTreasury.selector;
 
         // Public selectors
         vm.startPrank(address(timelock));

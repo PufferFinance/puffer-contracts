@@ -36,15 +36,11 @@ interface IPufferVaultV5 {
 
     /**
      * Emitted when the treasury exit fee basis points is set
-     * @dev Signature: 0xb3285044c5a52624675919d2500a4dba1584390731640e9eb6f83cd0e0bcfa2d
+     * @dev Signature: 0x858133544ff4f9daa263f7fdebd1309616d8303aef156ca391cf5bcfb25cb23a
      */
-    event TreasuryExitFeeBasisPointsSet(uint256 previousFee, uint256 newFee);
-
-    /**
-     * Emitted when the treasury that receives the treasury exit fee is set
-     * @dev Signature: 0x21eb548722a564f6e09f039f7aa858ae94c911910f3823b37af2250eeca4f403
-     */
-    event TreasurySet(address indexed previousTreasury, address indexed newTreasury);
+    event TreasuryExitFeeBasisPointsSet(
+        uint256 previousFee, uint256 newFee, address indexed previousTreasury, address indexed newTreasury
+    );
 
     /**
      * Emitted when the Vault gets ETH from Lido
