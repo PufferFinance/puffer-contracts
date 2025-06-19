@@ -65,6 +65,7 @@ contract PufferVaultTest is UnitTestHelper {
         vm.stopPrank();
 
         assertEq(pufferVault.getTreasuryExitFeeBasisPoints(), 100, "treasuryExitFeeBasisPoints should be set");
+        assertEq(pufferVault.getTreasury(), treasury, "treasury should be set");
     }
 
     function test_setTreasuryExitFeeBasisPoints_invalid_value() public {
