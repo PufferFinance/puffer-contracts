@@ -479,7 +479,7 @@ contract PufferVaultV5 is
      * @param newTreasury is the new treasury address
      * @dev Restricted to the DAO
      */
-    function setTreasuryExitFeeBasisPoints(uint256 newTreasuryExitFeeBasisPoints, address newTreasury)
+    function setTreasuryExitFeeBasisPoints(uint96 newTreasuryExitFeeBasisPoints, address newTreasury)
         external
         restricted
     {
@@ -556,7 +556,7 @@ contract PufferVaultV5 is
     /**
      * @notice Returns the current treasury exit fee basis points
      */
-    function getTreasuryExitFeeBasisPoints() public view virtual returns (uint256) {
+    function getTreasuryExitFeeBasisPoints() public view virtual returns (uint96) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.treasuryExitFeeBasisPoints;
     }

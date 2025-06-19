@@ -143,7 +143,7 @@ contract PufferVaultTest is UnitTestHelper {
         // Set exit fee
         vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
-        pufferVault.setTreasuryExitFeeBasisPoints(treasuryExitFeeBasisPoints, treasury);
+        pufferVault.setTreasuryExitFeeBasisPoints(uint96(treasuryExitFeeBasisPoints), treasury);
         vm.stopPrank();
 
         // User deposits

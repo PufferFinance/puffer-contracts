@@ -35,7 +35,8 @@ abstract contract PufferVaultStorage {
         // ETH rewards amount
         uint256 totalRewardDepositAmount;
         uint256 totalRewardMintAmount;
-        uint256 treasuryExitFeeBasisPoints;
+        // 1 slot for treasury exit fee + treasury address
+        uint96 treasuryExitFeeBasisPoints;
         address treasury;
     }
 

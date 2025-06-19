@@ -36,10 +36,10 @@ interface IPufferVaultV5 {
 
     /**
      * Emitted when the treasury exit fee basis points is set
-     * @dev Signature: 0x858133544ff4f9daa263f7fdebd1309616d8303aef156ca391cf5bcfb25cb23a
+     * @dev Signature: 0xa7796e1082fdc87b0974e7931cd1ec29b95aa83bc2b702ccda0826c0c304af62
      */
     event TreasuryExitFeeBasisPointsSet(
-        uint256 previousFee, uint256 newFee, address indexed previousTreasury, address indexed newTreasury
+        uint96 previousFee, uint96 newFee, address indexed previousTreasury, address indexed newTreasury
     );
 
     /**
@@ -56,7 +56,7 @@ interface IPufferVaultV5 {
     /**
      * @notice Returns the current treasury exit fee basis points
      */
-    function getTreasuryExitFeeBasisPoints() external view returns (uint256);
+    function getTreasuryExitFeeBasisPoints() external view returns (uint96);
 
     /**
      * @notice Returns the total exit fee basis points
