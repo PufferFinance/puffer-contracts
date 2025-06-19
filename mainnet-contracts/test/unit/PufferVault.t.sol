@@ -20,14 +20,14 @@ contract PufferVaultTest is UnitTestHelper {
     }
 
     modifier withZeroExitFeeBasisPoints() {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(0);
         vm.stopPrank();
         _;
     }
 
     modifier with1ExitFeeAnd2TreasuryExitFee() {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(100);
         pufferVault.setTreasuryExitFeeBasisPoints(200, treasury);
         vm.stopPrank();
@@ -36,7 +36,7 @@ contract PufferVaultTest is UnitTestHelper {
     }
 
     modifier withZeroExitFeeAnd2TreasuryExitFee() {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(0);
         pufferVault.setTreasuryExitFeeBasisPoints(200, treasury);
         vm.stopPrank();
@@ -45,20 +45,20 @@ contract PufferVaultTest is UnitTestHelper {
     }
 
     function test_setExitFeeBasisPoints() public withZeroExitFeeBasisPoints {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(100);
         vm.stopPrank();
     }
 
     function test_setExitFeeBasisPoints_invalid_value() public {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         vm.expectRevert(IPufferVaultV5.InvalidExitFeeBasisPoints.selector);
         pufferVault.setExitFeeBasisPoints(10000);
         vm.stopPrank();
     }
 
     function test_setTreasuryExitFeeBasisPoints() public {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
         emit IPufferVaultV5.TreasuryExitFeeBasisPointsSet(0, 100, address(0), treasury);
         pufferVault.setTreasuryExitFeeBasisPoints(100, treasury);
@@ -69,14 +69,14 @@ contract PufferVaultTest is UnitTestHelper {
     }
 
     function test_setTreasuryExitFeeBasisPoints_invalid_value() public {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         vm.expectRevert(IPufferVaultV5.InvalidExitFeeBasisPoints.selector);
         pufferVault.setTreasuryExitFeeBasisPoints(10000, treasury);
         vm.stopPrank();
     }
 
     function test_setTreasuryExitFeeBasisPoints_invalid_address() public {
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         vm.expectRevert(InvalidAddress.selector);
         pufferVault.setTreasuryExitFeeBasisPoints(100, address(0));
         vm.stopPrank();
@@ -141,7 +141,7 @@ contract PufferVaultTest is UnitTestHelper {
         exitFeeBasisPoints = bound(exitFeeBasisPoints, 0, 200); // Max 2% fee
         treasuryExitFeeBasisPoints = bound(treasuryExitFeeBasisPoints, 0, 200); // Max 2% fee
         // Set exit fee
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(exitFeeBasisPoints);
         pufferVault.setTreasuryExitFeeBasisPoints(treasuryExitFeeBasisPoints, treasury);
         vm.stopPrank();
