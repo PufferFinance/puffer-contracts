@@ -292,9 +292,11 @@ contract PufferVaultV5 is
         }
         VaultStorage storage $ = _getPufferVaultStorage();
 
-        uint256 assetsWithFeeIncluded = _assetsWithFee(assets, $.exitFeeBasisPoints + $.treasuryExitFeeBasisPoints);
+        uint256 treasuryExitFeeBasisPoints = $.treasuryExitFeeBasisPoints;
 
-        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, $.treasuryExitFeeBasisPoints);
+        uint256 assetsWithFeeIncluded = _assetsWithFee(assets, $.exitFeeBasisPoints + treasuryExitFeeBasisPoints);
+
+        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, treasuryExitFeeBasisPoints);
 
         uint256 shares = super.previewWithdraw(assetsWithFeeIncluded);
 
