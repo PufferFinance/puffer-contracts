@@ -68,11 +68,12 @@ contract DeployPuffer is BaseScript {
     address treasury;
     address operationsMultisig;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
-        public
-        broadcast
-        returns (PufferProtocolDeployment memory)
-    {
+    function run(
+        GuardiansDeployment calldata guardiansDeployment,
+        address pufferVault,
+        address oracle,
+        address payable revenueDepositor
+    ) public broadcast returns (PufferProtocolDeployment memory) {
         accessManager = AccessManager(guardiansDeployment.accessManager);
 
         if (isMainnet()) {
@@ -161,7 +162,8 @@ contract DeployPuffer is BaseScript {
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
                 oracle: IPufferOracleV2(oracle),
-                beaconDepositContract: getStakingContract()
+                beaconDepositContract: getStakingContract(),
+                pufferRevenueDistributor: payable(revenueDepositor)
             });
         }
 

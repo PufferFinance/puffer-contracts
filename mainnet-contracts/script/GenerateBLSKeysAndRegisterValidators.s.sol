@@ -105,23 +105,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 numBatches: 1
             });
 
-            Permit memory pufETHPermit = _signPermit({
-                to: protocolAddress,
-                amount: 2 ether, // Hardcoded to 2 pufETH
-                nonce: pufETH.nonces(msg.sender),
-                deadline: block.timestamp + 12 hours,
-                domainSeparator: pufETH.DOMAIN_SEPARATOR()
-            });
-
-            Permit memory vtPermit = _signPermit({
-                to: protocolAddress,
-                amount: vtAmount * 1 ether, // Upscale to 10**18
-                nonce: validatorTicket.nonces(msg.sender),
-                deadline: block.timestamp + 12 hours,
-                domainSeparator: validatorTicket.DOMAIN_SEPARATOR()
-            });
-
-            IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, pufETHPermit, vtPermit);
+            IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, 0, new bytes[](0));
 
             registeredPubKeys.push(validatorData.blsPubKey);
         }
