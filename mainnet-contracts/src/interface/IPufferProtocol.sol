@@ -155,9 +155,9 @@ interface IPufferProtocol {
 
     /**
      * @notice Emitted when Validation Time is withdrawn from the protocol
-     * @dev Signature "0xba152c9819ee6cbe5243df48eb44ae038608f08bc7e9e9042bfc32f996257781"
+     * @dev Signature "0xd19b9bc208843da6deef01aa6dedd607204c4f8b6d02f79b60e326a8c6e2b6e8"
      */
-    event ValidationTimeWithdrawn(address indexed node, address indexed recipient, uint256 amount);
+    event ValidationTimeWithdrawn(address indexed node, address indexed recipient, uint256 ethAmount);
 
     /**
      * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
@@ -177,7 +177,7 @@ interface IPufferProtocol {
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param numBatches is the number of batches the validator has
-     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
+     * @dev Signature "0xd97b45553982eba642947754e3448d2142408b73d3e4be6b760a89066eb6c00a"
      */
     event ValidatorKeyRegistered(
         bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint8 numBatches
@@ -189,7 +189,7 @@ interface IPufferProtocol {
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
-     * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
+     * @dev Signature "0x0ee12bdc2aff5d233a9a1ade9fa115fc2a8dd82c1a30dd0a46b5e4763b887289"
      */
     event ValidatorExited(
         bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 pufETHBurnAmount
@@ -284,6 +284,13 @@ interface IPufferProtocol {
         payable;
 
     /**
+     * @notice New function that allows the transaction sender (node operator) to withdraw WETH to a recipient (use this instead of `withdrawValidatorTickets`)
+     * The Validation time can be withdrawn if there are no active or pending validators
+     * The WETH is sent to the recipient
+     */
+    function withdrawValidationTime(uint96 amount, address recipient) external;
+
+    /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
      * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
@@ -296,7 +303,7 @@ interface IPufferProtocol {
      * @param srcIndices The indices of the validators to consolidate from
      * @param targetIndices The indices of the validators to consolidate to
      * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
-     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      *      to the caller from the EigenPod
      */
     function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
@@ -332,13 +339,12 @@ interface IPufferProtocol {
 
     /**
      * @notice Batch settling of validator withdrawals
-     *
      * @notice Settles a validator withdrawal
      * @dev This is one of the most important methods in the protocol
      *      The withdrawals might be partial or total, and the validator might be downsized or fully exited
      *      It has multiple tasks:
      *      1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH * numBatches or completely if the validator was slashed)
-     *      2. Burn the Validator Tickets from the node operator
+     *      2. Burn the Validator Tickets from the node operator (deprecated) and transfer consumed validation time (as WETH) to the PUFFER_REVENUE_DISTRIBUTOR
      *      3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
      *      4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
      */
@@ -349,6 +355,8 @@ interface IPufferProtocol {
 
     /**
      * @notice Skips the next validator for `moduleName`
+     * @param moduleName The name of the module
+     * @param guardianEOASignatures The signatures of the guardians to validate the skipping of provisioning
      * @dev Restricted to Guardians
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
@@ -406,6 +414,8 @@ interface IPufferProtocol {
 
     /**
      * @notice Provisions the next node that is in line for provisioning
+     * @param validatorSignature The signature of the validator to provision
+     * @param depositRootHash The deposit root hash of the validator
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
     function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external;
@@ -446,11 +456,13 @@ interface IPufferProtocol {
      * @dev There is a queue per moduleName and it is FIFO
      * @param data The validator key data
      * @param moduleName The name of the module
+     * @param totalEpochsValidated The total number of epochs validated by the validator
+     * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
      */
     function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
-        uint256 vtConsumptionAmount,
+        uint256 totalEpochsValidated,
         bytes[] calldata vtConsumptionSignature
     ) external payable;
 
@@ -485,8 +497,7 @@ interface IPufferProtocol {
     function getWithdrawalCredentials(address module) external view returns (bytes memory);
 
     /**
-     * @notice Returns the minimum amount of Validator Tokens to run a validator
-     * Returns the minimum amount of Epochs a validator needs to run
+     * @notice Returns the minimum amount of Epochs a validator needs to run
      */
     function getMinimumVtAmount() external view returns (uint256);
 

@@ -239,9 +239,7 @@ contract PufferProtocol is
     }
 
     /**
-     * @notice New function that allows the transaction sender (node operator) to withdraw WETH to a recipient (use this instead of `withdrawValidatorTickets`)
-     * The Validation time can be withdrawn if there are no active or pending validators
-     * The WETH is sent to the recipient
+     * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function withdrawValidationTime(uint96 amount, address recipient) external restricted {
@@ -971,10 +969,10 @@ contract PufferProtocol is
         // Burn the VT first, then fallback to ETH from the node operator
         uint256 nodeVTBalance = $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance;
 
-        uint256 vtBurnAmount = _getVTBurnAmount($, nodeOperator, totalEpochsValidated);
-
         // If the node operator has VT, we burn it first
         if (nodeVTBalance > 0) {
+
+            uint256 vtBurnAmount = _getVTBurnAmount($, nodeOperator, totalEpochsValidated);
             if (nodeVTBalance >= vtBurnAmount) {
                 // Burn the VT first, and update the node operator VT balance
                 vtAmountToBurn = vtBurnAmount;
