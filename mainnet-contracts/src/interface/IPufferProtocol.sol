@@ -189,10 +189,15 @@ interface IPufferProtocol {
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
      * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
-     * @dev Signature "0x0ee12bdc2aff5d233a9a1ade9fa115fc2a8dd82c1a30dd0a46b5e4763b887289"
+     * @param numBatches is the number of batches the validator had
+     * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
      */
     event ValidatorExited(
-        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 pufETHBurnAmount
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        uint256 pufETHBurnAmount,
+        uint256 numBatches
     );
 
     /**
@@ -239,9 +244,12 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
+     * @param numBatches is the number of batches the validator has
+     * @dev Signature "0xfed1ead36b4481c77b26f25acade13754ce94663e2515f15507b2cfbade3ed8d"
      */
-    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+    event SuccessfullyProvisioned(
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 numBatches
+    );
 
     /**
      * @notice Returns validator information

@@ -176,7 +176,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(idx, 1, "idx should be 1");
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
         moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
         assertEq(moduleSelectionIndex, 1, "module idx changed");
@@ -334,12 +334,12 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // 1. provision zero key
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 1);
@@ -348,7 +348,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
-        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Get validators
@@ -397,7 +397,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -407,7 +407,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertTrue(nextId == 0, "module id");
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -447,7 +447,7 @@ contract PufferProtocolTest is UnitTestHelper {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0);
+        emit IPufferProtocol.SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0, 1);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
@@ -932,7 +932,7 @@ contract PufferProtocolTest is UnitTestHelper {
             alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
         _executeFullWithdrawal(
             StoppedValidatorInfo({
                 module: NoRestakingModule,
@@ -1053,13 +1053,13 @@ contract PufferProtocolTest is UnitTestHelper {
             alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(
             bob, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, 1);
 
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
 
@@ -1147,28 +1147,32 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(alice, 0, 35 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0);
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(bob, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.1 ether)
+            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.1 ether), 1
         );
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(charlie, 0, 34 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("charlie")), 2, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2).bond
+            _getPubKey(bytes32("charlie")),
+            2,
+            PUFFER_MODULE_0,
+            pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2).bond,
+            1
         ); // got slashed
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(dianna, 0, 48 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("dianna")), 3, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.2 ether)
+            _getPubKey(bytes32("dianna")), 3, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.2 ether), 1
         );
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidationTimeConsumed(eve, 0, 2 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("eve")), 4, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond
+            _getPubKey(bytes32("eve")), 4, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond, 1
         ); // got slashed
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
 
@@ -1359,11 +1363,11 @@ contract PufferProtocolTest is UnitTestHelper {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0); // 10 days of VT
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1); // 10 days of VT
         emit IPufferProtocol.ValidationTimeConsumed(alice, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
         _executeFullWithdrawal(aliceInfo);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0); // 10 days of VT
+        emit IPufferProtocol.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, 1); // 10 days of VT
         emit IPufferProtocol.ValidationTimeConsumed(bob, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
         _executeFullWithdrawal(bobInfo);
 

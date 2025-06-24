@@ -952,7 +952,7 @@ contract PufferProtocol is
         // Transfer 32 ETH to this contract for each batch
         PUFFER_VAULT.transferETH(address(this), numBatches * 32 ether);
 
-        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
+        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName, numBatches);
 
         // Increase lockedETH on Puffer Oracle
         for (uint256 i = 0; i < numBatches; ++i) {
@@ -1169,7 +1169,8 @@ contract PufferProtocol is
             pubKey: validator.pubKey,
             pufferModuleIndex: validatorInfo.pufferModuleIndex,
             moduleName: validatorInfo.moduleName,
-            pufETHBurnAmount: bondBurnAmount
+            pufETHBurnAmount: bondBurnAmount,
+            numBatches: numBatches
         });
 
         // Decrease the number of registered validators for that module
