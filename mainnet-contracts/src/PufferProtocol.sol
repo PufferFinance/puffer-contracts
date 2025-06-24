@@ -985,7 +985,6 @@ contract PufferProtocol is
 
         // If the node operator has VT, we burn it first
         if (nodeVTBalance > 0) {
-
             uint256 vtBurnAmount = _getVTBurnAmount($, nodeOperator, totalEpochsValidated);
             if (nodeVTBalance >= vtBurnAmount) {
                 // Burn the VT first, and update the node operator VT balance
@@ -1002,7 +1001,6 @@ contract PufferProtocol is
             vtAmountToBurn = nodeVTBalance;
             // nosemgrep basic-arithmetic-underflow
             $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(nodeVTBalance);
-
         }
 
         // If the node operator has no VT, we use the validation time
