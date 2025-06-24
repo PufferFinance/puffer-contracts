@@ -98,6 +98,7 @@ contract PufferProtocol is
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     ValidatorTicket public immutable override VALIDATOR_TICKET;
 
@@ -163,6 +164,7 @@ contract PufferProtocol is
     /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function depositValidatorTickets(Permit calldata permit, address node) external restricted {
         if (node == address(0)) {
@@ -215,6 +217,7 @@ contract PufferProtocol is
     /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -268,7 +271,7 @@ contract PufferProtocol is
     }
 
     /**
-     * @notice Registers a validator key and consumes the ETH for the validation time for the other active validators.
+     * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function registerValidatorKey(
@@ -775,6 +778,7 @@ contract PufferProtocol is
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function getValidatorTicketsBalance(address owner) public view returns (uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -960,6 +964,16 @@ contract PufferProtocol is
         );
     }
 
+    /**
+     * @dev Internal function to return the deprecated validator tickets burn amount
+     *      and/or consume the validation time from the node operator
+     * @dev The deprecated vt balance is reduced here but the actual VT is not burned here (for efficiency)
+     * @param $ The protocol storage
+     * @param nodeOperator The node operator address
+     * @param totalEpochsValidated The total number of epochs validated by the node operator
+     * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
+     * @return vtAmountToBurn The amount of VT to burn
+     */
     function _useVTOrValidationTime(
         ProtocolStorage storage $,
         address nodeOperator,
@@ -989,15 +1003,6 @@ contract PufferProtocol is
             // nosemgrep basic-arithmetic-underflow
             $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(nodeVTBalance);
 
-            _settleVTAccounting({
-                $: $,
-                node: nodeOperator,
-                totalEpochsValidated: totalEpochsValidated,
-                vtConsumptionSignature: vtConsumptionSignature,
-                deprecated_burntVTs: nodeVTBalance
-            });
-
-            return vtAmountToBurn;
         }
 
         // If the node operator has no VT, we use the validation time
@@ -1006,7 +1011,7 @@ contract PufferProtocol is
             node: nodeOperator,
             totalEpochsValidated: totalEpochsValidated,
             vtConsumptionSignature: vtConsumptionSignature,
-            deprecated_burntVTs: 0
+            deprecated_burntVTs: nodeVTBalance
         });
     }
 

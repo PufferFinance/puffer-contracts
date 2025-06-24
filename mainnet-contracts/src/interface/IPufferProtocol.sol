@@ -452,7 +452,7 @@ interface IPufferProtocol {
     function createPufferModule(bytes32 moduleName) external returns (address);
 
     /**
-     * @notice Registers a new validator key in a `moduleName` queue with a permit
+     * @notice Registers a validator key and consumes the ETH for the validation time for the other active validators.
      * @dev There is a queue per moduleName and it is FIFO
      * @param data The validator key data
      * @param moduleName The name of the module
