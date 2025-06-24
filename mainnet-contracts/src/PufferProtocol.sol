@@ -1159,8 +1159,8 @@ contract PufferProtocol is
         uint96 bondAmount = validator.bond;
         uint256 numBatches = validator.numBatches;
 
-        // Get the burnAmount for the withdrawal at the current exchange rate
-        uint256 burnAmount = _getBondBurnAmount({
+        // Get the bondBurnAmount for the withdrawal at the current exchange rate
+        bondBurnAmount = _getBondBurnAmount({
             validatorInfo: validatorInfo,
             validatorBondAmount: bondAmount,
             numBatches: validator.numBatches
@@ -1170,13 +1170,7 @@ contract PufferProtocol is
             pubKey: validator.pubKey,
             pufferModuleIndex: validatorInfo.pufferModuleIndex,
             moduleName: validatorInfo.moduleName,
-            pufETHBurnAmount: burnAmount
-        });
-
-        bondBurnAmount = _getBondBurnAmount({
-            validatorInfo: validatorInfo,
-            validatorBondAmount: bondAmount,
-            numBatches: validator.numBatches
+            pufETHBurnAmount: bondBurnAmount
         });
 
         // Decrease the number of registered validators for that module
@@ -1191,7 +1185,7 @@ contract PufferProtocol is
             validatorInfo.pufferModuleIndex
         ];
         // nosemgrep basic-arithmetic-underflow
-        return (burnAmount, bondAmount - burnAmount, numBatches);
+        return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
