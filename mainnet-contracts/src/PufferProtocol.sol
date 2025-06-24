@@ -1125,11 +1125,10 @@ contract PufferProtocol is
             numBatches: numBatchesBefore
         });
 
-        // However the burned part of the bond will be distributed between the bond returned and bond remaining (proportional to downsizing)
-
-        // The bond to be returned is proportional to the num of batches we are downsizing minus the burned amount
         exitingBond = validator.bond * exitedBatches / validator.numBatches;
 
+        // The burned amount is subtracted from the exiting bond, so the remaining bond is kept in full
+        // The backend must prevent any downsize that would result in a burned amount greater than the exiting bond
         require(exitingBond >= burnAmount, InvalidWithdrawAmount());
         exitingBond -= burnAmount;
 
