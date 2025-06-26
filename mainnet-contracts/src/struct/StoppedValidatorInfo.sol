@@ -15,9 +15,9 @@ struct StoppedValidatorInfo {
     uint256 pufferModuleIndex;
     /// @dev Amount of funds withdrawn upon validator stoppage.
     uint256 withdrawalAmount;
-    /// @dev Total number of epochs validated by the validator.
+    /// @dev Total number of epochs validated by the node operator.
     uint256 totalEpochsValidated;
-    /// @dev Signature of the guardian module that consumed the validator tickets.
+    /// @dev The signature of the guardians to validate the number of epochs validated.
     bytes[] vtConsumptionSignature;
     /// @dev Indicates whether the validator was downsized instead of exited
     bool isDownsize;

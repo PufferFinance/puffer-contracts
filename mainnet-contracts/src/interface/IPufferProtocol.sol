@@ -106,6 +106,12 @@ interface IPufferProtocol {
     error InvalidWithdrawAmount();
 
     /**
+     * @notice Thrown when the total epochs validated is invalid
+     * @dev Signature "0x1af51909"
+     */
+    error InvalidTotalEpochsValidated();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */

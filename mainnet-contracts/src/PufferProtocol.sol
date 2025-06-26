@@ -386,7 +386,6 @@ contract PufferProtocol is
     function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
         external
         payable
-        virtual
         restricted
     {
         if (srcIndices.length == 0) {
@@ -980,12 +979,20 @@ contract PufferProtocol is
         uint256 totalEpochsValidated,
         bytes[] calldata vtConsumptionSignature
     ) internal returns (uint256 vtAmountToBurn) {
+        uint256 previousTotalEpochsValidated = $.nodeOperatorInfo[nodeOperator].totalEpochsValidated;
+
+        if (previousTotalEpochsValidated == totalEpochsValidated) {
+            return 0;
+        }
+        require(previousTotalEpochsValidated < totalEpochsValidated, InvalidTotalEpochsValidated());
+
         // Burn the VT first, then fallback to ETH from the node operator
         uint256 nodeVTBalance = $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance;
 
         // If the node operator has VT, we burn it first
         if (nodeVTBalance > 0) {
-            uint256 vtBurnAmount = _getVTBurnAmount($, nodeOperator, totalEpochsValidated);
+            uint256 vtBurnAmount =
+                _getVTBurnAmount($, nodeOperator, totalEpochsValidated - previousTotalEpochsValidated);
             if (nodeVTBalance >= vtBurnAmount) {
                 // Burn the VT first, and update the node operator VT balance
                 vtAmountToBurn = vtBurnAmount;
@@ -1013,6 +1020,14 @@ contract PufferProtocol is
         });
     }
 
+    /**
+     * @dev Internal function to settle the VT accounting for a node operator
+     * @param $ The protocol storage
+     * @param node The node operator address
+     * @param totalEpochsValidated The total number of epochs validated by the node operator
+     * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
+     * @param deprecated_burntVTs The amount of VT to burn (to be deducted from validation time consumption)
+     */
     function _settleVTAccounting(
         ProtocolStorage storage $,
         address node,
@@ -1065,6 +1080,13 @@ contract PufferProtocol is
         ERC20(weth).transfer(PUFFER_REVENUE_DISTRIBUTOR, validationTimeToConsume);
     }
 
+    /**
+     * @dev Internal function to get the amount of VT to burn during a number of epochs
+     * @param $ The protocol storage
+     * @param node The node operator address
+     * @param validatedEpochs The number of epochs validated by the node operator (not necessarily the total epochs)
+     * @return vtBurnAmount The amount of VT to burn
+     */
     function _getVTBurnAmount(ProtocolStorage storage $, address node, uint256 validatedEpochs)
         internal
         view
