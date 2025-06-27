@@ -361,6 +361,7 @@ interface IPufferProtocol {
      *      2. Burn the Validator Tickets from the node operator (deprecated) and transfer consumed validation time (as WETH) to the PUFFER_REVENUE_DISTRIBUTOR
      *      3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
      *      4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
+     * @dev If a node operator exits early, will be penalized by the protocol by increasing the totalEpochsValidated so the VT consumption is higher than the actual amount of epochs validated
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
