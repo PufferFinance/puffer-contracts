@@ -126,10 +126,12 @@ interface IGuardianModule {
      * The order of the signatures MUST the same as the order of the validators in the validator module
      * @param validatorInfos The information of the stopped validators
      * @param guardianEOASignatures The guardian EOA signatures
+     * @param deadline The deadline for the signature
      */
     function validateBatchWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
+        bytes[] calldata guardianEOASignatures,
+        uint256 deadline
     ) external;
 
     /**
@@ -162,6 +164,20 @@ interface IGuardianModule {
     function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata guardianEOASignatures)
         external
         view;
+
+    /**
+     * @notice Validates the withdrawal request
+     * @param eoaSignatures The guardian EOA signatures
+     * @param messageHash The message hash
+     */
+    function validateWithdrawalRequest(bytes[] calldata eoaSignatures, bytes32 messageHash) external view;
+
+    /**
+     * @notice Validates the total epochs validated
+     * @param eoaSignatures The guardian EOA signatures
+     * @param messageHash The message hash
+     */
+    function validateTotalEpochsValidated(bytes[] calldata eoaSignatures, bytes32 messageHash) external view;
 
     /**
      * @notice Returns the threshold value for guardian signatures

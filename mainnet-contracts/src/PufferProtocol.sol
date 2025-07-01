@@ -24,7 +24,8 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
-import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
+import { ProtocolSignatureNonces } from "./ProtocolSignatureNonces.sol";
+import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
@@ -39,7 +40,7 @@ contract PufferProtocol is
     AccessManagedUpgradeable,
     UUPSUpgradeable,
     PufferProtocolStorage,
-    NoncesUpgradeable
+    ProtocolSignatureNonces
 {
     /**
      * @dev Helper struct for the full withdrawals accounting
@@ -189,29 +190,30 @@ contract PufferProtocol is
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function depositValidationTime(address node, uint256 totalEpochsValidated, bytes[] calldata vtConsumptionSignature)
+    function depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
         external
         payable
         restricted
     {
-        require(node != address(0), InvalidAddress());
+        if (block.timestamp > epochsValidatedSignature.deadline) {
+            revert DeadlineExceeded();
+        }
+
+        require(epochsValidatedSignature.nodeOperator != address(0), InvalidAddress());
         require(msg.value > 0, InvalidETHAmount());
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        uint256 burnAmount = _useVTOrValidationTime({
-            $: $,
-            nodeOperator: node,
-            totalEpochsValidated: totalEpochsValidated,
-            vtConsumptionSignature: vtConsumptionSignature
-        });
+        epochsValidatedSignature.functionSelector = IPufferProtocol.depositValidationTime.selector;
+
+        uint256 burnAmount = _useVTOrValidationTime({ $: $, epochsValidatedSignature: epochsValidatedSignature });
 
         if (burnAmount > 0) {
             VALIDATOR_TICKET.burn(burnAmount);
         }
 
-        $.nodeOperatorInfo[node].validationTime += SafeCast.toUint96(msg.value);
-        emit ValidationTimeDeposited({ node: node, ethAmount: msg.value });
+        $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].validationTime += SafeCast.toUint96(msg.value);
+        emit ValidationTimeDeposited({ node: epochsValidatedSignature.nodeOperator, ethAmount: msg.value });
     }
 
     /**
@@ -278,8 +280,13 @@ contract PufferProtocol is
         ValidatorKeyData calldata data,
         bytes32 moduleName,
         uint256 totalEpochsValidated,
-        bytes[] calldata vtConsumptionSignature
+        bytes[] calldata vtConsumptionSignature,
+        uint256 deadline
     ) external payable restricted {
+        if (block.timestamp > deadline) {
+            revert DeadlineExceeded();
+        }
+
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
@@ -296,9 +303,13 @@ contract PufferProtocol is
 
         _settleVTAccounting({
             $: $,
-            node: msg.sender,
-            totalEpochsValidated: totalEpochsValidated,
-            vtConsumptionSignature: vtConsumptionSignature,
+            epochsValidatedSignature: EpochsValidatedSignature({
+                nodeOperator: msg.sender,
+                totalEpochsValidated: totalEpochsValidated,
+                functionSelector: IPufferProtocol.registerValidatorKey.selector,
+                deadline: deadline,
+                signatures: vtConsumptionSignature
+            }),
             deprecated_burntVTs: 0
         });
 
@@ -432,11 +443,17 @@ contract PufferProtocol is
         uint256[] calldata indices,
         uint64[] calldata gweiAmounts,
         WithdrawalType[] calldata withdrawalType,
-        bytes[][] calldata validatorAmountsSignatures
+        bytes[][] calldata validatorAmountsSignatures,
+        uint256 deadline
     ) external payable restricted {
+        if (block.timestamp > deadline) {
+            revert DeadlineExceeded();
+        }
+
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         bytes[] memory pubkeys = new bytes[](indices.length);
+        bytes32 functionSelector = IPufferProtocol.requestWithdrawal.selector;
 
         // validate pubkeys belong to that node and are active
         for (uint256 i = 0; i < indices.length; ++i) {
@@ -455,12 +472,15 @@ contract PufferProtocol is
                 }
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
-                bytes32 messageHash =
-                    keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(msg.sender)));
+                bytes32 messageHash = keccak256(
+                    abi.encode(
+                        msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(functionSelector, msg.sender), deadline
+                    )
+                );
 
-                GUARDIAN_MODULE.validateGuardiansEOASignatures({
+                GUARDIAN_MODULE.validateWithdrawalRequest({
                     eoaSignatures: validatorAmountsSignatures[i],
-                    signedMessageHash: messageHash
+                    messageHash: messageHash
                 });
             }
         }
@@ -502,9 +522,14 @@ contract PufferProtocol is
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
+        bytes[] calldata guardianEOASignatures,
+        uint256 deadline
     ) external restricted {
-        GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures);
+        if (block.timestamp > deadline) {
+            revert DeadlineExceeded();
+        }
+
+        GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures, deadline);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -513,6 +538,8 @@ contract PufferProtocol is
 
         // 1 batch = 32 ETH
         uint256 numExitedBatches;
+
+        bytes32 functionSelector = IPufferProtocol.batchHandleWithdrawals.selector;
 
         // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
@@ -530,9 +557,16 @@ contract PufferProtocol is
             // We need to scope the variables to avoid stack too deep errors
             {
                 uint256 epochValidated = validatorInfos[i].totalEpochsValidated;
-                bytes[] calldata vtConsumptionSignature = validatorInfos[i].vtConsumptionSignature;
-                burnAmounts.vt +=
-                    _useVTOrValidationTime($, bondWithdrawals[i].node, epochValidated, vtConsumptionSignature);
+                burnAmounts.vt += _useVTOrValidationTime(
+                    $,
+                    EpochsValidatedSignature({
+                        nodeOperator: bondWithdrawals[i].node,
+                        totalEpochsValidated: epochValidated,
+                        functionSelector: functionSelector,
+                        deadline: deadline,
+                        signatures: validatorInfos[i].vtConsumptionSignature
+                    })
+                );
             }
 
             if (validatorInfos[i].isDownsize) {
@@ -968,30 +1002,35 @@ contract PufferProtocol is
      *      and/or consume the validation time from the node operator
      * @dev The deprecated vt balance is reduced here but the actual VT is not burned here (for efficiency)
      * @param $ The protocol storage
-     * @param nodeOperator The node operator address
-     * @param totalEpochsValidated The total number of epochs validated by the node operator
-     * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
+     * @param epochsValidatedSignature is a struct that contains:
+     * - functionSelector: Identifier of the function that initiated this flow
+     * - totalEpochsValidated: The total number of epochs validated by that node operator
+     * - nodeOperator: The node operator address
+     * - deadline: The deadline for the signature
+     * - signatures: The signatures of the guardians over the total number of epochs validated
      * @return vtAmountToBurn The amount of VT to burn
      */
-    function _useVTOrValidationTime(
-        ProtocolStorage storage $,
-        address nodeOperator,
-        uint256 totalEpochsValidated,
-        bytes[] calldata vtConsumptionSignature
-    ) internal returns (uint256 vtAmountToBurn) {
+    function _useVTOrValidationTime(ProtocolStorage storage $, EpochsValidatedSignature memory epochsValidatedSignature)
+        internal
+        returns (uint256 vtAmountToBurn)
+    {
+        address nodeOperator = epochsValidatedSignature.nodeOperator;
         uint256 previousTotalEpochsValidated = $.nodeOperatorInfo[nodeOperator].totalEpochsValidated;
 
-        if (previousTotalEpochsValidated == totalEpochsValidated) {
+        if (previousTotalEpochsValidated == epochsValidatedSignature.totalEpochsValidated) {
             return 0;
         }
-        require(previousTotalEpochsValidated < totalEpochsValidated, InvalidTotalEpochsValidated());
+        require(
+            previousTotalEpochsValidated < epochsValidatedSignature.totalEpochsValidated, InvalidTotalEpochsValidated()
+        );
 
         // Burn the VT first, then fallback to ETH from the node operator
         uint256 nodeVTBalance = $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance;
 
         // If the node operator has VT, we burn it first
         if (nodeVTBalance > 0) {
-            uint256 vtBurnAmount = _getVTBurnAmount(totalEpochsValidated - previousTotalEpochsValidated);
+            uint256 vtBurnAmount =
+                _getVTBurnAmount(epochsValidatedSignature.totalEpochsValidated - previousTotalEpochsValidated);
             if (nodeVTBalance >= vtBurnAmount) {
                 // Burn the VT first, and update the node operator VT balance
                 vtAmountToBurn = vtBurnAmount;
@@ -1012,9 +1051,7 @@ contract PufferProtocol is
         // If the node operator has no VT, we use the validation time
         _settleVTAccounting({
             $: $,
-            node: nodeOperator,
-            totalEpochsValidated: totalEpochsValidated,
-            vtConsumptionSignature: vtConsumptionSignature,
+            epochsValidatedSignature: epochsValidatedSignature,
             deprecated_burntVTs: nodeVTBalance
         });
     }
@@ -1022,29 +1059,38 @@ contract PufferProtocol is
     /**
      * @dev Internal function to settle the VT accounting for a node operator
      * @param $ The protocol storage
-     * @param node The node operator address
-     * @param totalEpochsValidated The total number of epochs validated by the node operator
-     * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
+     * @param epochsValidatedSignature is a struct that contains:
+     * - functionSelector: Identifier of the function that initiated this flow
+     * - totalEpochsValidated: The total number of epochs validated by that node operator
+     * - nodeOperator: The node operator address
+     * - deadline: The deadline for the signature
+     * - signatures: The signatures of the guardians over the total number of epochs validated
      * @param deprecated_burntVTs The amount of VT to burn (to be deducted from validation time consumption)
      */
     function _settleVTAccounting(
         ProtocolStorage storage $,
-        address node,
-        uint256 totalEpochsValidated,
-        bytes[] calldata vtConsumptionSignature,
+        EpochsValidatedSignature memory epochsValidatedSignature,
         uint256 deprecated_burntVTs
     ) internal {
+        address node = epochsValidatedSignature.nodeOperator;
         // There is nothing to settle if this is the first validator for the node operator
         if ($.nodeOperatorInfo[node].activeValidatorCount + $.nodeOperatorInfo[node].pendingValidatorCount == 0) {
             return;
         }
 
         // We have no way of getting the present consumed amount for the other validators on-chain, so we use Puffer Backend service to get that amount and a signature from the service
-        bytes32 messageHash = keccak256(abi.encode(node, totalEpochsValidated, _useNonce(node)));
+        bytes32 messageHash = keccak256(
+            abi.encode(
+                node,
+                epochsValidatedSignature.totalEpochsValidated,
+                _useNonce(epochsValidatedSignature.functionSelector, node),
+                epochsValidatedSignature.deadline
+            )
+        );
 
-        GUARDIAN_MODULE.validateGuardiansEOASignatures({
-            eoaSignatures: vtConsumptionSignature,
-            signedMessageHash: messageHash
+        GUARDIAN_MODULE.validateTotalEpochsValidated({
+            eoaSignatures: epochsValidatedSignature.signatures,
+            messageHash: messageHash
         });
 
         uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
@@ -1056,12 +1102,13 @@ contract PufferProtocol is
         // convert burned validator tickets to epochs
         uint256 epochsBurntFromDeprecatedVT = deprecated_burntVTs * 225 / 1 ether; // 1 VT = 1 DAY. 1 DAY = 225 Epochs
 
-        uint256 validationTimeToConsume =
-            (totalEpochsValidated - previousTotalEpochsValidated - epochsBurntFromDeprecatedVT) * meanPrice;
+        uint256 validationTimeToConsume = (
+            epochsValidatedSignature.totalEpochsValidated - previousTotalEpochsValidated - epochsBurntFromDeprecatedVT
+        ) * meanPrice;
 
         // Update the current epoch VT price for the node operator
         $.nodeOperatorInfo[node].epochPrice = epochCurrentPrice;
-        $.nodeOperatorInfo[node].totalEpochsValidated = totalEpochsValidated;
+        $.nodeOperatorInfo[node].totalEpochsValidated = epochsValidatedSignature.totalEpochsValidated;
         $.nodeOperatorInfo[node].validationTime -= validationTimeToConsume;
 
         emit ValidationTimeConsumed({

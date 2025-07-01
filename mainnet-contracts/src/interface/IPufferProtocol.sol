@@ -14,6 +14,7 @@ import { ValidatorTicket } from "../ValidatorTicket.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { ModuleLimit } from "../struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
+import { EpochsValidatedSignature } from "../struct/Signatures.sol";
 import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol";
 
 /**
@@ -110,6 +111,12 @@ interface IPufferProtocol {
      * @dev Signature "0x1af51909"
      */
     error InvalidTotalEpochsValidated();
+
+    /**
+     * @notice Thrown when the deadline is exceeded
+     * @dev Signature "0xddff8620"
+     */
+    error DeadlineExceeded();
 
     /**
      * @notice Emitted when the number of active validators changes
@@ -289,13 +296,14 @@ interface IPufferProtocol {
     /**
      * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`).
      * Deposits Validation Time for the `node`. Validation Time is in native ETH.
-     * @param node is the node operator address
-     * @param totalEpochsValidated is the total number of epochs validated by that node operator
-     * @param vtConsumptionSignature is the signature from the guardians over the total number of epochs validated
+     * @param epochsValidatedSignature is a struct that contains:
+     * - functionSelector: Can be left empty, it will be used to prevent replay attacks
+     * - totalEpochsValidated: The total number of epochs validated by that node operator
+     * - nodeOperator: The node operator address
+     * - deadline: The deadline for the signature
+     * - signatures: The signatures of the guardians over the total number of epochs validated
      */
-    function depositValidationTime(address node, uint256 totalEpochsValidated, bytes[] calldata vtConsumptionSignature)
-        external
-        payable;
+    function depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature) external payable;
 
     /**
      * @notice New function that allows the transaction sender (node operator) to withdraw WETH to a recipient (use this instead of `withdrawValidatorTickets`)
@@ -333,6 +341,7 @@ interface IPufferProtocol {
      * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
      * @param withdrawalType The type of withdrawal
      * @param validatorAmountsSignatures The signatures of the guardians to validate the amount of the validators to withdraw
+     * @param deadline The deadline for the signatures
      * @dev The pubkeys should be active validators on the same module
      * @dev There are 3 types of withdrawal:
      *      EXIT_VALIDATOR: The validator is fully exited. The gweiAmount needs to be 0
@@ -348,7 +357,8 @@ interface IPufferProtocol {
         uint256[] calldata indices,
         uint64[] calldata gweiAmounts,
         WithdrawalType[] calldata withdrawalType,
-        bytes[][] calldata validatorAmountsSignatures
+        bytes[][] calldata validatorAmountsSignatures,
+        uint256 deadline
     ) external payable;
 
     /**
@@ -365,7 +375,8 @@ interface IPufferProtocol {
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
+        bytes[] calldata guardianEOASignatures,
+        uint256 deadline
     ) external;
 
     /**
@@ -473,12 +484,14 @@ interface IPufferProtocol {
      * @param moduleName The name of the module
      * @param totalEpochsValidated The total number of epochs validated by the validator
      * @param vtConsumptionSignature The signature of the guardians to validate the number of epochs validated
+     * @param deadline The deadline for the signature
      */
     function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
         uint256 totalEpochsValidated,
-        bytes[] calldata vtConsumptionSignature
+        bytes[] calldata vtConsumptionSignature,
+        uint256 deadline
     ) external payable;
 
     /**

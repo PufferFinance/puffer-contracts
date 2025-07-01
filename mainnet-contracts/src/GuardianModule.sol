@@ -177,11 +177,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateBatchWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes[] calldata eoaSignatures)
-        external
-        view
-    {
-        bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+    function validateBatchWithdrawals(
+        StoppedValidatorInfo[] calldata validatorInfos,
+        bytes[] calldata eoaSignatures,
+        uint256 deadline
+    ) external view {
+        bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos, deadline);
 
         // Check the signatures
         bool validSignatures =
@@ -205,6 +206,36 @@ contract GuardianModule is AccessManaged, IGuardianModule {
             LibGuardianMessages._getSetNumberOfValidatorsMessage(newNumberOfValidators, epochNumber);
 
         // Check the signatures
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateWithdrawalRequest(bytes[] calldata eoaSignatures, bytes32 messageHash) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash = LibGuardianMessages._getAnyHashedMessage(messageHash);
+
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function validateTotalEpochsValidated(bytes[] calldata eoaSignatures, bytes32 messageHash) external view {
+        // Recreate the message hash
+        bytes32 signedMessageHash = LibGuardianMessages._getAnyHashedMessage(messageHash);
+
         bool validSignatures =
             validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
