@@ -37,6 +37,8 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
+    uint256 private constant SIGNATURE_VALIDITY_PERIOD = 1 days; // TODO: Check this value with team
+
     function setUp() public {
         if (block.chainid == 17000) {
             // Holesky
@@ -105,7 +107,9 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 numBatches: 1
             });
 
-            IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, 0, new bytes[](0));
+            IPufferProtocol(protocolAddress).registerValidatorKey(
+                validatorData, moduleName, 0, new bytes[](0), block.timestamp + SIGNATURE_VALIDITY_PERIOD
+            );
 
             registeredPubKeys.push(validatorData.blsPubKey);
         }
