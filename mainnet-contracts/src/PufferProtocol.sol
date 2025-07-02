@@ -482,7 +482,11 @@ contract PufferProtocol is
                 // If downsize or rewards withdrawal, backend needs to validate the amount
                 bytes32 messageHash = keccak256(
                     abi.encode(
-                        msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender), deadline
+                        msg.sender,
+                        pubkeys[i],
+                        gweiAmounts[i],
+                        _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender),
+                        deadline
                     )
                 );
 
