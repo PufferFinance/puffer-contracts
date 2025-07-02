@@ -72,10 +72,22 @@ contract PufferProtocol is
     uint256 internal constant _VALIDATOR_BOND = 1.5 ether;
 
     /**
-     * @dev Minimum validation time in epochs
+     * @dev Minimum validation time in epochs (per batch number)
      * Roughly: 30 days * 225 epochs per day = 6750 epochs
      */
-    uint256 internal constant _MINIMUM_EPOCHS_VALIDATION = 6750;
+    uint256 internal constant _MINIMUM_EPOCHS_VALIDATION_REGISTRATION = 6750;
+
+    /**
+     * @dev Minimum validation time in epochs (per batch number)
+     * Roughly: 5 days * 225 epochs per day = 1125 epochs
+     */
+    uint256 internal constant _MINIMUM_EPOCHS_VALIDATION_DEPOSIT = 1125;
+
+    /**
+     * @dev Maximum validation time in epochs (per batch number)
+     * Roughly: 180 days * 225 epochs per day = 40500 epochs
+     */
+    uint256 internal constant _MAXIMUM_EPOCHS_VALIDATION_DEPOSIT = 40500;
 
     /**
      * @dev Number of epochs per day
@@ -207,9 +219,14 @@ contract PufferProtocol is
         }
 
         require(epochsValidatedSignature.nodeOperator != address(0), InvalidAddress());
-        require(msg.value > 0, InvalidETHAmount());
-
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint8 operatorNumBatches = $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].numBatches;
+        require(
+            msg.value >= operatorNumBatches * _MINIMUM_EPOCHS_VALIDATION_DEPOSIT * epochCurrentPrice
+                && msg.value <= operatorNumBatches * _MAXIMUM_EPOCHS_VALIDATION_DEPOSIT * epochCurrentPrice,
+            InvalidETHAmount()
+        );
 
         epochsValidatedSignature.functionSelector = _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME;
 
@@ -299,16 +316,17 @@ contract PufferProtocol is
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
         uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint8 numBatches = data.numBatches;
+        uint256 bondAmountEth = _VALIDATOR_BOND * numBatches;
 
-        // The node operator must deposit 1.5 ETH or more + minimum validation time for ~30 days
+        // The node operator must deposit 1.5 ETH (per batch) or more + minimum validation time for ~30 days
         // At the moment that's roughly 30 days * 225 (there is roughly 225 epochs per day)
-        uint256 minimumETHRequired = _VALIDATOR_BOND + (_MINIMUM_EPOCHS_VALIDATION * epochCurrentPrice);
+        uint256 minimumETHRequired =
+            bondAmountEth + (numBatches * _MINIMUM_EPOCHS_VALIDATION_REGISTRATION * epochCurrentPrice);
 
         require(msg.value >= minimumETHRequired, InvalidETHAmount());
 
-        emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - _VALIDATOR_BOND) });
-
-        uint8 numBatches = data.numBatches;
+        emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - bondAmountEth) });
 
         _settleVTAccounting({
             $: $,
@@ -321,8 +339,6 @@ contract PufferProtocol is
             }),
             deprecated_burntVTs: 0
         });
-
-        uint256 bondAmountEth = _VALIDATOR_BOND * numBatches;
 
         // The bond is converted to pufETH at the current exchange rate
         uint256 pufETHBondAmount = PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
@@ -342,7 +358,7 @@ contract PufferProtocol is
         // Increment indices for this module and number of validators registered
         unchecked {
             $.nodeOperatorInfo[msg.sender].epochPrice = epochCurrentPrice;
-            $.nodeOperatorInfo[msg.sender].validationTime += (msg.value - _VALIDATOR_BOND);
+            $.nodeOperatorInfo[msg.sender].validationTime += (msg.value - bondAmountEth);
             ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
             ++$.pendingValidatorIndices[moduleName];
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
@@ -634,7 +650,8 @@ contract PufferProtocol is
 
         uint256 vtPricePerEpoch = PUFFER_ORACLE.getValidatorTicketPrice();
 
-        $.nodeOperatorInfo[node].validationTime -= ($.vtPenaltyEpochs * vtPricePerEpoch);
+        $.nodeOperatorInfo[node].validationTime -=
+            ($.vtPenaltyEpochs * vtPricePerEpoch * $.validators[moduleName][skippedIndex].numBatches);
         --$.nodeOperatorInfo[node].pendingValidatorCount;
 
         // Change the status of that validator
