@@ -92,6 +92,13 @@ contract PufferProtocol is
      */
     uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
 
+    bytes32 internal constant _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY = IPufferProtocol.registerValidatorKey.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME =
+        IPufferProtocol.depositValidationTime.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
+        IPufferProtocol.batchHandleWithdrawals.selector;
+
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -204,7 +211,7 @@ contract PufferProtocol is
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        epochsValidatedSignature.functionSelector = IPufferProtocol.depositValidationTime.selector;
+        epochsValidatedSignature.functionSelector = _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME;
 
         uint256 burnAmount = _useVTOrValidationTime({ $: $, epochsValidatedSignature: epochsValidatedSignature });
 
@@ -301,19 +308,21 @@ contract PufferProtocol is
 
         emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - _VALIDATOR_BOND) });
 
+        uint8 numBatches = data.numBatches;
+
         _settleVTAccounting({
             $: $,
             epochsValidatedSignature: EpochsValidatedSignature({
                 nodeOperator: msg.sender,
                 totalEpochsValidated: totalEpochsValidated,
-                functionSelector: IPufferProtocol.registerValidatorKey.selector,
+                functionSelector: _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY,
                 deadline: deadline,
                 signatures: vtConsumptionSignature
             }),
             deprecated_burntVTs: 0
         });
 
-        uint256 bondAmountEth = _VALIDATOR_BOND * data.numBatches;
+        uint256 bondAmountEth = _VALIDATOR_BOND * numBatches;
 
         // The bond is converted to pufETH at the current exchange rate
         uint256 pufETHBondAmount = PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
@@ -327,7 +336,7 @@ contract PufferProtocol is
             module: address($.modules[moduleName]),
             bond: uint96(pufETHBondAmount),
             node: msg.sender,
-            numBatches: data.numBatches
+            numBatches: numBatches
         });
 
         // Increment indices for this module and number of validators registered
@@ -347,7 +356,7 @@ contract PufferProtocol is
             pubKey: data.blsPubKey,
             pufferModuleIndex: pufferModuleIndex,
             moduleName: moduleName,
-            numBatches: data.numBatches
+            numBatches: numBatches
         });
     }
 
@@ -453,12 +462,12 @@ contract PufferProtocol is
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         bytes[] memory pubkeys = new bytes[](indices.length);
-        bytes32 functionSelector = IPufferProtocol.requestWithdrawal.selector;
 
         // validate pubkeys belong to that node and are active
         for (uint256 i = 0; i < indices.length; ++i) {
-            require($.validators[moduleName][indices[i]].node == msg.sender, InvalidValidator());
-            pubkeys[i] = $.validators[moduleName][indices[i]].pubKey;
+            Validator memory validator = $.validators[moduleName][indices[i]];
+            require(validator.node == msg.sender, InvalidValidator());
+            pubkeys[i] = validator.pubKey;
 
             if (withdrawalType[i] == WithdrawalType.EXIT_VALIDATOR) {
                 require(gweiAmounts[i] == 0, InvalidWithdrawAmount());
@@ -466,15 +475,14 @@ contract PufferProtocol is
                 if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
                     uint256 batches = gweiAmounts[i] / _32_ETH_GWEI;
                     require(
-                        batches > $.validators[moduleName][indices[i]].numBatches && gweiAmounts[i] % _32_ETH_GWEI == 0,
-                        InvalidWithdrawAmount()
+                        batches > validator.numBatches && gweiAmounts[i] % _32_ETH_GWEI == 0, InvalidWithdrawAmount()
                     );
                 }
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
                 bytes32 messageHash = keccak256(
                     abi.encode(
-                        msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(functionSelector, msg.sender), deadline
+                        msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender), deadline
                     )
                 );
 
@@ -539,8 +547,6 @@ contract PufferProtocol is
         // 1 batch = 32 ETH
         uint256 numExitedBatches;
 
-        bytes32 functionSelector = IPufferProtocol.batchHandleWithdrawals.selector;
-
         // slither-disable-start calls-loop
         for (uint256 i = 0; i < validatorInfos.length; ++i) {
             Validator storage validator =
@@ -557,14 +563,15 @@ contract PufferProtocol is
             // We need to scope the variables to avoid stack too deep errors
             {
                 uint256 epochValidated = validatorInfos[i].totalEpochsValidated;
+                bytes[] memory vtConsumptionSignature = validatorInfos[i].vtConsumptionSignature;
                 burnAmounts.vt += _useVTOrValidationTime(
                     $,
                     EpochsValidatedSignature({
                         nodeOperator: bondWithdrawals[i].node,
                         totalEpochsValidated: epochValidated,
-                        functionSelector: functionSelector,
+                        functionSelector: _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS,
                         deadline: deadline,
-                        signatures: validatorInfos[i].vtConsumptionSignature
+                        signatures: vtConsumptionSignature
                     })
                 );
             }
