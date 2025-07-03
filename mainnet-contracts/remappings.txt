@@ -12,3 +12,5 @@ murky/=node_modules/murky/src/
 l2-contracts/=node_modules/l2-contracts/
 mainnet-contracts/=node_modules/mainnet-contracts/
 solidity-stringutils/=node_modules/solidity-stringutils
+@layerzerolabs/oapp-evm/=node_modules/@layerzerolabs/oapp-evm/
+@layerzerolabs/lz-evm-protocol-v2/=node_modules/@layerzerolabs/lz-evm-protocol-v2/
