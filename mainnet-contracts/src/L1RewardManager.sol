@@ -197,6 +197,7 @@ contract L1RewardManager is
      * @param bridgeData The updated bridge data.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
+
     function updateBridgeData(address oft, BridgeData calldata bridgeData) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         if (oft == address(0)) {
