@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 interface IOApp {
-
     /**
      * @dev Struct representing token parameters for the OFT send() operation.
      */
@@ -32,19 +31,5 @@ interface IOApp {
      *      - lzTokenFee: The lzToken fee.
      * @param _refundAddress The address to receive any excess funds from fees etc. on the src.
      */
-    function send(
-        SendParam calldata _sendParam,
-        MessagingFee calldata _fee,
-        address _refundAddress
-    ) external payable;
-
-
-    function lzReceive(
-    Origin calldata _origin,
-    bytes32 _guid,
-    bytes calldata _message,
-    address _executor,
-    bytes calldata _extraData
-) public payable;
+    function send(SendParam calldata _sendParam, MessagingFee calldata _fee, address _refundAddress) external payable;
 }
-

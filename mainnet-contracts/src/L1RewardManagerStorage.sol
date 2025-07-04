@@ -60,7 +60,7 @@ abstract contract L1RewardManagerStorage {
         uint104 allowedRewardMintAmount;
         uint104 allowedRewardMintFrequency;
         uint48 lastRewardMintTimestamp;
-        mapping(address oft => BridgeData bridgeData) bridges; 
+        mapping(address oft => BridgeData bridgeData) bridges;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))

@@ -36,7 +36,7 @@ interface IL1RewardManager {
 
     /**
      * @notice Parameters for minting and bridging rewards.
-     * @param bridge The address of the bridge.
+     * @param oft The address of the oft.
      * @param rewardsAmount The amount of rewards to be bridged.
      * @param startEpoch The starting epoch for the rewards.
      * @param endEpoch The ending epoch for the rewards.
@@ -44,7 +44,7 @@ interface IL1RewardManager {
      * @param rewardsURI The URI for the rewards metadata.
      */
     struct MintAndBridgeParams {
-        address bridge;
+        address oft;
         uint256 rewardsAmount;
         uint256 startEpoch;
         uint256 endEpoch;
