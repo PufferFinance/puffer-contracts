@@ -20,6 +20,7 @@ abstract contract L1RewardManagerStorage {
     /**
      * @notice Parameters for minting and bridging rewards (calldata).
      * @param rewardsAmount The amount of rewards to be bridged.
+     * @param pufETHAmount The amount of pufETH to be bridged.
      * @param ethToPufETHRate The exchange rate from ETH to pufETH.
      * @param startEpoch The starting epoch for the rewards.
      * @param endEpoch The ending epoch for the rewards.
@@ -28,6 +29,7 @@ abstract contract L1RewardManagerStorage {
      */
     struct MintAndBridgeData {
         uint256 rewardsAmount;
+        uint256 pufETHAmount;
         uint256 ethToPufETHRate;
         uint256 startEpoch;
         uint256 endEpoch;
@@ -53,13 +55,15 @@ abstract contract L1RewardManagerStorage {
      *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
      *      |                                                           |
      *      +-----------------------------------------------------------+
-     * @dev oft is the LayerZero OFTAdapter (pufETH OFTAdapter) address
-     * @dev oft have a linked destinationDomainId, which is the LayerZero endpoint ID and endpoint address
      */
     struct RewardManagerStorage {
         uint104 allowedRewardMintAmount;
         uint104 allowedRewardMintFrequency;
         uint48 lastRewardMintTimestamp;
+        /**
+         * @dev oft is the LayerZero OFTAdapter (pufETH OFTAdapter) address
+         * @dev oft have a linked destinationDomainId, which is the LayerZero endpoint ID and endpoint address
+         */
         mapping(address oft => BridgeData bridgeData) bridges;
     }
 

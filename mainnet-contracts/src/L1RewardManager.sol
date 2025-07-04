@@ -42,8 +42,8 @@ contract L1RewardManager is
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    constructor(address pufETHAdapter, address pufETH, address l2RewardsManager) {
-        PUFETH_ADAPTER = IOApp(pufETHAdapter);
+    constructor(address oft, address pufETH, address l2RewardsManager) {
+        PUFETH_ADAPTER = IOApp(oft); // TODO: DO we really need this? We can use the oft directly
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
@@ -65,7 +65,7 @@ contract L1RewardManager is
             revert BridgeNotAllowlisted();
         }
 
-        PUFETH_ADAPTER.send{ value: msg.value }(
+        IOApp(oft).send{ value: msg.value }(
             IOApp.SendParam({
                 dstEid: bridgeData.destinationDomainId,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
@@ -114,13 +114,14 @@ contract L1RewardManager is
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
 
-        // Mint the rewards and deposit them into the lockbox
+        // Mint the rewards and lock them into the pufETHAdapter to be bridged to L2
         (uint256 ethToPufETHRate, uint256 shares) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
 
         PUFFER_VAULT.approve(params.oft, shares);
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
+            pufETHAmount: shares, // Need to pass the pufETH amount to the L2RewardManager in data
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: params.startEpoch,
             endEpoch: params.endEpoch,
@@ -128,7 +129,7 @@ contract L1RewardManager is
             rewardsURI: params.rewardsURI
         });
 
-        PUFETH_ADAPTER.send{ value: msg.value }(
+        IOApp(params.oft).send{ value: msg.value }(
             IOApp.SendParam({
                 dstEid: bridgeData.destinationDomainId,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
@@ -159,21 +160,21 @@ contract L1RewardManager is
      * @notice Revert the original mintAndBridge call
      * @dev Ensures the message comes from the correct OApp and is sent through the authorized endpoint.
      *
-     * @param pufETHAdapter The address of the pufETH OFTAdapter that is sending the composed message.
+     * @param oft The address of the pufETH OFTAdapter that is sending the composed message.
      */
     function lzCompose(
-        address pufETHAdapter,
+        address oft,
         bytes32, /* _guid */
         bytes calldata message,
         address, /* _executor */
         bytes calldata /* _extraData */
     ) external payable override {
-        if (pufETHAdapter != address(PUFETH_ADAPTER)) {
+        if (oft != address(PUFETH_ADAPTER)) {
             revert Unauthorized();
         }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        if (msg.sender != $.bridges[pufETHAdapter].endpoint) {
+        if (msg.sender != $.bridges[oft].endpoint) {
             revert Unauthorized();
         }
         // We decode the data to get the amount of shares(pufETH) and the ETH amount.

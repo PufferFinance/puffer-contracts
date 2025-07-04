@@ -8,7 +8,8 @@
     },
     "dependencies": {
         "mainnet-contracts": "*",
-        "@connext/interfaces": "^2.0.5",
+        "@layerzerolabs/oapp-evm": "^0.3.2",
+        "@layerzerolabs/lz-evm-protocol-v2": "^3.0.75",
         "@openzeppelin/contracts": "5.0.1",
         "@openzeppelin/contracts-upgradeable": "5.0.1",
         "murky": "https://github.com/dmfxyz/murky.git"
