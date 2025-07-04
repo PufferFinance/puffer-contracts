@@ -103,6 +103,14 @@ contract L2RewardManager is
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
 
+            //TODO: we have XPUFTH in this contract from previous transfer, so how do we handle this?
+            // shall we use something like?:
+            // if (IERC20(XPUFETH).balanceOf(address(this)) > amountToTransfer) {
+            //     IERC20(XPUFETH).transfer(recipient, amountToTransfer);
+            // } else {
+            //     PUFETH.transfer(recipient, amountToTransfer);
+            // }
+
             // TODO: Should we use the oft here? we need to take oft address as a parameter then
             PUFETH.transfer(recipient, amountToTransfer);
 
