@@ -5,12 +5,10 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
-// import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-// import { IBridgeInterface } from "mainnet-contracts/src/interface/Connext/IBridgeInterface.sol";
 import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
 import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
@@ -43,7 +41,7 @@ contract L2RewardManager is
     address public immutable L1_REWARD_MANAGER;
 
     constructor(address oft, address l1RewardManager) {
-        PUFETH = IPufETH(oft);
+        PUFETH = IPufETH(oft); // TODO: DO we really need this? We can use the oft directly
         L1_REWARD_MANAGER = l1RewardManager;
         _disableInitializers();
     }
@@ -104,6 +102,8 @@ contract L2RewardManager is
             recipient = recipient == address(0) ? claimOrders[i].account : recipient;
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
+
+            // TODO: Should we use the oft here? we need to take oft address as a parameter then
             PUFETH.transfer(recipient, amountToTransfer);
 
             emit Claimed({
@@ -115,39 +115,13 @@ contract L2RewardManager is
         }
     }
 
-    // /**
-    //  * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
-    //  * @dev Restricted access to `ROLE_ID_BRIDGE`
-    //  */
-    // function xReceive(
-    //     bytes32,
-    //     uint256 amount,
-    //     address,
-    //     address originSender,
-    //     uint32 originDomainId,
-    //     bytes memory callData
-    // ) external override(IXReceiver) restricted returns (bytes memory) {
-    //     if (originSender != address(L1_REWARD_MANAGER)) {
-    //         revert Unauthorized();
-    //     }
-
-    //     RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-    //     if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
-    //         revert Unauthorized();
-    //     }
-
-    //     IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
-
-    //     if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
-    //         _handleMintAndBridge(amount, bridgingParams.data);
-    //     } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
-    //         _handleSetClaimer(bridgingParams.data);
-    //     }
-    //     // Return empty data
-    //     return "";
-    // }
-
+    /**
+     * @notice Handles incoming composed messages from LayerZero Endpoint on L2
+     * @notice Receives the pufETH from L1 and the bridging data from the L1 Reward Manager
+     * @dev Ensures the message comes from the correct OApp (pufETH OFT) and is sent through the authorized endpoint.
+     * @param oft The address of the oft (pufETH OFT) on L2
+     * @param message The calldata received from L1RewardManager.
+     */
     function lzCompose(
         address oft,
         bytes32, /* _guid */
@@ -288,6 +262,7 @@ contract L2RewardManager is
         L1RewardManagerStorage.MintAndBridgeData memory params =
             abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
 
+        // TODO: we can't do this check since we don't get the amount in the lzCompose call, we have to get it from the calldata
         // Sanity check
         // if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
         //     revert InvalidAmount();

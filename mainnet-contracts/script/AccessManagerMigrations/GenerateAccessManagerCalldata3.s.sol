@@ -47,7 +47,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         );
 
         bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = L1RewardManager.xReceive.selector;
+        bridgeSelectors[0] = L1RewardManager.lzCompose.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, bridgeSelectors, ROLE_ID_BRIDGE
@@ -110,7 +110,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         bytes[] memory calldatasL2 = new bytes[](5);
 
         bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
-        bridgeSelectorsL2[0] = L2RewardManager.xReceive.selector;
+        bridgeSelectorsL2[0] = L2RewardManager.lzCompose.selector;
 
         calldatasL2[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

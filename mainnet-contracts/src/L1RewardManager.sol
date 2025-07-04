@@ -3,15 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-// import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
-// import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
 import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
-// import { IBridgeInterface } from "./interface/Connext/IBridgeInterface.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 import { IOApp } from "./interface/LayerZero/IOApp.sol";
 import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
@@ -156,11 +153,12 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice Handles incoming composed messages from LayerZero
+     * @notice Handles incoming composed messages from LayerZero Endpoint on L1
      * @notice Revert the original mintAndBridge call
      * @dev Ensures the message comes from the correct OApp and is sent through the authorized endpoint.
      *
      * @param oft The address of the pufETH OFTAdapter that is sending the composed message.
+     * @param message The calldata received from L2RewardManager.
      */
     function lzCompose(
         address oft,
@@ -199,7 +197,6 @@ contract L1RewardManager is
      * @param bridgeData The updated bridge data.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
-
     function updateBridgeData(address oft, BridgeData calldata bridgeData) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         if (oft == address(0)) {
