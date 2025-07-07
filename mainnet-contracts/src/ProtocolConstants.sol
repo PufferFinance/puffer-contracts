@@ -5,7 +5,7 @@ import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Status } from "./struct/Status.sol";
 
 abstract contract ProtocolConstants {
-        /**
+    /**
      * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
      */
     error InvalidDepositRootHash();

@@ -23,8 +23,6 @@ import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol"
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
-
-
     /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"

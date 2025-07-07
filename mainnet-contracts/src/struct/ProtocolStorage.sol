@@ -66,7 +66,6 @@ struct ProtocolStorage {
      * Slot 9
      */
     uint256 vtPenaltyEpochs;
-
     /**
      * @dev Address of the PufferProtocolLogic contract
      * Slot 10

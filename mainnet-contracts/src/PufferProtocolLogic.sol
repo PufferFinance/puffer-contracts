@@ -9,12 +9,7 @@ import { Status } from "./struct/Validator.sol";
 import { ProtocolConstants } from "./ProtocolConstants.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 
-contract PufferProtocolLogic is
-    PufferProtocolStorage,
-    ProtocolSignatureNonces,
-    ProtocolConstants
-{
-
+contract PufferProtocolLogic is PufferProtocolStorage, ProtocolSignatureNonces, ProtocolConstants {
     /**
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */

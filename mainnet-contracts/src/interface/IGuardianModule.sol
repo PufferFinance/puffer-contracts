@@ -167,17 +167,37 @@ interface IGuardianModule {
 
     /**
      * @notice Validates the withdrawal request
-     * @param eoaSignatures The guardian EOA signatures
-     * @param messageHash The message hash
+     * @param node The node operator address
+     * @param pubKey The public key
+     * @param gweiAmount The amount in gwei
+     * @param nonce The nonce for the node and the function selector
+     * @param deadline The deadline of the signature
+     * @param guardianEOASignatures The guardian EOA signatures
      */
-    function validateWithdrawalRequest(bytes[] calldata eoaSignatures, bytes32 messageHash) external view;
+    function validateWithdrawalRequest(
+        address node,
+        bytes memory pubKey,
+        uint256 gweiAmount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes[] calldata guardianEOASignatures
+    ) external view;
 
     /**
      * @notice Validates the total epochs validated
-     * @param eoaSignatures The guardian EOA signatures
-     * @param messageHash The message hash
+     * @param node The node operator address
+     * @param totalEpochsValidated The total epochs validated
+     * @param nonce The nonce for the node and the function selector
+     * @param deadline The deadline of the signature
+     * @param guardianEOASignatures The guardian EOA signatures
      */
-    function validateTotalEpochsValidated(bytes[] calldata eoaSignatures, bytes32 messageHash) external view;
+    function validateTotalEpochsValidated(
+        address node,
+        uint256 totalEpochsValidated,
+        uint256 nonce,
+        uint256 deadline,
+        bytes[] calldata guardianEOASignatures
+    ) external view;
 
     /**
      * @notice Returns the threshold value for guardian signatures

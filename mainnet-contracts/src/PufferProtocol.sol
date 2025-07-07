@@ -64,8 +64,6 @@ contract PufferProtocol is
         uint256 numBatches;
     }
 
-
-
     /**
      * @inheritdoc IPufferProtocol
      */
@@ -380,7 +378,9 @@ contract PufferProtocol is
         payable
         restricted
     {
-        bytes memory callData = abi.encodeWithSelector(IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices);
+        bytes memory callData = abi.encodeWithSelector(
+            IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices
+        );
         (bool success,) = address(this).delegatecall(callData);
         if (!success) {
             revert Failed();
@@ -424,19 +424,14 @@ contract PufferProtocol is
                 }
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
-                bytes32 messageHash = keccak256(
-                    abi.encode(
-                        msg.sender,
-                        pubkeys[i],
-                        gweiAmounts[i],
-                        _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender),
-                        deadline
-                    )
-                );
 
                 GUARDIAN_MODULE.validateWithdrawalRequest({
-                    eoaSignatures: validatorAmountsSignatures[i],
-                    messageHash: messageHash
+                    node: msg.sender,
+                    pubKey: pubkeys[i],
+                    gweiAmount: gweiAmounts[i],
+                    nonce: _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender),
+                    deadline: deadline,
+                    guardianEOASignatures: validatorAmountsSignatures[i]
                 });
             }
         }
@@ -1008,19 +1003,12 @@ contract PufferProtocol is
             return;
         }
 
-        // We have no way of getting the present consumed amount for the other validators on-chain, so we use Puffer Backend service to get that amount and a signature from the service
-        bytes32 messageHash = keccak256(
-            abi.encode(
-                node,
-                epochsValidatedSignature.totalEpochsValidated,
-                _useNonce(epochsValidatedSignature.functionSelector, node),
-                epochsValidatedSignature.deadline
-            )
-        );
-
         GUARDIAN_MODULE.validateTotalEpochsValidated({
-            eoaSignatures: epochsValidatedSignature.signatures,
-            messageHash: messageHash
+            node: node,
+            totalEpochsValidated: epochsValidatedSignature.totalEpochsValidated,
+            nonce: _useNonce(epochsValidatedSignature.functionSelector, node),
+            deadline: epochsValidatedSignature.deadline,
+            guardianEOASignatures: epochsValidatedSignature.signatures
         });
 
         uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
@@ -1171,14 +1159,15 @@ contract PufferProtocol is
             calldatacopy(ptr, 0, calldatasize()) // Copy all calldata
 
             // Perform delegatecall
-            let success := delegatecall(
-                gas(), // Forward all available gas
-                _implementation, // Address of the logic contract
-                ptr, // Pointer to the calldata
-                calldatasize(), // Size of the calldata
-                0, // Output offset (we'll copy output later)
-                0 // Output size (we'll copy output later)
-            )
+            let success :=
+                delegatecall(
+                    gas(), // Forward all available gas
+                    _implementation, // Address of the logic contract
+                    ptr, // Pointer to the calldata
+                    calldatasize(), // Size of the calldata
+                    0, // Output offset (we'll copy output later)
+                    0 // Output size (we'll copy output later)
+                )
 
             // Get the size of the returned data
             let returndata_size := returndatasize()
@@ -1189,12 +1178,9 @@ contract PufferProtocol is
 
             // Revert or return based on delegatecall success
             switch success
-            case 0 {
-                revert(returndata_ptr, returndata_size) // Revert with error message
-            }
-            default {
-                return(returndata_ptr, returndata_size) // Return data
-            }
+            case 0 { revert(returndata_ptr, returndata_size) }
+                // Revert with error message
+            default { return(returndata_ptr, returndata_size) } // Return data
         }
     }
 

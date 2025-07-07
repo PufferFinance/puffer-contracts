@@ -185,7 +185,10 @@ contract DeployPuffer is BaseScript {
         PufferProtocolLogic pufferProtocolLogic = new PufferProtocolLogic();
 
         // Initialize the Pool
-        pufferProtocol.initialize({ accessManager: address(accessManager), pufferProtocolLogic: address(pufferProtocolLogic) });
+        pufferProtocol.initialize({
+            accessManager: address(accessManager),
+            pufferProtocolLogic: address(pufferProtocolLogic)
+        });
 
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(operationsCoordinator), "OperationsCoordinator");

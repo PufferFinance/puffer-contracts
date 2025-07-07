@@ -88,12 +88,39 @@ library LibGuardianMessages {
     }
 
     /**
-     * @notice Returns the message to be signed for any message
-     * @param hashedMessage is the hashed message to be signed
+     * @notice Returns the message to be signed for the total epochs validated
+     * @param node is the node operator address
+     * @param totalEpochsValidated is the total epochs validated
+     * @param nonce is the nonce for the node and the function selector
+     * @param deadline is the deadline of the signature
      * @return the message to be signed
      */
-    function _getAnyHashedMessage(bytes32 hashedMessage) internal pure returns (bytes32) {
-        return hashedMessage.toEthSignedMessageHash();
+    function _getTotalEpochsValidatedMessage(
+        address node,
+        uint256 totalEpochsValidated,
+        uint256 nonce,
+        uint256 deadline
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(node, totalEpochsValidated, nonce, deadline)).toEthSignedMessageHash();
+    }
+
+    /**
+     * @notice Returns the message to be signed for the withdrawal request
+     * @param node is the node operator address
+     * @param pubKey is the public key
+     * @param gweiAmount is the amount in gwei
+     * @param nonce is the nonce for the node and the function selector
+     * @param deadline is the deadline of the signature
+     * @return the message to be signed
+     */
+    function _getWithdrawalRequestMessage(
+        address node,
+        bytes memory pubKey,
+        uint256 gweiAmount,
+        uint256 nonce,
+        uint256 deadline
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(node, pubKey, gweiAmount, nonce, deadline)).toEthSignedMessageHash();
     }
 }
 /* solhint-disable func-named-parameters */
