@@ -30,6 +30,7 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { PufferProtocolLogic } from "../src/PufferProtocolLogic.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -181,8 +182,10 @@ contract DeployPuffer is BaseScript {
             address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
         );
 
+        PufferProtocolLogic pufferProtocolLogic = new PufferProtocolLogic();
+
         // Initialize the Pool
-        pufferProtocol.initialize({ accessManager: address(accessManager) });
+        pufferProtocol.initialize({ accessManager: address(accessManager), pufferProtocolLogic: address(pufferProtocolLogic) });
 
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(operationsCoordinator), "OperationsCoordinator");

@@ -23,100 +23,7 @@ import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol"
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
-    /**
-     * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
-     */
-    error InvalidDepositRootHash();
 
-    /**
-     * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
-     * @dev Signature "0x22242546"
-     */
-    error ActiveOrPendingValidatorsExist();
-
-    /**
-     * @notice Thrown on the module creation if the module already exists
-     * @dev Signature "0x2157f2d7"
-     */
-    error ModuleAlreadyExists();
-
-    /**
-     * @notice Thrown when the new validators tires to register to a module, but the validator limit for that module is already reached
-     * @dev Signature "0xb75c5781"
-     */
-    error ValidatorLimitForModuleReached();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
-
-    /**
-     * @notice Thrown when validator is not in a valid state
-     * @dev Signature "0x3001591c"
-     */
-    error InvalidValidatorState(Status status);
-
-    /**
-     * @notice Thrown if the sender did not send enough ETH in the transaction
-     * @dev Signature "0x242b035c"
-     */
-    error InvalidETHAmount();
-
-    /**
-     * @notice Thrown if the sender tries to register validator with invalid VT amount
-     * @dev Signature "0x95c01f62"
-     */
-    error InvalidVTAmount();
-
-    /**
-     * @notice Thrown if the ETH transfer from the PufferModule to the PufferVault fails
-     * @dev Signature "0x625a40e6"
-     */
-    error Failed();
-
-    /**
-     * @notice Thrown if the validator is not valid
-     * @dev Signature "0x682a6e7c"
-     */
-    error InvalidValidator();
-
-    /**
-     * @notice Thrown if the input array length mismatch
-     * @dev Signature "0x43714afd"
-     */
-    error InputArrayLengthMismatch();
-
-    /**
-     * @notice Thrown if the input array length is zero
-     * @dev Signature "0x796cc525"
-     */
-    error InputArrayLengthZero();
-
-    /**
-     * @notice Thrown if the number of batches is 0 or greater than 64
-     * @dev Signature "0x4ea54df9"
-     */
-    error InvalidNumberOfBatches();
-
-    /**
-     * @notice Thrown if the withdrawal amount is invalid
-     * @dev Signature "0xdb73cdf0"
-     */
-    error InvalidWithdrawAmount();
-
-    /**
-     * @notice Thrown when the total epochs validated is invalid
-     * @dev Signature "0x1af51909"
-     */
-    error InvalidTotalEpochsValidated();
-
-    /**
-     * @notice Thrown when the deadline is exceeded
-     * @dev Signature "0xddff8620"
-     */
-    error DeadlineExceeded();
 
     /**
      * @notice Emitted when the number of active validators changes
@@ -263,6 +170,12 @@ interface IPufferProtocol {
     event SuccessfullyProvisioned(
         bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 numBatches
     );
+
+    /**
+     * @notice Emitted when the PufferProtocolLogic is set
+     * @dev Signature "0xe271f36954242c619ce9d0f727a7d3b5f4db04666752aaeb20bca6d52098792a"
+     */
+    event PufferProtocolLogicSet(address oldPufferProtocolLogic, address newPufferProtocolLogic);
 
     /**
      * @notice Returns validator information

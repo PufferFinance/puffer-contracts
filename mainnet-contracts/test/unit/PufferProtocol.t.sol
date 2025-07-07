@@ -9,6 +9,7 @@ import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
+import { ProtocolConstants } from "../../src/ProtocolConstants.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferRevenueDepositor } from "../../src/PufferRevenueDepositor.sol";
 import {
@@ -186,7 +187,7 @@ contract PufferProtocolTest is UnitTestHelper {
     // Create an existing module should revert
     function test_create_existing_module_fails() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
+        vm.expectRevert(ProtocolConstants.ModuleAlreadyExists.selector);
         pufferProtocol.createPufferModule(PUFFER_MODULE_0);
     }
 
@@ -195,7 +196,7 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice() * 30;
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
+        vm.expectRevert(ProtocolConstants.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorKeyData, bytes32("imaginary module"), 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -246,14 +247,14 @@ contract PufferProtocolTest is UnitTestHelper {
             numBatches: 0
         });
 
-        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        vm.expectRevert(ProtocolConstants.InvalidNumberOfBatches.selector);
         pufferProtocol.registerValidatorKey{ value: vtPrice }(
             validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
 
         validatorData.numBatches = 65;
 
-        vm.expectRevert(IPufferProtocol.InvalidNumberOfBatches.selector);
+        vm.expectRevert(ProtocolConstants.InvalidNumberOfBatches.selector);
         pufferProtocol.registerValidatorKey{ value: vtPrice }(
             validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -277,7 +278,7 @@ contract PufferProtocolTest is UnitTestHelper {
             numBatches: 1
         });
 
-        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        vm.expectRevert(ProtocolConstants.InvalidBLSPubKey.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -298,7 +299,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         bytes memory validatorSignature = _validatorSignature();
 
-        vm.expectRevert(IPufferProtocol.InvalidDepositRootHash.selector);
+        vm.expectRevert(ProtocolConstants.InvalidDepositRootHash.selector);
         pufferProtocol.provisionNode(validatorSignature, bytes32("badDepositRoot")); // "depositRoot" is hardcoded in the mock
 
         // now it works
@@ -598,7 +599,7 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory pubKey = _getPubKey(bytes32("bob"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
-        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
+        vm.expectRevert(ProtocolConstants.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + BOND) }(
             validatorKeyData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -812,7 +813,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // Register Validator key registers validator with 30 VTs
         _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
 
-        vm.expectRevert(IPufferProtocol.ActiveOrPendingValidatorsExist.selector);
+        vm.expectRevert(ProtocolConstants.ActiveOrPendingValidatorsExist.selector);
         pufferProtocol.withdrawValidatorTickets(30 ether, alice);
     }
 
@@ -861,13 +862,13 @@ contract PufferProtocolTest is UnitTestHelper {
 
     function test_setVTPenalty_bigger_than_minimum_VT_amount() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        vm.expectRevert(ProtocolConstants.InvalidVTAmount.selector);
         pufferProtocol.setVTPenalty(50 * EPOCHS_PER_DAY);
     }
 
     function test_changeMinimumVTAmount_lower_than_penalty() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        vm.expectRevert(ProtocolConstants.InvalidVTAmount.selector);
         pufferProtocol.changeMinimumVTAmount(9 * EPOCHS_PER_DAY);
     }
 
@@ -987,7 +988,7 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes[] memory vtConsumptionSignature = _getGuardianSignaturesForRegistration(alice, 28 * EPOCHS_PER_DAY);
 
         // We've removed the validator data, meaning the validator status is 0 (UNINITIALIZED)
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(ProtocolConstants.InvalidValidatorState.selector, 0));
         _executeFullWithdrawal(
             StoppedValidatorInfo({
                 module: NoRestakingModule,
@@ -2034,7 +2035,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
     function test_setVTPenalty_invalid_amount() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        vm.expectRevert(ProtocolConstants.InvalidVTAmount.selector);
         pufferProtocol.setVTPenalty(type(uint256).max);
     }
 
@@ -2042,7 +2043,7 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory invalidPubKey = new bytes(47); // Invalid length
         ValidatorKeyData memory data = _getMockValidatorKeyData(invalidPubKey, PUFFER_MODULE_0);
 
-        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        vm.expectRevert(ProtocolConstants.InvalidBLSPubKey.selector);
         pufferProtocol.registerValidatorKey{ value: 3 ether }(
             data, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -2050,7 +2051,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
     function test_changeMinimumVTAmount_invalid_amount() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
+        vm.expectRevert(ProtocolConstants.InvalidVTAmount.selector);
         pufferProtocol.changeMinimumVTAmount(0);
     }
 

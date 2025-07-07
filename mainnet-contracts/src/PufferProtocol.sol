@@ -27,6 +27,8 @@ import { PufferModule } from "./PufferModule.sol";
 import { ProtocolSignatureNonces } from "./ProtocolSignatureNonces.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ProtocolConstants } from "./ProtocolConstants.sol";
+import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
 /**
  * @title PufferProtocol
@@ -40,7 +42,8 @@ contract PufferProtocol is
     AccessManagedUpgradeable,
     UUPSUpgradeable,
     PufferProtocolStorage,
-    ProtocolSignatureNonces
+    ProtocolSignatureNonces,
+    ProtocolConstants
 {
     /**
      * @dev Helper struct for the full withdrawals accounting
@@ -61,55 +64,7 @@ contract PufferProtocol is
         uint256 numBatches;
     }
 
-    /**
-     * @dev BLS public keys are 48 bytes long
-     */
-    uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
 
-    /**
-     * @dev ETH Amount required to be deposited as a bond
-     */
-    uint256 internal constant _VALIDATOR_BOND = 1.5 ether;
-
-    /**
-     * @dev Minimum validation time in epochs (per batch number)
-     * Roughly: 30 days * 225 epochs per day = 6750 epochs
-     */
-    uint256 internal constant _MINIMUM_EPOCHS_VALIDATION_REGISTRATION = 6750;
-
-    /**
-     * @dev Minimum validation time in epochs (per batch number)
-     * Roughly: 5 days * 225 epochs per day = 1125 epochs
-     */
-    uint256 internal constant _MINIMUM_EPOCHS_VALIDATION_DEPOSIT = 1125;
-
-    /**
-     * @dev Maximum validation time in epochs (per batch number)
-     * Roughly: 180 days * 225 epochs per day = 40500 epochs
-     */
-    uint256 internal constant _MAXIMUM_EPOCHS_VALIDATION_DEPOSIT = 40500;
-
-    /**
-     * @dev Number of epochs per day
-     */
-    uint256 internal constant _EPOCHS_PER_DAY = 225;
-
-    /**
-     * @dev Default "PUFFER_MODULE_0" module
-     */
-    bytes32 internal constant _PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-
-    /**
-     * @dev 32 ETH in Gwei
-     */
-    uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
-
-    bytes32 internal constant _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY = IPufferProtocol.registerValidatorKey.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME =
-        IPufferProtocol.depositValidationTime.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
-        IPufferProtocol.batchHandleWithdrawals.selector;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -171,7 +126,7 @@ contract PufferProtocol is
     /**
      * @notice Initializes the contract
      */
-    function initialize(address accessManager) external initializer {
+    function initialize(address accessManager, address pufferProtocolLogic) external initializer {
         if (address(accessManager) == address(0)) {
             revert InvalidAddress();
         }
@@ -179,6 +134,7 @@ contract PufferProtocol is
         _createPufferModule(_PUFFER_MODULE_0);
         _changeMinimumVTAmount(30 * _EPOCHS_PER_DAY); // 30 days worth of ETH is the minimum VT amount
         _setVTPenalty(10 * _EPOCHS_PER_DAY); // 10 days worth of ETH is the VT penalty
+        _setPufferProtocolLogic(pufferProtocolLogic);
     }
 
     /**
@@ -424,39 +380,11 @@ contract PufferProtocol is
         payable
         restricted
     {
-        if (srcIndices.length == 0) {
-            revert InputArrayLengthZero();
+        bytes memory callData = abi.encodeWithSelector(IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices);
+        (bool success,) = address(this).delegatecall(callData);
+        if (!success) {
+            revert Failed();
         }
-        if (srcIndices.length != targetIndices.length) {
-            revert InputArrayLengthMismatch();
-        }
-
-        ProtocolStorage storage $ = _getPufferProtocolStorage();
-
-        bytes[] memory srcPubkeys = new bytes[](srcIndices.length);
-        bytes[] memory targetPubkeys = new bytes[](targetIndices.length);
-        Validator storage validatorSrc;
-        Validator storage validatorTarget;
-        for (uint256 i = 0; i < srcPubkeys.length; i++) {
-            require(srcIndices[i] != targetIndices[i], InvalidValidator());
-            validatorSrc = $.validators[moduleName][srcIndices[i]];
-            require(validatorSrc.node == msg.sender && validatorSrc.status == Status.ACTIVE, InvalidValidator());
-            srcPubkeys[i] = validatorSrc.pubKey;
-            validatorTarget = $.validators[moduleName][targetIndices[i]];
-            require(validatorTarget.node == msg.sender && validatorTarget.status == Status.ACTIVE, InvalidValidator());
-            targetPubkeys[i] = validatorTarget.pubKey;
-
-            // Update accounting
-            validatorTarget.bond += validatorSrc.bond;
-            validatorTarget.numBatches += validatorSrc.numBatches;
-
-            delete $.validators[moduleName][srcIndices[i]];
-            // Node info needs no update since all stays in the same node operator
-        }
-
-        $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
-
-        emit ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
     }
 
     /**
@@ -704,6 +632,13 @@ contract PufferProtocol is
     }
 
     /**
+     * @dev Restricted to the DAO
+     */
+    function setPufferProtocolLogic(address newPufferProtocolLogic) external restricted {
+        _setPufferProtocolLogic(newPufferProtocolLogic);
+    }
+
+    /**
      * @inheritdoc IPufferProtocol
      */
     function getVTPenalty() external view returns (uint256) {
@@ -872,39 +807,6 @@ contract PufferProtocol is
      * @dev `restricted` will revert if the system is paused
      */
     function revertIfPaused() external restricted { }
-
-    function _storeValidatorInformation(
-        ProtocolStorage storage $,
-        ValidatorKeyData calldata data,
-        uint256 pufETHAmount,
-        bytes32 moduleName,
-        uint256 vtAmount
-    ) internal {
-        uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
-
-        address moduleAddress = address($.modules[moduleName]);
-
-        // No need for SafeCast
-        $.validators[moduleName][pufferModuleIndex] = Validator({
-            pubKey: data.blsPubKey,
-            status: Status.PENDING,
-            module: moduleAddress,
-            bond: uint96(pufETHAmount),
-            node: msg.sender,
-            numBatches: data.numBatches
-        });
-
-        $.nodeOperatorInfo[msg.sender].deprecated_vtBalance += SafeCast.toUint96(vtAmount);
-
-        // Increment indices for this module and number of validators registered
-        unchecked {
-            ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
-            ++$.pendingValidatorIndices[moduleName];
-            ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
-        }
-        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
-        emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName, data.numBatches);
-    }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -1259,6 +1161,47 @@ contract PufferProtocol is
         ];
         // nosemgrep basic-arithmetic-underflow
         return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
+    }
+
+    function _delegatecall(address _implementation) internal {
+        // Use assembly for delegatecall to forward msg.sender, msg.value, and calldata
+        assembly {
+            // Copy calldata from msg.data (starts at 0x04)
+            let ptr := mload(0x40) // Get next free memory pointer
+            calldatacopy(ptr, 0, calldatasize()) // Copy all calldata
+
+            // Perform delegatecall
+            let success := delegatecall(
+                gas(), // Forward all available gas
+                _implementation, // Address of the logic contract
+                ptr, // Pointer to the calldata
+                calldatasize(), // Size of the calldata
+                0, // Output offset (we'll copy output later)
+                0 // Output size (we'll copy output later)
+            )
+
+            // Get the size of the returned data
+            let returndata_size := returndatasize()
+            // Allocate memory for the return data
+            let returndata_ptr := mload(0x40) // Get another free memory pointer
+            // Copy the returned data to memory
+            returndatacopy(returndata_ptr, 0, returndata_size)
+
+            // Revert or return based on delegatecall success
+            switch success
+            case 0 {
+                revert(returndata_ptr, returndata_size) // Revert with error message
+            }
+            default {
+                return(returndata_ptr, returndata_size) // Return data
+            }
+        }
+    }
+
+    function _setPufferProtocolLogic(address newPufferProtocolLogic) internal {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        emit PufferProtocolLogicSet($.pufferProtocolLogic, newPufferProtocolLogic);
+        $.pufferProtocolLogic = newPufferProtocolLogic;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
