@@ -214,11 +214,11 @@ contract UnitTestHelper is Test, BaseScript {
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
         restakingOperatorController = RestakingOperatorController(payable(pufferDeployment.restakingOperatorController));
-        xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
-        lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
+        // xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
+        // lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
-        connext = ConnextMock(payable(bridgingDeployment.connext));
+        // connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
 
         // pufETH dependencies
