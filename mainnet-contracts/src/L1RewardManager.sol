@@ -156,6 +156,7 @@ contract L1RewardManager is
      * @notice Handles incoming composed messages from LayerZero Endpoint on L1
      * @notice Revert the original mintAndBridge call
      * @dev Ensures the message comes from the correct OApp and is sent through the authorized endpoint.
+     * @dev Restricted to the LayerZero Endpoint contract on L1
      *
      * @param oft The address of the pufETH OFTAdapter that is sending the composed message.
      * @param message The calldata received from L2RewardManager.
@@ -166,7 +167,7 @@ contract L1RewardManager is
         bytes calldata message,
         address, /* _executor */
         bytes calldata /* _extraData */
-    ) external payable override {
+    ) external payable override restricted {
         if (oft != address(PUFETH_ADAPTER)) {
             revert Unauthorized();
         }

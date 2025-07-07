@@ -127,8 +127,9 @@ contract L2RewardManager is
      * @notice Handles incoming composed messages from LayerZero Endpoint on L2
      * @notice Receives the pufETH from L1 and the bridging data from the L1 Reward Manager
      * @dev Ensures the message comes from the correct OApp (pufETH OFT) and is sent through the authorized endpoint.
+     * @dev Restricted to the LayerZero Endpoint contract on L2
      * @param oft The address of the oft (pufETH OFT) on L2
-     * @param message The calldata received from L1RewardManager.
+     * @param message The calldata received from L1RewardManager
      */
     function lzCompose(
         address oft,
@@ -136,7 +137,7 @@ contract L2RewardManager is
         bytes calldata message,
         address, /* _executor */
         bytes calldata /* _extraData */
-    ) external payable override {
+    ) external payable override restricted {
         if (oft != address(PUFETH)) {
             revert Unauthorized();
         }

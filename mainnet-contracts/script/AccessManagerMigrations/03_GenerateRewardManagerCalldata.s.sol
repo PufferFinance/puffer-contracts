@@ -19,7 +19,7 @@ import {
 } from "../../script/Roles.sol";
 
 /**
- * @title GenerateAccessManagerCalldata3
+ * @title GenerateRewardManagerCalldata
  * @author Puffer Finance
  * @notice Generates the AccessManager call data to setup the public access
  * The returned calldata is queued and executed by the Operations Multisig
@@ -27,7 +27,11 @@ import {
  * 2. ... 7 days later ...
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
-contract GenerateAccessManagerCalldata3 is Script {
+contract GenerateRewardManagerCalldata is Script {
+    /**
+     * @param l1Bridge The LayerZero V2 endpoint address on L1/source chain.
+     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     */
     function generateL1Calldata(
         address l1RewardManagerProxy,
         address l1Bridge,
@@ -106,6 +110,11 @@ contract GenerateAccessManagerCalldata3 is Script {
         return encodedMulticall;
     }
 
+    /**
+     * @dev
+     * @param l2Bridge The LayerZero V2 endpoint address on L2/destination chain.
+     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     */
     function generateL2Calldata(address l2RewardManagerProxy, address l2Bridge) public pure returns (bytes memory) {
         bytes[] memory calldatasL2 = new bytes[](5);
 

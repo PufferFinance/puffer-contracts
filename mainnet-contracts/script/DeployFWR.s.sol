@@ -8,7 +8,7 @@ import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
-import { GenerateAccessManagerCalldata3 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
+import { GenerateRewardManagerCalldata } from "script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
@@ -25,7 +25,7 @@ contract DeployFWR is DeployerHelper {
     uint256 mainnetForkNumber;
 
     function run() public {
-        GenerateAccessManagerCalldata3 generator = new GenerateAccessManagerCalldata3();
+        GenerateRewardManagerCalldata generator = new GenerateRewardManagerCalldata();
 
         mainnetForkNumber = vm.createSelectFork(vm.rpcUrl("mainnet"));
 
@@ -41,7 +41,7 @@ contract DeployFWR is DeployerHelper {
         // Generate L1 calldata
         bytes memory l1AccessManagerCalldata = generator.generateL1Calldata({
             l1RewardManagerProxy: l1RewardManagerProxy,
-            l1Bridge: _getEverclear(),
+            l1Bridge: _getLayerZeroV2Endpoint(),
             pufferVaultProxy: _getPufferVault(),
             pufferModuleManagerProxy: _getPufferModuleManager()
         });
@@ -55,7 +55,7 @@ contract DeployFWR is DeployerHelper {
         vm.createSelectFork(vm.rpcUrl("base"));
         vm.startBroadcast();
 
-        L2RewardManager newImplementation = new L2RewardManager(_getXPufETH(), address(l1RewardManagerProxy));
+        L2RewardManager newImplementation = new L2RewardManager(_getPufETHOFT(), address(l1RewardManagerProxy));
 
         console.log("L2RewardManager Implementation", address(newImplementation));
 
@@ -70,8 +70,10 @@ contract DeployFWR is DeployerHelper {
         vm.label(address(l2RewardManagerProxy), "L2RewardManagerProxy");
         vm.label(address(newImplementation), "L2RewardManagerImplementation");
 
-        bytes memory l2AccessManagerCalldata =
-            generator.generateL2Calldata({ l2RewardManagerProxy: l2RewardManagerProxy, l2Bridge: _getEverclear() });
+        bytes memory l2AccessManagerCalldata = generator.generateL2Calldata({
+            l2RewardManagerProxy: l2RewardManagerProxy,
+            l2Bridge: _getLayerZeroV2Endpoint()
+        });
 
         console.log("L2 Access Manager Calldata");
         console.logBytes(l2AccessManagerCalldata);
@@ -85,9 +87,8 @@ contract DeployFWR is DeployerHelper {
 
         // L1RewardManager
         L1RewardManager l1ReeardManagerImpl = new L1RewardManager({
-            xPufETH: _getXPufETH(),
+            oft: _getPufETHOFTAdapter(),
             pufETH: _getPufferVault(),
-            lockbox: _getLockbox(),
             l2RewardsManager: l2RewardManagerProxy
         });
 

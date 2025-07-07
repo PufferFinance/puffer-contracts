@@ -7,12 +7,9 @@ import { BaseScript } from ".//BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
-import { xPufETH } from "src/l2/xPufETH.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
-import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
-import { ConnextMock } from "../test/mocks/ConnextMock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
@@ -41,52 +38,54 @@ contract DeployPufETHBridging is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        xPufETH xpufETHImplementation = new xPufETH();
+        // xPufETH xpufETHImplementation = new xPufETH();
 
-        xPufETH xPufETHProxy = xPufETH(
-            address(
-                new ERC1967Proxy{ salt: bytes32("xPufETH") }(
-                    address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
-                )
-            )
-        );
+        // xPufETH xPufETHProxy = xPufETH(
+        //     address(
+        //         new ERC1967Proxy{ salt: bytes32("xPufETH") }(
+        //             address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+        //         )
+        //     )
+        // );
 
-        address everclearBridge = address(new ConnextMock());
+        // address everclearBridge = address(new ConnextMock());
+
+        // We already have the oft deployed in the deployment script
+        address pufETHOFTAdapter = address(0x0000000000000000000000000000000000000001);
+        address pufETHOFT = address(0x0000000000000000000000000000000000000002);
 
         address noImpl = address(new NoImplementation());
 
         ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
 
-        // Deploy the lockbox
-        XERC20Lockbox xERC20Lockbox =
-            new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
+        // // Deploy the lockbox
+        // XERC20Lockbox xERC20Lockbox =
+        //     new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            xPufETH: address(xPufETHProxy),
+            oft: pufETHOFTAdapter,
             pufETH: deployment.pufferVault,
-            lockbox: address(xERC20Lockbox),
             l2RewardsManager: address(l2RewardsManagerProxy)
         });
 
         L1RewardManager l1RewardManagerProxy = L1RewardManager(
             address(
                 new ERC1967Proxy(
-                    address(l1RewardManagerImpl), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+                    address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (deployment.accessManager))
                 )
             )
         );
 
-        L2RewardManager l2RewardManagerImpl = new L2RewardManager(everclearBridge, address(l1RewardManagerProxy));
+        L2RewardManager l2RewardManagerImpl = new L2RewardManager(pufETHOFT, address(l1RewardManagerProxy));
 
         UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
             address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
         );
 
         bridgingDeployment = BridgingDeployment({
-            connext: everclearBridge,
-            xPufETH: address(xPufETHProxy),
-            xPufETHLockBox: address(xERC20Lockbox),
+            pufETHOFTAdapter: pufETHOFTAdapter,
+            pufETHOFT: pufETHOFT,
             l1RewardManager: address(l1RewardManagerProxy),
             l2RewardManager: address(l2RewardsManagerProxy)
         });

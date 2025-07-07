@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { xPufETH } from "src/l2/xPufETH.sol";
+// import { xPufETH } from "src/l2/xPufETH.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 import { IL1RewardManager } from "../../src/interface/IL1RewardManager.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
@@ -16,7 +16,7 @@ import {
     ROLE_ID_OPERATIONS_PAYMASTER
 } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { GenerateAccessManagerCalldata3 } from "script/AccessManagerMigrations/GenerateAccessManagerCalldata3.s.sol";
+import { GenerateRewardManagerCalldata } from "script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 
 contract L1RewardManagerTest is UnitTestHelper {
     uint256 rewardsAmount;

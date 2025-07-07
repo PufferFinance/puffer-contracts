@@ -37,9 +37,8 @@ struct PufferProtocolDeployment {
 }
 
 struct BridgingDeployment {
-    address connext;
-    address xPufETH;
-    address xPufETHLockBox;
+    address pufETHOFTAdapter;
+    address pufETHOFT;
     address l1RewardManager;
     address l2RewardManager;
 }

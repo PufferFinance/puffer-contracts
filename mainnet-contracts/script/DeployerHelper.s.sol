@@ -430,7 +430,7 @@ abstract contract DeployerHelper is Script {
         revert("RestakingOperatorController not available for this chain");
     }
 
-    function _getXPufETH() internal view returns (address) {
+    function _getDeprecatedXPufETH() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xD7D2802f6b19843ac4DfE25022771FD83b5A7464
             return 0xD7D2802f6b19843ac4DfE25022771FD83b5A7464;
@@ -451,7 +451,7 @@ abstract contract DeployerHelper is Script {
         revert("XPufETH not available for this chain");
     }
 
-    function _getLockbox() internal view returns (address) {
+    function _getDeprecatedLockbox() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xd44E91CfBBAa7b3B259A12a43b38CEBf47B463D5
             return 0xd44E91CfBBAa7b3B259A12a43b38CEBf47B463D5;
@@ -463,7 +463,7 @@ abstract contract DeployerHelper is Script {
         revert("Lockbox not available for this chain");
     }
 
-    function _getEverclear() internal view returns (address) {
+    function _getDeprecatedEverclear() internal view returns (address) {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x8898B472C54c31894e3B9bb83cEA802a5d0e63C6
             return 0x8898B472C54c31894e3B9bb83cEA802a5d0e63C6;
@@ -485,6 +485,36 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("Everclear not available for this chain");
+    }
+
+    function _getPufETHOFTAdapter() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x0000000000000000000000000000000000000002
+            return 0x0000000000000000000000000000000000000002;
+            // } else if (block.chainid == holesky) {
+            //     // https://holesky.etherscan.io/address/0x0000000000000000000000000000000000000002
+            //     return 0x0000000000000000000000000000000000000002;
+        }
+
+        revert("PufETHOFT not available for this chain");
+    }
+
+    function _getPufETHOFT() internal view returns (address) {
+        if (block.chainid == base) {
+            // https://basescan.org/address/0x0000000000000000000000000000000000000002
+            return 0x0000000000000000000000000000000000000002;
+        }
+
+        revert("PufETHOFT not available for this chain");
+    }
+
+    function _getLayerZeroV2Endpoint() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x0000000000000000000000000000000000000001
+            return 0x0000000000000000000000000000000000000001;
+        }
+
+        revert("LayerZeroV2Endpoint not available for this chain");
     }
 
     function _getPaymaster() internal view returns (address) {

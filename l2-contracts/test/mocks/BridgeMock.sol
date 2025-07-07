@@ -19,14 +19,12 @@ contract BridgeMock {
 
         IERC20(asset).transferFrom(msg.sender, to, amount);
 
-        L2RewardManager(to).xReceive(
-            keccak256(abi.encodePacked(to, amount, asset, delegate, callData)), // transferId
-            amount,
-            asset,
-            msg.sender,
-            originId,
-            callData
-        );
+        // L2RewardManager(to).lzCompose(
+        //     address(0), // oft
+        //     keccak256(abi.encodePacked(to, amount, asset, delegate, callData)), // transferId
+        //     msg.sender, // executor
+        //     bytes("")
+        // );
 
         return "";
     }
