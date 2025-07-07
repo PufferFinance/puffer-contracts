@@ -3,6 +3,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Status } from "./struct/Status.sol";
+import { PufferModuleManager } from "./PufferModuleManager.sol";
+import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
+import { IGuardianModule } from "./interface/IGuardianModule.sol";
+import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
+import { ValidatorTicket } from "./ValidatorTicket.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 
 abstract contract ProtocolConstants {
     /**
@@ -149,4 +155,36 @@ abstract contract ProtocolConstants {
     bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
     bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
         IPufferProtocol.batchHandleWithdrawals.selector;
+
+    IGuardianModule internal immutable _GUARDIAN_MODULE;
+
+    ValidatorTicket internal immutable _VALIDATOR_TICKET;
+
+    PufferVaultV5 internal immutable _PUFFER_VAULT;
+
+    PufferModuleManager internal immutable _PUFFER_MODULE_MANAGER;
+
+    IPufferOracleV2 internal immutable _PUFFER_ORACLE;
+
+    IBeaconDepositContract internal immutable _BEACON_DEPOSIT_CONTRACT;
+
+    address payable internal immutable _PUFFER_REVENUE_DISTRIBUTOR;
+
+    constructor(
+        PufferVaultV5 pufferVault,
+        IGuardianModule guardianModule,
+        address moduleManager,
+        ValidatorTicket validatorTicket,
+        IPufferOracleV2 oracle,
+        address beaconDepositContract,
+        address payable pufferRevenueDistributor
+    ) {
+        _GUARDIAN_MODULE = guardianModule;
+        _PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
+        _PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
+        _VALIDATOR_TICKET = validatorTicket;
+        _PUFFER_ORACLE = oracle;
+        _BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
+        _PUFFER_REVENUE_DISTRIBUTOR = pufferRevenueDistributor;
+    }
 }

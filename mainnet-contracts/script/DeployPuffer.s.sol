@@ -182,7 +182,15 @@ contract DeployPuffer is BaseScript {
             address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
         );
 
-        PufferProtocolLogic pufferProtocolLogic = new PufferProtocolLogic();
+        PufferProtocolLogic pufferProtocolLogic = new PufferProtocolLogic({
+            pufferVault: PufferVaultV5(payable(pufferVault)),
+            validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
+            guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
+            moduleManager: address(moduleManagerProxy),
+            oracle: IPufferOracleV2(oracle),
+            beaconDepositContract: getStakingContract(),
+            pufferRevenueDistributor: payable(revenueDepositor)
+        });
 
         // Initialize the Pool
         pufferProtocol.initialize({

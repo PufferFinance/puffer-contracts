@@ -26,6 +26,8 @@ import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol"
 import { NodeInfo } from "../../src/struct/NodeInfo.sol";
 import { EpochsValidatedSignature } from "../../src/struct/Signatures.sol";
 
+import "forge-std/console.sol";
+
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
 
@@ -1049,6 +1051,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
     // Batch claim 32 ETH withdrawals
     function test_batch_claim() public {
+        console.log(pufferProtocol.getPufferProtocolLogic());
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
         _registerAndProvisionNode(bytes32("bob"), PUFFER_MODULE_0, bob);
 

@@ -30,6 +30,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ProtocolConstants } from "./ProtocolConstants.sol";
 import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
+import "forge-std/console.sol";
+
 /**
  * @title PufferProtocol
  * @author Puffer Finance
@@ -64,42 +66,6 @@ contract PufferProtocol is
         uint256 numBatches;
     }
 
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    IGuardianModule public immutable override GUARDIAN_MODULE;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
-     */
-    ValidatorTicket public immutable override VALIDATOR_TICKET;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    PufferVaultV5 public immutable override PUFFER_VAULT;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    IPufferOracleV2 public immutable override PUFFER_ORACLE;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    address payable public immutable PUFFER_REVENUE_DISTRIBUTOR;
-
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
@@ -108,16 +74,17 @@ contract PufferProtocol is
         IPufferOracleV2 oracle,
         address beaconDepositContract,
         address payable pufferRevenueDistributor
-    ) {
-        GUARDIAN_MODULE = guardianModule;
-        PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
-        PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
-        VALIDATOR_TICKET = validatorTicket;
-        PUFFER_ORACLE = oracle;
-        BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
-        PUFFER_REVENUE_DISTRIBUTOR = pufferRevenueDistributor;
-        _disableInitializers();
-    }
+    )
+        ProtocolConstants(
+            pufferVault,
+            guardianModule,
+            moduleManager,
+            validatorTicket,
+            oracle,
+            beaconDepositContract,
+            pufferRevenueDistributor
+        )
+    { }
 
     receive() external payable { }
 
@@ -149,10 +116,10 @@ contract PufferProtocol is
         // For an invalid signature, the permit will revert, but it is wrapped in try/catch, meaning the transaction execution
         // will continue. If the `msg.sender` did a `VALIDATOR_TICKET.approve(spender, amount)` before calling this
         // And the spender is `msg.sender` the Permit call will revert, but the overall transaction will succeed
-        _callPermit(address(VALIDATOR_TICKET), permit);
+        _callPermit(address(_VALIDATOR_TICKET), permit);
 
         // slither-disable-next-line unchecked-transfer
-        VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
+        _VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         $.nodeOperatorInfo[node].deprecated_vtBalance += SafeCast.toUint96(permit.amount);
@@ -174,7 +141,7 @@ contract PufferProtocol is
 
         require(epochsValidatedSignature.nodeOperator != address(0), InvalidAddress());
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint256 epochCurrentPrice = _PUFFER_ORACLE.getValidatorTicketPrice();
         uint8 operatorNumBatches = $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].numBatches;
         require(
             msg.value >= operatorNumBatches * _MINIMUM_EPOCHS_VALIDATION_DEPOSIT * epochCurrentPrice
@@ -187,7 +154,7 @@ contract PufferProtocol is
         uint256 burnAmount = _useVTOrValidationTime({ $: $, epochsValidatedSignature: epochsValidatedSignature });
 
         if (burnAmount > 0) {
-            VALIDATOR_TICKET.burn(burnAmount);
+            _VALIDATOR_TICKET.burn(burnAmount);
         }
 
         $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].validationTime += SafeCast.toUint96(msg.value);
@@ -216,7 +183,7 @@ contract PufferProtocol is
         $.nodeOperatorInfo[msg.sender].deprecated_vtBalance -= amount;
 
         // slither-disable-next-line unchecked-transfer
-        VALIDATOR_TICKET.transfer(recipient, amount);
+        _VALIDATOR_TICKET.transfer(recipient, amount);
 
         emit ValidatorTicketsWithdrawn(msg.sender, recipient, amount);
     }
@@ -242,7 +209,7 @@ contract PufferProtocol is
         $.nodeOperatorInfo[msg.sender].validationTime -= amount;
 
         // WETH is a contract that has a fallback function that accepts ETH, and never reverts
-        address weth = PUFFER_VAULT.asset();
+        address weth = _PUFFER_VAULT.asset();
         weth.call{ value: amount }("");
         // Transfer WETH to the recipient
         ERC20(weth).transfer(recipient, amount);
@@ -269,7 +236,7 @@ contract PufferProtocol is
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
 
-        uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint256 epochCurrentPrice = _PUFFER_ORACLE.getValidatorTicketPrice();
         uint8 numBatches = data.numBatches;
         uint256 bondAmountEth = _VALIDATOR_BOND * numBatches;
 
@@ -295,7 +262,7 @@ contract PufferProtocol is
         });
 
         // The bond is converted to pufETH at the current exchange rate
-        uint256 pufETHBondAmount = PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
+        uint256 pufETHBondAmount = _PUFFER_VAULT.depositETH{ value: bondAmountEth }(address(this));
 
         uint256 pufferModuleIndex = $.pendingValidatorIndices[moduleName];
 
@@ -335,7 +302,7 @@ contract PufferProtocol is
      * @dev Restricted to Puffer Paymaster
      */
     function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external restricted {
-        if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+        if (depositRootHash != _BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
             revert InvalidDepositRootHash();
         }
 
@@ -381,9 +348,12 @@ contract PufferProtocol is
         bytes memory callData = abi.encodeWithSelector(
             IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices
         );
-        (bool success,) = address(this).delegatecall(callData);
+
+        (bool success, bytes memory result) = _delegatecall(_getPufferProtocolStorage().pufferProtocolLogic, callData);
         if (!success) {
-            revert Failed();
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
         }
     }
 
@@ -425,7 +395,7 @@ contract PufferProtocol is
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
 
-                GUARDIAN_MODULE.validateWithdrawalRequest({
+                _GUARDIAN_MODULE.validateWithdrawalRequest({
                     node: msg.sender,
                     pubKey: pubkeys[i],
                     gweiAmount: gweiAmounts[i],
@@ -436,7 +406,7 @@ contract PufferProtocol is
             }
         }
 
-        PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
+        _PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
     }
 
     function _batchHandleWithdrawalsAccounting(
@@ -452,7 +422,7 @@ contract PufferProtocol is
                 : validatorInfos[i].withdrawalAmount;
             //solhint-disable-next-line avoid-low-level-calls
             (bool success,) =
-                PufferModule(payable(validatorInfos[i].module)).call(address(PUFFER_VAULT), transferAmount, "");
+                PufferModule(payable(validatorInfos[i].module)).call(address(_PUFFER_VAULT), transferAmount, "");
             if (!success) {
                 revert Failed();
             }
@@ -462,7 +432,7 @@ contract PufferProtocol is
                 continue;
             }
             // slither-disable-next-line unchecked-transfer
-            PUFFER_VAULT.transfer(bondWithdrawals[i].node, bondWithdrawals[i].pufETHAmount);
+            _PUFFER_VAULT.transfer(bondWithdrawals[i].node, bondWithdrawals[i].pufETHAmount);
         }
         // slither-disable-start calls-loop
     }
@@ -480,7 +450,7 @@ contract PufferProtocol is
             revert DeadlineExceeded();
         }
 
-        GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures, deadline);
+        _GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures, deadline);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -540,15 +510,15 @@ contract PufferProtocol is
         }
 
         if (burnAmounts.vt > 0) {
-            VALIDATOR_TICKET.burn(burnAmounts.vt);
+            _VALIDATOR_TICKET.burn(burnAmounts.vt);
         }
         if (burnAmounts.pufETH > 0) {
             // Because we've calculated everything in the previous loop, we can do the burning
-            PUFFER_VAULT.burn(burnAmounts.pufETH);
+            _PUFFER_VAULT.burn(burnAmounts.pufETH);
         }
 
         // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
-        PUFFER_ORACLE.exitValidators(numExitedBatches);
+        _PUFFER_ORACLE.exitValidators(numExitedBatches);
 
         _batchHandleWithdrawalsAccounting(bondWithdrawals, validatorInfos);
     }
@@ -565,13 +535,13 @@ contract PufferProtocol is
         address node = $.validators[moduleName][skippedIndex].node;
 
         // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateSkipProvisioning({
+        _GUARDIAN_MODULE.validateSkipProvisioning({
             moduleName: moduleName,
             skippedIndex: skippedIndex,
             guardianEOASignatures: guardianEOASignatures
         });
 
-        uint256 vtPricePerEpoch = PUFFER_ORACLE.getValidatorTicketPrice();
+        uint256 vtPricePerEpoch = _PUFFER_ORACLE.getValidatorTicketPrice();
 
         $.nodeOperatorInfo[node].validationTime -=
             ($.vtPenaltyEpochs * vtPricePerEpoch * $.validators[moduleName][skippedIndex].numBatches);
@@ -582,7 +552,7 @@ contract PufferProtocol is
 
         // Transfer pufETH to that node operator
         // slither-disable-next-line unchecked-transfer
-        PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
+        _PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
         _decreaseNumberOfRegisteredValidators($, moduleName);
         unchecked {
@@ -832,7 +802,7 @@ contract PufferProtocol is
         if (address($.modules[moduleName]) != address(0)) {
             revert ModuleAlreadyExists();
         }
-        PufferModule module = PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
+        PufferModule module = _PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
@@ -883,7 +853,7 @@ contract PufferProtocol is
         // The withdrawal amount is less than 32 ETH * numBatches, we burn the difference to cover up the loss for inactivity
         if (validatorInfo.withdrawalAmount < (uint256(32 ether) * numBatches)) {
             pufETHBurnAmount =
-                PUFFER_VAULT.convertToSharesUp((uint256(32 ether) * numBatches) - validatorInfo.withdrawalAmount);
+                _PUFFER_VAULT.convertToSharesUp((uint256(32 ether) * numBatches) - validatorInfo.withdrawalAmount);
         }
 
         // Case 3:
@@ -908,16 +878,16 @@ contract PufferProtocol is
         PufferModule module = $.modules[moduleName];
 
         // Transfer 32 ETH to this contract for each batch
-        PUFFER_VAULT.transferETH(address(this), numBatches * 32 ether);
+        _PUFFER_VAULT.transferETH(address(this), numBatches * 32 ether);
 
         emit SuccessfullyProvisioned(validatorPubKey, index, moduleName, numBatches);
 
         // Increase lockedETH on Puffer Oracle
         for (uint256 i = 0; i < numBatches; ++i) {
-            PUFFER_ORACLE.provisionNode();
+            _PUFFER_ORACLE.provisionNode();
         }
 
-        BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
+        _BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
             validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
         );
     }
@@ -939,46 +909,15 @@ contract PufferProtocol is
         internal
         returns (uint256 vtAmountToBurn)
     {
-        address nodeOperator = epochsValidatedSignature.nodeOperator;
-        uint256 previousTotalEpochsValidated = $.nodeOperatorInfo[nodeOperator].totalEpochsValidated;
-
-        if (previousTotalEpochsValidated == epochsValidatedSignature.totalEpochsValidated) {
-            return 0;
-        }
-        require(
-            previousTotalEpochsValidated < epochsValidatedSignature.totalEpochsValidated, InvalidTotalEpochsValidated()
-        );
-
-        // Burn the VT first, then fallback to ETH from the node operator
-        uint256 nodeVTBalance = $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance;
-
-        // If the node operator has VT, we burn it first
-        if (nodeVTBalance > 0) {
-            uint256 vtBurnAmount =
-                _getVTBurnAmount(epochsValidatedSignature.totalEpochsValidated - previousTotalEpochsValidated);
-            if (nodeVTBalance >= vtBurnAmount) {
-                // Burn the VT first, and update the node operator VT balance
-                vtAmountToBurn = vtBurnAmount;
-                // nosemgrep basic-arithmetic-underflow
-                $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
-
-                emit ValidationTimeConsumed({ node: nodeOperator, consumedAmount: 0, deprecated_burntVTs: vtBurnAmount });
-
-                return vtAmountToBurn;
+        bytes memory callData =
+            abi.encodeWithSelector(IPufferProtocolLogic._useVTOrValidationTime.selector, epochsValidatedSignature);
+        (bool success, bytes memory result) = _delegatecall($.pufferProtocolLogic, callData);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
             }
-
-            // If the node operator has less VT than the amount to burn, we burn all of it, and we use the validation time
-            vtAmountToBurn = nodeVTBalance;
-            // nosemgrep basic-arithmetic-underflow
-            $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(nodeVTBalance);
         }
-
-        // If the node operator has no VT, we use the validation time
-        _settleVTAccounting({
-            $: $,
-            epochsValidatedSignature: epochsValidatedSignature,
-            deprecated_burntVTs: nodeVTBalance
-        });
+        vtAmountToBurn = abi.decode(result, (uint256));
     }
 
     /**
@@ -997,62 +936,24 @@ contract PufferProtocol is
         EpochsValidatedSignature memory epochsValidatedSignature,
         uint256 deprecated_burntVTs
     ) internal {
-        address node = epochsValidatedSignature.nodeOperator;
-        // There is nothing to settle if this is the first validator for the node operator
-        if ($.nodeOperatorInfo[node].activeValidatorCount + $.nodeOperatorInfo[node].pendingValidatorCount == 0) {
-            return;
+        bytes memory callData = abi.encodeWithSelector(
+            IPufferProtocolLogic._settleVTAccounting.selector,
+            EpochsValidatedSignature({
+                nodeOperator: msg.sender,
+                totalEpochsValidated: epochsValidatedSignature.totalEpochsValidated,
+                functionSelector: epochsValidatedSignature.functionSelector,
+                deadline: epochsValidatedSignature.deadline,
+                signatures: epochsValidatedSignature.signatures
+            }),
+            deprecated_burntVTs
+        );
+
+        (bool success, bytes memory result) = _delegatecall($.pufferProtocolLogic, callData);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
         }
-
-        GUARDIAN_MODULE.validateTotalEpochsValidated({
-            node: node,
-            totalEpochsValidated: epochsValidatedSignature.totalEpochsValidated,
-            nonce: _useNonce(epochsValidatedSignature.functionSelector, node),
-            deadline: epochsValidatedSignature.deadline,
-            guardianEOASignatures: epochsValidatedSignature.signatures
-        });
-
-        uint256 epochCurrentPrice = PUFFER_ORACLE.getValidatorTicketPrice();
-
-        uint256 meanPrice = ($.nodeOperatorInfo[node].epochPrice + epochCurrentPrice) / 2;
-
-        uint256 previousTotalEpochsValidated = $.nodeOperatorInfo[node].totalEpochsValidated;
-
-        // convert burned validator tickets to epochs
-        uint256 epochsBurntFromDeprecatedVT = deprecated_burntVTs * 225 / 1 ether; // 1 VT = 1 DAY. 1 DAY = 225 Epochs
-
-        uint256 validationTimeToConsume = (
-            epochsValidatedSignature.totalEpochsValidated - previousTotalEpochsValidated - epochsBurntFromDeprecatedVT
-        ) * meanPrice;
-
-        // Update the current epoch VT price for the node operator
-        $.nodeOperatorInfo[node].epochPrice = epochCurrentPrice;
-        $.nodeOperatorInfo[node].totalEpochsValidated = epochsValidatedSignature.totalEpochsValidated;
-        $.nodeOperatorInfo[node].validationTime -= validationTimeToConsume;
-
-        emit ValidationTimeConsumed({
-            node: node,
-            consumedAmount: validationTimeToConsume,
-            deprecated_burntVTs: deprecated_burntVTs
-        });
-
-        address weth = PUFFER_VAULT.asset();
-
-        // WETH is a contract that has a fallback function that accepts ETH, and never reverts
-        weth.call{ value: validationTimeToConsume }("");
-
-        // Transfer WETH to the Revenue Distributor, it will be slow released to the PufferVault
-        ERC20(weth).transfer(PUFFER_REVENUE_DISTRIBUTOR, validationTimeToConsume);
-    }
-
-    /**
-     * @dev Internal function to get the amount of VT to burn during a number of epochs
-     * @param validatedEpochs The number of epochs validated by the node operator (not necessarily the total epochs)
-     * @return vtBurnAmount The amount of VT to burn
-     */
-    function _getVTBurnAmount(uint256 validatedEpochs) internal pure returns (uint256) {
-        // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
-        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
-        return validatedEpochs * 4444444444444445;
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
@@ -1088,7 +989,7 @@ contract PufferProtocol is
             numBatches: numBatchesBefore
         });
 
-        exitingBond = validator.bond * exitedBatches / validator.numBatches;
+        exitingBond = (validator.bond * exitedBatches) / validator.numBatches;
 
         // The burned amount is subtracted from the exiting bond, so the remaining bond is kept in full
         // The backend must prevent any downsize that would result in a burned amount greater than the exiting bond
@@ -1151,36 +1052,38 @@ contract PufferProtocol is
         return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
     }
 
-    function _delegatecall(address _implementation) internal {
-        // Use assembly for delegatecall to forward msg.sender, msg.value, and calldata
+    function _delegatecall(address target, bytes memory data) internal returns (bool success, bytes memory result) {
+        console.log("callData");
+        console.logBytes(data);
+        console.log("target", target);
+
         assembly {
-            // Copy calldata from msg.data (starts at 0x04)
-            let ptr := mload(0x40) // Get next free memory pointer
-            calldatacopy(ptr, 0, calldatasize()) // Copy all calldata
+            // Get the size of the input data
+            let dataSize := mload(data)
 
-            // Perform delegatecall
-            let success :=
-                delegatecall(
-                    gas(), // Forward all available gas
-                    _implementation, // Address of the logic contract
-                    ptr, // Pointer to the calldata
-                    calldatasize(), // Size of the calldata
-                    0, // Output offset (we'll copy output later)
-                    0 // Output size (we'll copy output later)
-                )
+            // Allocate memory for input data
+            let ptr := mload(0x40)
 
-            // Get the size of the returned data
+            // Copy input data from memory to memory (skip the length field)
+            let dataPtr := add(data, 32)
+            for { let i := 0 } lt(i, dataSize) { i := add(i, 32) } { mstore(add(ptr, i), mload(add(dataPtr, i))) }
+
+            // Perform the delegatecall
+            success := delegatecall(gas(), target, ptr, dataSize, 0, 0)
+
+            // Handle return data
             let returndata_size := returndatasize()
-            // Allocate memory for the return data
-            let returndata_ptr := mload(0x40) // Get another free memory pointer
-            // Copy the returned data to memory
-            returndatacopy(returndata_ptr, 0, returndata_size)
 
-            // Revert or return based on delegatecall success
-            switch success
-            case 0 { revert(returndata_ptr, returndata_size) }
-                // Revert with error message
-            default { return(returndata_ptr, returndata_size) } // Return data
+            // Allocate memory for return data (update free memory pointer)
+            let result_ptr := add(ptr, and(add(dataSize, 31), not(31))) // Align to 32 bytes
+            mstore(0x40, add(result_ptr, add(returndata_size, 32)))
+
+            // Store return data length and copy data
+            mstore(result_ptr, returndata_size)
+            returndatacopy(add(result_ptr, 32), 0, returndata_size)
+
+            // Set result pointer
+            result := result_ptr
         }
     }
 
@@ -1191,4 +1094,36 @@ contract PufferProtocol is
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+
+    function getPufferProtocolLogic() external view returns (address) {
+        return _getPufferProtocolStorage().pufferProtocolLogic;
+    }
+
+    function GUARDIAN_MODULE() external view override returns (IGuardianModule) {
+        return _GUARDIAN_MODULE;
+    }
+
+    function VALIDATOR_TICKET() external view override returns (ValidatorTicket) {
+        return _VALIDATOR_TICKET;
+    }
+
+    function PUFFER_VAULT() external view override returns (PufferVaultV5) {
+        return _PUFFER_VAULT;
+    }
+
+    function PUFFER_MODULE_MANAGER() external view override returns (PufferModuleManager) {
+        return _PUFFER_MODULE_MANAGER;
+    }
+
+    function PUFFER_ORACLE() external view override returns (IPufferOracleV2) {
+        return _PUFFER_ORACLE;
+    }
+
+    function BEACON_DEPOSIT_CONTRACT() external view override returns (IBeaconDepositContract) {
+        return _BEACON_DEPOSIT_CONTRACT;
+    }
+
+    function PUFFER_REVENUE_DISTRIBUTOR() external view override returns (address payable) {
+        return _PUFFER_REVENUE_DISTRIBUTOR;
+    }
 }
