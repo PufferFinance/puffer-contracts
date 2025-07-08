@@ -35,12 +35,7 @@ import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
  * @dev Upgradeable smart contract for the Puffer Protocol
  * Storage variables are located in PufferProtocolStorage.sol
  */
-contract PufferProtocol is
-    IPufferProtocol,
-    AccessManagedUpgradeable,
-    UUPSUpgradeable,
-    PufferProtocolBase
-{
+contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolBase {
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,

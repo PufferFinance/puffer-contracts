@@ -21,10 +21,7 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 import { InvalidAddress } from "./Errors.sol";
 
-contract PufferProtocolLogic is
-    PufferProtocolBase,
-    IPufferProtocolLogic
-{
+contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     /**
      * @dev Helper struct for the full withdrawals accounting
      * The amounts of VT and pufETH to burn at the end of the withdrawal
