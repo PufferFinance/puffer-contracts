@@ -22,6 +22,7 @@ interface IPufferProtocolLogic {
      */
     function _useVTOrValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
         external
+        payable
         returns (uint256 vtAmountToBurn);
 
     /**
@@ -35,5 +36,6 @@ interface IPufferProtocolLogic {
      * @param deprecated_burntVTs The amount of VT to burn (to be deducted from validation time consumption)
      */
     function _settleVTAccounting(EpochsValidatedSignature memory epochsValidatedSignature, uint256 deprecated_burntVTs)
-        external;
+        external
+        payable;
 }

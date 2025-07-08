@@ -30,8 +30,6 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ProtocolConstants } from "./ProtocolConstants.sol";
 import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
-import "forge-std/console.sol";
-
 /**
  * @title PufferProtocol
  * @author Puffer Finance
@@ -349,7 +347,7 @@ contract PufferProtocol is
             IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices
         );
 
-        (bool success, bytes memory result) = _delegatecall(_getPufferProtocolStorage().pufferProtocolLogic, callData);
+        (bool success, bytes memory result) = _getPufferProtocolStorage().pufferProtocolLogic.delegatecall(callData);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
@@ -911,7 +909,7 @@ contract PufferProtocol is
     {
         bytes memory callData =
             abi.encodeWithSelector(IPufferProtocolLogic._useVTOrValidationTime.selector, epochsValidatedSignature);
-        (bool success, bytes memory result) = _delegatecall($.pufferProtocolLogic, callData);
+        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
@@ -937,18 +935,10 @@ contract PufferProtocol is
         uint256 deprecated_burntVTs
     ) internal {
         bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic._settleVTAccounting.selector,
-            EpochsValidatedSignature({
-                nodeOperator: msg.sender,
-                totalEpochsValidated: epochsValidatedSignature.totalEpochsValidated,
-                functionSelector: epochsValidatedSignature.functionSelector,
-                deadline: epochsValidatedSignature.deadline,
-                signatures: epochsValidatedSignature.signatures
-            }),
-            deprecated_burntVTs
+            IPufferProtocolLogic._settleVTAccounting.selector, epochsValidatedSignature, deprecated_burntVTs
         );
 
-        (bool success, bytes memory result) = _delegatecall($.pufferProtocolLogic, callData);
+        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
@@ -1050,41 +1040,6 @@ contract PufferProtocol is
         ];
         // nosemgrep basic-arithmetic-underflow
         return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
-    }
-
-    function _delegatecall(address target, bytes memory data) internal returns (bool success, bytes memory result) {
-        console.log("callData");
-        console.logBytes(data);
-        console.log("target", target);
-
-        assembly {
-            // Get the size of the input data
-            let dataSize := mload(data)
-
-            // Allocate memory for input data
-            let ptr := mload(0x40)
-
-            // Copy input data from memory to memory (skip the length field)
-            let dataPtr := add(data, 32)
-            for { let i := 0 } lt(i, dataSize) { i := add(i, 32) } { mstore(add(ptr, i), mload(add(dataPtr, i))) }
-
-            // Perform the delegatecall
-            success := delegatecall(gas(), target, ptr, dataSize, 0, 0)
-
-            // Handle return data
-            let returndata_size := returndatasize()
-
-            // Allocate memory for return data (update free memory pointer)
-            let result_ptr := add(ptr, and(add(dataSize, 31), not(31))) // Align to 32 bytes
-            mstore(0x40, add(result_ptr, add(returndata_size, 32)))
-
-            // Store return data length and copy data
-            mstore(result_ptr, returndata_size)
-            returndatacopy(add(result_ptr, 32), 0, returndata_size)
-
-            // Set result pointer
-            result := result_ptr
-        }
     }
 
     function _setPufferProtocolLogic(address newPufferProtocolLogic) internal {

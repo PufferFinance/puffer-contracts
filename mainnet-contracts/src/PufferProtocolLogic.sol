@@ -18,8 +18,6 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 
-import "forge-std/console.sol";
-
 contract PufferProtocolLogic is PufferProtocolStorage, ProtocolSignatureNonces, ProtocolConstants {
     constructor(
         PufferVaultV5 pufferVault,
@@ -97,6 +95,7 @@ contract PufferProtocolLogic is PufferProtocolStorage, ProtocolSignatureNonces, 
      */
     function _useVTOrValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
         external
+        payable
         returns (uint256 vtAmountToBurn)
     {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -154,9 +153,8 @@ contract PufferProtocolLogic is PufferProtocolStorage, ProtocolSignatureNonces, 
      */
     function _settleVTAccounting(EpochsValidatedSignature memory epochsValidatedSignature, uint256 deprecated_burntVTs)
         public
+        payable
     {
-        console.log("settleVTAccounting");
-
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         address node = epochsValidatedSignature.nodeOperator;
         // There is nothing to settle if this is the first validator for the node operator
