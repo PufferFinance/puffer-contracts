@@ -82,7 +82,9 @@ contract PufferProtocol is
             beaconDepositContract,
             pufferRevenueDistributor
         )
-    { }
+    {
+        _disableInitializers();
+    }
 
     receive() external payable { }
 
@@ -346,13 +348,7 @@ contract PufferProtocol is
         bytes memory callData = abi.encodeWithSelector(
             IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices
         );
-
-        (bool success, bytes memory result) = _getPufferProtocolStorage().pufferProtocolLogic.delegatecall(callData);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
+        _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
     /**
@@ -909,12 +905,7 @@ contract PufferProtocol is
     {
         bytes memory callData =
             abi.encodeWithSelector(IPufferProtocolLogic._useVTOrValidationTime.selector, epochsValidatedSignature);
-        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
+        bytes memory result = _delegatecall($, callData);
         vtAmountToBurn = abi.decode(result, (uint256));
     }
 
@@ -938,12 +929,7 @@ contract PufferProtocol is
             IPufferProtocolLogic._settleVTAccounting.selector, epochsValidatedSignature, deprecated_burntVTs
         );
 
-        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
+        _delegatecall($, callData);
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
@@ -1049,6 +1035,16 @@ contract PufferProtocol is
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
+
+    function _delegatecall(ProtocolStorage storage $, bytes memory callData) internal returns (bytes memory) {
+        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
+        return result;
+    }
 
     function getPufferProtocolLogic() external view returns (address) {
         return _getPufferProtocolStorage().pufferProtocolLogic;
