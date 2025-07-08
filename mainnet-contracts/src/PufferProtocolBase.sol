@@ -9,8 +9,10 @@ import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
+import { ProtocolSignatureNonces } from "./ProtocolSignatureNonces.sol";
+import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 
-abstract contract ProtocolConstants {
+abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignatureNonces {
     /**
      * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
      */
