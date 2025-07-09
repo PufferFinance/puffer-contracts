@@ -2,7 +2,7 @@
 // pragma solidity >=0.8.0 <0.9.0;
 
 // import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-// import { xPufETH } from "src/l2/xPufETH.sol";
+// // import { xPufETH } from "src/l2/xPufETH.sol";
 // import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 // import { IL1RewardManager } from "../../src/interface/IL1RewardManager.sol";
 // import { L1RewardManager } from "../../src/L1RewardManager.sol";
@@ -23,26 +23,26 @@
 //     uint256 startEpoch = 1;
 //     uint256 endEpoch = 2;
 
+//     address endpoint = makeAddr("endpoint");
 //     function setUp() public override {
 //         super.setUp();
 
-//         bytes4[] memory xpufETHselectors = new bytes4[](3);
-//         xpufETHselectors[0] = xPufETH.mint.selector;
-//         xpufETHselectors[1] = xPufETH.burn.selector;
+//         // bytes4[] memory xpufETHselectors = new bytes4[](3);
+//         // xpufETHselectors[0] = xPufETH.mint.selector;
+//         // xpufETHselectors[1] = xPufETH.burn.selector;
 
-//         bytes4[] memory xpufETHDAOselectors = new bytes4[](2);
-//         xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
-//         xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
+//         // bytes4[] memory xpufETHDAOselectors = new bytes4[](2);
+//         // xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
+//         // xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
 
 //         vm.startPrank(_broadcaster);
-//         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
-//         accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
-
+//         // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
+//         // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
 //         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-//             address(l1RewardManager), address(connext), address(pufferVault), address(pufferModuleManager)
+//             address(l1RewardManager), address(endpoint), address(pufferVault), address(pufferModuleManager)
 //         );
 //         (bool s,) = address(accessManager).call(cd);
-//         require(s, "failed setupAccess GenerateAccessManagerCalldata3");
+//         require(s, "failed setupAccess GenerateRewardManagerCalldata");
 
 //         vm.label(address(l1RewardManager), "L1RewardManager");
 
@@ -51,12 +51,14 @@
 //         vm.stopPrank();
 
 //         vm.startPrank(DAO);
-//         xpufETH.setLockbox(address(lockBox));
-//         xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
+//         // xpufETH.setLockbox(address(lockBox));
+//         // xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
 //         L1RewardManagerStorage.BridgeData memory bridgeData =
-//             L1RewardManagerStorage.BridgeData({ destinationDomainId: 2 });
-//         l1RewardManager.updateBridgeData(address(connext), bridgeData);
+//             L1RewardManagerStorage.BridgeData({ destinationDomainId: 2, endpoint: address(endpoint) });
+//         l1RewardManager.updateBridgeData(address(
+//             pufETHOFTAdapter
+//         ), bridgeData);
 
 //         vm.stopPrank();
 //         vm.deal(address(this), 300 ether);

@@ -510,8 +510,8 @@ abstract contract DeployerHelper is Script {
 
     function _getLayerZeroV2Endpoint() internal view returns (address) {
         if (block.chainid == mainnet) {
-            // https://etherscan.io/address/0x0000000000000000000000000000000000000001
-            return 0x0000000000000000000000000000000000000001;
+            // https://etherscan.io/address/0x1a44076050125825900e736c501f859c50fE728c
+            return 0x1a44076050125825900e736c501f859c50fE728c;
         }
 
         revert("LayerZeroV2Endpoint not available for this chain");

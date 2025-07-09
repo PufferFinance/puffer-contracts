@@ -1,6 +1,6 @@
 {
-  "name": "@layerzerolabs/oft-adapter-example",
-  "version": "0.3.9",
+  "name": "partners-layerzero",
+  "version": "0.0.1",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -57,12 +57,12 @@
     "eslint": "^8.55.0",
     "eslint-plugin-jest-extended": "~2.0.0",
     "ethers": "^5.7.2",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.6",
     "hardhat": "^2.22.10",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-deploy": "^0.12.1",
     "mocha": "^10.2.0",
     "prettier": "^3.2.5",
-    "solhint": "^4.1.1",
     "solidity-bytes-utils": "^0.8.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.4"

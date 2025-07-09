@@ -12,6 +12,8 @@ import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
+import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
 
 /**
  * @title DeployPufETHBridging
@@ -49,10 +51,10 @@ contract DeployPufETHBridging is BaseScript {
         // );
 
         // address everclearBridge = address(new ConnextMock());
+        address endpoint = 0x1a44076050125825900e736c501f859c50fE728c;
 
-        // We already have the oft deployed in the deployment script
-        address pufETHOFTAdapter = address(0x0000000000000000000000000000000000000001);
-        address pufETHOFT = address(0x0000000000000000000000000000000000000002);
+        address pufETHOFTAdapter = address(new pufETHAdapter(deployment.pufferVault, endpoint, _broadcaster));
+        address pufETHOFT = address(new pufETH("pufETH", "pufETH", endpoint, _broadcaster));
 
         address noImpl = address(new NoImplementation());
 

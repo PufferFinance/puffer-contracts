@@ -14,6 +14,8 @@ l2-contracts/out/*
 l2-contracts/cache/*
 partners/merkle-contracts/out/*
 partners/merkle-contracts/cache/*
+partners/layerzero/out/*
+partners/layerzero/cache/*
 **/lcov.info
 
 .DS_Store
