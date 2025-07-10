@@ -110,7 +110,7 @@ contract UnitTestHelper is Test, BaseScript {
     L2RewardManager public l2RewardManager;
     PufferRevenueDepositor public revenueDepositor;
     ConnextMock public connext;
-
+    PufferProtocol public pufferProtocolLogic;
     address public DAO = makeAddr("DAO");
     address public PAYMASTER = makeAddr("PUFFER_PAYMASTER"); // 0xA540f91Fb840381BCCf825a16A9fbDD0a19deFB1
     address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
@@ -220,7 +220,7 @@ contract UnitTestHelper is Test, BaseScript {
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
-
+        pufferProtocolLogic = PufferProtocol(payable(pufferDeployment.pufferProtocolLogic));
         // pufETH dependencies
         pufferVault = PufferVaultV5(payable(pufferDeployment.pufferVault));
         pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));
