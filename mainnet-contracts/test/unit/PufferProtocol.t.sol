@@ -119,14 +119,24 @@ contract PufferProtocolTest is UnitTestHelper {
 
     function test_immutables() public view {
         assertEq(address(pufferProtocol.PUFFER_VAULT()), address(pufferVault), "puffer vault address");
-        assertEq(pufferProtocol.PUFFER_REVENUE_DISTRIBUTOR(), address(revenueDepositor), "puffer revenue distributor address");
+        assertEq(
+            pufferProtocol.PUFFER_REVENUE_DISTRIBUTOR(), address(revenueDepositor), "puffer revenue distributor address"
+        );
         assertEq(address(pufferProtocol.PUFFER_ORACLE()), address(pufferOracle), "puffer oracle address");
-        assertEq(address(pufferProtocol.PUFFER_MODULE_MANAGER()), address(pufferModuleManager), "puffer module manager address");
+        assertEq(
+            address(pufferProtocol.PUFFER_MODULE_MANAGER()),
+            address(pufferModuleManager),
+            "puffer module manager address"
+        );
         assertEq(address(pufferProtocol.GUARDIAN_MODULE()), address(guardianModule), "puffer guardian module address");
         assertEq(address(pufferProtocol.VALIDATOR_TICKET()), address(validatorTicket), "validator ticket address");
         assertNotEq(address(pufferProtocol.BEACON_DEPOSIT_CONTRACT()), address(0), "beacon deposit contract address");
 
-        assertEq(address(pufferProtocol.getPufferProtocolLogic()), address(pufferProtocolLogic), "puffer protocol logic address");
+        assertEq(
+            address(pufferProtocol.getPufferProtocolLogic()),
+            address(pufferProtocolLogic),
+            "puffer protocol logic address"
+        );
     }
 
     // Register validator key

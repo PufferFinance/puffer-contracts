@@ -232,7 +232,7 @@ contract DeployPuffer is BaseScript {
             weth: address(0), // overwritten in DeployEverything
             revenueDepositor: address(0), // overwritten in DeployEverything
             pufferProtocolLogic: address(pufferProtocolLogic)
-         });
+        });
     }
 
     function getStakingContract() internal returns (address) {
