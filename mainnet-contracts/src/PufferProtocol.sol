@@ -5,26 +5,23 @@ import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
-import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
 import { WithdrawalType } from "./struct/WithdrawalType.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
-import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { PufferProtocolBase } from "./PufferProtocolBase.sol";
 import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
@@ -79,23 +76,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
-    function depositValidatorTickets(Permit calldata permit, address node) external restricted {
+    function depositValidatorTickets(address node, uint256 amount) external restricted {
         if (node == address(0)) {
             revert InvalidAddress();
         }
-        // owner: msg.sender is intentional
-        // We only want the owner of the Permit signature to be able to deposit using the signature
-        // For an invalid signature, the permit will revert, but it is wrapped in try/catch, meaning the transaction execution
-        // will continue. If the `msg.sender` did a `VALIDATOR_TICKET.approve(spender, amount)` before calling this
-        // And the spender is `msg.sender` the Permit call will revert, but the overall transaction will succeed
-        _callPermit(address(_VALIDATOR_TICKET), permit);
 
         // slither-disable-next-line unchecked-transfer
-        _VALIDATOR_TICKET.transferFrom(msg.sender, address(this), permit.amount);
+        _VALIDATOR_TICKET.transferFrom(msg.sender, address(this), amount);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        $.nodeOperatorInfo[node].deprecated_vtBalance += SafeCast.toUint96(permit.amount);
-        emit ValidatorTicketsDeposited(node, msg.sender, permit.amount);
+        $.nodeOperatorInfo[node].deprecated_vtBalance += SafeCast.toUint96(amount);
+        emit ValidatorTicketsDeposited(node, msg.sender, amount);
     }
 
     /**
@@ -590,18 +581,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _BEACON_DEPOSIT_CONTRACT.deposit{ value: numBatches * 32 ether }(
             validatorPubKey, module.getWithdrawalCredentials(), validatorSignature, depositDataRoot
         );
-    }
-
-    function _callPermit(address token, Permit calldata permitData) internal {
-        try IERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
     }
 
     function _setPufferProtocolLogic(address newPufferProtocolLogic) internal {

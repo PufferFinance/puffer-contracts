@@ -20,7 +20,6 @@ import {
     ROLE_ID_REVENUE_DEPOSITOR
 } from "../../script/Roles.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
-import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 import { NodeInfo } from "../../src/struct/NodeInfo.sol";
@@ -51,8 +50,6 @@ contract PufferProtocolTest is UnitTestHelper {
     bytes32 constant EIGEN_DA = bytes32("EIGEN_DA");
     bytes32 constant CRAZY_GAINS = bytes32("CRAZY_GAINS");
     bytes32 constant DEFAULT_DEPOSIT_ROOT = bytes32("depositRoot");
-
-    Permit emptyPermit;
 
     // 0.01 %
     uint256 pointZeroZeroOne = 0.0001e18;
@@ -554,8 +551,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // We deposit 10 VT for alice (legacy VT)
         deal(address(validatorTicket), address(this), 10 ether);
         validatorTicket.approve(address(pufferProtocol), 10 ether);
-        emptyPermit.amount = 10 ether;
-        pufferProtocol.depositValidatorTickets(emptyPermit, alice);
+        pufferProtocol.depositValidatorTickets(alice, 10 ether);
 
         vm.startPrank(alice);
 
@@ -676,8 +672,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(alice), 200 ether, "alice got 200 VT");
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 200 ether;
+        uint256 vtAmount = 200 ether;
 
         // Approve VT
         validatorTicket.approve(address(pufferProtocol), 2000 ether);
@@ -685,7 +680,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // Deposit for herself
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorTicketsDeposited(alice, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 200 ether, "protocol got 200 VT");
         assertEq(validatorTicket.balanceOf(address(alice)), 0, "alice got 0");
@@ -705,8 +700,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(alice), 1000 ether, "alice got 1000 VT");
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 200 ether;
+        uint256 vtAmount = 200 ether;
 
         // Approve VT
         validatorTicket.approve(address(pufferProtocol), 2000 ether);
@@ -714,90 +708,18 @@ contract PufferProtocolTest is UnitTestHelper {
         // Deposit for herself
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorTicketsDeposited(alice, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 200 ether, "protocol got 200 VT");
         assertEq(validatorTicket.balanceOf(address(alice)), 800 ether, "alice got 800");
         assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 200 ether, "alice got 200 VT in the protocol");
 
         // Perform a second deposit of 800 VT
-        vtPermit.amount = 800 ether;
-        pufferProtocol.depositValidatorTickets((vtPermit), alice);
+        vtAmount = 800 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
         assertEq(
             pufferProtocol.getValidatorTicketsBalance(alice), 1000 ether, "alice should have 1000 vt in the protocol"
         );
-    }
-
-    // Alice deposits VT for bob
-    function test_deposit_validator_tickets_permit_for_bob() public {
-        vm.deal(alice, 10 ether);
-
-        uint256 numberOfDays = 200;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        assertEq(validatorTicket.balanceOf(alice), 200 ether, "alice got 200 VT");
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
-
-        // Sign the permit
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        // Deposit for Bob
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-    }
-
-    // Alice double deposit VT for Bob
-    function test_double_deposit_validator_tickets_permit_for_bob() public {
-        vm.deal(alice, 1000 ether);
-
-        uint256 numberOfDays = 1000;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        assertEq(validatorTicket.balanceOf(alice), 1000 ether, "alice got 1000 VT");
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
-
-        // Sign the permit
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(200), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        // Deposit for Bob
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-        assertEq(validatorTicket.balanceOf(alice), 800 ether, "Alice still has 800 VTs left in wallet");
-
-        vm.startPrank(alice);
-        // Deposit for Bob again
-        Permit memory vtPermit2 = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(800), block.timestamp + 1000),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-        validatorTicket.approve(address(pufferProtocol), 800 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit2, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 1000 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-        assertEq(validatorTicket.balanceOf(alice), 0, "Alice has no more VTs");
     }
 
     function test_changeMinimumVTAmount() public {
@@ -1127,13 +1049,12 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerAndProvisionNode(bytes32("eve"), PUFFER_MODULE_0, eve);
 
         // Free VTS for everybody!!
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 100 ether;
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-        pufferProtocol.depositValidatorTickets(vtPermit, charlie);
-        pufferProtocol.depositValidatorTickets(vtPermit, dianna);
-        pufferProtocol.depositValidatorTickets(vtPermit, eve);
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
+        pufferProtocol.depositValidatorTickets(bob, vtAmount);
+        pufferProtocol.depositValidatorTickets(charlie, vtAmount);
+        pufferProtocol.depositValidatorTickets(dianna, vtAmount);
+        pufferProtocol.depositValidatorTickets(eve, vtAmount);
 
         uint256 deadline = block.timestamp + 1 days;
 
@@ -1263,9 +1184,8 @@ contract PufferProtocolTest is UnitTestHelper {
             pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "initial exchange rate is ~1:1"
         );
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 100 ether;
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         uint256 deadline = block.timestamp + 1 days;
 
@@ -1341,9 +1261,8 @@ contract PufferProtocolTest is UnitTestHelper {
             pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "initial exchange rate is ~1:1"
         );
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 100 ether;
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 100 ether, "100 VT in the protocol");
 
@@ -1883,13 +1802,12 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
         validatorTicket.purchaseValidatorTicket{ value: 10 ether }(alice);
 
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), 50 ether, block.timestamp), validatorTicket.DOMAIN_SEPARATOR()
-        );
+        uint256 vtAmount = 50 ether;
+        validatorTicket.approve(address(pufferProtocol), vtAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 50 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
+        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, vtAmount);
+        pufferProtocol.depositValidatorTickets(bob, vtAmount);
 
         vm.startPrank(bob);
         pufferProtocol.withdrawValidatorTickets(50 ether, bob);
@@ -2062,7 +1980,6 @@ contract PufferProtocolTest is UnitTestHelper {
             nodeOperator, epochsValidated, deadline, IPufferProtocol.registerValidatorKey.selector
         );
 
-        // Empty permit means that the node operator is paying with ETH for both bond & VT in the registration transaction
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
         pufferProtocol.registerValidatorKey{ value: amount }(
@@ -2175,7 +2092,7 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
         validatorTicket.purchaseValidatorTicket{ value: 1000 ether }(alice);
         validatorTicket.approve(address(pufferProtocol), type(uint256).max);
-        pufferProtocol.depositValidatorTickets(emptyPermit, alice);
+        pufferProtocol.depositValidatorTickets(alice, 0);
         vm.stopPrank();
     }
 
@@ -2188,7 +2105,7 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
         validatorTicket.purchaseValidatorTicket{ value: 1000 ether }(alice);
         validatorTicket.approve(address(pufferProtocol), type(uint256).max);
-        pufferProtocol.depositValidatorTickets(emptyPermit, alice);
+        pufferProtocol.depositValidatorTickets(alice, 0);
         vm.stopPrank();
     }
 }

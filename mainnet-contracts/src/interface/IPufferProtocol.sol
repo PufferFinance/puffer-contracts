@@ -202,7 +202,7 @@ interface IPufferProtocol {
      * @notice Deposits Validator Tickets for the `node`
      * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
-    function depositValidatorTickets(Permit calldata permit, address node) external;
+    function depositValidatorTickets(address node, uint256 vtAmount) external;
 
     /**
      * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`).
