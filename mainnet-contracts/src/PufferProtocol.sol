@@ -33,7 +33,13 @@ import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
  * @dev Upgradeable smart contract for the Puffer Protocol
  * Storage variables are located in PufferProtocolStorage.sol
  */
-contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolBase {
+contract PufferProtocol is
+    IPufferProtocolEvents,
+    IPufferProtocol,
+    AccessManagedUpgradeable,
+    UUPSUpgradeable,
+    PufferProtocolBase
+{
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
@@ -57,6 +63,20 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
     }
 
     receive() external payable { }
+
+    fallback() external payable {
+        (bool success, bytes memory returnData) = _getPufferProtocolStorage().pufferProtocolLogic.delegatecall(msg.data);
+
+        if (success) {
+            assembly {
+                return(add(returnData, 0x20), mload(returnData))
+            }
+        } else {
+            assembly {
+                revert(add(returnData, 0x20), mload(returnData))
+            }
+        }
+    }
 
     /**
      * @notice Initializes the contract
@@ -93,20 +113,6 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
     /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
-        external
-        payable
-        restricted
-    {
-        bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic.depositValidationTime.selector, epochsValidatedSignature);
-        _delegatecall(_getPufferProtocolStorage(), callData);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external restricted {
@@ -129,38 +135,6 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
         _VALIDATOR_TICKET.transfer(recipient, amount);
 
         emit ValidatorTicketsWithdrawn(msg.sender, recipient, amount);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function withdrawValidationTime(uint96 amount, address recipient) external restricted {
-        bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic.withdrawValidationTime.selector, amount, recipient);
-        _delegatecall(_getPufferProtocolStorage(), callData);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function registerValidatorKey(
-        ValidatorKeyData calldata data,
-        bytes32 moduleName,
-        uint256 totalEpochsValidated,
-        bytes[] calldata vtConsumptionSignature,
-        uint256 deadline
-    ) external payable restricted {
-        bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic.registerValidatorKey.selector,
-            data,
-            moduleName,
-            totalEpochsValidated,
-            vtConsumptionSignature,
-            deadline
-        );
-        _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
     /**
@@ -200,21 +174,6 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted to Node Operators
-     */
-    function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
-        external
-        payable
-        restricted
-    {
-        bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic.requestConsolidation.selector, moduleName, srcIndices, targetIndices
-        );
-        _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
     /**
@@ -267,31 +226,6 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
         }
 
         _PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted to Puffer Paymaster
-     */
-    function batchHandleWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures,
-        uint256 deadline
-    ) external restricted {
-        bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic.batchHandleWithdrawals.selector, validatorInfos, guardianEOASignatures, deadline
-        );
-        _delegatecall(_getPufferProtocolStorage(), callData);
-    }
-
-    /**
-     * @inheritdoc IPufferProtocol
-     * @dev Restricted to Puffer Paymaster
-     */
-    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external restricted {
-        bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic.skipProvisioning.selector, moduleName, guardianEOASignatures);
-        _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
     /**
@@ -592,17 +526,7 @@ contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManaged
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 
-    function _delegatecall(ProtocolStorage storage $, bytes memory callData) internal returns (bytes memory) {
-        (bool success, bytes memory result) = $.pufferProtocolLogic.delegatecall(callData);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
-        return result;
-    }
-
-    function getPufferProtocolLogic() external view returns (address) {
+    function getPufferProtocolLogic() external view override returns (address) {
         return _getPufferProtocolStorage().pufferProtocolLogic;
     }
 

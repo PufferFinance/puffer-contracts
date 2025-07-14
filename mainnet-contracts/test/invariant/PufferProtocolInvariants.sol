@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocolHandler } from "../handlers/PufferProtocolHandler.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
+import { PufferProtocol } from "../../src/PufferProtocol.sol";
 
 contract PufferProtocolInvariants is UnitTestHelper {
     PufferProtocolHandler handler;
@@ -11,7 +12,12 @@ contract PufferProtocolInvariants is UnitTestHelper {
         super.setUp();
 
         handler = new PufferProtocolHandler(
-            this, pufferVault, address(stETH), pufferProtocol, guardiansEnclavePks, _broadcaster
+            this,
+            pufferVault,
+            address(stETH),
+            PufferProtocol(payable(address(pufferProtocol))),
+            guardiansEnclavePks,
+            _broadcaster
         );
 
         // Set handler as a target contract for invariant test

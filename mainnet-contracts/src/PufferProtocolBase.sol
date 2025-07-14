@@ -157,8 +157,7 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
         IPufferProtocolLogic.registerValidatorKey.selector;
     bytes32 internal constant _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME =
         IPufferProtocolLogic.depositValidationTime.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL =
-        IPufferProtocol.requestWithdrawal.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
     bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
         IPufferProtocolLogic.batchHandleWithdrawals.selector;
 

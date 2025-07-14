@@ -494,7 +494,7 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 result = PufferProtocolMockUpgrade(payable(address(pufferVault))).returnSomething();
 
         PufferProtocolMockUpgrade newImplementation = new PufferProtocolMockUpgrade(address(beacon));
-        pufferProtocol.upgradeToAndCall(address(newImplementation), "");
+        PufferProtocol(payable(address(pufferProtocol))).upgradeToAndCall(address(newImplementation), "");
 
         result = PufferProtocolMockUpgrade(payable(address(pufferProtocol))).returnSomething();
 

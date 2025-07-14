@@ -38,6 +38,7 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { IPufferProtocolFull } from "../../src/interface/IPufferProtocolFull.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -90,7 +91,7 @@ contract UnitTestHelper is Test, BaseScript {
     stETHMock public stETH;
     IWETH public weth;
 
-    PufferProtocol public pufferProtocol;
+    IPufferProtocolFull public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public pufferModuleManager;
     ValidatorTicket public validatorTicket;
@@ -201,7 +202,7 @@ contract UnitTestHelper is Test, BaseScript {
 
         (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
 
-        pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
+        pufferProtocol = IPufferProtocolFull(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         timelock = pufferDeployment.timelock;
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);

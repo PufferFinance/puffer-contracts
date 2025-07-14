@@ -6,7 +6,6 @@ import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
 
 interface IPufferProtocolLogic {
-
     /**
      * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`).
      * Deposits Validation Time for the `node`. Validation Time is in native ETH.
@@ -60,7 +59,6 @@ interface IPufferProtocolLogic {
         external
         payable;
 
-
     /**
      * @notice Skips the next validator for `moduleName`
      * @param moduleName The name of the module
@@ -69,7 +67,6 @@ interface IPufferProtocolLogic {
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
-
 
     /**
      * @notice Batch settling of validator withdrawals

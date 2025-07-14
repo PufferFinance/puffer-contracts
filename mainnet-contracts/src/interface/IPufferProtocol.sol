@@ -23,7 +23,6 @@ import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol"
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
-
     /**
      * @notice Returns validator information
      * @param moduleName is the staking Module
@@ -88,7 +87,6 @@ interface IPufferProtocol {
         bytes[][] calldata validatorAmountsSignatures,
         uint256 deadline
     ) external payable;
-
 
     /**
      * @notice Returns the guardian module
@@ -180,7 +178,6 @@ interface IPufferProtocol {
      */
     function createPufferModule(bytes32 moduleName) external returns (address);
 
-
     /**
      * @notice Returns the pending validator index for `moduleName`
      */
@@ -215,6 +212,16 @@ interface IPufferProtocol {
      * @notice Returns the minimum amount of Epochs a validator needs to run
      */
     function getMinimumVtAmount() external view returns (uint256);
+
+    /**
+     * @notice Returns the Puffer Protocol Logic
+     */
+    function getPufferProtocolLogic() external view returns (address);
+
+    /**
+     * @notice Returns the validation time for the `owner`
+     */
+    function getValidationTime(address owner) external view returns (uint256);
 
     /**
      * @notice Reverts if the system is paused

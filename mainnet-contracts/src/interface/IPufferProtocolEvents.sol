@@ -153,5 +153,4 @@ interface IPufferProtocolEvents {
      * @dev Signature "0xe271f36954242c619ce9d0f727a7d3b5f4db04666752aaeb20bca6d52098792a"
      */
     event PufferProtocolLogicSet(address oldPufferProtocolLogic, address newPufferProtocolLogic);
-
 }

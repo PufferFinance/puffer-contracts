@@ -91,10 +91,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         }
 
         $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].validationTime += SafeCast.toUint96(msg.value);
-        emit ValidationTimeDeposited({
-            node: epochsValidatedSignature.nodeOperator,
-            ethAmount: msg.value
-        });
+        emit ValidationTimeDeposited({ node: epochsValidatedSignature.nodeOperator, ethAmount: msg.value });
     }
 
     /**
@@ -474,11 +471,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
                 // nosemgrep basic-arithmetic-underflow
                 $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
 
-                emit ValidationTimeConsumed({
-                    node: nodeOperator,
-                    consumedAmount: 0,
-                    deprecated_burntVTs: vtBurnAmount
-                });
+                emit ValidationTimeConsumed({ node: nodeOperator, consumedAmount: 0, deprecated_burntVTs: vtBurnAmount });
 
                 return vtAmountToBurn;
             }
@@ -617,9 +610,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
-        emit NumberOfRegisteredValidatorsChanged(
-            moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators
-        );
+        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
     }
 
     function _getBondBurnAmount(

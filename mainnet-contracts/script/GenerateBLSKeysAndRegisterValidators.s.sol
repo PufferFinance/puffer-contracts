@@ -157,7 +157,8 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
         uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
         bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
         address moduleAddress = IPufferProtocolFull(protocolAddress).getModuleAddress(moduleName);
-        bytes memory withdrawalCredentials = IPufferProtocolFull(protocolAddress).getWithdrawalCredentials(moduleAddress);
+        bytes memory withdrawalCredentials =
+            IPufferProtocolFull(protocolAddress).getWithdrawalCredentials(moduleAddress);
 
         string[] memory inputs = new string[](17);
         inputs[0] = "coral-cli";
