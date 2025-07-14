@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
+import { IPufferProtocolEvents } from "./interface/IPufferProtocolEvents.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -32,7 +33,7 @@ import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
  * @dev Upgradeable smart contract for the Puffer Protocol
  * Storage variables are located in PufferProtocolStorage.sol
  */
-contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolBase {
+contract PufferProtocol is IPufferProtocolEvents, IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolBase {
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
@@ -99,7 +100,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         restricted
     {
         bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic._depositValidationTime.selector, epochsValidatedSignature);
+            abi.encodeWithSelector(IPufferProtocolLogic.depositValidationTime.selector, epochsValidatedSignature);
         _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
@@ -136,7 +137,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function withdrawValidationTime(uint96 amount, address recipient) external restricted {
         bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic._withdrawValidationTime.selector, amount, recipient);
+            abi.encodeWithSelector(IPufferProtocolLogic.withdrawValidationTime.selector, amount, recipient);
         _delegatecall(_getPufferProtocolStorage(), callData);
     }
 
@@ -152,7 +153,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 deadline
     ) external payable restricted {
         bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic._registerValidatorKey.selector,
+            IPufferProtocolLogic.registerValidatorKey.selector,
             data,
             moduleName,
             totalEpochsValidated,
@@ -211,7 +212,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         restricted
     {
         bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic._requestConsolidation.selector, moduleName, srcIndices, targetIndices
+            IPufferProtocolLogic.requestConsolidation.selector, moduleName, srcIndices, targetIndices
         );
         _delegatecall(_getPufferProtocolStorage(), callData);
     }
@@ -278,7 +279,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 deadline
     ) external restricted {
         bytes memory callData = abi.encodeWithSelector(
-            IPufferProtocolLogic._batchHandleWithdrawals.selector, validatorInfos, guardianEOASignatures, deadline
+            IPufferProtocolLogic.batchHandleWithdrawals.selector, validatorInfos, guardianEOASignatures, deadline
         );
         _delegatecall(_getPufferProtocolStorage(), callData);
     }
@@ -289,7 +290,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external restricted {
         bytes memory callData =
-            abi.encodeWithSelector(IPufferProtocolLogic._skipProvisioning.selector, moduleName, guardianEOASignatures);
+            abi.encodeWithSelector(IPufferProtocolLogic.skipProvisioning.selector, moduleName, guardianEOASignatures);
         _delegatecall(_getPufferProtocolStorage(), callData);
     }
 

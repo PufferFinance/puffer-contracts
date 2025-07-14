@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { Permit } from "../src/structs/Permit.sol";
 import { ValidatorKeyData } from "../src/struct/ValidatorKeyData.sol";
-import { IPufferProtocol } from "../src/interface/IPufferProtocol.sol";
+import { IPufferProtocolFull } from "../src/interface/IPufferProtocolFull.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
@@ -107,7 +107,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 numBatches: 1
             });
 
-            IPufferProtocol(protocolAddress).registerValidatorKey(
+            IPufferProtocolFull(protocolAddress).registerValidatorKey(
                 validatorData, moduleName, 0, new bytes[](0), block.timestamp + SIGNATURE_VALIDITY_PERIOD
             );
 
@@ -156,8 +156,8 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
         uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
         bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
-        address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
-        bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
+        address moduleAddress = IPufferProtocolFull(protocolAddress).getModuleAddress(moduleName);
+        bytes memory withdrawalCredentials = IPufferProtocolFull(protocolAddress).getWithdrawalCredentials(moduleAddress);
 
         string[] memory inputs = new string[](17);
         inputs[0] = "coral-cli";

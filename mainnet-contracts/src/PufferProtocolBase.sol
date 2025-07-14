@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
+import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 import { Status } from "./struct/Status.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
@@ -11,8 +12,9 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ProtocolSignatureNonces } from "./ProtocolSignatureNonces.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
+import { IPufferProtocolEvents } from "./interface/IPufferProtocolEvents.sol";
 
-abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignatureNonces {
+abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignatureNonces, IPufferProtocolEvents {
     /**
      * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
      */
@@ -151,12 +153,14 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
      */
     uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
 
-    bytes32 internal constant _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY = IPufferProtocol.registerValidatorKey.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY =
+        IPufferProtocolLogic.registerValidatorKey.selector;
     bytes32 internal constant _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME =
-        IPufferProtocol.depositValidationTime.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
+        IPufferProtocolLogic.depositValidationTime.selector;
+    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL =
+        IPufferProtocol.requestWithdrawal.selector;
     bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
-        IPufferProtocol.batchHandleWithdrawals.selector;
+        IPufferProtocolLogic.batchHandleWithdrawals.selector;
 
     IGuardianModule internal immutable _GUARDIAN_MODULE;
 

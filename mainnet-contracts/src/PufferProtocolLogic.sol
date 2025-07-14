@@ -63,7 +63,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
      * @notice Check IPufferProtocol.depositValidationTime
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
+    function depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
         external
         payable
         override
@@ -91,7 +91,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         }
 
         $.nodeOperatorInfo[epochsValidatedSignature.nodeOperator].validationTime += SafeCast.toUint96(msg.value);
-        emit IPufferProtocol.ValidationTimeDeposited({
+        emit ValidationTimeDeposited({
             node: epochsValidatedSignature.nodeOperator,
             ethAmount: msg.value
         });
@@ -101,7 +101,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
      * @notice Check IPufferProtocol.withdrawValidationTime
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _withdrawValidationTime(uint96 amount, address recipient) external override {
+    function withdrawValidationTime(uint96 amount, address recipient) external override {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Node operator can only withdraw if they have no active or pending validators
@@ -123,14 +123,14 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         // Transfer WETH to the recipient
         ERC20(weth).transfer(recipient, amount);
 
-        emit IPufferProtocol.ValidationTimeWithdrawn(msg.sender, recipient, amount);
+        emit ValidationTimeWithdrawn(msg.sender, recipient, amount);
     }
 
     /**
      * @notice Check IPufferProtocol.registerValidatorKey
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _registerValidatorKey(
+    function registerValidatorKey(
         ValidatorKeyData calldata data,
         bytes32 moduleName,
         uint256 totalEpochsValidated,
@@ -156,7 +156,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
         require(msg.value >= minimumETHRequired, InvalidETHAmount());
 
-        emit IPufferProtocol.ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - bondAmountEth) });
+        emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - bondAmountEth) });
 
         _settleVTAccounting({
             $: $,
@@ -194,11 +194,11 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
         }
 
-        emit IPufferProtocol.NumberOfRegisteredValidatorsChanged({
+        emit NumberOfRegisteredValidatorsChanged({
             moduleName: moduleName,
             newNumberOfRegisteredValidators: $.moduleLimits[moduleName].numberOfRegisteredValidators
         });
-        emit IPufferProtocol.ValidatorKeyRegistered({
+        emit ValidatorKeyRegistered({
             pubKey: data.blsPubKey,
             pufferModuleIndex: pufferModuleIndex,
             moduleName: moduleName,
@@ -209,7 +209,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     /**
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
+    function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
         external
         payable
         override
@@ -246,14 +246,14 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
         $.modules[moduleName].requestConsolidation{ value: msg.value }(srcPubkeys, targetPubkeys);
 
-        emit IPufferProtocol.ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
+        emit ConsolidationRequested(moduleName, srcPubkeys, targetPubkeys);
     }
 
     /**
      * @notice Check IPufferProtocol.skipProvisioning
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external override {
+    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external override {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
@@ -284,14 +284,14 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
-        emit IPufferProtocol.ValidatorSkipped($.validators[moduleName][skippedIndex].pubKey, skippedIndex, moduleName);
+        emit ValidatorSkipped($.validators[moduleName][skippedIndex].pubKey, skippedIndex, moduleName);
     }
 
     /**
      * @notice Check IPufferProtocol.batchHandleWithdrawals
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
-    function _batchHandleWithdrawals(
+    function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,
         bytes[] calldata guardianEOASignatures,
         uint256 deadline
@@ -370,7 +370,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         // Deduct 32 ETH per batch from the `lockedETHAmount` on the PufferOracle
         _PUFFER_ORACLE.exitValidators(numExitedBatches);
 
-        _batchHandleWithdrawalsAccounting(bondWithdrawals, validatorInfos);
+        batchHandleWithdrawalsAccounting(bondWithdrawals, validatorInfos);
     }
 
     /**
@@ -420,7 +420,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         $.nodeOperatorInfo[node].totalEpochsValidated = epochsValidatedSignature.totalEpochsValidated;
         $.nodeOperatorInfo[node].validationTime -= validationTimeToConsume;
 
-        emit IPufferProtocol.ValidationTimeConsumed({
+        emit ValidationTimeConsumed({
             node: node,
             consumedAmount: validationTimeToConsume,
             deprecated_burntVTs: deprecated_burntVTs
@@ -474,7 +474,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
                 // nosemgrep basic-arithmetic-underflow
                 $.nodeOperatorInfo[nodeOperator].deprecated_vtBalance -= SafeCast.toUint96(vtBurnAmount);
 
-                emit IPufferProtocol.ValidationTimeConsumed({
+                emit ValidationTimeConsumed({
                     node: nodeOperator,
                     consumedAmount: 0,
                     deprecated_burntVTs: vtBurnAmount
@@ -508,7 +508,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         return validatedEpochs * 4444444444444445;
     }
 
-    function _batchHandleWithdrawalsAccounting(
+    function batchHandleWithdrawalsAccounting(
         Withdrawals[] memory bondWithdrawals,
         StoppedValidatorInfo[] calldata validatorInfos
     ) internal {
@@ -559,7 +559,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         require(exitingBond >= burnAmount, InvalidWithdrawAmount());
         exitingBond -= burnAmount;
 
-        emit IPufferProtocol.ValidatorDownsized({
+        emit ValidatorDownsized({
             pubKey: validator.pubKey,
             pufferModuleIndex: validatorInfo.pufferModuleIndex,
             moduleName: validatorInfo.moduleName,
@@ -592,7 +592,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             numBatches: validator.numBatches
         });
 
-        emit IPufferProtocol.ValidatorExited({
+        emit ValidatorExited({
             pubKey: validator.pubKey,
             pufferModuleIndex: validatorInfo.pufferModuleIndex,
             moduleName: validatorInfo.moduleName,
@@ -617,7 +617,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
         --$.moduleLimits[moduleName].numberOfRegisteredValidators;
-        emit IPufferProtocol.NumberOfRegisteredValidatorsChanged(
+        emit NumberOfRegisteredValidatorsChanged(
             moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators
         );
     }
