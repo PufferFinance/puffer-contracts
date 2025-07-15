@@ -7,3 +7,4 @@ forge-std/=node_modules/forge-std/src/
 @layerzerolabs/lz-evm-messagelib-v2/=node_modules/@layerzerolabs/lz-evm-messagelib-v2/
 @layerzerolabs/oapp-evm/=node_modules/@layerzerolabs/oapp-evm/
 @layerzerolabs/lz-evm-v1-0.7/=node_modules/@layerzerolabs/lz-evm-v1-0.7/
+solidity-bytes-utils/=node_modules/solidity-bytes-utils/

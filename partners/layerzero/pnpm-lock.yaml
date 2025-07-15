@@ -117,12 +117,6 @@ devDependencies:
   prettier:
     specifier: ^3.2.5
     version: 3.6.2
-  solarray:
-    specifier: github:evmcheb/solarray#a547630
-    version: github.com/evmcheb/solarray/a547630
-  solhint:
-    specifier: ^5.0.1
-    version: 5.2.0(typescript@5.8.3)
   solidity-bytes-utils:
     specifier: ^0.8.2
     version: 0.8.4
@@ -841,11 +835,6 @@ packages:
   /@humanwhocodes/module-importer@1.0.1:
     resolution: {integrity: sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==}
     engines: {node: '>=12.22'}
-    dev: true
-
-  /@humanwhocodes/momoa@2.0.4:
-    resolution: {integrity: sha512-RE815I4arJFtt+FVeU1Tgp9/Xvecacji8w/V6XtXsWWH/wz/eNkNbhb+ny/+PlVZjV0rxQpRSQKNKE3lcktHEA==}
-    engines: {node: '>=10.10.0'}
     dev: true
 
   /@humanwhocodes/object-schema@2.0.3:
@@ -2493,14 +2482,6 @@ packages:
       indent-string: 4.0.0
     dev: true
 
-  /ajv-errors@1.0.1(ajv@6.12.6):
-    resolution: {integrity: sha512-DCRfO/4nQ+89p/RK43i8Ezd41EqdGIU4ld7nGF8OQ14oc/we5rEntLCUa7+jrn3nn83BosfwZA0wb4pon2o8iQ==}
-    peerDependencies:
-      ajv: '>=5.0.0'
-    dependencies:
-      ajv: 6.12.6
-    dev: true
-
   /ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
     dependencies:
@@ -2759,20 +2740,6 @@ packages:
 
   /bech32@1.1.4:
     resolution: {integrity: sha512-s0IrSOzLlbvX7yp4WBfPITzpAU8sqQcpsmwXDiKwrG4r491vwCO/XpejasRNl0piBMe/DvP4Tz0mIS/X1DPJBQ==}
-    dev: true
-
-  /better-ajv-errors@2.0.2(ajv@6.12.6):
-    resolution: {integrity: sha512-1cLrJXEq46n0hjV8dDYwg9LKYjDb3KbeW7nZTv4kvfoDD9c2DXHIE31nxM+Y/cIfXMggLUfmxbm6h/JoM/yotA==}
-    engines: {node: '>= 18.20.6'}
-    peerDependencies:
-      ajv: 4.11.8 - 8
-    dependencies:
-      '@babel/code-frame': 7.27.1
-      '@humanwhocodes/momoa': 2.0.4
-      ajv: 6.12.6
-      chalk: 4.1.2
-      jsonpointer: 5.0.1
-      leven: 3.1.0
     dev: true
 
   /bignumber.js@9.3.0:
@@ -4579,15 +4546,6 @@ packages:
       universalify: 2.0.1
     dev: true
 
-  /fs-extra@11.3.0:
-    resolution: {integrity: sha512-Z4XaCL6dUDHfP/jT25jJKMmtxvuwbkrD1vNSMFlo9lNLY2c5FHYSQgHPRZUjAB26TpDEoW9HCOgplrdbaPV/ew==}
-    engines: {node: '>=14.14'}
-    dependencies:
-      graceful-fs: 4.2.11
-      jsonfile: 6.1.0
-      universalify: 2.0.1
-    dev: true
-
   /fs-extra@4.0.3:
     resolution: {integrity: sha512-q6rbdDd1o2mAnQreO7YADIxf/Whx4AHBiRf6d+/cVT8h44ss+lHgxf1FemcqDnQt9X3ct4McHr+JMGlYSsK7Cg==}
     dependencies:
@@ -5635,11 +5593,6 @@ packages:
       graceful-fs: 4.2.11
     dev: true
 
-  /jsonpointer@5.0.1:
-    resolution: {integrity: sha512-p/nXbhSEcu3pZRdkW1OfJhpsVtW1gd4Wa1fnQc9YLiTfAjn0312eMKimbdIQzuZl9aa9xUGaRlP9T/CJE/ditQ==}
-    engines: {node: '>=0.10.0'}
-    dev: true
-
   /jsprim@1.4.2:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
@@ -5680,11 +5633,6 @@ packages:
     engines: {node: '>=14.16'}
     dependencies:
       package-json: 8.1.1
-    dev: true
-
-  /leven@3.1.0:
-    resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
-    engines: {node: '>=6'}
     dev: true
 
   /levn@0.4.1:
@@ -7198,37 +7146,6 @@ packages:
       - typescript
     dev: true
 
-  /solhint@5.2.0(typescript@5.8.3):
-    resolution: {integrity: sha512-9NZC1zt+O2K7zEZOhTT9rFeB6GdxC6qTX5pWX70RaQoflR9RejJQUC+/19LNi+e7K9Ptb4k7XAWO9wY5mkprHg==}
-    hasBin: true
-    dependencies:
-      '@solidity-parser/parser': 0.20.1
-      ajv: 6.12.6
-      ajv-errors: 1.0.1(ajv@6.12.6)
-      antlr4: 4.13.2
-      ast-parents: 0.0.1
-      better-ajv-errors: 2.0.2(ajv@6.12.6)
-      chalk: 4.1.2
-      commander: 10.0.1
-      cosmiconfig: 8.3.6(typescript@5.8.3)
-      fast-diff: 1.3.0
-      fs-extra: 11.3.0
-      glob: 8.1.0
-      ignore: 5.3.2
-      js-yaml: 4.1.0
-      latest-version: 7.0.0
-      lodash: 4.17.21
-      pluralize: 8.0.0
-      semver: 7.7.2
-      strip-ansi: 6.0.1
-      table: 6.9.0
-      text-table: 0.2.0
-    optionalDependencies:
-      prettier: 2.8.8
-    transitivePeerDependencies:
-      - typescript
-    dev: true
-
   /solidity-bytes-utils@0.8.4:
     resolution: {integrity: sha512-/bjac5YR12i0plOKvGlhE51F5IWGP6rI8DJetCQlXcnwKWz/Hgf/vr+Qlk1BWz56xVcwVhmhCaDkTMnx5xvt0g==}
     dev: true
@@ -8508,12 +8425,6 @@ packages:
 
   /zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-    dev: true
-
-  github.com/evmcheb/solarray/a547630:
-    resolution: {tarball: https://codeload.github.com/evmcheb/solarray/tar.gz/a547630}
-    name: solarray
-    version: 1.0.0
     dev: true
 
   github.com/foundry-rs/forge-std/3b20d60d14b343ee4f908cb8079495c07f5e8981:

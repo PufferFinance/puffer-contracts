@@ -22,6 +22,23 @@ cd layerzero-bridge-scripts
 pnpm install
 ```
 
+### Seting up the new chain
+
+#### If adding a new contract for bridging:
+1. Add the contract to `contracts/`
+2. Update the token address in `deploy/MyOFTAdapter.ts`   
+```
+args: [
+    '0x<BASE_TOKEN_ADDRESS>', // the basetoken address
+    endpointV2Deployment.address, // LayerZero's EndpointV2 address
+    deployer, // owner
+],
+```
+
+#### If adding a new chain for bridging:
+ 1. Add the chain info to `hardhat.config.ts`
+ 2. Add the chain mappings to `<TOKEN_NAME>.simple.config.ts`
+
 #### Compiling your contracts
 
 This project supports both `hardhat` and `forge` compilation. By default, the `compile` command will execute both:
@@ -44,6 +61,30 @@ Or adjust the `package.json` to for example remove `forge` build:
 - "compile:forge": "forge build",
 - "compile:hardhat": "hardhat compile",
 + "compile": "hardhat compile"
+```
+
+### Deploying the contracts
+
+```bash
+npx hardhat lz:deploy   n    # choose the network you want to deploy to
+```
+
+You will be presented with a list of networks to deploy to.
+
+Fund your deployer with native gas tokens beforehand.
+
+#### Wire the contracts
+
+Run the following command to wire the contracts:
+```bash
+npx hardhat lz:oapp:wire --oapp-config <TOKEN_NAME>.simple.config.ts
+```
+
+#### Verify the connections
+
+Run to verify the connections:
+```bash
+npx hardhat lz:oapp:peers:get --oapp-config <TOKEN_NAME>.simple.config.ts
 ```
 
 ## 3) Using the Bridge
