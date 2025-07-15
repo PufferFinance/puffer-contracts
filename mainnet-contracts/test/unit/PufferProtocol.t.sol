@@ -27,9 +27,11 @@ import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 import { NodeInfo } from "../../src/struct/NodeInfo.sol";
 import { EpochsValidatedSignature } from "../../src/struct/Signatures.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     /**
      * @dev New bond is reduced from 2 to 1.5 ETH
@@ -1878,7 +1880,7 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 nonce = pufferProtocol.nonces(funcSelector, node);
 
         bytes32 digest =
-            LibGuardianMessages._getTotalEpochsValidatedMessage(node, validatedEpochsTotal, nonce, deadline);
+            _getTotalEpochsValidatedMessage(node, validatedEpochsTotal, nonce, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -2132,6 +2134,15 @@ contract PufferProtocolTest is UnitTestHelper {
         validatorTicket.approve(address(pufferProtocol), type(uint256).max);
         pufferProtocol.depositValidatorTickets(alice, 0);
         vm.stopPrank();
+    }
+
+    function _getTotalEpochsValidatedMessage(
+        address node,
+        uint256 totalEpochsValidated,
+        uint256 nonce,
+        uint256 deadline
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(node, totalEpochsValidated, nonce, deadline)).toEthSignedMessageHash();
     }
 }
 

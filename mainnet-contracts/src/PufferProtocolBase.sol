@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 import { Status } from "./struct/Status.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";

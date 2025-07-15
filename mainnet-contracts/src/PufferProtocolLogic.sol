@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ProtocolStorage } from "./struct/ProtocolStorage.sol";
 import { Validator } from "./struct/Validator.sol";
 import { Status } from "./struct/Validator.sol";
@@ -17,9 +18,11 @@ import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
-import { InvalidAddress } from "./Errors.sol";
+import { InvalidAddress, Unauthorized } from "./Errors.sol";
 
 contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
+    using MessageHashUtils for bytes32;
+
     /**
      * @dev Helper struct for the full withdrawals accounting
      * The amounts of VT and pufETH to burn at the end of the withdrawal
@@ -297,7 +300,11 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             revert DeadlineExceeded();
         }
 
-        _GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures, deadline);
+        bytes32 messageHash = keccak256(abi.encode(validatorInfos, deadline)).toEthSignedMessageHash();
+        bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(guardianEOASignatures, messageHash);
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -391,13 +398,13 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             return;
         }
 
-        _GUARDIAN_MODULE.validateTotalEpochsValidated({
-            node: node,
-            totalEpochsValidated: epochsValidatedSignature.totalEpochsValidated,
-            nonce: _useNonce(epochsValidatedSignature.functionSelector, node),
-            deadline: epochsValidatedSignature.deadline,
-            guardianEOASignatures: epochsValidatedSignature.signatures
-        });
+        bytes32 messageHash = keccak256(abi.encode(node, epochsValidatedSignature.totalEpochsValidated, _useNonce(epochsValidatedSignature.functionSelector, node), epochsValidatedSignature.deadline)).toEthSignedMessageHash();
+
+        bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(epochsValidatedSignature.signatures, messageHash);
+
+        if (!validSignatures) {
+            revert Unauthorized();
+        }
 
         uint256 epochCurrentPrice = _PUFFER_ORACLE.getValidatorTicketPrice();
 

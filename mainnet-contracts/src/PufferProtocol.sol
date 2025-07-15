@@ -2,11 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IPufferProtocolEvents } from "./interface/IPufferProtocolEvents.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
@@ -19,7 +19,7 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
-import { InvalidAddress } from "./Errors.sol";
+import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
@@ -34,12 +34,13 @@ import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
  * Storage variables are located in PufferProtocolStorage.sol
  */
 contract PufferProtocol is
-    IPufferProtocolEvents,
     IPufferProtocol,
     AccessManagedUpgradeable,
     UUPSUpgradeable,
     PufferProtocolBase
 {
+    using MessageHashUtils for bytes32;
+
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
@@ -220,14 +221,13 @@ contract PufferProtocol is
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
 
-                _GUARDIAN_MODULE.validateWithdrawalRequest({
-                    node: msg.sender,
-                    pubKey: pubkeys[i],
-                    gweiAmount: gweiAmounts[i],
-                    nonce: _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender),
-                    deadline: deadline,
-                    guardianEOASignatures: validatorAmountsSignatures[i]
-                });
+                // bytes32 messageHash = keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender), deadline)).toEthSignedMessageHash();
+                bytes32 messageHash = keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender), deadline)).toEthSignedMessageHash();
+                bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(validatorAmountsSignatures[i], messageHash);
+                if (!validSignatures) {
+                    revert Unauthorized();
+                }
+
             }
         }
 
