@@ -1879,8 +1879,7 @@ contract PufferProtocolTest is UnitTestHelper {
     ) internal view returns (bytes[] memory) {
         uint256 nonce = pufferProtocol.nonces(funcSelector, node);
 
-        bytes32 digest =
-            _getTotalEpochsValidatedMessage(node, validatedEpochsTotal, nonce, deadline);
+        bytes32 digest = _getTotalEpochsValidatedMessage(node, validatedEpochsTotal, nonce, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.

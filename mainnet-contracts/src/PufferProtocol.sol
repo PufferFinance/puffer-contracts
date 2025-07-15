@@ -33,12 +33,7 @@ import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
  * @dev Upgradeable smart contract for the Puffer Protocol
  * Storage variables are located in PufferProtocolStorage.sol
  */
-contract PufferProtocol is
-    IPufferProtocol,
-    AccessManagedUpgradeable,
-    UUPSUpgradeable,
-    PufferProtocolBase
-{
+contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolBase {
     using MessageHashUtils for bytes32;
 
     constructor(
@@ -222,12 +217,20 @@ contract PufferProtocol is
                 // If downsize or rewards withdrawal, backend needs to validate the amount
 
                 // bytes32 messageHash = keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender), deadline)).toEthSignedMessageHash();
-                bytes32 messageHash = keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender), deadline)).toEthSignedMessageHash();
-                bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(validatorAmountsSignatures[i], messageHash);
+                bytes32 messageHash = keccak256(
+                    abi.encode(
+                        msg.sender,
+                        pubkeys[i],
+                        gweiAmounts[i],
+                        _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender),
+                        deadline
+                    )
+                ).toEthSignedMessageHash();
+                bool validSignatures =
+                    _GUARDIAN_MODULE.validateGuardiansEOASignatures(validatorAmountsSignatures[i], messageHash);
                 if (!validSignatures) {
                     revert Unauthorized();
                 }
-
             }
         }
 

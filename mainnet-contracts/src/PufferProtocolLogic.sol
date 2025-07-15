@@ -398,9 +398,17 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             return;
         }
 
-        bytes32 messageHash = keccak256(abi.encode(node, epochsValidatedSignature.totalEpochsValidated, _useNonce(epochsValidatedSignature.functionSelector, node), epochsValidatedSignature.deadline)).toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(
+            abi.encode(
+                node,
+                epochsValidatedSignature.totalEpochsValidated,
+                _useNonce(epochsValidatedSignature.functionSelector, node),
+                epochsValidatedSignature.deadline
+            )
+        ).toEthSignedMessageHash();
 
-        bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(epochsValidatedSignature.signatures, messageHash);
+        bool validSignatures =
+            _GUARDIAN_MODULE.validateGuardiansEOASignatures(epochsValidatedSignature.signatures, messageHash);
 
         if (!validSignatures) {
             revert Unauthorized();
