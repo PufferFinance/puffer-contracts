@@ -18,8 +18,15 @@ import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
-import { InvalidAddress, Unauthorized } from "./Errors.sol";
+import { InvalidAddress, Unauthorized, InvalidAmount } from "./Errors.sol";
 
+/**
+ * @title PufferProtocolLogic
+ * @author Puffer Finance
+ * @notice This contract contains part of the logic for the Puffer Protocol
+ * @dev The functions in this contract are called by the PufferProtocol contract via delegatecall,
+ *      therefore using PufferProtocol's storage
+ */
 contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     using MessageHashUtils for bytes32;
 
@@ -102,6 +109,8 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
     function withdrawValidationTime(uint96 amount, address recipient) external override {
+        require(recipient != address(0), InvalidAddress());
+        require(amount > 0, InvalidAmount());
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Node operator can only withdraw if they have no active or pending validators

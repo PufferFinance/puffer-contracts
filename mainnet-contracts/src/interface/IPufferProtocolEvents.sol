@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+/**
+ * @title IPufferProtocolEvents
+ * @author Puffer Finance
+ * @notice This interface contains the events emitted by the PufferProtocol contract
+ */
 interface IPufferProtocolEvents {
     /**
      * @notice Emitted when the number of active validators changes

@@ -5,6 +5,11 @@ import { EpochsValidatedSignature } from "../struct/Signatures.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
 
+/**
+ * @title IPufferProtocolLogic
+ * @author Puffer Finance
+ * @notice This interface contains the functions that are implemented by the PufferProtocolLogic contract
+ */
 interface IPufferProtocolLogic {
     /**
      * @notice New function that allows anybody to deposit ETH for a node operator (use this instead of `depositValidatorTickets`).

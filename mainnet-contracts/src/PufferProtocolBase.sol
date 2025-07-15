@@ -12,6 +12,12 @@ import { ProtocolSignatureNonces } from "./ProtocolSignatureNonces.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { IPufferProtocolEvents } from "./interface/IPufferProtocolEvents.sol";
 
+/**
+ * @title PufferProtocolBase
+ * @author Puffer Finance
+ * @notice This abstract contract contains constants, immutable variables, events and errors for the Puffer Protocol contract
+ *          and the PufferProtocolLogic contract. Both of these contracts inherit from this one.
+ */
 abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignatureNonces, IPufferProtocolEvents {
     /**
      * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract

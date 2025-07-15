@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+/**
+ * @title IPufferProtocolManagement
+ * @author Puffer Finance
+ * @notice This interface contains the functions that are restricted to the DAO
+ */
 interface IPufferProtocolManagement {
     /**
      * @dev Restricted to the DAO
