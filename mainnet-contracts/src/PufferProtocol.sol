@@ -218,7 +218,7 @@ contract PufferProtocol is
                     node: msg.sender,
                     pubKey: pubkeys[i],
                     gweiAmount: gweiAmounts[i],
-                    nonce: _useNonce(_FUNCTION_SELECTOR_REQUEST_WITHDRAWAL, msg.sender),
+                    nonce: _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender),
                     deadline: deadline,
                     guardianEOASignatures: validatorAmountsSignatures[i]
                 });

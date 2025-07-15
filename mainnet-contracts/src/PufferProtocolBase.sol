@@ -153,14 +153,6 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
      */
     uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
 
-    bytes32 internal constant _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY =
-        IPufferProtocolLogic.registerValidatorKey.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME =
-        IPufferProtocolLogic.depositValidationTime.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_REQUEST_WITHDRAWAL = IPufferProtocol.requestWithdrawal.selector;
-    bytes32 internal constant _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS =
-        IPufferProtocolLogic.batchHandleWithdrawals.selector;
-
     IGuardianModule internal immutable _GUARDIAN_MODULE;
 
     ValidatorTicket internal immutable _VALIDATOR_TICKET;

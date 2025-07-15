@@ -82,7 +82,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             InvalidETHAmount()
         );
 
-        epochsValidatedSignature.functionSelector = _FUNCTION_SELECTOR_DEPOSIT_VALIDATION_TIME;
+        epochsValidatedSignature.functionSelector = IPufferProtocolLogic.depositValidationTime.selector;
 
         uint256 burnAmount = _useVTOrValidationTime($, epochsValidatedSignature);
 
@@ -160,7 +160,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             epochsValidatedSignature: EpochsValidatedSignature({
                 nodeOperator: msg.sender,
                 totalEpochsValidated: totalEpochsValidated,
-                functionSelector: _FUNCTION_SELECTOR_REGISTER_VALIDATOR_KEY,
+                functionSelector: IPufferProtocolLogic.registerValidatorKey.selector,
                 deadline: deadline,
                 signatures: vtConsumptionSignature
             }),
@@ -329,7 +329,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
                     EpochsValidatedSignature({
                         nodeOperator: bondWithdrawals[i].node,
                         totalEpochsValidated: epochValidated,
-                        functionSelector: _FUNCTION_SELECTOR_BATCH_HANDLE_WITHDRAWALS,
+                        functionSelector: IPufferProtocolLogic.batchHandleWithdrawals.selector,
                         deadline: deadline,
                         signatures: vtConsumptionSignature
                     })
