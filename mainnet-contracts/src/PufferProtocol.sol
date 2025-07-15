@@ -64,6 +64,12 @@ contract PufferProtocol is
 
     receive() external payable { }
 
+    /**
+     * @notice Fallback function to delegatecall the Puffer Protocol Logic
+     * @dev If a function selector is not found in this contract, it will delegatecall the Puffer Protocol Logic.
+     *      This is done to be able to call functions from the Puffer Protocol Logic contract without having to
+     *      declare them in this contract as well, manually forwarding them to the Puffer Protocol Logic contract.
+     */
     fallback() external payable {
         (bool success, bytes memory returnData) = _getPufferProtocolStorage().pufferProtocolLogic.delegatecall(msg.data);
 
