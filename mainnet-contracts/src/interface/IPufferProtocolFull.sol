@@ -7,7 +7,6 @@ import { IPufferProtocolEvents } from "./IPufferProtocolEvents.sol";
 import { IPufferProtocolManagement } from "./IPufferProtocolManagement.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
-
 /**
  * @title IPufferProtocolFull
  * @author Puffer Finance
@@ -21,7 +20,6 @@ interface IPufferProtocolFull is
     IPufferProtocolManagement,
     IAccessManaged
 {
-
     /**
      * @notice Returns the next unused nonce for an address in a specific function context.
      * @dev Check ProtocolSignatureNonces.sol for more details
