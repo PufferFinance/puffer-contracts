@@ -23,6 +23,7 @@ import { InvalidAddress, Unauthorized, InvalidAmount } from "./Errors.sol";
 /**
  * @title PufferProtocolLogic
  * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
  * @notice This contract contains part of the logic for the Puffer Protocol
  * @dev The functions in this contract are called by the PufferProtocol contract via delegatecall,
  *      therefore using PufferProtocol's storage
