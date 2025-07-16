@@ -212,7 +212,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
                 // If downsize or rewards withdrawal, backend needs to validate the amount
 
-                // bytes32 messageHash = keccak256(abi.encode(msg.sender, pubkeys[i], gweiAmounts[i], _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender), deadline)).toEthSignedMessageHash();
                 bytes32 messageHash = keccak256(
                     abi.encode(
                         msg.sender,
