@@ -18,7 +18,7 @@ import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
-import { Unauthorized, InvalidAddress } from "./Errors.sol";
+import { InvalidAddress } from "./Errors.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { PufferProtocolBase } from "./PufferProtocolBase.sol";
 
@@ -80,9 +80,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Initializes the contract
      */
     function initialize(address accessManager, address pufferProtocolLogic) external initializer {
-        if (address(accessManager) == address(0)) {
-            revert InvalidAddress();
-        }
+        require(address(accessManager) != address(0), InvalidAddress());
         __AccessManaged_init(accessManager);
         _createPufferModule(_PUFFER_MODULE_0);
         _changeMinimumVTAmount(30 * _EPOCHS_PER_DAY); // 30 days worth of ETH is the minimum VT amount
@@ -96,9 +94,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function depositValidatorTickets(address node, uint256 amount) external restricted {
-        if (node == address(0)) {
-            revert InvalidAddress();
-        }
+        require(node != address(0), InvalidAddress());
 
         // slither-disable-next-line unchecked-transfer
         _VALIDATOR_TICKET.transferFrom(msg.sender, address(this), amount);
@@ -118,12 +114,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Node operator can only withdraw if they have no active or pending validators
         // In the future, we plan to allow node operators to withdraw VTs even if they have active/pending validators.
-        if (
+        require(
             $.nodeOperatorInfo[msg.sender].activeValidatorCount + $.nodeOperatorInfo[msg.sender].pendingValidatorCount
-                != 0
-        ) {
-            revert ActiveOrPendingValidatorsExist();
-        }
+                == 0,
+            ActiveOrPendingValidatorsExist()
+        );
 
         // Reverts if insufficient balance
         // nosemgrep basic-arithmetic-underflow
@@ -140,9 +135,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted to Puffer Paymaster
      */
     function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external restricted {
-        if (depositRootHash != _BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
-            revert InvalidDepositRootHash();
-        }
+        require(depositRootHash == _BEACON_DEPOSIT_CONTRACT.get_deposit_root(), InvalidDepositRootHash());
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -186,46 +179,51 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes[][] calldata validatorAmountsSignatures,
         uint256 deadline
     ) external payable restricted validDeadline(deadline) {
+        // Using internal function to avoid stack too deep
+        bytes[] memory pubkeys = _processWithdrawalValidation(
+            moduleName, indices, gweiAmounts, withdrawalType, validatorAmountsSignatures, deadline
+        );
+
+        _PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
+    }
+
+    function _processWithdrawalValidation(
+        bytes32 moduleName,
+        uint256[] calldata indices,
+        uint64[] calldata gweiAmounts,
+        WithdrawalType[] calldata withdrawalType,
+        bytes[][] calldata validatorAmountsSignatures,
+        uint256 deadline
+    ) internal returns (bytes[] memory pubkeys) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
+        pubkeys = new bytes[](indices.length);
 
-        bytes[] memory pubkeys = new bytes[](indices.length);
-
-        // validate pubkeys belong to that node and are active
         for (uint256 i = 0; i < indices.length; ++i) {
             Validator memory validator = $.validators[moduleName][indices[i]];
             require(validator.node == msg.sender, InvalidValidator());
             pubkeys[i] = validator.pubKey;
+            uint64 gweiAmount = gweiAmounts[i];
 
             if (withdrawalType[i] == WithdrawalType.EXIT_VALIDATOR) {
-                require(gweiAmounts[i] == 0, InvalidWithdrawAmount());
+                require(gweiAmount == 0, InvalidWithdrawAmount());
             } else {
                 if (withdrawalType[i] == WithdrawalType.DOWNSIZE) {
-                    uint256 batches = gweiAmounts[i] / _32_ETH_GWEI;
-                    require(
-                        batches > validator.numBatches && gweiAmounts[i] % _32_ETH_GWEI == 0, InvalidWithdrawAmount()
-                    );
+                    uint256 batches = gweiAmount / _32_ETH_GWEI;
+                    require(batches > validator.numBatches && gweiAmount % _32_ETH_GWEI == 0, InvalidWithdrawAmount());
                 }
-
-                // If downsize or rewards withdrawal, backend needs to validate the amount
 
                 bytes32 messageHash = keccak256(
                     abi.encode(
                         msg.sender,
                         pubkeys[i],
-                        gweiAmounts[i],
+                        gweiAmount,
                         _useNonce(IPufferProtocol.requestWithdrawal.selector, msg.sender),
                         deadline
                     )
                 ).toEthSignedMessageHash();
-                bool validSignatures =
-                    _GUARDIAN_MODULE.validateGuardiansEOASignatures(validatorAmountsSignatures[i], messageHash);
-                if (!validSignatures) {
-                    revert Unauthorized();
-                }
+                _validateSignatures(messageHash, validatorAmountsSignatures[i]);
             }
         }
-
-        _PUFFER_MODULE_MANAGER.requestWithdrawal{ value: msg.value }(moduleName, pubkeys, gweiAmounts);
     }
 
     /**
@@ -442,18 +440,14 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        if (limit < $.moduleLimits[moduleName].numberOfRegisteredValidators) {
-            revert ValidatorLimitForModuleReached();
-        }
+        require($.moduleLimits[moduleName].numberOfRegisteredValidators <= limit, ValidatorLimitForModuleReached());
         emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
 
     function _setVTPenalty(uint256 newPenaltyAmount) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        if (newPenaltyAmount > $.minimumVtAmount) {
-            revert InvalidVTAmount();
-        }
+        require(newPenaltyAmount <= $.minimumVtAmount, InvalidVTAmount());
         emit VTPenaltyChanged($.vtPenaltyEpochs, newPenaltyAmount);
         $.vtPenaltyEpochs = newPenaltyAmount;
     }
@@ -466,9 +460,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     function _createPufferModule(bytes32 moduleName) internal returns (address) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        if (address($.modules[moduleName]) != address(0)) {
-            revert ModuleAlreadyExists();
-        }
+        require(address($.modules[moduleName]) == address(0), ModuleAlreadyExists());
         PufferModule module = _PUFFER_MODULE_MANAGER.createNewPufferModule(moduleName);
         $.modules[moduleName] = module;
         $.moduleWeights.push(moduleName);

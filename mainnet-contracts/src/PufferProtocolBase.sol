@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { Status } from "./struct/Status.sol";
+import { Unauthorized } from "./Errors.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
@@ -192,5 +193,10 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
         _PUFFER_ORACLE = oracle;
         _BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
         _PUFFER_REVENUE_DISTRIBUTOR = pufferRevenueDistributor;
+    }
+
+    function _validateSignatures(bytes32 messageHash, bytes[] memory guardianEOASignatures) internal view {
+        bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(guardianEOASignatures, messageHash);
+        require(validSignatures, Unauthorized());
     }
 }

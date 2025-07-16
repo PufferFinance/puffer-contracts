@@ -18,7 +18,7 @@ import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
-import { InvalidAddress, Unauthorized, InvalidAmount } from "./Errors.sol";
+import { InvalidAddress, InvalidAmount } from "./Errors.sol";
 
 /**
  * @title PufferProtocolLogic
@@ -113,12 +113,11 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
         // Node operator can only withdraw if they have no active or pending validators
         // In the future, we plan to allow node operators to withdraw VTs even if they have active/pending validators.
-        if (
+        require(
             $.nodeOperatorInfo[msg.sender].activeValidatorCount + $.nodeOperatorInfo[msg.sender].pendingValidatorCount
-                != 0
-        ) {
-            revert ActiveOrPendingValidatorsExist();
-        }
+                == 0,
+            ActiveOrPendingValidatorsExist()
+        );
 
         // Reverts if insufficient balance
         // nosemgrep basic-arithmetic-underflow
@@ -154,10 +153,10 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
 
         // The node operator must deposit 1.5 ETH (per batch) or more + minimum validation time for ~30 days
         // At the moment that's roughly 30 days * 225 (there is roughly 225 epochs per day)
-        uint256 minimumETHRequired =
-            bondAmountEth + (numBatches * _MINIMUM_EPOCHS_VALIDATION_REGISTRATION * epochCurrentPrice);
-
-        require(msg.value >= minimumETHRequired, InvalidETHAmount());
+        require(
+            msg.value >= bondAmountEth + (numBatches * _MINIMUM_EPOCHS_VALIDATION_REGISTRATION * epochCurrentPrice),
+            InvalidETHAmount()
+        );
 
         emit ValidationTimeDeposited({ node: msg.sender, ethAmount: (msg.value - bondAmountEth) });
 
@@ -217,12 +216,8 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         payable
         override
     {
-        if (srcIndices.length == 0) {
-            revert InputArrayLengthZero();
-        }
-        if (srcIndices.length != targetIndices.length) {
-            revert InputArrayLengthMismatch();
-        }
+        require(srcIndices.length > 0, InputArrayLengthZero());
+        require(srcIndices.length == targetIndices.length, InputArrayLengthMismatch());
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -300,10 +295,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         uint256 deadline
     ) external payable override validDeadline(deadline) {
         bytes32 messageHash = keccak256(abi.encode(validatorInfos, deadline)).toEthSignedMessageHash();
-        bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(guardianEOASignatures, messageHash);
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
+        _validateSignatures(messageHash, guardianEOASignatures);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -318,9 +310,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             Validator storage validator =
                 $.validators[validatorInfos[i].moduleName][validatorInfos[i].pufferModuleIndex];
 
-            if (validator.status != Status.ACTIVE) {
-                revert InvalidValidatorState(validator.status);
-            }
+            require(validator.status == Status.ACTIVE, InvalidValidatorState(validator.status));
 
             // Save the Node address for the bond transfer
             bondWithdrawals[i].node = validator.node;
@@ -406,12 +396,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             )
         ).toEthSignedMessageHash();
 
-        bool validSignatures =
-            _GUARDIAN_MODULE.validateGuardiansEOASignatures(epochsValidatedSignature.signatures, messageHash);
-
-        if (!validSignatures) {
-            revert Unauthorized();
-        }
+        _validateSignatures(messageHash, epochsValidatedSignature.signatures);
 
         uint256 epochCurrentPrice = _PUFFER_ORACLE.getValidatorTicketPrice();
 
@@ -529,9 +514,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             //solhint-disable-next-line avoid-low-level-calls
             (bool success,) =
                 PufferModule(payable(validatorInfos[i].module)).call(address(_PUFFER_VAULT), transferAmount, "");
-            if (!success) {
-                revert Failed();
-            }
+            require(success, Failed());
 
             // Skip the empty transfer (validator got slashed)
             if (bondWithdrawals[i].pufETHAmount == 0) {
