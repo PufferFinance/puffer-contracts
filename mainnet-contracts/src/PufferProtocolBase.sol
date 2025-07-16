@@ -171,6 +171,11 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
 
     address payable internal immutable _PUFFER_REVENUE_DISTRIBUTOR;
 
+    modifier validDeadline(uint256 deadline) {
+        require(block.timestamp <= deadline, DeadlineExceeded());
+        _;
+    }
+
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,

@@ -78,11 +78,8 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         external
         payable
         override
+        validDeadline(epochsValidatedSignature.deadline)
     {
-        if (block.timestamp > epochsValidatedSignature.deadline) {
-            revert DeadlineExceeded();
-        }
-
         require(epochsValidatedSignature.nodeOperator != address(0), InvalidAddress());
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         uint256 epochCurrentPrice = _PUFFER_ORACLE.getValidatorTicketPrice();
@@ -146,11 +143,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         uint256 totalEpochsValidated,
         bytes[] calldata vtConsumptionSignature,
         uint256 deadline
-    ) external payable override {
-        if (block.timestamp > deadline) {
-            revert DeadlineExceeded();
-        }
-
+    ) external payable override validDeadline(deadline) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
@@ -305,11 +298,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         StoppedValidatorInfo[] calldata validatorInfos,
         bytes[] calldata guardianEOASignatures,
         uint256 deadline
-    ) external payable override {
-        if (block.timestamp > deadline) {
-            revert DeadlineExceeded();
-        }
-
+    ) external payable override validDeadline(deadline) {
         bytes32 messageHash = keccak256(abi.encode(validatorInfos, deadline)).toEthSignedMessageHash();
         bool validSignatures = _GUARDIAN_MODULE.validateGuardiansEOASignatures(guardianEOASignatures, messageHash);
         if (!validSignatures) {

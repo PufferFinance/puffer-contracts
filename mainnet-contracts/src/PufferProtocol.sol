@@ -185,11 +185,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         WithdrawalType[] calldata withdrawalType,
         bytes[][] calldata validatorAmountsSignatures,
         uint256 deadline
-    ) external payable restricted {
-        if (block.timestamp > deadline) {
-            revert DeadlineExceeded();
-        }
-
+    ) external payable restricted validDeadline(deadline) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         bytes[] memory pubkeys = new bytes[](indices.length);
