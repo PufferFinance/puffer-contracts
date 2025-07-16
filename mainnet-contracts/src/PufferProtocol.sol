@@ -20,7 +20,6 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { PufferModule } from "./PufferModule.sol";
-import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 import { PufferProtocolBase } from "./PufferProtocolBase.sol";
 import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
