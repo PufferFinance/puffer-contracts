@@ -21,7 +21,6 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { PufferProtocolBase } from "./PufferProtocolBase.sol";
-import { IPufferProtocolLogic } from "./interface/IPufferProtocolLogic.sol";
 
 /**
  * @title PufferProtocol
