@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { IPufferProtocolLogic } from "../../src/interface/IPufferProtocolLogic.sol";
 import { IPufferProtocolFull } from "../../src/interface/IPufferProtocolFull.sol";
@@ -630,8 +631,6 @@ contract PufferProtocolTest is UnitTestHelper {
     }
 
     function test_claim_bond_for_single_withdrawal() external {
-        uint256 startTimestamp = 1707411226; // TODO Remove this if not used
-
         // Alice registers one validator and we provision it
         vm.deal(alice, 3 ether);
         vm.deal(NoRestakingModule, 200 ether);
@@ -1840,6 +1839,18 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.withdrawValidatorTickets(50 ether, bob);
 
         assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
+    }
+
+    function test_batchHandleWithdrawals_restricted() public {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
+        pufferProtocol.batchHandleWithdrawals(new StoppedValidatorInfo[](0), new bytes[](0), block.timestamp);
+    }
+
+    function test_skipProvisioning_restricted() public {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
+        pufferProtocol.skipProvisioning(0, new bytes[](0));
     }
 
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {

@@ -71,8 +71,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     { }
 
     /**
-     * @notice Check IPufferProtocol.depositValidationTime
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function depositValidationTime(EpochsValidatedSignature memory epochsValidatedSignature)
         external
@@ -103,8 +104,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     }
 
     /**
-     * @notice Check IPufferProtocol.withdrawValidationTime
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function withdrawValidationTime(uint96 amount, address recipient) external override {
         require(recipient != address(0), InvalidAddress());
@@ -133,8 +135,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     }
 
     /**
-     * @notice Check IPufferProtocol.registerValidatorKey
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function registerValidatorKey(
         ValidatorKeyData calldata data,
@@ -209,6 +212,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     }
 
     /**
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
      */
     function requestConsolidation(bytes32 moduleName, uint256[] calldata srcIndices, uint256[] calldata targetIndices)
@@ -248,8 +252,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     }
 
     /**
-     * @notice Check IPufferProtocol.skipProvisioning
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
+     * @dev Restricted to Puffer Paymaster
      */
     function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external override {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -286,8 +291,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
     }
 
     /**
-     * @notice Check IPufferProtocol.batchHandleWithdrawals
+     * @inheritdoc IPufferProtocolLogic
      * @dev This function should only be called by the PufferProtocol contract through a delegatecall
+     * @dev Restricted to Puffer Paymaster
      */
     function batchHandleWithdrawals(
         StoppedValidatorInfo[] calldata validatorInfos,

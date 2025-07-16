@@ -61,8 +61,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev If a function selector is not found in this contract, it will delegatecall the Puffer Protocol Logic.
      *      This is done to be able to call functions from the Puffer Protocol Logic contract without having to
      *      declare them in this contract as well, manually forwarding them to the Puffer Protocol Logic contract.
+     * @dev This function is restricted, so it checks if the caller can call the function in the PufferProtocolLogic
+     *      contract. This is using the AccessManager from the PufferProtocol contract.
      */
-    fallback() external payable {
+    fallback() external payable restricted {
         (bool success, bytes memory returnData) = _getPufferProtocolStorage().pufferProtocolLogic.delegatecall(msg.data);
 
         if (success) {
