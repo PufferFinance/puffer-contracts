@@ -19,7 +19,6 @@ import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
-import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { EpochsValidatedSignature } from "./struct/Signatures.sol";
 import { PufferProtocolBase } from "./PufferProtocolBase.sol";
