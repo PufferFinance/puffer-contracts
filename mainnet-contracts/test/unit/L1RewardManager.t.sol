@@ -18,7 +18,8 @@ import {
     ROLE_ID_OPERATIONS_PAYMASTER
 } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { GenerateRewardManagerCalldata } from "script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
+import { GenerateRewardManagerCalldata } from
+    "../../script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 
 //LayerZero imports
 import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
@@ -167,40 +168,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         vm.warp(365 days);
     }
 
-    /**
-     * @notice Sets enforced options for the OFT contracts to ensure proper gas limits
-     * @dev This mimics the production configuration from pufETH.simple.config.ts
-     */
-    function _setEnforcedOptionsForOFTs() internal {
-        // Create enforced options for LZ_RECEIVE (msgType 1) and COMPOSE (msgType 2)
-        EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](3);
-
-        // LZ_RECEIVE option for msgType 1 - higher gas limit
-        enforcedOptions[0] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 1,
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
-        });
-
-        // LZ_RECEIVE option for msgType 2 - higher gas limit
-        enforcedOptions[1] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 2,
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
-        });
-
-        // COMPOSE option for msgType 2 - higher gas limit
-        enforcedOptions[2] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 2,
-            options: OptionsBuilder.newOptions().addExecutorLzComposeOption(0, 100000, 0)
-        });
-
-        // Set enforced options for both OFT contracts
-        IOAppOptionsType3(address(pufETHOFTAdapter)).setEnforcedOptions(enforcedOptions);
-        IOAppOptionsType3(address(pufETHOFT)).setEnforcedOptions(enforcedOptions);
-    }
-
     modifier allowedDailyFrequency() {
         vm.startPrank(DAO);
         l1RewardManager.setAllowedRewardMintFrequency(1 days);
@@ -288,99 +255,110 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
     // If there is a race condition, where the rewards are deposited to the vault before they are reverted
     // The old coude would panic, this test ensures that the code does not panic
-    // function test_undoMintAndBridgeRewardsRaceCondition() public allowedDailyFrequency allowMintAmount(100 ether) {
-    //     // Get the initial state
-    //     uint256 assetsBefore = pufferVault.totalAssets();
-    //     uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
-    //     uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
+    function test_undoMintAndBridgeRewardsRaceCondition() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // Get the initial state
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
+        uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
 
-    //     // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
-    //     test_MintAndBridgeRewardsSuccess();
+        // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
+        test_MintAndBridgeRewardsSuccess();
 
-    //     // Simulate a race condition, where the rewards are deposited to the vault before they are reverted
-    //     address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
-    //     // airdrop the rewards amount to the module
-    //     vm.deal(module, rewardsAmount);
-    //     address[] memory modules = new address[](1);
-    //     modules[0] = module;
-    //     uint256[] memory amounts = new uint256[](1);
-    //     amounts[0] = rewardsAmount;
-    //     pufferModuleManager.transferRewardsToTheVault(modules, amounts);
+        // Simulate a race condition, where the rewards are deposited to the vault before they are reverted
+        address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
+        // airdrop the rewards amount to the module
+        vm.deal(module, rewardsAmount);
+        address[] memory modules = new address[](1);
+        modules[0] = module;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = rewardsAmount;
+        pufferModuleManager.transferRewardsToTheVault(modules, amounts);
 
-    //     // Now try tor evert the mintAndBridgeRewards, it panics
-    //     L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
-    //         startEpoch: uint72(startEpoch),
-    //         endEpoch: uint72(endEpoch),
-    //         timeBridged: uint48(block.timestamp),
-    //         ethToPufETHRate: 1 ether,
-    //         pufETHAmount: 100 ether,
-    //         ethAmount: 100 ether,
-    //         rewardRoot: bytes32(hex"aabb")
-    //     });
+        // Now try tor evert the mintAndBridgeRewards, it panics
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(startEpoch),
+            endEpoch: uint72(endEpoch),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 100 ether,
+            ethAmount: 100 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
 
-    //     bytes memory encodedCallData = abi.encode(epochRecord);
+        bytes memory composeMsg = abi.encode(epochRecord);
 
-    //     // airdrop rewardsAmount to burner
-    //     deal(address(xpufETH), address(l1RewardManager), 100 ether);
+        // airdrop rewardsAmount to l1RewardManager
+        deal(address(pufferVault), address(l1RewardManager), 100 ether);
 
-    //     vm.startPrank(address(connext));
+        vm.startPrank(address(layerzeroL1Endpoint));
+        bytes32 composeFrom = addressToBytes32(address(l2RewardManager));
+        bytes memory _msg = encode(0, 2, 100 ether, abi.encodePacked(composeFrom, composeMsg));
 
-    //     // Simulate a call from the connext bridge
-    //     l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
+        // Simulate a call from the layerzero bridge
+        l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
 
-    //     assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
-    //     assertEq(
-    //         pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
-    //     );
-    //     assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
-    // }
+        assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
+        assertEq(
+            pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
+        );
+        assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
+    }
 
-    // function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
-    //     // Get the initial state
-    //     uint256 assetsBefore = pufferVault.totalAssets();
-    //     uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
-    //     uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
+    function test_undoMintAndBridgeRewards() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // Get the initial state
+        uint256 assetsBefore = pufferVault.totalAssets();
+        uint256 rewardsAmountBefore = pufferVault.getTotalRewardMintAmount();
+        uint256 pufETHTotalSupplyBefore = pufferVault.totalSupply();
 
-    //     // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
-    //     test_MintAndBridgeRewardsSuccess();
+        // Simulate mintAndBridgeRewards amounts in there are hardcoded to 100 ether
+        test_MintAndBridgeRewardsSuccess();
 
-    //     // Rewards and assets increase
-    //     assertEq(pufferVault.totalAssets(), assetsBefore + 100 ether, "assets before and now should match");
-    //     assertEq(
-    //         pufferVault.getTotalRewardMintAmount(),
-    //         rewardsAmountBefore + 100 ether,
-    //         "rewards amount before and now should match"
-    //     );
-    //     assertEq(
-    //         pufferVault.totalSupply(), pufETHTotalSupplyBefore + 100 ether, "total supply before and now should match"
-    //     );
+        // Rewards and assets increase
+        assertEq(pufferVault.totalAssets(), assetsBefore + 100 ether, "assets before and now should match");
+        assertEq(
+            pufferVault.getTotalRewardMintAmount(),
+            rewardsAmountBefore + 100 ether,
+            "rewards amount before and now should match"
+        );
+        assertEq(
+            pufferVault.totalSupply(), pufETHTotalSupplyBefore + 100 ether, "total supply before and now should match"
+        );
 
-    //     L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
-    //         startEpoch: uint72(startEpoch),
-    //         endEpoch: uint72(endEpoch),
-    //         timeBridged: uint48(block.timestamp),
-    //         ethToPufETHRate: 1 ether,
-    //         pufETHAmount: 100 ether,
-    //         ethAmount: 100 ether,
-    //         rewardRoot: bytes32(hex"aabb")
-    //     });
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(startEpoch),
+            endEpoch: uint72(endEpoch),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 100 ether,
+            ethAmount: 100 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
 
-    //     bytes memory encodedCallData = abi.encode(epochRecord);
+        bytes memory composeMsg = abi.encode(epochRecord);
 
-    //     // airdrop rewardsAmount to burner
-    //     deal(address(xpufETH), address(l1RewardManager), 100 ether);
+        // airdrop rewardsAmount to l1RewardManager
+        deal(address(pufferVault), address(l1RewardManager), 100 ether);
 
-    //     vm.startPrank(address(connext));
+        vm.startPrank(address(layerzeroL1Endpoint));
+        bytes32 composeFrom = addressToBytes32(address(l2RewardManager));
 
-    //     // Simulate a call from the connext bridge
-    //     l1RewardManager.xReceive(bytes32(0), 0, address(0), address(l2RewardManager), 2, encodedCallData);
+        bytes memory _msg = encode(0, 2, 100 ether, abi.encodePacked(composeFrom, composeMsg));
+        console.log("composeMsg in test_undoMintAndBridgeRewards");
+        console.logBytes(composeMsg);
+        console.log("composeFrom in test_undoMintAndBridgeRewards");
+        console.logBytes32(composeFrom);
+        console.log("msg in test_undoMintAndBridgeRewards");
+        console.logBytes(_msg);
 
-    //     assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
-    //     assertEq(
-    //         pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
-    //     );
-    //     assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
-    // }
+        // Simulate a call from the layerzero bridge
+        l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
+
+        assertEq(pufferVault.totalAssets(), assetsBefore, "assets before and now should match");
+        assertEq(
+            pufferVault.getTotalRewardMintAmount(), rewardsAmountBefore, "rewards amount before and now should match"
+        );
+        assertEq(pufferVault.totalSupply(), pufETHTotalSupplyBefore, "total supply before and now should match");
+    }
 
     function testRevert_invalidOriginAddress() public {
         vm.startPrank(address(layerzeroL1Endpoint));
@@ -407,15 +385,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         bytes memory _msg = encode(0, 2, 100 ether, abi.encodePacked(composeFrom, composeMsg));
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
         l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
-    }
-
-    function encode(
-        uint64 _nonce,
-        uint32 _srcEid,
-        uint256 _amountLD,
-        bytes memory _composeMsg // 0x[composeFrom][composeMsg]
-    ) internal pure returns (bytes memory _msg) {
-        _msg = abi.encodePacked(_nonce, _srcEid, _amountLD, _composeMsg);
     }
 
     function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
@@ -576,5 +545,55 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
         // Verify the function executed without reverting
         assertTrue(true, "setL2RewardClaimer with enforced options works");
+    }
+
+    // Helpers
+
+    /**
+     * @notice Sets enforced options for the OFT contracts to ensure proper gas limits
+     * @dev This mimics the production configuration from pufETH.simple.config.ts
+     */
+    function _setEnforcedOptionsForOFTs() internal {
+        // Create enforced options for LZ_RECEIVE (msgType 1) and COMPOSE (msgType 2)
+        EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](3);
+
+        // LZ_RECEIVE option for msgType 1 - higher gas limit
+        enforcedOptions[0] = EnforcedOptionParam({
+            eid: dstEid,
+            msgType: 1,
+            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
+        });
+
+        // LZ_RECEIVE option for msgType 2 - higher gas limit
+        enforcedOptions[1] = EnforcedOptionParam({
+            eid: dstEid,
+            msgType: 2,
+            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
+        });
+
+        // COMPOSE option for msgType 2 - higher gas limit
+        enforcedOptions[2] = EnforcedOptionParam({
+            eid: dstEid,
+            msgType: 2,
+            options: OptionsBuilder.newOptions().addExecutorLzComposeOption(0, 100000, 0)
+        });
+
+        // Set enforced options for both OFT contracts
+        IOAppOptionsType3(address(pufETHOFTAdapter)).setEnforcedOptions(enforcedOptions);
+        IOAppOptionsType3(address(pufETHOFT)).setEnforcedOptions(enforcedOptions);
+    }
+
+    /**
+     *  @notice Encodes a message for the LayerZero lzCompose
+     *  @dev _composeMsg is 0x[composeFrom][composeMsg]
+     *
+     */
+    function encode(
+        uint64 _nonce,
+        uint32 _srcEid,
+        uint256 _amountLD,
+        bytes memory _composeMsg // 0x[composeFrom][composeMsg]
+    ) internal pure returns (bytes memory _msg) {
+        _msg = abi.encodePacked(_nonce, _srcEid, _amountLD, _composeMsg);
     }
 }
