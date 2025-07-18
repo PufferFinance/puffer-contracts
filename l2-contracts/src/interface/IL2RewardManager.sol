@@ -68,6 +68,11 @@ interface IL2RewardManager {
     function isClaimingLocked(bytes32 intervalId) external view returns (bool);
 
     /**
+     * @notice Returns the address of the old pufETH token
+     */
+    function getXPufETH() external view returns (address);
+
+    /**
      * @notice Event emitted when rewards root and rate are posted
      * @param rewardsAmount The total rewards amount
      * @param ethToPufETHRate The exchange rate from ETH to pufETH

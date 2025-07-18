@@ -111,8 +111,10 @@ contract UnitTestHelper is Test, BaseScript {
     L1RewardManager public l1RewardManager;
     L2RewardManager public l2RewardManager;
     PufferRevenueDepositor public revenueDepositor;
-    pufETH public pufETHOFT;
-    pufETHAdapter public pufETHOFTAdapter;
+    // pufETH public pufETHOFT;
+    // pufETHAdapter public pufETHOFTAdapter;
+    address public layerzeroL1Endpoint;
+    address public layerzeroL2Endpoint;
     // ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
@@ -224,8 +226,10 @@ contract UnitTestHelper is Test, BaseScript {
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         // connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
-        pufETHOFT = pufETH(payable(bridgingDeployment.pufETHOFT));
-        pufETHOFTAdapter = pufETHAdapter(payable(bridgingDeployment.pufETHOFTAdapter));
+        // pufETHOFT = pufETH(payable(bridgingDeployment.pufETHOFT));
+        // pufETHOFTAdapter = pufETHAdapter(payable(bridgingDeployment.pufETHOFTAdapter));
+        layerzeroL1Endpoint = bridgingDeployment.layerzeroL1Endpoint;
+        layerzeroL2Endpoint = bridgingDeployment.layerzeroL2Endpoint;
 
         // pufETH dependencies
         pufferVault = PufferVaultV5(payable(pufferDeployment.pufferVault));

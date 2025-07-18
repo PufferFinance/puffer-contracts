@@ -14,6 +14,7 @@ import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
 import { IOApp } from "mainnet-contracts/src/interface/LayerZero/IOApp.sol";
 import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
+import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
 
 // We need to extend the IOApp interface to include the IERC20 interface
 interface IPufETH is IOApp, IERC20 { }
@@ -102,17 +103,22 @@ contract L2RewardManager is
             recipient = recipient == address(0) ? claimOrders[i].account : recipient;
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
-
-            //TODO: we have XPUFTH in this contract from previous transfer, so how do we handle this?
-            // shall we use something like?:
-            // if (IERC20(XPUFETH).balanceOf(address(this)) > amountToTransfer) {
-            //     IERC20(XPUFETH).transfer(recipient, amountToTransfer);
-            // } else {
-            //     PUFETH.transfer(recipient, amountToTransfer);
-            // }
-
-            // TODO: Should we use the oft here? we need to take oft address as a parameter then
-            PUFETH.transfer(recipient, amountToTransfer);
+            // First we transfer any remaining xPufETH in this contract to the recipient
+            if ($.xPufETH != address(0)) {
+                uint256 xPufETHBalance = IERC20($.xPufETH).balanceOf(address(this));
+                if (xPufETHBalance > 0) {
+                    if (xPufETHBalance >= amountToTransfer) {
+                        IERC20($.xPufETH).transfer(recipient, amountToTransfer);
+                    } else {
+                        IERC20($.xPufETH).transfer(recipient, xPufETHBalance);
+                        PUFETH.transfer(recipient, amountToTransfer - xPufETHBalance);
+                    }
+                } else {
+                    PUFETH.transfer(recipient, amountToTransfer);
+                }
+            } else {
+                PUFETH.transfer(recipient, amountToTransfer);
+            }
 
             emit Claimed({
                 recipient: recipient,
@@ -138,20 +144,30 @@ contract L2RewardManager is
         address, /* _executor */
         bytes calldata /* _extraData */
     ) external payable override restricted {
-        if (oft != address(PUFETH)) {
-            revert Unauthorized();
-        }
-
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
+        // Although the function is restricted to LZ endpoint, this check will make sure that only whitelisted OFT can be used.
         if (msg.sender != $.bridges[oft].endpoint) {
             revert Unauthorized();
         }
 
-        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(message, (IL1RewardManager.BridgingParams));
+        // Decode the OFT compose message to extract the original sender, amount and the actual message
+        bytes32 composeFrom = OFTComposeMsgCodec.composeFrom(message);
+        bytes memory actualMessage = OFTComposeMsgCodec.composeMsg(message);
+        uint256 amount = OFTComposeMsgCodec.amountLD(message);
+
+        // Validate that the original sender is our legitimate L1RewardManager
+        address originalSender = address(uint160(uint256(composeFrom)));
+        if (originalSender != L1_REWARD_MANAGER) {
+            revert Unauthorized();
+        }
+
+        // Decode the actual message to get the bridging parameters
+        IL1RewardManager.BridgingParams memory bridgingParams =
+            abi.decode(actualMessage, (IL1RewardManager.BridgingParams));
 
         if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
-            _handleMintAndBridge(bridgingParams.data);
+            _handleMintAndBridge(amount, bridgingParams.data);
         } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
             _handleSetClaimer(bridgingParams.data);
         }
@@ -222,6 +238,23 @@ contract L2RewardManager is
     }
 
     /**
+     * @notice Sets the address of the old pufETH token
+     * @param xPufETH The address of the old pufETH token
+     */
+    function setXPufETH(address xPufETH) external restricted {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.xPufETH = xPufETH;
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getXPufETH() external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.xPufETH;
+    }
+
+    /**
      * @inheritdoc IL2RewardManager
      */
     function getIntervalId(uint256 startEpoch, uint256 endEpoch) public pure returns (bytes32) {
@@ -267,15 +300,14 @@ contract L2RewardManager is
         return $.claimingDelay;
     }
 
-    function _handleMintAndBridge(bytes memory data) internal {
+    function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
         L1RewardManagerStorage.MintAndBridgeData memory params =
             abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
 
-        // TODO: we can't do this check since we don't get the amount in the lzCompose call, we have to get it from the calldata
         // Sanity check
-        // if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
-        //     revert InvalidAmount();
-        // }
+        if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
+            revert InvalidAmount();
+        }
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -287,7 +319,7 @@ contract L2RewardManager is
             endEpoch: uint104(params.endEpoch),
             timeBridged: uint48(block.timestamp),
             rewardRoot: params.rewardsRoot,
-            pufETHAmount: uint128(params.pufETHAmount),
+            pufETHAmount: uint128(amount),
             ethAmount: uint128(params.rewardsAmount)
         });
 

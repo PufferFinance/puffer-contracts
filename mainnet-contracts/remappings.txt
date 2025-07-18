@@ -18,3 +18,4 @@ solidity-stringutils/=node_modules/solidity-stringutils
 @layerzerolabs/lz-evm-messagelib-v2/=node_modules/@layerzerolabs/lz-evm-messagelib-v2/
 @layerzerolabs/lz-evm-v1-0.7/=node_modules/@layerzerolabs/lz-evm-v1-0.7/
 @layerzerolabs/test-devtools-evm-foundry/=node_modules/@layerzerolabs/test-devtools-evm-foundry/
+solidity-bytes-utils/=node_modules/solidity-bytes-utils/

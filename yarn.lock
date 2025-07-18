@@ -9001,7 +9001,7 @@ solidity-ast@^0.4.51:
   resolved "https://registry.yarnpkg.com/solidity-ast/-/solidity-ast-0.4.59.tgz#290a2815aef70a61092591ab3e991da080ae5931"
   integrity sha512-I+CX0wrYUN9jDfYtcgWSe+OAowaXy8/1YQy7NS4ni5IBDmIYBq7ZzaP/7QqouLjzZapmQtvGLqCaYgoUWqBo5g==
 
-solidity-bytes-utils@^0.8.2:
+solidity-bytes-utils@^0.8.2, solidity-bytes-utils@^0.8.4:
   version "0.8.4"
   resolved "https://registry.yarnpkg.com/solidity-bytes-utils/-/solidity-bytes-utils-0.8.4.tgz#646588b7031153770350f982665b8c9033f7dc26"
   integrity sha512-/bjac5YR12i0plOKvGlhE51F5IWGP6rI8DJetCQlXcnwKWz/Hgf/vr+Qlk1BWz56xVcwVhmhCaDkTMnx5xvt0g==

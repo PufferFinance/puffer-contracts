@@ -41,4 +41,6 @@ struct BridgingDeployment {
     address pufETHOFT;
     address l1RewardManager;
     address l2RewardManager;
+    address layerzeroL1Endpoint;
+    address layerzeroL2Endpoint;
 }

@@ -14,6 +14,8 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
 import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
+import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title DeployPufETHBridging
@@ -32,11 +34,31 @@ import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
  *         PK=${deployer_pk} forge script script/DeployPufETHBridging.s.sol:DeployPufETHBridging --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
  */
 contract DeployPufETHBridging is BaseScript {
+    // Declaration of mock endpoint IDs.
+    uint16 layerzeroL1Eid = 1;
+    uint16 layerzeroL2Eid = 2;
+
     function run(PufferDeployment memory deployment)
         public
         broadcast
         returns (BridgingDeployment memory bridgingDeployment)
     {
+        // console.log("address of _broadcaster", address(_broadcaster));
+        // console.log("address this contract", address(this));
+        // TestHelperOz5.setUp();
+        // console.log("setup done 2");
+
+        // Setup function to initialize 2 Mock Endpoints with Mock MessageLib.
+        // setUpEndpoints(2, LibraryType.UltraLightNode);
+
+        // address layerzeroL1EndpointAddress = endpoints[layerzeroL1Eid];
+        address layerzeroL1EndpointAddress;
+        address layerzeroL2EndpointAddress;
+        // console.log("layerzeroL1EndpointAddress", layerzeroL1EndpointAddress);
+
+        // address layerzeroL2EndpointAddress = endpoints[layerzeroL2Eid];
+        // console.log("layerzeroL2EndpointAddress", layerzeroL2EndpointAddress);
+
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
@@ -51,45 +73,63 @@ contract DeployPufETHBridging is BaseScript {
         // );
 
         // address everclearBridge = address(new ConnextMock());
-        address endpoint = 0x1a44076050125825900e736c501f859c50fE728c;
+        // address endpoint = 0x1a44076050125825900e736c501f859c50fE728c;
 
-        address pufETHOFTAdapter = address(new pufETHAdapter(deployment.pufferVault, endpoint, _broadcaster));
-        address pufETHOFT = address(new pufETH("pufETH", "pufETH", endpoint, _broadcaster));
+        // console.log("endpoint", endpoint);
+        console.log("pufferVault", address(deployment.pufferVault));
+        console.log("broadcaster", _broadcaster);
 
-        address noImpl = address(new NoImplementation());
+        pufETHAdapter pufETHOFTAdapter;
+        // address[] memory sender = setupOApps(type(pufETHAdapter).creationCode, 1, 1);
+        // pufETHOFTAdapter = pufETHAdapter(payable(sender[0]));
+        console.log("pufETHOFTAdapter", address(pufETHOFTAdapter));
 
-        ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
+        pufETH pufETHOFT;
+        // address[] memory sender2 = setupOApps(type(pufETH).creationCode, 1, 1);
+        // pufETHOFT = pufETH(payable(sender2[0]));
+        console.log("pufETHOFT", address(pufETHOFT));
 
-        // // Deploy the lockbox
-        // XERC20Lockbox xERC20Lockbox =
-        //     new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
+        // we will generate it from the test helper of layerzero
+        // console.log("pufETHOFTAdapter", pufETHOFTAdapter);
+        // address pufETHOFT ;
+        // console.log("pufETHOFT", pufETHOFT);
 
-        // L1RewardManager
-        L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            oft: pufETHOFTAdapter,
-            pufETH: deployment.pufferVault,
-            l2RewardsManager: address(l2RewardsManagerProxy)
-        });
+        // address noImpl = address(new NoImplementation());
 
-        L1RewardManager l1RewardManagerProxy = L1RewardManager(
-            address(
-                new ERC1967Proxy(
-                    address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (deployment.accessManager))
-                )
-            )
-        );
+        // ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
 
-        L2RewardManager l2RewardManagerImpl = new L2RewardManager(pufETHOFT, address(l1RewardManagerProxy));
+        // // // Deploy the lockbox
+        // // XERC20Lockbox xERC20Lockbox =
+        // //     new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
 
-        UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
-            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
-        );
+        // // L1RewardManager
+        // L1RewardManager l1RewardManagerImpl = new L1RewardManager({
+        //     oft: address(pufETHOFTAdapter),
+        //     pufETH: deployment.pufferVault,
+        //     l2RewardsManager: address(l2RewardsManagerProxy)
+        // });
+
+        // L1RewardManager l1RewardManagerProxy = L1RewardManager(
+        //     address(
+        //         new ERC1967Proxy(
+        //             address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (deployment.accessManager))
+        //         )
+        //     )
+        // );
+
+        // L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(pufETHOFT), address(l1RewardManagerProxy));
+
+        // UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
+        //     address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
+        // );
 
         bridgingDeployment = BridgingDeployment({
-            pufETHOFTAdapter: pufETHOFTAdapter,
-            pufETHOFT: pufETHOFT,
-            l1RewardManager: address(l1RewardManagerProxy),
-            l2RewardManager: address(l2RewardsManagerProxy)
+            pufETHOFTAdapter: address(pufETHOFTAdapter),
+            pufETHOFT: address(pufETHOFT),
+            l1RewardManager: address(0),
+            l2RewardManager: address(0),
+            layerzeroL1Endpoint: layerzeroL1EndpointAddress,
+            layerzeroL2Endpoint: layerzeroL2EndpointAddress
         });
     }
 }

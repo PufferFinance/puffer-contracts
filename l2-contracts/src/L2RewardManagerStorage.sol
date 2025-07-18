@@ -78,6 +78,10 @@ abstract contract L2RewardManagerStorage {
          * After the rewards have been bridged from L1, we will wait for this period before allowing the users to claim the rewards for that rewards interval
          */
         uint256 claimingDelay;
+        /**
+         * @notice The address of the old pufETH token
+         */
+        address xPufETH;
     }
 
     // keccak256(abi.encode(uint256(keccak256("L2RewardManager.storage")) - 1)) & ~bytes32(uint256(0xff))

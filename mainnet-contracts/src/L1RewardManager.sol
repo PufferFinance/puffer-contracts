@@ -12,6 +12,8 @@ import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
 import { IOApp } from "./interface/LayerZero/IOApp.sol";
 import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
+import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 
 /**
  * @title L1RewardManager
@@ -25,9 +27,11 @@ contract L1RewardManager is
     UUPSUpgradeable,
     IOAppComposer
 {
+    using OptionsBuilder for bytes;
     /**
      * @notice The pufETH OFTAdapter contract on Ethereum Mainnet
      */
+
     IOApp public immutable PUFETH_ADAPTER;
 
     /**
@@ -62,13 +66,16 @@ contract L1RewardManager is
             revert BridgeNotAllowlisted();
         }
 
+        bytes memory options =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0).addExecutorLzComposeOption(0, 50000, 0);
+
         IOApp(oft).send{ value: msg.value }(
             IOApp.SendParam({
                 dstEid: bridgeData.destinationDomainId,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
                 amountLD: 0,
                 minAmountLD: 0,
-                extraOptions: bytes(""),
+                extraOptions: options,
                 composeMsg: abi.encode(
                     BridgingParams({
                         bridgingType: BridgingType.SetClaimer,
@@ -80,6 +87,7 @@ contract L1RewardManager is
             IOApp.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
             msg.sender // refundAddress
         );
+        emit L2RewardClaimerUpdated(msg.sender, claimer);
     }
 
     /**
@@ -118,7 +126,6 @@ contract L1RewardManager is
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
-            pufETHAmount: shares, // Need to pass the pufETH amount to the L2RewardManager in data
             ethToPufETHRate: ethToPufETHRate,
             startEpoch: params.startEpoch,
             endEpoch: params.endEpoch,
@@ -126,13 +133,16 @@ contract L1RewardManager is
             rewardsURI: params.rewardsURI
         });
 
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0) // Gas for lzReceive
+            .addExecutorLzComposeOption(0, 50000, 0); // Gas for lzCompose
+
         IOApp(params.oft).send{ value: msg.value }(
             IOApp.SendParam({
                 dstEid: bridgeData.destinationDomainId,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
                 amountLD: shares,
                 minAmountLD: 0,
-                extraOptions: bytes(""),
+                extraOptions: options,
                 composeMsg: abi.encode(
                     BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) })
                 ),
@@ -168,17 +178,25 @@ contract L1RewardManager is
         address, /* _executor */
         bytes calldata /* _extraData */
     ) external payable override restricted {
-        if (oft != address(PUFETH_ADAPTER)) {
-            revert Unauthorized();
-        }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-
+        // Although the function is restricted to LZ endpoint, this check will make sure that only whitelisted OFT can be used.
         if (msg.sender != $.bridges[oft].endpoint) {
             revert Unauthorized();
         }
-        // We decode the data to get the amount of shares(pufETH) and the ETH amount.
+
+        // Decode the OFT compose message to extract the original sender and validate authenticity
+        bytes32 composeFrom = OFTComposeMsgCodec.composeFrom(message);
+        bytes memory actualMessage = OFTComposeMsgCodec.composeMsg(message);
+
+        // Validate that the original sender is our legitimate L2RewardManager
+        address originalSender = address(uint160(uint256(composeFrom)));
+        if (originalSender != L2_REWARDS_MANAGER) {
+            revert Unauthorized();
+        }
+
+        // We decode the actual message to get the amount of shares(pufETH) and the ETH amount.
         L2RewardManagerStorage.EpochRecord memory epochRecord =
-            abi.decode(message, (L2RewardManagerStorage.EpochRecord));
+            abi.decode(actualMessage, (L2RewardManagerStorage.EpochRecord));
 
         // This contract has already received the pufETH from pufETHAdapter after bridging back to L1
         // The PufferVault will burn the pufETH from this contract and subtract the ETH amount from the ethRewardsAmount
