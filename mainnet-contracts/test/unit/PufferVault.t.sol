@@ -627,4 +627,163 @@ contract PufferVaultTest is UnitTestHelper {
         // Check exchange rate has not changed
         assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "exchange rate should be the same");
     }
+
+    function testFuzz_withdraw_redeem_fee(uint256 aliceDeposit, uint256 bobDeposit, uint256 vaultEthBalance) public {
+        // Bound the inputs to reasonable values
+        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
+        bobDeposit = bound(bobDeposit, 0.1 ether, 100 ether);
+        vaultEthBalance = bound(vaultEthBalance, 1 ether, 1000 ether);
+
+        address[] memory adds = new address[](5);
+        adds[0] = alice;
+        adds[1] = bob;
+        adds[2] = address(pufferVault);
+        adds[3] = treasury;
+        adds[4] = LIQUIDITY_PROVIDER;
+
+        _resetAll(adds);
+
+        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
+        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
+
+        // Alice and Bob get some ETH
+        vm.deal(alice, aliceDeposit);
+        vm.deal(bob, bobDeposit);
+
+        // We set vault ETH balance
+        vm.deal(address(pufferVault), vaultEthBalance);
+
+        // Alice deposits
+        vm.prank(alice);
+        pufferVault.depositETH{ value: aliceDeposit }(alice);
+
+        // Bob deposits
+        vm.prank(bob);
+        pufferVault.depositETH{ value: bobDeposit }(bob);
+
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice); // Max assets alice can withdraw
+        uint256 maxRedeem = pufferVault.maxRedeem(alice); // Max shares alice can redeem
+        uint256 prevWithdraw = pufferVault.previewWithdraw(maxWithdraw); // Shares redeemed to withdraw `maxWithdraw` assets
+        uint256 prevRedeem = pufferVault.previewRedeem(maxRedeem); // Assets withdrawn by redeeming `maxRedeem` shares
+
+        assertApproxEqAbs(prevWithdraw, maxRedeem, 1, "previewWithdraw and maxRedeem should be equal");
+        assertApproxEqAbs(prevRedeem, maxWithdraw, 1, "previewRedeem and maxWithdraw should be equal");
+
+        // Alice withdraws max qty and we save the amount received
+        vm.prank(alice);
+        uint256 sharesBurned = pufferVault.withdraw(maxWithdraw, alice, alice);
+        uint256 aliceBalance = weth.balanceOf(alice);
+        uint256 treasuryFee = weth.balanceOf(treasury);
+        uint256 exchangeRate = pufferVault.convertToShares(1 ether);
+
+        assertEq(aliceBalance, maxWithdraw, "maxWithdraw should be eq to ethReceived from withdraw");
+        assertEq(sharesBurned, maxRedeem, "maxRedeem should be eq to shared burned in withdraw");
+
+        // Reset state
+
+        _resetAll(adds);
+
+        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
+        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
+
+        // Alice and Bob get some ETH
+        vm.deal(alice, aliceDeposit);
+        vm.deal(bob, bobDeposit);
+
+        // We set vault ETH balance
+        deal(address(pufferVault), vaultEthBalance);
+
+        // Alice deposits
+        vm.prank(alice);
+        pufferVault.depositETH{ value: aliceDeposit }(alice);
+
+        // Bob deposits
+        vm.prank(bob);
+        pufferVault.depositETH{ value: bobDeposit }(bob);
+
+        // Alice redeems
+        vm.prank(alice);
+        uint256 aliceRedeem = pufferVault.redeem(maxRedeem, alice, alice);
+        uint256 aliceBalance2 = weth.balanceOf(alice);
+        uint256 treasuryFee2 = weth.balanceOf(treasury);
+        uint256 exchangeRate2 = pufferVault.convertToShares(1 ether);
+
+        assertEq(aliceRedeem, aliceBalance2, "Alice gets weth in same amount as redeem func returns");
+
+        assertApproxEqAbs(aliceBalance2, aliceBalance, 1, "Alice should get the same from withdraw and redeem");
+        assertApproxEqAbs(sharesBurned, maxRedeem, 1, "Alice should burn the same shares from withdraw and redeem");
+
+        assertEq(treasuryFee, treasuryFee2, "Treasury gets the same fee");
+
+        assertEq(exchangeRate, exchangeRate2, "Vault exchange rate remains identical with withdraw or redeem");
+    }
+
+    function testFuzz_withdraw_redeem_treasury_fee(uint256 aliceDeposit, uint256 bobDeposit, uint256 vaultEthBalance)
+        public
+        with1ExitFeeAnd2TreasuryExitFee
+    {
+        testFuzz_withdraw_redeem_fee(aliceDeposit, bobDeposit, vaultEthBalance);
+    }
+
+    function testFuzz_redeem_previewRedeem(uint256 aliceDeposit, uint256 bobDeposit, uint256 vaultEthBalance) public {
+        // Bound the inputs to reasonable values
+        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
+        bobDeposit = bound(bobDeposit, 0.1 ether, 100 ether);
+        vaultEthBalance = bound(vaultEthBalance, 1 ether, 1000 ether);
+
+        address[] memory adds = new address[](5);
+        adds[0] = alice;
+        adds[1] = bob;
+        adds[2] = address(pufferVault);
+        adds[3] = treasury;
+        adds[4] = LIQUIDITY_PROVIDER;
+
+        _resetAll(adds);
+
+        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
+        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
+
+        // Alice and Bob get some ETH
+        vm.deal(alice, aliceDeposit);
+        vm.deal(bob, bobDeposit);
+
+        // We set vault ETH balance
+        vm.deal(address(pufferVault), vaultEthBalance);
+
+        // Alice deposits
+        vm.prank(alice);
+        pufferVault.depositETH{ value: aliceDeposit }(alice);
+
+        // Bob deposits
+        vm.prank(bob);
+        pufferVault.depositETH{ value: bobDeposit }(bob);
+
+        uint256 alicePufEthBalace = pufferVault.balanceOf(alice);
+
+        uint256 sharesToRedeem;
+        sharesToRedeem = bound(sharesToRedeem, 0, alicePufEthBalace);
+
+        uint256 assetsPreviewRedeem = pufferVault.previewRedeem(sharesToRedeem);
+
+        vm.prank(alice);
+        uint256 assetsRedeem = pufferVault.redeem(sharesToRedeem, alice, alice);
+
+        assertEq(assetsRedeem, assetsPreviewRedeem, "redeem and previewRedeem should return the same amount of assets");
+    }
+
+    function testFuzz_redeem_previewRedeem_treasury_fee(
+        uint256 aliceDeposit,
+        uint256 bobDeposit,
+        uint256 vaultEthBalance
+    ) public with1ExitFeeAnd2TreasuryExitFee {
+        testFuzz_redeem_previewRedeem(aliceDeposit, bobDeposit, vaultEthBalance);
+    }
+
+    function _resetAll(address[] memory users) internal {
+        for (uint256 i = 0; i < users.length; i++) {
+            deal(users[i], 0);
+            deal(address(weth), users[i], 0);
+            deal(address(pufferVault), users[i], 0, true);
+        }
+    }
 }
