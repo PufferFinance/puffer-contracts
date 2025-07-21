@@ -725,6 +725,24 @@ contract PufferVaultTest is UnitTestHelper {
         testFuzz_withdraw_redeem_fee(aliceDeposit, bobDeposit, vaultEthBalance);
     }
 
+    function testFuzz_withdraw_redeem_treasury_fuzzy_fee(
+        uint256 aliceDeposit,
+        uint256 bobDeposit,
+        uint256 vaultEthBalance,
+        uint256 exitFee,
+        uint256 treasuryFee
+    ) public {
+        exitFee = bound(exitFee, 0, 2_50);
+        treasuryFee = bound(treasuryFee, 0, 2_50);
+        uint96 actualTreasuryFee = uint96(treasuryFee);
+        vm.startPrank(DAO);
+        pufferVault.setExitFeeBasisPoints(exitFee);
+        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
+        vm.stopPrank();
+
+        testFuzz_withdraw_redeem_fee(aliceDeposit, bobDeposit, vaultEthBalance);
+    }
+
     function testFuzz_redeem_previewRedeem(uint256 aliceDeposit, uint256 bobDeposit, uint256 vaultEthBalance) public {
         // Bound the inputs to reasonable values
         aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
@@ -776,6 +794,24 @@ contract PufferVaultTest is UnitTestHelper {
         uint256 bobDeposit,
         uint256 vaultEthBalance
     ) public with1ExitFeeAnd2TreasuryExitFee {
+        testFuzz_redeem_previewRedeem(aliceDeposit, bobDeposit, vaultEthBalance);
+    }
+
+    function testFuzz_redeem_previewRedeem_treasury_fuzzy_fee(
+        uint256 aliceDeposit,
+        uint256 bobDeposit,
+        uint256 vaultEthBalance,
+        uint256 exitFee,
+        uint256 treasuryFee
+    ) public {
+        exitFee = bound(exitFee, 0, 2_50);
+        treasuryFee = bound(treasuryFee, 0, 2_50);
+        uint96 actualTreasuryFee = uint96(treasuryFee);
+        vm.startPrank(DAO);
+        pufferVault.setExitFeeBasisPoints(exitFee);
+        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
+        vm.stopPrank();
+
         testFuzz_redeem_previewRedeem(aliceDeposit, bobDeposit, vaultEthBalance);
     }
 
