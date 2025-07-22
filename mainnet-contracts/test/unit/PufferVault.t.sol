@@ -979,12 +979,12 @@ contract PufferVaultTest is UnitTestHelper {
 
     function _upgradeToLiqMock() internal {
         // Grant upgrade role to timelock
-        uint64 tempRol = 64;
+        uint64 tempRole = 64;
         vm.startPrank(timelock);
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRol);
-        accessManager.grantRole(tempRol, address(timelock), 0);
+        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRole);
+        accessManager.grantRole(tempRole, address(timelock), 0);
 
         PufferVaultV5Liq newImplementation =
             new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
