@@ -34,17 +34,6 @@ abstract contract L2RewardManagerStorage {
     }
 
     /**
-     * @notice Data required for bridging.
-     * @param destinationDomainId The destination domain ID (LayerZero endpoint ID)
-     * @param endpoint The LayerZero V2 endpoint address
-     */
-    struct BridgeData {
-        // using struct to allow future addition to this
-        uint32 destinationDomainId;
-        address endpoint;
-    }
-
-    /**
      * @custom:storage-location erc7201:L2RewardManager.storage
      * @dev +-----------------------------------------------------------+
      *      |                                                           |
@@ -70,9 +59,9 @@ abstract contract L2RewardManagerStorage {
          */
         mapping(address account => address claimer) rewardsClaimers;
         /**
-         * @dev Mapping to track the bridge data for each oft
+         * @dev DEPRECATED: Unused bridge mapping, kept for storage layout compatibility
          */
-        mapping(address oft => BridgeData bridgeData) bridges;
+        mapping(address bridge => uint32 deprecatedDestinationDomainId) _deprecatedBridges;
         /**
          * @notice This period is used to delay the rewards claim for the users
          * After the rewards have been bridged from L1, we will wait for this period before allowing the users to claim the rewards for that rewards interval
@@ -82,6 +71,14 @@ abstract contract L2RewardManagerStorage {
          * @notice The address of the old pufETH token
          */
         address xPufETH;
+        /**
+         * @notice The pufETH OFT address for singleton design
+         */
+        address pufETHOFT;
+        /**
+         * @notice The destination endpoint ID for LayerZero bridging
+         */
+        uint32 destinationEID;
     }
 
     // keccak256(abi.encode(uint256(keccak256("L2RewardManager.storage")) - 1)) & ~bytes32(uint256(0xff))

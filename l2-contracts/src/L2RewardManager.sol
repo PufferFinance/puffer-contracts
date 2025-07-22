@@ -12,12 +12,12 @@ import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
 import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
-import { IOApp } from "mainnet-contracts/src/interface/LayerZero/IOApp.sol";
+import { IOFT } from "mainnet-contracts/src/interface/LayerZero/IOFT.sol";
 import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
 import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
 
-// We need to extend the IOApp interface to include the IERC20 interface
-interface IPufETH is IOApp, IERC20 { }
+// Unified interface for pufETH OFT that provides both ERC20 and LayerZero OFT functionality
+interface IPufETH is IOFT, IERC20 { }
 
 /**
  * @title L2RewardManager
@@ -32,23 +32,26 @@ contract L2RewardManager is
     IOAppComposer
 {
     /**
-     * @notice pufETH OFT token on this chain
-     */
-    IPufETH public immutable PUFETH;
-
-    /**
      * @notice The rewards manager contract on L1
      */
     address public immutable L1_REWARD_MANAGER;
 
-    constructor(address oft, address l1RewardManager) {
-        PUFETH = IPufETH(oft); // TODO: DO we really need this? We can use the oft directly
+    constructor(address l1RewardManager) {
+        if (l1RewardManager == address(0)) {
+            revert InvalidAddress();
+        }
         L1_REWARD_MANAGER = l1RewardManager;
         _disableInitializers();
     }
 
-    function initialize(address accessManager) external initializer {
+    function initialize(address accessManager, address pufETHOFT, uint32 destinationEID) external initializer {
+        if (pufETHOFT == address(0)) {
+            revert InvalidAddress();
+        }
         __AccessManaged_init(accessManager);
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.pufETHOFT = pufETHOFT;
+        $.destinationEID = destinationEID;
         _setClaimingDelay(12 hours);
     }
 
@@ -111,13 +114,13 @@ contract L2RewardManager is
                         IERC20($.xPufETH).transfer(recipient, amountToTransfer);
                     } else {
                         IERC20($.xPufETH).transfer(recipient, xPufETHBalance);
-                        PUFETH.transfer(recipient, amountToTransfer - xPufETHBalance);
+                        IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer - xPufETHBalance);
                     }
                 } else {
-                    PUFETH.transfer(recipient, amountToTransfer);
+                    IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer);
                 }
             } else {
-                PUFETH.transfer(recipient, amountToTransfer);
+                IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer);
             }
 
             emit Claimed({
@@ -146,8 +149,8 @@ contract L2RewardManager is
     ) external payable override restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        // Although the function is restricted to LZ endpoint, this check will make sure that only whitelisted OFT can be used.
-        if (msg.sender != $.bridges[oft].endpoint) {
+        // Ensure that only the whitelisted pufETH OFT can call this function
+        if (oft != $.pufETHOFT) {
             revert Unauthorized();
         }
 
@@ -185,14 +188,10 @@ contract L2RewardManager is
      *
      * msg.value is used to pay for the relayer fee on the destination chain.
      */
-    function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch)
-        external
-        payable
-        restricted
-    {
+    function freezeAndRevertInterval(uint256 startEpoch, uint256 endEpoch) external payable restricted {
         _freezeClaimingForInterval(startEpoch, endEpoch);
 
-        _revertInterval(bridge, startEpoch, endEpoch);
+        _revertInterval(startEpoch, endEpoch);
     }
 
     /**
@@ -204,29 +203,12 @@ contract L2RewardManager is
     }
 
     /**
-     * @notice Reverts the already frozen interval. It bridges the xPufETH back to the L1
-     * @dev On the L1, we unwrap xPufETH to pufETH and burn the pufETH to undo the minting
+     * @notice Reverts the already frozen interval. It bridges the pufETH back to the L1
+     * @dev On the L1, we burn the pufETH to undo the minting
      * We use msg.value to pay for the relayer fee on the destination chain.
      */
-    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external payable restricted {
-        _revertInterval(bridge, startEpoch, endEpoch);
-    }
-
-    /**
-     * @notice Updates the bridge data.
-     * @param oft The address of the oft.
-     * @param bridgeData The updated bridge data.
-     */
-    function updateBridgeData(address oft, BridgeData memory bridgeData) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        if (oft == address(0)) {
-            revert InvalidAddress();
-        }
-
-        $.bridges[oft].destinationDomainId = bridgeData.destinationDomainId;
-        $.bridges[oft].endpoint = bridgeData.endpoint;
-        emit BridgeDataUpdated(oft, bridgeData);
+    function revertInterval(uint256 startEpoch, uint256 endEpoch) external payable restricted {
+        _revertInterval(startEpoch, endEpoch);
     }
 
     /**
@@ -239,6 +221,7 @@ contract L2RewardManager is
 
     /**
      * @notice Sets the address of the old pufETH token
+     * @dev If set to Zero address, means that the old pufETH token is not used anymore
      * @param xPufETH The address of the old pufETH token
      */
     function setXPufETH(address xPufETH) external restricted {
@@ -247,11 +230,28 @@ contract L2RewardManager is
     }
 
     /**
-     * @inheritdoc IL2RewardManager
+     * @notice Sets the pufETH OFT address
+     * @param newPufETHOFT The new pufETH OFT address
      */
-    function getXPufETH() external view returns (address) {
+    function setPufETHOFT(address newPufETHOFT) external restricted {
+        if (newPufETHOFT == address(0)) {
+            revert InvalidAddress();
+        }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.xPufETH;
+        address oldPufETHOFT = $.pufETHOFT;
+        $.pufETHOFT = newPufETHOFT;
+        emit PufETHOFTUpdated({ oldPufETHOFT: oldPufETHOFT, newPufETHOFT: newPufETHOFT });
+    }
+
+    /**
+     * @notice Sets the destination endpoint ID
+     * @param newDestinationEID The new destination endpoint ID
+     */
+    function setDestinationEID(uint32 newDestinationEID) external restricted {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        uint32 oldDestinationEID = $.destinationEID;
+        $.destinationEID = newDestinationEID;
+        emit DestinationEIDUpdated({ oldDestinationEID: oldDestinationEID, newDestinationEID: newDestinationEID });
     }
 
     /**
@@ -298,6 +298,30 @@ contract L2RewardManager is
     function getClaimingDelay() external view returns (uint256) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.claimingDelay;
+    }
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+
+    function getXPufETH() external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.xPufETH;
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getPufETHOFT() external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.pufETHOFT;
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getDestinationEID() external view returns (uint32) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.destinationEID;
     }
 
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
@@ -397,14 +421,8 @@ contract L2RewardManager is
     /**
      * @notice Reverts the already frozen interval
      */
-    function _revertInterval(address oft, uint256 startEpoch, uint256 endEpoch) internal {
+    function _revertInterval(uint256 startEpoch, uint256 endEpoch) internal {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        BridgeData memory bridgeData = $.bridges[oft];
-
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
-        }
 
         bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
 
@@ -421,9 +439,9 @@ contract L2RewardManager is
 
         // We bridge the pufETH back to the L1
         // We don't need to approve since the oft is itself the pufETH token
-        IPufETH(oft).send{ value: msg.value }(
-            IOApp.SendParam({
-                dstEid: bridgeData.destinationDomainId,
+        IPufETH($.pufETHOFT).send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
                 to: bytes32(uint256(uint160(L1_REWARD_MANAGER))),
                 amountLD: epochRecord.pufETHAmount,
                 minAmountLD: 0,
@@ -431,7 +449,7 @@ contract L2RewardManager is
                 composeMsg: abi.encode(epochRecord),
                 oftCmd: bytes("")
             }),
-            IOApp.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
             msg.sender // refundAddress
         );
 

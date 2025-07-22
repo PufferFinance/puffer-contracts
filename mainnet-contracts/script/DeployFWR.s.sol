@@ -55,13 +55,14 @@ contract DeployFWR is DeployerHelper {
         vm.createSelectFork(vm.rpcUrl("base"));
         vm.startBroadcast();
 
-        L2RewardManager newImplementation = new L2RewardManager(_getPufETHOFT(), address(l1RewardManagerProxy));
+        L2RewardManager newImplementation = new L2RewardManager(address(l1RewardManagerProxy)); // Using L1 proxy address
 
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         l2RewardManagerProxy = address(
             new ERC1967Proxy(
-                address(newImplementation), abi.encodeCall(L2RewardManager.initialize, (_getAccessManager()))
+                address(newImplementation),
+                abi.encodeCall(L2RewardManager.initialize, (_getAccessManager(), _getPufETHOFT(), 2))
             )
         );
         vm.makePersistent(l2RewardManagerProxy);
@@ -86,17 +87,17 @@ contract DeployFWR is DeployerHelper {
         vm.startBroadcast();
 
         // L1RewardManager
-        L1RewardManager l1ReeardManagerImpl = new L1RewardManager({
-            oft: _getPufETHOFTAdapter(),
-            pufETH: _getPufferVault(),
-            l2RewardsManager: l2RewardManagerProxy
-        });
+        L1RewardManager l1ReeardManagerImpl = new L1RewardManager(
+            _getPufferVault(), // pufETH
+            l2RewardManagerProxy // l2RewardsManager
+        );
 
         vm.label(address(l1ReeardManagerImpl), "l1ReeardManagerImpl");
 
         // The deployer can execute the upgrade right away because of NoImplementation contract
         UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(
-            address(l1ReeardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (_getAccessManager()))
+            address(l1ReeardManagerImpl),
+            abi.encodeCall(L1RewardManager.initialize, (_getAccessManager(), _getPufETHOFTAdapter(), 2))
         );
 
         vm.stopBroadcast();

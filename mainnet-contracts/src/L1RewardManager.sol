@@ -10,7 +10,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
-import { IOApp } from "./interface/LayerZero/IOApp.sol";
+import { IOFT } from "./interface/LayerZero/IOFT.sol";
 import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
 import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
 import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
@@ -28,11 +28,6 @@ contract L1RewardManager is
     IOAppComposer
 {
     using OptionsBuilder for bytes;
-    /**
-     * @notice The pufETH OFTAdapter contract on Ethereum Mainnet
-     */
-
-    IOApp public immutable PUFETH_ADAPTER;
 
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
@@ -43,35 +38,38 @@ contract L1RewardManager is
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    constructor(address oft, address pufETH, address l2RewardsManager) {
-        PUFETH_ADAPTER = IOApp(oft); // TODO: DO we really need this? We can use the oft directly
+    constructor(address pufETH, address l2RewardsManager) {
+        if (pufETH == address(0) || l2RewardsManager == address(0)) {
+            revert InvalidAddress();
+        }
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }
 
-    function initialize(address accessManager) external initializer {
+    function initialize(address accessManager, address pufETHOFT, uint32 destinationEID) external initializer {
+        if (pufETHOFT == address(0)) {
+            revert InvalidAddress();
+        }
         __AccessManaged_init(accessManager);
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.pufETHOFT = pufETHOFT;
+        $.destinationEID = destinationEID;
         _setAllowedRewardMintFrequency(20 hours);
     }
 
     /**
      * @inheritdoc IL1RewardManager
      */
-    function setL2RewardClaimer(address oft, address claimer) external payable {
+    function setL2RewardClaimer(address claimer) external payable {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        BridgeData memory bridgeData = $.bridges[oft];
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
-        }
 
         bytes memory options =
             OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0).addExecutorLzComposeOption(0, 50000, 0);
 
-        IOApp(oft).send{ value: msg.value }(
-            IOApp.SendParam({
-                dstEid: bridgeData.destinationDomainId,
+        IOFT($.pufETHOFT).send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
                 amountLD: 0,
                 minAmountLD: 0,
@@ -84,7 +82,7 @@ contract L1RewardManager is
                 ),
                 oftCmd: bytes("")
             }),
-            IOApp.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
             msg.sender // refundAddress
         );
         emit L2RewardClaimerUpdated(msg.sender, claimer);
@@ -111,18 +109,13 @@ contract L1RewardManager is
             revert NotAllowedMintFrequency();
         }
 
-        BridgeData memory bridgeData = $.bridges[params.oft];
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
-        }
-
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
 
         // Mint the rewards and lock them into the pufETHAdapter to be bridged to L2
         (uint256 ethToPufETHRate, uint256 shares) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
 
-        PUFFER_VAULT.approve(params.oft, shares);
+        PUFFER_VAULT.approve($.pufETHOFT, shares);
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
@@ -136,9 +129,9 @@ contract L1RewardManager is
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0) // Gas for lzReceive
             .addExecutorLzComposeOption(0, 50000, 0); // Gas for lzCompose
 
-        IOApp(params.oft).send{ value: msg.value }(
-            IOApp.SendParam({
-                dstEid: bridgeData.destinationDomainId,
+        IOFT($.pufETHOFT).send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
                 amountLD: shares,
                 minAmountLD: 0,
@@ -148,7 +141,7 @@ contract L1RewardManager is
                 ),
                 oftCmd: bytes("")
             }),
-            IOApp.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
             msg.sender // refundAddress
         );
 
@@ -179,8 +172,9 @@ contract L1RewardManager is
         bytes calldata /* _extraData */
     ) external payable override restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        // Although the function is restricted to LZ endpoint, this check will make sure that only whitelisted OFT can be used.
-        if (msg.sender != $.bridges[oft].endpoint) {
+
+        // Ensure that only the whitelisted pufETH OFT can call this function
+        if (oft != $.pufETHOFT) {
             revert Unauthorized();
         }
 
@@ -211,28 +205,11 @@ contract L1RewardManager is
         });
     }
     /**
-     * @notice Updates the bridge data.
-     * @param oft The address of the oft.
-     * @param bridgeData The updated bridge data.
-     * @dev Restricted access to `ROLE_ID_DAO`
-     */
-
-    function updateBridgeData(address oft, BridgeData calldata bridgeData) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        if (oft == address(0)) {
-            revert InvalidAddress();
-        }
-
-        $.bridges[oft].destinationDomainId = bridgeData.destinationDomainId;
-        $.bridges[oft].endpoint = bridgeData.endpoint;
-        emit BridgeDataUpdated(oft, bridgeData);
-    }
-
-    /**
      * @notice Sets the allowed reward mint amount.
      * @param newAmount The new allowed reward mint amount.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
+
     function setAllowedRewardMintAmount(uint104 newAmount) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -251,14 +228,44 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice Returns the bridge data for a given oft.
-     * @param oft The address of the oft.
-     * @return The bridge data.
+     * @notice Sets the pufETH OFT address
+     * @param newPufETHOFT The new pufETH OFT address
      */
-    function getBridge(address oft) external view returns (BridgeData memory) {
+    function setPufETHOFT(address newPufETHOFT) external restricted {
+        if (newPufETHOFT == address(0)) {
+            revert InvalidAddress();
+        }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
+        address oldPufETHOFT = $.pufETHOFT;
+        $.pufETHOFT = newPufETHOFT;
+        emit PufETHOFTUpdated({ oldPufETHOFT: oldPufETHOFT, newPufETHOFT: newPufETHOFT });
+    }
 
-        return $.bridges[oft];
+    /**
+     * @notice Sets the destination endpoint ID
+     * @param newDestinationEID The new destination endpoint ID
+     */
+    function setDestinationEID(uint32 newDestinationEID) external restricted {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        uint32 oldDestinationEID = $.destinationEID;
+        $.destinationEID = newDestinationEID;
+        emit DestinationEIDUpdated({ oldDestinationEID: oldDestinationEID, newDestinationEID: newDestinationEID });
+    }
+
+    /**
+     * @notice Returns the pufETH OFT address
+     */
+    function getPufETHOFT() external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.pufETHOFT;
+    }
+
+    /**
+     * @notice Returns the destination endpoint ID
+     */
+    function getDestinationEID() external view returns (uint32) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.destinationEID;
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {

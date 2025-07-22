@@ -14,10 +14,9 @@ interface IL1RewardManager {
      * Smart contracts might not be able to to own the same address on L2. This function allows to set a different address as the claimer.
      * msg.value is used to pay for the relayer fee on the destination chain.
      *
-     * @param bridge The address of the bridge.
      * @param claimer The address of the new claimer.
      */
-    function setL2RewardClaimer(address bridge, address claimer) external payable;
+    function setL2RewardClaimer(address claimer) external payable;
 
     enum BridgingType {
         MintAndBridge,
@@ -36,7 +35,6 @@ interface IL1RewardManager {
 
     /**
      * @notice Parameters for minting and bridging rewards.
-     * @param oft The address of the oft.
      * @param rewardsAmount The amount of rewards to be bridged.
      * @param startEpoch The starting epoch for the rewards.
      * @param endEpoch The ending epoch for the rewards.
@@ -44,7 +42,6 @@ interface IL1RewardManager {
      * @param rewardsURI The URI for the rewards metadata.
      */
     struct MintAndBridgeParams {
-        address oft;
         uint256 rewardsAmount;
         uint256 startEpoch;
         uint256 endEpoch;
@@ -118,16 +115,23 @@ interface IL1RewardManager {
     event AllowedRewardMintFrequencyUpdated(uint256 oldFrequency, uint256 newFrequency);
 
     /**
-     * @notice Event emitted when the L2 reward claimer is updated.
-     * @param account The account setting the claimer.
+     * @notice Event emitted when L2 reward claimer is updated.
+     * @param account The address of the account.
      * @param claimer The address of the new claimer.
      */
     event L2RewardClaimerUpdated(address indexed account, address indexed claimer);
 
     /**
-     * @notice Event emitted when bridge data is updated.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
+     * @notice Event emitted when the pufETH OFT address is updated
+     * @param oldPufETHOFT The old pufETH OFT address
+     * @param newPufETHOFT The new pufETH OFT address
      */
-    event BridgeDataUpdated(address indexed bridge, L1RewardManagerStorage.BridgeData bridgeData);
+    event PufETHOFTUpdated(address indexed oldPufETHOFT, address indexed newPufETHOFT);
+
+    /**
+     * @notice Event emitted when the destination EID is updated
+     * @param oldDestinationEID The old destination EID
+     * @param newDestinationEID The new destination EID
+     */
+    event DestinationEIDUpdated(uint32 oldDestinationEID, uint32 newDestinationEID);
 }

@@ -36,17 +36,6 @@ abstract contract L1RewardManagerStorage {
     }
 
     /**
-     * @notice Data required for bridging.
-     * @param destinationDomainId The destination domain ID (LayerZero endpoint ID)
-     * @param endpoint The LayerZero V2 endpoint address
-     */
-    struct BridgeData {
-        // using struct to allow future addition to this
-        uint32 destinationDomainId;
-        address endpoint;
-    }
-
-    /**
      * @custom:storage-location erc7201:l1rewardmanager.storage
      * @dev +-----------------------------------------------------------+
      *      |                                                           |
@@ -59,10 +48,17 @@ abstract contract L1RewardManagerStorage {
         uint104 allowedRewardMintFrequency;
         uint48 lastRewardMintTimestamp;
         /**
-         * @dev oft is the LayerZero OFTAdapter (pufETH OFTAdapter) address
-         * @dev oft have a linked destinationDomainId, which is the LayerZero endpoint ID and endpoint address
+         * @dev DEPRECATED: Unused bridge mapping, kept for storage layout compatibility
          */
-        mapping(address oft => BridgeData bridgeData) bridges;
+        mapping(address bridge => uint32 deprecatedDestinationDomainId) _deprecatedBridges;
+        /**
+         * @notice The pufETH OFT address for singleton design
+         */
+        address pufETHOFT;
+        /**
+         * @notice The destination endpoint ID for LayerZero bridging
+         */
+        uint32 destinationEID;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))

@@ -38,7 +38,7 @@ import { OFTMock } from "partners-layerzero/test/mocks/OFTMock.sol";
 import {
     IOAppOptionsType3, EnforcedOptionParam
 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
-import { IOApp } from "../../src/interface/LayerZero/IOApp.sol";
+// import { IOFT } from "../../src/interface/LayerZero/IOFT.sol";
 
 import { console } from "forge-std/console.sol";
 
@@ -103,23 +103,26 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         address noImpl = address(new NoImplementation());
 
         ERC1967Proxy l2RewardManagerProxy = new ERC1967Proxy(noImpl, "");
-        L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            oft: address(pufETHOFTAdapter),
-            pufETH: address(pufferVault),
-            l2RewardsManager: address(l2RewardManagerProxy)
-        });
+        L1RewardManager l1RewardManagerImpl = new L1RewardManager(
+            address(pufferVault), // pufETH
+            address(l2RewardManagerProxy) // l2RewardsManager
+        );
 
         L1RewardManager l1RewardManagerProxy = L1RewardManager(
             address(
                 new ERC1967Proxy(
-                    address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
+                    address(l1RewardManagerImpl),
+                    abi.encodeCall(
+                        L1RewardManager.initialize, (address(accessManager), address(pufETHOFTAdapter), dstEid)
+                    )
                 )
             )
         );
-        L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(pufETHOFT), address(l1RewardManagerProxy));
+        L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(l1RewardManagerProxy));
 
         UUPSUpgradeable(address(l2RewardManagerProxy)).upgradeToAndCall(
-            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+            address(l2RewardManagerImpl),
+            abi.encodeCall(L2RewardManager.initialize, (address(accessManager), address(pufETHOFT), srcEid))
         );
 
         l2RewardManager = L2RewardManager(address(l2RewardManagerProxy));
@@ -157,9 +160,9 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         // xpufETH.setLockbox(address(lockBox));
         // xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
-        L1RewardManagerStorage.BridgeData memory bridgeData =
-            L1RewardManagerStorage.BridgeData({ destinationDomainId: 2, endpoint: address(layerzeroL1Endpoint) });
-        l1RewardManager.updateBridgeData(address(pufETHOFTAdapter), bridgeData);
+        // Set the singleton pufETH OFT and destination EID
+        l1RewardManager.setPufETHOFT(address(pufETHOFTAdapter));
+        l1RewardManager.setDestinationEID(dstEid);
 
         vm.stopPrank();
         vm.deal(address(this), 300 ether);
@@ -183,23 +186,44 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
     }
 
     function test_Constructor() public {
-        new L1RewardManager(address(0), address(0), address(0));
+        new L1RewardManager(address(1), address(2));
     }
 
-    function testRevert_updateBridgeDataInvalidBridge() public {
-        vm.startPrank(DAO);
-
-        L1RewardManagerStorage.BridgeData memory bridgeData = l1RewardManager.getBridge(address(pufETHOFTAdapter));
+    function test_setPufETHOFT() public {
+        address newPufETHOFT = address(0x123);
 
         vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
-        l1RewardManager.updateBridgeData(address(0), bridgeData);
+        vm.startPrank(DAO);
+        l1RewardManager.setPufETHOFT(address(0));
+        vm.stopPrank();
+
+        vm.startPrank(DAO);
+        address currentPufETHOFT = l1RewardManager.getPufETHOFT();
+        vm.expectEmit(true, true, false, false);
+        emit IL1RewardManager.PufETHOFTUpdated(currentPufETHOFT, newPufETHOFT);
+        l1RewardManager.setPufETHOFT(newPufETHOFT);
+
+        assertEq(l1RewardManager.getPufETHOFT(), newPufETHOFT);
+        vm.stopPrank();
+    }
+
+    function test_setDestinationEID() public {
+        uint32 newDestinationEID = 999;
+
+        vm.startPrank(DAO);
+        uint32 currentDestinationEID = l1RewardManager.getDestinationEID();
+        vm.expectEmit(false, false, false, true);
+        emit IL1RewardManager.DestinationEIDUpdated(currentDestinationEID, newDestinationEID);
+        l1RewardManager.setDestinationEID(newDestinationEID);
+
+        assertEq(l1RewardManager.getDestinationEID(), newDestinationEID);
+        vm.stopPrank();
     }
 
     function test_MintAndBridgeRewardsSuccess() public allowedDailyFrequency allowMintAmount(100 ether) {
         rewardsAmount = 100 ether;
 
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            oft: address(pufETHOFTAdapter),
             rewardsAmount: rewardsAmount,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
@@ -218,7 +242,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
     function testRevert_MintAndBridgeRewardsInvalidBridge() public allowedDailyFrequency allowMintAmount(100 ether) {
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            oft: address(0), // invalid bridge
             rewardsAmount: 100 ether,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
@@ -228,7 +251,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
         // ✅ Use arbitrary value for LayerZero fees
         uint256 layerZeroFee = 0.01 ether;
-        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
+        // In singleton design, this should work since we have a valid pufETH OFT set
         l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
     }
 
@@ -389,7 +412,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
     function testRevert_MintAndBridgeRewardsInvalidMintAmount() public {
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            oft: address(pufETHOFTAdapter),
             rewardsAmount: 200 ether, // assuming this is more than allowed
             startEpoch: 1,
             endEpoch: 2,
@@ -409,7 +431,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         allowMintAmount(100 ether)
     {
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            oft: address(pufETHOFTAdapter),
             rewardsAmount: 1 ether,
             startEpoch: 1,
             endEpoch: 2,
@@ -474,13 +495,14 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         uint256 layerZeroFee = 0.01 ether;
         vm.expectEmit(true, true, true, true);
         emit IL1RewardManager.L2RewardClaimerUpdated(address(this), newClaimer);
-        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(address(pufETHOFTAdapter), newClaimer);
+        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(newClaimer);
     }
 
     function testRevert_setClaimerInvalidBrige() public {
         uint256 layerZeroFee = 0.01 ether;
-        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.BridgeNotAllowlisted.selector));
-        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(address(0x1111), address(0x123));
+        vm.expectEmit(true, true, true, true);
+        emit IL1RewardManager.L2RewardClaimerUpdated(address(this), address(0x123));
+        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(address(0x123));
     }
 
     function testRevert_callFromInvalidBridgeOrigin() public {
@@ -516,7 +538,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         rewardsAmount = 100 ether;
 
         IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            oft: address(pufETHOFTAdapter),
             rewardsAmount: rewardsAmount,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
@@ -541,7 +562,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
         // ✅ Use arbitrary value for LayerZero fees
         uint256 layerZeroFee = 0.01 ether;
-        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(address(pufETHOFTAdapter), newClaimer);
+        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(newClaimer);
 
         // Verify the function executed without reverting
         assertTrue(true, "setL2RewardClaimer with enforced options works");

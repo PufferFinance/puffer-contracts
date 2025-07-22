@@ -59,10 +59,11 @@ contract GenerateRewardManagerCalldata is Script {
 
         calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l1Bridge, 0);
 
-        bytes4[] memory daoSelectors = new bytes4[](3);
-        daoSelectors[0] = L1RewardManager.updateBridgeData.selector;
-        daoSelectors[1] = L1RewardManager.setAllowedRewardMintAmount.selector;
-        daoSelectors[2] = L1RewardManager.setAllowedRewardMintFrequency.selector;
+        bytes4[] memory daoSelectors = new bytes4[](4);
+        daoSelectors[0] = L1RewardManager.setPufETHOFT.selector;
+        daoSelectors[1] = L1RewardManager.setDestinationEID.selector;
+        daoSelectors[2] = L1RewardManager.setAllowedRewardMintAmount.selector;
+        daoSelectors[3] = L1RewardManager.setAllowedRewardMintFrequency.selector;
 
         calldatas[3] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, daoSelectors, ROLE_ID_DAO
@@ -146,9 +147,10 @@ contract GenerateRewardManagerCalldata is Script {
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), paymasterSelectors, ROLE_ID_DAO
         );
 
-        bytes4[] memory daoSelectors = new bytes4[](2);
-        daoSelectors[0] = L2RewardManager.updateBridgeData.selector;
-        daoSelectors[1] = L2RewardManager.setDelayPeriod.selector;
+        bytes4[] memory daoSelectors = new bytes4[](3);
+        daoSelectors[0] = L2RewardManager.setPufETHOFT.selector;
+        daoSelectors[1] = L2RewardManager.setDestinationEID.selector;
+        daoSelectors[2] = L2RewardManager.setDelayPeriod.selector;
 
         calldatasL2[4] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
