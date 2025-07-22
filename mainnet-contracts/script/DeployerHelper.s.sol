@@ -489,8 +489,8 @@ abstract contract DeployerHelper is Script {
 
     function _getPufETHOFTAdapter() internal view returns (address) {
         if (block.chainid == mainnet) {
-            // https://etherscan.io/address/0x0000000000000000000000000000000000000002
-            return 0x0000000000000000000000000000000000000002;
+            // https://etherscan.io/address/0xa4931a9F9Aaf79057334371D6f62164743f97b18
+            return 0xa4931a9F9Aaf79057334371D6f62164743f97b18;
             // } else if (block.chainid == holesky) {
             //     // https://holesky.etherscan.io/address/0x0000000000000000000000000000000000000002
             //     return 0x0000000000000000000000000000000000000002;
