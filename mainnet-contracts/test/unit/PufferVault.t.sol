@@ -819,19 +819,7 @@ contract PufferVaultTest is UnitTestHelper {
     }
 
     function test_maxRedeem_liquidity() public with1ExitFeeAnd2TreasuryExitFee {
-        // Grant upgrade role to timelock
-        uint64 tempRol = 64;
-        vm.startPrank(timelock);
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRol);
-        accessManager.grantRole(tempRol, address(timelock), 0);
-
-        PufferVaultV5Liq newImplementation =
-            new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
-
-        UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
-        vm.stopPrank();
+        _upgradeToLiqMock();
 
         address[] memory adds = new address[](5);
         adds[0] = alice;
@@ -886,19 +874,8 @@ contract PufferVaultTest is UnitTestHelper {
         pufferVault.setExitFeeBasisPoints(exitFee);
         pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
         vm.stopPrank();
-        // Grant upgrade role to timelock
-        uint64 tempRol = 64;
-        vm.startPrank(timelock);
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRol);
-        accessManager.grantRole(tempRol, address(timelock), 0);
 
-        PufferVaultV5Liq newImplementation =
-            new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
-
-        UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
-        vm.stopPrank();
+        _upgradeToLiqMock();
 
         address[] memory adds = new address[](5);
         adds[0] = alice;
@@ -954,19 +931,8 @@ contract PufferVaultTest is UnitTestHelper {
         pufferVault.setExitFeeBasisPoints(exitFee);
         pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
         vm.stopPrank();
-        // Grant upgrade role to timelock
-        uint64 tempRol = 64;
-        vm.startPrank(timelock);
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
-        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRol);
-        accessManager.grantRole(tempRol, address(timelock), 0);
 
-        PufferVaultV5Liq newImplementation =
-            new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
-
-        UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
-        vm.stopPrank();
+        _upgradeToLiqMock();
 
         address[] memory adds = new address[](5);
         adds[0] = alice;
@@ -1009,5 +975,21 @@ contract PufferVaultTest is UnitTestHelper {
             deal(address(weth), users[i], 0);
             deal(address(pufferVault), users[i], 0, true);
         }
+    }
+
+    function _upgradeToLiqMock() internal {
+        // Grant upgrade role to timelock
+        uint64 tempRol = 64;
+        vm.startPrank(timelock);
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
+        accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRol);
+        accessManager.grantRole(tempRol, address(timelock), 0);
+
+        PufferVaultV5Liq newImplementation =
+            new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
+
+        UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
+        vm.stopPrank();
     }
 }
