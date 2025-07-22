@@ -854,27 +854,12 @@ contract PufferVaultTest is UnitTestHelper {
         uint256 assetsWithdrawn = pufferVault.redeem(maxRedeem, alice, alice);
         assertEq(maxWithdraw, assetsWithdrawn, "maxWithdraw should be the same as assetsWithdrawn");
         assertEq(previewRedeem, assetsWithdrawn, "previewRedeem should be the same as assetsWithdrawn");
+
+        uint256 newAvailableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+        assertApproxEqAbs(newAvailableLiquidity, 0, 1, "available liquidity should be 0");
     }
 
-    function testFuzz_maxRedeem_liquidity(
-        uint256 aliceDeposit,
-        uint256 bobDeposit,
-        uint256 vaultEthBalance,
-        uint256 exitFee,
-        uint256 treasuryFee
-    ) public with1ExitFeeAnd2TreasuryExitFee {
-        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
-        bobDeposit = bound(bobDeposit, 0.1 ether, 100 ether);
-        vaultEthBalance = bound(vaultEthBalance, 0.1 ether, 5 ether);
-        exitFee = bound(exitFee, 0, 2_50);
-        treasuryFee = bound(treasuryFee, 0, 2_50);
-
-        uint96 actualTreasuryFee = uint96(treasuryFee);
-        vm.startPrank(DAO);
-        pufferVault.setExitFeeBasisPoints(exitFee);
-        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
-        vm.stopPrank();
-
+    function test_maxWithdraw_liquidity() public with1ExitFeeAnd2TreasuryExitFee {
         _upgradeToLiqMock();
 
         address[] memory adds = new address[](5);
@@ -889,8 +874,7 @@ contract PufferVaultTest is UnitTestHelper {
         assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
         assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
 
-        // We set vault ETH balance
-        vm.deal(address(pufferVault), vaultEthBalance);
+        uint256 aliceDeposit = 1 ether;
 
         deal(alice, aliceDeposit);
 
@@ -898,67 +882,11 @@ contract PufferVaultTest is UnitTestHelper {
         vm.startPrank(alice);
         pufferVault.depositETH{ value: aliceDeposit }(alice);
 
-        uint256 lockedLiquidity;
-        lockedLiquidity = bound(lockedLiquidity, 0, vaultEthBalance + aliceDeposit);
+        PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(0.5 ether);
 
-        PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(lockedLiquidity);
+        uint256 availableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
 
-        uint256 maxRedeem = pufferVault.maxRedeem(alice);
-        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
-        uint256 previewRedeem = pufferVault.previewRedeem(maxRedeem);
-
-        uint256 assetsWithdrawn = pufferVault.redeem(maxRedeem, alice, alice);
-
-        assertApproxEqAbs(maxWithdraw, assetsWithdrawn, 1, "maxWithdraw should be the same as assetsWithdrawn");
-        assertApproxEqAbs(previewRedeem, assetsWithdrawn, 1, "previewRedeem should be the same as assetsWithdrawn");
-    }
-
-    function testFuzz_maxWithdraw_liquidity(
-        uint256 aliceDeposit,
-        uint256 bobDeposit,
-        uint256 vaultEthBalance,
-        uint256 exitFee,
-        uint256 treasuryFee
-    ) public with1ExitFeeAnd2TreasuryExitFee {
-        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
-        bobDeposit = bound(bobDeposit, 0.1 ether, 100 ether);
-        vaultEthBalance = bound(vaultEthBalance, 0.1 ether, 5 ether);
-        exitFee = bound(exitFee, 0, 2_50);
-        treasuryFee = bound(treasuryFee, 0, 2_50);
-
-        uint96 actualTreasuryFee = uint96(treasuryFee);
-        vm.startPrank(DAO);
-        pufferVault.setExitFeeBasisPoints(exitFee);
-        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
-        vm.stopPrank();
-
-        _upgradeToLiqMock();
-
-        address[] memory adds = new address[](5);
-        adds[0] = alice;
-        adds[1] = bob;
-        adds[2] = address(pufferVault);
-        adds[3] = treasury;
-        adds[4] = LIQUIDITY_PROVIDER;
-
-        _resetAll(adds);
-
-        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
-        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
-
-        // We set vault ETH balance
-        vm.deal(address(pufferVault), vaultEthBalance);
-
-        deal(alice, aliceDeposit);
-
-        // Alice deposits
-        vm.startPrank(alice);
-        pufferVault.depositETH{ value: aliceDeposit }(alice);
-
-        uint256 lockedLiquidity;
-        lockedLiquidity = bound(lockedLiquidity, 0, vaultEthBalance + aliceDeposit);
-
-        PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(lockedLiquidity);
+        assertEq(availableLiquidity, 0.5 ether, "balance is 0.5 ether");
 
         uint256 maxRedeem = pufferVault.maxRedeem(alice);
         uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
@@ -967,6 +895,132 @@ contract PufferVaultTest is UnitTestHelper {
         uint256 sharesRedeemed = pufferVault.withdraw(maxWithdraw, alice, alice);
         assertApproxEqAbs(maxRedeem, sharesRedeemed, 1, "maxRedeem should be the same as sharesRedeemed");
         assertApproxEqAbs(previewWithdraw, sharesRedeemed, 1, "previewWithdraw should be the same as sharesRedeemed");
+
+        uint256 newAvailableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+
+        assertApproxEqAbs(newAvailableLiquidity, 0, 1, "available liquidity should be 0");
+    }
+
+    function testFuzz_maxRedeem_liquidity(
+        uint256 aliceDeposit,
+        uint256 vaultEthBalance,
+        uint256 exitFee,
+        uint256 treasuryFee
+    ) public with1ExitFeeAnd2TreasuryExitFee {
+        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
+        vaultEthBalance = bound(vaultEthBalance, 0.1 ether, 5 ether);
+        exitFee = bound(exitFee, 0, 2_50);
+        treasuryFee = bound(treasuryFee, 0, 2_50);
+
+        uint96 actualTreasuryFee = uint96(treasuryFee);
+        vm.startPrank(DAO);
+        pufferVault.setExitFeeBasisPoints(exitFee);
+        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
+        vm.stopPrank();
+
+        _upgradeToLiqMock();
+
+        address[] memory adds = new address[](5);
+        adds[0] = alice;
+        adds[1] = bob;
+        adds[2] = address(pufferVault);
+        adds[3] = treasury;
+        adds[4] = LIQUIDITY_PROVIDER;
+
+        _resetAll(adds);
+
+        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
+        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
+
+        // We set vault ETH balance
+        vm.deal(address(pufferVault), vaultEthBalance);
+
+        deal(alice, aliceDeposit);
+
+        // Alice deposits
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: aliceDeposit }(alice);
+
+        uint256 lockedLiquidity;
+        lockedLiquidity = bound(lockedLiquidity, 0, vaultEthBalance + aliceDeposit);
+
+        PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(lockedLiquidity);
+
+        uint256 availableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+
+        uint256 maxRedeem = pufferVault.maxRedeem(alice);
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
+        uint256 previewRedeem = pufferVault.previewRedeem(maxRedeem);
+
+        uint256 assetsWithdrawn = pufferVault.redeem(maxRedeem, alice, alice);
+        uint256 newAvailableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+
+        assertApproxEqAbs(maxWithdraw, assetsWithdrawn, 1, "maxWithdraw should be the same as assetsWithdrawn");
+        assertApproxEqAbs(previewRedeem, assetsWithdrawn, 1, "previewRedeem should be the same as assetsWithdrawn");
+        if (availableLiquidity < aliceDeposit) {
+            assertApproxEqAbs(newAvailableLiquidity, 0, 1, "available liquidity should be 0");
+        }
+    }
+
+    function testFuzz_maxWithdraw_liquidity(
+        uint256 aliceDeposit,
+        uint256 vaultEthBalance,
+        uint256 exitFee,
+        uint256 treasuryFee
+    ) public with1ExitFeeAnd2TreasuryExitFee {
+        aliceDeposit = bound(aliceDeposit, 0.1 ether, 100 ether);
+        vaultEthBalance = bound(vaultEthBalance, 0.1 ether, 5 ether);
+        exitFee = bound(exitFee, 0, 2_50);
+        treasuryFee = bound(treasuryFee, 0, 2_50);
+
+        uint96 actualTreasuryFee = uint96(treasuryFee);
+        vm.startPrank(DAO);
+        pufferVault.setExitFeeBasisPoints(exitFee);
+        pufferVault.setTreasuryExitFeeBasisPoints(actualTreasuryFee, treasury);
+        vm.stopPrank();
+
+        _upgradeToLiqMock();
+
+        address[] memory adds = new address[](5);
+        adds[0] = alice;
+        adds[1] = bob;
+        adds[2] = address(pufferVault);
+        adds[3] = treasury;
+        adds[4] = LIQUIDITY_PROVIDER;
+
+        _resetAll(adds);
+
+        assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
+        assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
+
+        // We set vault ETH balance
+        vm.deal(address(pufferVault), vaultEthBalance);
+
+        deal(alice, aliceDeposit);
+
+        // Alice deposits
+        vm.startPrank(alice);
+        pufferVault.depositETH{ value: aliceDeposit }(alice);
+
+        uint256 lockedLiquidity;
+        lockedLiquidity = bound(lockedLiquidity, 0, vaultEthBalance + aliceDeposit);
+
+        uint256 availableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+
+        PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(lockedLiquidity);
+
+        uint256 maxRedeem = pufferVault.maxRedeem(alice);
+        uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
+        uint256 previewWithdraw = pufferVault.previewWithdraw(maxWithdraw);
+
+        uint256 sharesRedeemed = pufferVault.withdraw(maxWithdraw, alice, alice);
+        uint256 newAvailableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
+
+        assertApproxEqAbs(maxRedeem, sharesRedeemed, 1, "maxRedeem should be the same as sharesRedeemed");
+        assertApproxEqAbs(previewWithdraw, sharesRedeemed, 1, "previewWithdraw should be the same as sharesRedeemed");
+        if (availableLiquidity < aliceDeposit) {
+            assertApproxEqAbs(newAvailableLiquidity, 0, 1, "available liquidity should be 0");
+        }
     }
 
     function _resetAll(address[] memory users) internal {

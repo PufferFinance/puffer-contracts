@@ -508,7 +508,7 @@ contract PufferVaultV5 is
         uint256 maxUserAssets = previewRedeem(balanceOf(owner));
 
         uint256 availableLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
-
+        availableLiquidity = _assetsWithFee(availableLiquidity, getExitFeeBasisPoints());
         availableLiquidity -= _feeOnRaw(availableLiquidity, getTotalExitFeeBasisPoints());
 
         // Return the minimum of user's assets and available liquidity
@@ -526,6 +526,8 @@ contract PufferVaultV5 is
         uint256 shares = balanceOf(owner);
         // Calculate max shares based on available liquidity (WETH + ETH balance)
         uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance);
+        availableLiquidity = _assetsWithFee(availableLiquidity, getExitFeeBasisPoints());
+
         // Calculate how many shares can be redeemed from the available liquidity after fees
         uint256 maxSharesFromLiquidity = super.previewWithdraw(availableLiquidity);
         // Return the minimum of user's shares and shares from available liquidity
