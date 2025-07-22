@@ -855,7 +855,6 @@ contract PufferVaultTest is UnitTestHelper {
 
         PufferVaultV5Liq(payable(address(pufferVault))).reduceLiquidity(0.5 ether);
 
-
         uint256 availableLiquidity = weth.balanceOf(address(pufferVault)) + address(pufferVault).balance;
 
         assertEq(availableLiquidity, 0.5 ether, "balance is 0.5 ether");
@@ -863,7 +862,6 @@ contract PufferVaultTest is UnitTestHelper {
         uint256 maxRedeem = pufferVault.maxRedeem(alice);
         uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
         uint256 previewRedeem = pufferVault.previewRedeem(maxRedeem);
-
 
         uint256 assetsWithdrawn = pufferVault.redeem(maxRedeem, alice, alice);
         assertEq(maxWithdraw, assetsWithdrawn, "maxWithdraw should be the same as assetsWithdrawn");
@@ -913,7 +911,6 @@ contract PufferVaultTest is UnitTestHelper {
 
         assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
         assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
-
 
         // We set vault ETH balance
         vm.deal(address(pufferVault), vaultEthBalance);
@@ -983,7 +980,6 @@ contract PufferVaultTest is UnitTestHelper {
         assertEq(pufferVault.totalAssets(), 0, "Total assets should be 0");
         assertEq(pufferVault.totalSupply(), 0, "Total supply should be 0");
 
-
         // We set vault ETH balance
         vm.deal(address(pufferVault), vaultEthBalance);
 
@@ -1001,7 +997,6 @@ contract PufferVaultTest is UnitTestHelper {
         uint256 maxRedeem = pufferVault.maxRedeem(alice);
         uint256 maxWithdraw = pufferVault.maxWithdraw(alice);
         uint256 previewWithdraw = pufferVault.previewWithdraw(maxWithdraw);
-
 
         uint256 sharesRedeemed = pufferVault.withdraw(maxWithdraw, alice, alice);
         assertApproxEqAbs(maxRedeem, sharesRedeemed, 1, "maxRedeem should be the same as sharesRedeemed");
