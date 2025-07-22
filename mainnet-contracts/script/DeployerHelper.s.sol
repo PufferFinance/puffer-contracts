@@ -491,18 +491,18 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xa4931a9F9Aaf79057334371D6f62164743f97b18
             return 0xa4931a9F9Aaf79057334371D6f62164743f97b18;
-            // } else if (block.chainid == holesky) {
-            //     // https://holesky.etherscan.io/address/0x0000000000000000000000000000000000000002
-            //     return 0x0000000000000000000000000000000000000002;
+            } else if (block.chainid == holesky) {
+                // https://holesky.etherscan.io/address/0xfe235A03d87FCBf94E91536955c8a6b1FF50A5C0
+                return 0xfe235A03d87FCBf94E91536955c8a6b1FF50A5C0;
         }
 
         revert("PufETHOFT not available for this chain");
     }
 
     function _getPufETHOFT() internal view returns (address) {
-        if (block.chainid == base) {
-            // https://basescan.org/address/0x0000000000000000000000000000000000000002
-            return 0x0000000000000000000000000000000000000002;
+        if (block.chainid == sepolia) {
+            // https://sepolia.etherscan.io/address/0xc0F1A1B26E7B3661c4875621883362CC48951c10
+            return 0xc0F1A1B26E7B3661c4875621883362CC48951c10;
         }
 
         revert("PufETHOFT not available for this chain");
@@ -513,8 +513,28 @@ abstract contract DeployerHelper is Script {
             // https://etherscan.io/address/0x1a44076050125825900e736c501f859c50fE728c
             return 0x1a44076050125825900e736c501f859c50fE728c;
         }
+        else if (block.chainid == holesky) {
+            // https://holesky.etherscan.io/address/0x6EDCE65403992e310A62460808c4b910D972f10f
+            return 0x6EDCE65403992e310A62460808c4b910D972f10f;
+        }
+        else if (block.chainid == sepolia) {
+            // https://sepolia.etherscan.io/address/0x6EDCE65403992e310A62460808c4b910D972f10f
+            return 0x6EDCE65403992e310A62460808c4b910D972f10f;
+        }
 
         revert("LayerZeroV2Endpoint not available for this chain");
+    }
+    
+    function _getLayerZeroDestinationEID() internal view returns (uint32) {
+        if (block.chainid == holesky) {
+            // https://docs.layerzero.network/v2/deployments/deployed-contracts
+            return 40217;
+        }
+        else if (block.chainid == sepolia) {
+            return 40161;
+        }
+
+        revert("LayerZeroDestinationEID not available for this chain");
     }
 
     function _getPaymaster() internal view returns (address) {
