@@ -507,9 +507,12 @@ contract PufferVaultV5 is
     function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
         uint256 maxUserAssets = previewRedeem(balanceOf(owner));
 
-        uint256 vaultLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+        uint256 availableLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+
+        availableLiquidity -= _feeOnRaw(availableLiquidity, getTotalExitFeeBasisPoints());
+
         // Return the minimum of user's assets and available liquidity
-        return Math.min(maxUserAssets, vaultLiquidity);
+        return Math.min(maxUserAssets, availableLiquidity);
     }
 
     /**
@@ -524,7 +527,7 @@ contract PufferVaultV5 is
         // Calculate max shares based on available liquidity (WETH + ETH balance)
         uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance);
         // Calculate how many shares can be redeemed from the available liquidity after fees
-        uint256 maxSharesFromLiquidity = previewWithdraw(availableLiquidity);
+        uint256 maxSharesFromLiquidity = super.previewWithdraw(availableLiquidity);
         // Return the minimum of user's shares and shares from available liquidity
         return Math.min(shares, maxSharesFromLiquidity);
     }
