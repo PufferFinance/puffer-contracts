@@ -47,14 +47,8 @@ contract L1RewardManager is
         _disableInitializers();
     }
 
-    function initialize(address accessManager, address pufETHOFT, uint32 destinationEID) external initializer {
-        if (pufETHOFT == address(0)) {
-            revert InvalidAddress();
-        }
+    function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        $.pufETHOFT = pufETHOFT;
-        $.destinationEID = destinationEID;
         _setAllowedRewardMintFrequency(20 hours);
     }
 
