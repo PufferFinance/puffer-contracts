@@ -8,7 +8,7 @@ import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
+import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
 import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
@@ -321,11 +321,6 @@ contract L2RewardManager is
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
         L1RewardManagerStorage.MintAndBridgeData memory params =
             abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
-
-        // Sanity check
-        if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
-            revert InvalidAmount();
-        }
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
