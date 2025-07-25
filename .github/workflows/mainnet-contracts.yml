@@ -26,6 +26,7 @@ jobs:
             path: mainnet-contracts
             check_hidden: true
             check_filenames: true
+            skip: "pnpm-lock.yaml"
 
   tests:
     runs-on: ubuntu-latest
