@@ -111,18 +111,18 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         L1RewardManager l1RewardManagerProxy = L1RewardManager(
             address(
                 new ERC1967Proxy(
-                    address(l1RewardManagerImpl),
-                    abi.encodeCall(
-                        L1RewardManager.initialize, (address(accessManager), address(pufETHOFTAdapter), dstEid)
-                    )
+                    address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
                 )
             )
         );
-        L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(l1RewardManagerProxy));
+
+        // mock xpufETH
+        ERC20Mock xpufETH = new ERC20Mock("xpufETH", "xpufETH");
+
+        L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(l1RewardManagerProxy), address(xpufETH));
 
         UUPSUpgradeable(address(l2RewardManagerProxy)).upgradeToAndCall(
-            address(l2RewardManagerImpl),
-            abi.encodeCall(L2RewardManager.initialize, (address(accessManager), address(pufETHOFT), srcEid))
+            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
         );
 
         l2RewardManager = L2RewardManager(address(l2RewardManagerProxy));

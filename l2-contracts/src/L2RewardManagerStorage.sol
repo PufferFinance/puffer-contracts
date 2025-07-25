@@ -68,10 +68,6 @@ abstract contract L2RewardManagerStorage {
          */
         uint256 claimingDelay;
         /**
-         * @notice The address of the old pufETH token
-         */
-        address xPufETH;
-        /**
          * @notice The pufETH OFT address for singleton design
          */
         address pufETHOFT;

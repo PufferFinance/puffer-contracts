@@ -91,8 +91,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     using OptionsBuilder for bytes;
 
     modifier withBridgesEnabled() {
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
         test_setPufETHOFT();
         test_setDestinationEID();
         _;
@@ -155,28 +153,26 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
 
         xPufETHProxy.setLockbox(address(xERC20Lockbox));
 
-        address l2RewardManagerImpl = address(new L2RewardManager(address(l1RewardManager)));
+        address l2RewardManagerImpl = address(new L2RewardManager(address(l1RewardManagerProxy), address(xPufETHProxy)));
 
         l2RewardManager = L2RewardManager(
             address(
                 new ERC1967Proxy(
-                    address(l2RewardManagerImpl),
-                    abi.encodeCall(L2RewardManager.initialize, (address(accessManager), address(pufETHOFT), dstEid))
+                    address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
                 )
             )
         );
 
         vm.label(address(l2RewardManager), "l2RewardManagerProxy");
 
-        // L1RewardManager
+        // L1RewardManager - deploy with the correct L2 address
         L1RewardManager l1RewardManagerImpl = new L1RewardManager(
             address(pufferVault), // pufETH (actually the vault in this test)
             address(l2RewardManager) // l2RewardsManager
         );
 
         UUPSUpgradeable(address(l1RewardManagerProxy)).upgradeToAndCall(
-            address(l1RewardManagerImpl),
-            abi.encodeCall(L1RewardManager.initialize, (address(accessManager), address(pufETHOFT), srcEid))
+            address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
         );
 
         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
@@ -195,6 +191,7 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         accessManager.grantRole(ROLE_ID_REWARD_WATCHER, address(this), 0);
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_BRIDGE, address(endpoints[dstEid]), 0);
 
         vm.label(address(l1RewardManager), "l1RewardManagerProxy");
 
@@ -203,64 +200,34 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function test_Constructor() public {
-        new L2RewardManager(address(l1RewardManager));
+        new L2RewardManager(address(l1RewardManager), address(xPufETHProxy));
     }
 
     function test_setPufETHOFT() public {
-        address newPufETHOFT = address(pufETHOFT); // Use the actual pufETH OFT from test setup
-
         vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
         l2RewardManager.setPufETHOFT(address(0));
 
         address currentPufETHOFT = l2RewardManager.getPufETHOFT();
         vm.expectEmit(true, true, false, false);
-        emit IL2RewardManager.PufETHOFTUpdated(currentPufETHOFT, newPufETHOFT);
-        l2RewardManager.setPufETHOFT(newPufETHOFT);
+        emit IL2RewardManager.PufETHOFTUpdated({ oldPufETHOFT: currentPufETHOFT, newPufETHOFT: address(pufETHOFT) });
+        l2RewardManager.setPufETHOFT(address(pufETHOFT));
 
-        assertEq(l2RewardManager.getPufETHOFT(), newPufETHOFT);
+        assertEq(l2RewardManager.getPufETHOFT(), address(pufETHOFT));
     }
 
     function test_setDestinationEID() public {
-        uint32 newDestinationEID = 999;
-
         uint32 currentDestinationEID = l2RewardManager.getDestinationEID();
         vm.expectEmit(false, false, false, true);
-        emit IL2RewardManager.DestinationEIDUpdated(currentDestinationEID, newDestinationEID);
-        l2RewardManager.setDestinationEID(newDestinationEID);
+        emit IL2RewardManager.DestinationEIDUpdated({
+            oldDestinationEID: currentDestinationEID,
+            newDestinationEID: srcEid
+        });
+        l2RewardManager.setDestinationEID(srcEid);
 
-        assertEq(l2RewardManager.getDestinationEID(), newDestinationEID);
-    }
-
-    function test_setL1PufETHOFT() public {
-        address newPufETHOFT = address(0x123);
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
-        l1RewardManager.setPufETHOFT(address(0));
-
-        address currentPufETHOFT = l1RewardManager.getPufETHOFT();
-        vm.expectEmit(true, true, false, false);
-        emit IL1RewardManager.PufETHOFTUpdated(currentPufETHOFT, newPufETHOFT);
-        l1RewardManager.setPufETHOFT(newPufETHOFT);
-
-        assertEq(l1RewardManager.getPufETHOFT(), newPufETHOFT);
-    }
-
-    function test_setL1DestinationEID() public {
-        uint32 newDestinationEID = 999;
-
-        uint32 currentDestinationEID = l1RewardManager.getDestinationEID();
-        vm.expectEmit(false, false, false, true);
-        emit IL1RewardManager.DestinationEIDUpdated(currentDestinationEID, newDestinationEID);
-        l1RewardManager.setDestinationEID(newDestinationEID);
-
-        assertEq(l1RewardManager.getDestinationEID(), newDestinationEID);
+        assertEq(l2RewardManager.getDestinationEID(), srcEid);
     }
 
     function test_freezeInvalidInterval() public {
-        // Setup bridge configuration
-        test_setPufETHOFT();
-        test_setDestinationEID();
-
         // Non existing interval
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToFreezeInterval.selector));
         l2RewardManager.freezeAndRevertInterval(123124, 523523);
@@ -277,12 +244,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function test_freezeAndRevertInterval() public {
-        // Allowlist bridge
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
-        test_setPufETHOFT();
-        test_setDestinationEID();
-
         test_MintAndBridgeRewardsSuccess();
 
         // Verify the interval exists before freeze
@@ -325,11 +286,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function test_revertInterval() public {
-        test_setPufETHOFT();
-        test_setDestinationEID();
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
-
         // Create an epoch record first by bridging rewards
         test_MintAndBridgeRewardsSuccess();
 
@@ -391,7 +347,7 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         vm.startPrank(address(endpoints[dstEid]));
 
         vm.expectEmit();
-        emit IL2RewardManager.ClaimerSet(alice, claimer);
+        emit IL2RewardManager.ClaimerSet({ account: alice, claimer: claimer });
 
         // Encode LayerZero compose message
         bytes32 composeFrom = addressToBytes32(address(l1RewardManager));
@@ -497,9 +453,14 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function test_MintAndBridgeRewardsSuccess() public withBridgesEnabled {
-        rewardsAmount = 100 ether;
-        ethToPufETHRate = 1 ether;
-        rewardsRoot = keccak256(abi.encodePacked("testRoot"));
+        rewardsAmount = 151610335920000000000 wei;
+        ethToPufETHRate = 423874739755568357 wei;
+        startEpoch = 355908;
+        endEpoch = 365057;
+        intervalId = 0xdabcef44d85693a906da7b97668f69eac538c038725c2a18e9a6915b7ea3136f;
+        rewardsRoot = bytes32(hex"973ada15f91dae7c3c5b7f4956823fc6acf58be4d6af3c44b3a0bbd02a39cb69");
+        string memory rewardsURI =
+            "https://puffer-production-partial-withdrawal-public-bucket.s3.eu-central-1.amazonaws.com/evidence/rewards_355908_365057.json";
 
         L1RewardManagerStorage.MintAndBridgeData memory bridgingCalldata = L1RewardManagerStorage.MintAndBridgeData({
             rewardsAmount: rewardsAmount,
@@ -507,7 +468,7 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
             startEpoch: startEpoch,
             endEpoch: endEpoch,
             rewardsRoot: rewardsRoot,
-            rewardsURI: "uri"
+            rewardsURI: rewardsURI
         });
 
         IL1RewardManager.BridgingParams memory bridgingParams = IL1RewardManager.BridgingParams({
@@ -537,7 +498,7 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         assertEq(l2RewardManager.isClaimingLocked(intervalId), true, "claiming should be locked");
     }
 
-    function testRevert_MintAndBridgeRewardsInvalidAmount() public withBridgesEnabled {
+    function test_MintAndBridgeRewardsAmountTrimmed() public withBridgesEnabled {
         rewardsAmount = 100 ether;
         ethToPufETHRate = 1 ether;
         rewardsRoot = keccak256(abi.encodePacked("testRoot"));
@@ -559,14 +520,23 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
 
         vm.startPrank(address(endpoints[dstEid]));
 
-        vm.expectRevert(abi.encodeWithSelector(InvalidAmount.selector));
+        // LayerZero trims precision from 18 decimals to 6 decimals
+        // Amounts smaller than 1e12 wei (1e18 - 1e6) get rounded down to 0
+        // Using a small amount that will be trimmed to 0 due to precision loss
+        uint256 smallAmountTrimmedToZero = 1e11; // 100 billion wei, less than 1e12, will be trimmed to 0
 
-        // Encode LayerZero compose message with invalid amount
+        // Encode LayerZero compose message with amount that gets trimmed to 0
         bytes32 composeFrom = addressToBytes32(address(l1RewardManager));
-        bytes memory lzMessage = encode(0, srcEid, 0, abi.encodePacked(composeFrom, encodedCallData)); // 0 amount is invalid
+        bytes memory lzMessage =
+            encode(0, srcEid, smallAmountTrimmedToZero, abi.encodePacked(composeFrom, encodedCallData));
 
         // Simulate LayerZero lzCompose call
         l2RewardManager.lzCompose(address(pufETHOFT), bytes32(0), lzMessage, address(0), "");
+
+        // Verify that the epoch record was created with the trimmed amount
+        L2RewardManagerStorage.EpochRecord memory epochRecord = l2RewardManager.getEpochRecord(intervalId);
+        assertEq(epochRecord.pufETHAmount, smallAmountTrimmedToZero, "pufETH amount should match the trimmed amount");
+        assertEq(epochRecord.rewardRoot, rewardsRoot, "rewardsRoot should be stored correctly");
     }
 
     function test_merkleWithBackendMockData() public {
@@ -815,9 +785,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
 
     // Test claiming when both xPufETH and pufETH OFT are present
     function test_claimRewardsWithBothTokens() public withBridgesEnabled {
-        // Set xPufETH token
-        l2RewardManager.setXPufETH(address(xPufETHProxy));
-
         // Build a merkle proof - need at least 2 leaves for Merkle library
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
         merkleProofDatas[0] = MerkleProofData({ account: alice, isL1Contract: false, amount: 1 ether });
@@ -880,9 +847,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
 
     // Test claiming when only xPufETH is available
     function test_claimRewardsOnlyXPufETH() public withBridgesEnabled {
-        // Set xPufETH token
-        l2RewardManager.setXPufETH(address(xPufETHProxy));
-
         // Build a merkle proof - need at least 2 leaves for Merkle library
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
         merkleProofDatas[0] = MerkleProofData({ account: alice, isL1Contract: false, amount: 1 ether });
@@ -1237,10 +1201,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function testRevert_callFromInvalidBridgeOrigin() public {
-        // Need to set up bridge data first so the endpoint check passes
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
-
         vm.startPrank(address(endpoints[dstEid])); // Call from correct endpoint
 
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
@@ -1253,9 +1213,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function testRevert_intervalThatIsNotFrozen() public {
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
-
         test_MintAndBridgeRewardsSuccess();
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
@@ -1263,9 +1220,6 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
     }
 
     function testRevert_zeroHashInterval() public {
-        test_setL1PufETHOFT();
-        test_setL1DestinationEID();
-
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.UnableToRevertInterval.selector));
         l2RewardManager.revertInterval(startEpoch, endEpoch);
     }

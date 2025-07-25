@@ -3,21 +3,19 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
+import { L1RewardManager } from "../src/L1RewardManager.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
-import { L1RewardManager } from "src/L1RewardManager.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { XERC20Lockbox } from "../src/XERC20Lockbox.sol";
 /**
  * @dev
  * To run the simulation do the following:
- *         forge script script/UpgradeL2RewardManager.s.sol:UpgradeL2RewardManager -vvvv --rpc-url=...
+ *         forge script script/UpgradeL1RewardManager.s.sol:UpgradeL1RewardManager -vvvv --rpc-url=...
  *
  * If everything looks good, run the same command with `--broadcast --verify`
  */
 
-contract UpgradeL2RewardManager is DeployerHelper {
-    address l1RewardManagerProxy = address(0x016810D99Bdec8F8D26646b6B74D751f7b1a55a2);
+contract UpgradeL1RewardManager is DeployerHelper {
+    address l1RewardManagerProxy = address(0x10f970bcb84B82B82a65eBCbF45F26dD26D69F12);
     address l2RewardsManagerProxy = address(0xF7cd14c371bF9bE0BD2F210d72aF597da493F96C);
     address l1PufferVault;
 
@@ -51,10 +49,10 @@ contract UpgradeL2RewardManager is DeployerHelper {
         // Load addresses for Sepolia
         _getDeployer();
 
-        L2RewardManager newImplementation = new L2RewardManager(address(l1RewardManagerProxy), address(_getDeprecatedXPufETH())); // L1 proxy address
-        console.log("L2RewardManager Implementation", address(newImplementation));
+        L1RewardManager newImplementation = new L1RewardManager(_getPufferVault(), address(l1RewardManagerProxy)); // L1 proxy address
+        console.log("L1RewardManager Implementation", address(newImplementation));
 
-        UUPSUpgradeable(l2RewardsManagerProxy).upgradeToAndCall(address(newImplementation), "");
+        UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(address(newImplementation), "");
         vm.stopBroadcast();
     }
 }

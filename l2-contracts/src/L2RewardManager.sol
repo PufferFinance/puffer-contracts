@@ -36,11 +36,17 @@ contract L2RewardManager is
      */
     address public immutable L1_REWARD_MANAGER;
 
-    constructor(address l1RewardManager) {
+    /**
+     * @notice The address of the old pufETH token
+     */
+    address public immutable xPufETH;
+
+    constructor(address l1RewardManager, address xpufETH) {
         if (l1RewardManager == address(0)) {
             revert InvalidAddress();
         }
         L1_REWARD_MANAGER = l1RewardManager;
+        xPufETH = xpufETH;
         _disableInitializers();
     }
 
@@ -101,17 +107,13 @@ contract L2RewardManager is
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
             // First we transfer any remaining xPufETH in this contract to the recipient
-            if ($.xPufETH != address(0)) {
-                uint256 xPufETHBalance = IERC20($.xPufETH).balanceOf(address(this));
-                if (xPufETHBalance > 0) {
-                    if (xPufETHBalance >= amountToTransfer) {
-                        IERC20($.xPufETH).transfer(recipient, amountToTransfer);
-                    } else {
-                        IERC20($.xPufETH).transfer(recipient, xPufETHBalance);
-                        IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer - xPufETHBalance);
-                    }
+            uint256 xPufETHBalance = IERC20(xPufETH).balanceOf(address(this));
+            if (xPufETHBalance > 0) {
+                if (xPufETHBalance >= amountToTransfer) {
+                    IERC20(xPufETH).transfer(recipient, amountToTransfer);
                 } else {
-                    IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer);
+                    IERC20(xPufETH).transfer(recipient, xPufETHBalance);
+                    IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer - xPufETHBalance);
                 }
             } else {
                 IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer);
@@ -214,16 +216,6 @@ contract L2RewardManager is
     }
 
     /**
-     * @notice Sets the address of the old pufETH token
-     * @dev If set to Zero address, means that the old pufETH token is not used anymore
-     * @param xPufETH The address of the old pufETH token
-     */
-    function setXPufETH(address xPufETH) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        $.xPufETH = xPufETH;
-    }
-
-    /**
      * @notice Sets the pufETH OFT address
      * @param newPufETHOFT The new pufETH OFT address
      */
@@ -292,14 +284,6 @@ contract L2RewardManager is
     function getClaimingDelay() external view returns (uint256) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.claimingDelay;
-    }
-    /**
-     * @inheritdoc IL2RewardManager
-     */
-
-    function getXPufETH() external view returns (address) {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.xPufETH;
     }
 
     /**

@@ -68,11 +68,6 @@ interface IL2RewardManager {
     function isClaimingLocked(bytes32 intervalId) external view returns (bool);
 
     /**
-     * @notice Returns the address of the old pufETH token
-     */
-    function getXPufETH() external view returns (address);
-
-    /**
      * @notice Returns the pufETH OFT address
      */
     function getPufETHOFT() external view returns (address);

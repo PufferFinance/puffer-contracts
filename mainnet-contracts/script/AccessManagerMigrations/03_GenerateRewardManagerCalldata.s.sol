@@ -148,9 +148,9 @@ contract GenerateRewardManagerCalldata is Script {
         );
 
         bytes4[] memory daoSelectors = new bytes4[](3);
-        daoSelectors[0] = L2RewardManager.setPufETHOFT.selector;
-        daoSelectors[1] = L2RewardManager.setDestinationEID.selector;
-        daoSelectors[2] = L2RewardManager.setDelayPeriod.selector;
+        daoSelectors[0] = L2RewardManager.setDelayPeriod.selector;
+        daoSelectors[1] = L2RewardManager.setPufETHOFT.selector;
+        daoSelectors[2] = L2RewardManager.setDestinationEID.selector;
 
         calldatasL2[4] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
