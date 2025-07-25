@@ -51,7 +51,8 @@ contract UpgradeL2RewardManager is DeployerHelper {
         // Load addresses for Sepolia
         _getDeployer();
 
-        L2RewardManager newImplementation = new L2RewardManager(address(l1RewardManagerProxy), address(_getDeprecatedXPufETH())); // L1 proxy address
+        L2RewardManager newImplementation =
+            new L2RewardManager(address(l1RewardManagerProxy), address(_getDeprecatedXPufETH())); // L1 proxy address
         console.log("L2RewardManager Implementation", address(newImplementation));
 
         UUPSUpgradeable(l2RewardsManagerProxy).upgradeToAndCall(address(newImplementation), "");
