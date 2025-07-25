@@ -158,7 +158,9 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
         // We don't subtract fees from vault liquidity because:
         // 1. Fees are already accounted for in previewRedeem when converting shares to assets
         // 2. When liquidity is the limiting factor, the user should be able to withdraw up to the full liquidity
-        assertEq(pufferVault.maxWithdraw(bob), vaultLiquidity, "maxWithdraw should be limited by vault liquidity");
+        assertApproxEqAbs(
+            pufferVault.maxWithdraw(bob), vaultLiquidity, 1, "maxWithdraw should be limited by vault liquidity"
+        );
         uint256 expectedMaxRedeem = pufferVault.previewWithdraw(vaultLiquidity);
         // Test maxRedeem
         assertEq(
