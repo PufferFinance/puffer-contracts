@@ -30,6 +30,7 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { PufferProtocolLogic } from "../src/PufferProtocolLogic.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -181,8 +182,21 @@ contract DeployPuffer is BaseScript {
             address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
         );
 
+        PufferProtocolLogic pufferProtocolLogic = new PufferProtocolLogic({
+            pufferVault: PufferVaultV5(payable(pufferVault)),
+            validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
+            guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
+            moduleManager: address(moduleManagerProxy),
+            oracle: IPufferOracleV2(oracle),
+            beaconDepositContract: getStakingContract(),
+            pufferRevenueDistributor: payable(revenueDepositor)
+        });
+
         // Initialize the Pool
-        pufferProtocol.initialize({ accessManager: address(accessManager) });
+        pufferProtocol.initialize({
+            accessManager: address(accessManager),
+            pufferProtocolLogic: address(pufferProtocolLogic)
+        });
 
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(operationsCoordinator), "OperationsCoordinator");
@@ -216,8 +230,9 @@ contract DeployPuffer is BaseScript {
             pufferVault: address(0), // overwritten in DeployEverything
             pufferDepositor: address(0), // overwritten in DeployEverything
             weth: address(0), // overwritten in DeployEverything
-            revenueDepositor: address(0) // overwritten in DeployEverything
-         });
+            revenueDepositor: address(0), // overwritten in DeployEverything
+            pufferProtocolLogic: address(pufferProtocolLogic)
+        });
     }
 
     function getStakingContract() internal returns (address) {

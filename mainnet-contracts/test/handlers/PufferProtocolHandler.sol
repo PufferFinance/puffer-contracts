@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
+import { IPufferProtocolEvents } from "../../src/interface/IPufferProtocolEvents.sol";
+import { IPufferProtocolFull } from "../../src/interface/IPufferProtocolFull.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
@@ -52,7 +53,7 @@ contract PufferProtocolHandler is Test {
     address DAO = makeAddr("DAO");
 
     uint256[] guardiansEnclavePks;
-    PufferProtocol pufferProtocol;
+    IPufferProtocolFull pufferProtocol;
     IWETH weth;
     stETHMock stETH;
 
@@ -136,7 +137,7 @@ contract PufferProtocolHandler is Test {
         }
 
         testhelper = helper;
-        pufferProtocol = protocol;
+        pufferProtocol = IPufferProtocolFull(address(protocol));
         // This is after the upgrade to PufferVaultV5, when the WETH is the underlying asset
         weth = IWETH(vault.asset());
         stETH = stETHMock(steth);
@@ -582,7 +583,7 @@ contract PufferProtocolHandler is Test {
         uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
+        emit IPufferProtocolEvents.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
             validatorKeyData, moduleName, 0, new bytes[](0), block.timestamp + 1 days
         );

@@ -78,23 +78,4 @@ abstract contract ProtocolSignatureNonces {
             return $._nonces[selector][owner]++;
         }
     }
-
-    /**
-     * @dev Same as {_useNonce} but checking that `nonce` is the next valid for `owner`.
-     * @param selector The function selector that determines the nonce space
-     * @param owner The address whose nonce to validate and consume
-     * @param nonce The expected nonce value
-     *
-     * @dev This function validates that the provided nonce matches the expected
-     * current nonce before consuming it. This prevents replay attacks and
-     * ensures proper signature ordering.
-     *
-     * @dev Reverts with InvalidAccountNonce if the nonce doesn't match.
-     */
-    function _useCheckedNonce(bytes32 selector, address owner, uint256 nonce) internal virtual {
-        uint256 current = _useNonce(selector, owner);
-        if (nonce != current) {
-            revert InvalidAccountNonce(selector, owner, current);
-        }
-    }
 }
