@@ -5,12 +5,13 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
-import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_VALIDATOR_EXITOR } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
@@ -22,6 +23,8 @@ import { IAllocationManagerTypes } from "src/interface/Eigenlayer-Slashing/IAllo
 import { IAllocationManager } from "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { IRewardsCoordinator } from "src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
 import { InvalidAddress } from "../../src/Errors.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { console } from "forge-std/console.sol";
 
 contract PufferModuleUpgrade {
     function getMagicValue() external pure returns (uint256) {
@@ -37,15 +40,28 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     bytes32 CRAZY_GAINS = bytes32("CRAZY_GAINS");
 
+    bytes32 MOCK_MODULE = bytes32("MOCK_MODULE");
+
+    address validatorExitor = makeAddr("validatorExitor");
+
+    uint256 EXIT_FEE = 0.0001 ether;
+
     function setUp() public override {
         super.setUp();
 
         vm.deal(address(this), 1000 ether);
 
+        vm.deal(validatorExitor, 3 ether);
+
         bytes memory cd = new GenerateSlashingELCalldata().run(address(pufferModuleManager));
 
         vm.startPrank(timelock);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_VALIDATOR_EXITOR, validatorExitor, 0);
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferModuleManager.requestWithdrawal.selector;
+        accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_VALIDATOR_EXITOR);
+
         (bool success,) = address(accessManager).call(cd);
         assertTrue(success, "should succeed");
 
@@ -84,16 +100,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
     function test_createPufferModule(bytes32 moduleName) public {
         address module = _createPufferModule(moduleName);
         assertEq(PufferModule(payable(module)).NAME(), moduleName, "bad name");
-    }
-
-    function test_pufferModuleAuthorization(bytes32 moduleName) public {
-        address module = _createPufferModule(moduleName);
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).callStake("", "", "");
-
-        vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).call(address(0), 0, "");
     }
 
     function test_registerOperatorToAVS() public {
@@ -331,6 +337,151 @@ contract PufferModuleManagerTest is UnitTestHelper {
         assertFalse(
             SignatureChecker.isValidERC1271SignatureNow(address(operator), fakeDigestHash, signature), "signer proof"
         );
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalExactFee1() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalExactFee2() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+        uint64[] memory gweiAmounts = new uint64[](2);
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys, gweiAmounts);
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalExcessFee() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
+
+        vm.startPrank(validatorExitor);
+
+        uint256 initialBalance = moduleAddress.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalExcessFee2() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+        uint64[] memory gweiAmounts = new uint64[](2);
+
+        vm.startPrank(validatorExitor);
+
+        uint256 initialBalance = moduleAddress.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.WithdrawalRequested(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        pufferModuleManager.requestWithdrawal{ value: 1 ether }(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - 2 * EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalNoFee() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(); // panic underflow when subtracting fee
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalUnauthorized() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+        uint64[] memory gweiAmounts = new uint64[](1);
+
+        vm.startPrank(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalInputArrayLengthMismatch() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        uint64[] memory gweiAmounts = new uint64[](2);
+        gweiAmounts[0] = 1 ether;
+        gweiAmounts[1] = 2 ether;
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthMismatch.selector));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
+
+        vm.stopPrank();
+    }
+
+    function test_requestWithdrawalInputArrayLengthZero() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](0);
+        uint64[] memory gweiAmounts = new uint64[](0);
+
+        vm.startPrank(validatorExitor);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthZero.selector));
+        pufferModuleManager.requestWithdrawal(MOCK_MODULE, pubkeys, gweiAmounts);
 
         vm.stopPrank();
     }

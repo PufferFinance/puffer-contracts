@@ -9,6 +9,7 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
@@ -26,6 +27,9 @@ import { PufferModule } from "./PufferModule.sol";
  * @custom:security-contact security@puffer.fi
  */
 contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, UUPSUpgradeable {
+    using Address for address;
+    using Address for address payable;
+
     address public immutable PUFFER_MODULE_BEACON;
     address public immutable RESTAKING_OPERATOR_BEACON;
     address public immutable PUFFER_PROTOCOL;
@@ -237,6 +241,54 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         withdrawalRoot = PufferModule(payable(moduleAddress)).callUndelegate();
 
         emit PufferModuleUndelegated(moduleName);
+    }
+
+    /**
+     * @notice Upgrades the given validators to consolidating (0x02)
+     * @param moduleName The name of the module
+     * @param pubkeys The pubkeys of the validators to upgrade
+     * @dev The function does not check that the pubkeys belong to the module
+     * @dev Restricted to the DAO
+     * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function upgradeToConsolidating(bytes32 moduleName, bytes[] calldata pubkeys) external payable virtual restricted {
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        PufferModule(payable(moduleAddress)).requestConsolidation{ value: msg.value }(pubkeys, pubkeys);
+
+        emit PufferModuleUpgradedToConsolidating(moduleName, pubkeys);
+    }
+
+    /**
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param moduleName The name of the module
+     * @param pubkeys The pubkeys of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @dev Restricted to the VALIDATOR_EXITOR role and the PufferProtocol
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function requestWithdrawal(bytes32 moduleName, bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        payable
+        virtual
+        restricted
+    {
+        if (pubkeys.length == 0) {
+            revert InputArrayLengthZero();
+        }
+        if (pubkeys.length != gweiAmounts.length) {
+            revert InputArrayLengthMismatch();
+        }
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+
+        PufferModule(payable(moduleAddress)).requestWithdrawal{ value: msg.value }(pubkeys, gweiAmounts);
+
+        emit WithdrawalRequested(moduleName, pubkeys, gweiAmounts);
     }
 
     /**

@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator } from "../struct/Validator.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { PufferModule } from "../PufferModule.sol";
+
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
  * @dev +-----------------------------------------------------------+
@@ -12,7 +13,6 @@ import { PufferModule } from "../PufferModule.sol";
  *      |                                                           |
  *      +-----------------------------------------------------------+
  */
-
 struct ProtocolStorage {
     /**
      * @dev Module weights
@@ -62,11 +62,15 @@ struct ProtocolStorage {
      */
     uint256 minimumVtAmount;
     /**
-     * @dev Amount of VT tokens to burn for a validator penalty
-     * 1 VT = 1e18
+     * @dev Amount of epochs to burn for a penalty if a validator is skipped
      * Slot 9
      */
-    uint256 vtPenalty;
+    uint256 vtPenaltyEpochs;
+    /**
+     * @dev Address of the PufferProtocolLogic contract
+     * Slot 10
+     */
+    address pufferProtocolLogic;
 }
 
 struct ModuleLimit {

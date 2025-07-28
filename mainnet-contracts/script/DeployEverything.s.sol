@@ -51,8 +51,11 @@ contract DeployEverything is BaseScript {
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
         );
 
-        PufferProtocolDeployment memory pufferDeployment =
-            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
+        address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
+
+        PufferProtocolDeployment memory pufferDeployment = new DeployPuffer().run(
+            guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle, payable(revenueDepositor)
+        );
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
@@ -61,7 +64,6 @@ contract DeployEverything is BaseScript {
         pufferDeployment.timelock = puffETHDeployment.timelock;
 
         BridgingDeployment memory bridgingDeployment = new DeployPufETHBridging().run(puffETHDeployment);
-        address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
         new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);

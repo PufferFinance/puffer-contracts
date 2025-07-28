@@ -34,6 +34,7 @@ struct PufferProtocolDeployment {
     address weth; // from pufETH repository (dependency)
     address timelock; // from pufETH repository (dependency)
     address revenueDepositor;
+    address pufferProtocolLogic;
 }
 
 struct BridgingDeployment {

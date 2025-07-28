@@ -237,7 +237,8 @@ contract TimelockTest is Test {
     }
 
     function test_pause_depositor_slectors(address caller) public {
-        vm.startPrank(timelock.pauserMultisig());
+        vm.assume(caller != timelock.pauserMultisig());
+        vm.assume(caller != 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266); // foundry default caller
         vm.assume(caller != address(timelock));
         vm.assume(caller != address(accessManager));
 
@@ -249,6 +250,7 @@ contract TimelockTest is Test {
 
         selectors[0][0] = PufferDepositor.swapAndDeposit.selector;
 
+        vm.startPrank(timelock.pauserMultisig());
         timelock.pauseSelectors(targets, selectors);
 
         (bool canCall, uint32 delay) =

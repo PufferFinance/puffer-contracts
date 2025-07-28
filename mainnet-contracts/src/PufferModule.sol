@@ -8,7 +8,7 @@ import { IEigenPodManager } from "../src/interface/Eigenlayer-Slashing/IEigenPod
 import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IEigenPod } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
+import { IEigenPod, IEigenPodTypes } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { Unauthorized } from "./Errors.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -95,18 +95,6 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     receive() external payable { }
-
-    /**
-     * @notice Starts the validator
-     */
-    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        external
-        payable
-        onlyPufferProtocol
-    {
-        // EigenPod is deployed in this call
-        EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
-    }
 
     /**
      * @notice Sets the proof submitter on the EigenPod
@@ -196,6 +184,56 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
+     * @notice Requests a consolidation for the given validators. This consolidation consists on merging one validator into another one
+     * @param srcPubkeys The pubkeys of the validators to consolidate from
+     * @param targetPubkeys The pubkeys of the validators to consolidate to
+     * @dev Only callable by the PufferProtocol
+     * @dev According to EIP-7251 there is a fee for each validator consolidation request (See https://eips.ethereum.org/EIPS/eip-7251#fee-calculation)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount is refunded
+     *      to the caller from the EigenPod
+     */
+    function requestConsolidation(bytes[] calldata srcPubkeys, bytes[] calldata targetPubkeys)
+        external
+        payable
+        virtual
+        onlyPufferProtocol
+    {
+        ModuleStorage storage $ = _getPufferModuleStorage();
+
+        IEigenPod.ConsolidationRequest[] memory requests = new IEigenPodTypes.ConsolidationRequest[](srcPubkeys.length);
+        for (uint256 i = 0; i < srcPubkeys.length; i++) {
+            requests[i] =
+                IEigenPodTypes.ConsolidationRequest({ srcPubkey: srcPubkeys[i], targetPubkey: targetPubkeys[i] });
+        }
+        $.eigenPod.requestConsolidation{ value: msg.value }(requests);
+    }
+
+    /**
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param pubkeys The pubkeys of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @dev Only callable by the PufferModuleManager
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function requestWithdrawal(bytes[] calldata pubkeys, uint64[] calldata gweiAmounts)
+        external
+        payable
+        virtual
+        onlyPufferModuleManager
+    {
+        ModuleStorage storage $ = _getPufferModuleStorage();
+
+        IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
+        for (uint256 i = 0; i < pubkeys.length; i++) {
+            requests[i] = IEigenPodTypes.WithdrawalRequest({ pubkey: pubkeys[i], amountGwei: gweiAmounts[i] });
+        }
+        $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
+    }
+
+    /**
      * @notice Sets the rewards claimer to `claimer` for the PufferModule
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
@@ -208,7 +246,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     function getWithdrawalCredentials() public view returns (bytes memory) {
         // Withdrawal credentials for EigenLayer modules are EigenPods
         ModuleStorage storage $ = _getPufferModuleStorage();
-        return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
+        return abi.encodePacked(bytes1(uint8(2)), bytes11(0), $.eigenPod);
     }
 
     /**

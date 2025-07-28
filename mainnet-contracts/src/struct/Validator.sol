@@ -12,4 +12,5 @@ struct Validator {
     address module; // In which module is the Validator participating
     Status status; // Validator status
     bytes pubKey; // Validator public key
+    uint8 numBatches; // Number of batches
 }

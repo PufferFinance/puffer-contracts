@@ -4,25 +4,51 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
+import { IPufferProtocolLogic } from "../../src/interface/IPufferProtocolLogic.sol";
+import { IPufferProtocolFull } from "../../src/interface/IPufferProtocolFull.sol";
+import { IPufferProtocolEvents } from "../../src/interface/IPufferProtocolEvents.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
+import { PufferProtocolBase } from "../../src/PufferProtocolBase.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG } from "../../script/Roles.sol";
-import { Unauthorized } from "../../src/Errors.sol";
+import { PufferRevenueDepositor } from "../../src/PufferRevenueDepositor.sol";
+import {
+    ROLE_ID_DAO,
+    ROLE_ID_OPERATIONS_PAYMASTER,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_OPERATIONS_COORDINATOR,
+    ROLE_ID_REVENUE_DEPOSITOR
+} from "../../script/Roles.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
-import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
+import { NodeInfo } from "../../src/struct/NodeInfo.sol";
+import { EpochsValidatedSignature } from "../../src/struct/Signatures.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
-    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed, bool);
-    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed, bytes32 indexed);
-    event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
+    /**
+     * @dev New bond is reduced from 2 to 1.5 ETH
+     */
+    uint256 BOND = 1.5 ether;
+    /**
+     * @dev Minimum validation time in epochs
+     * Roughly: 30 days * 225 epochs per day = 6750 epochs
+     */
+    uint256 internal constant MINIMUM_EPOCHS_VALIDATION = 6750;
+
+    // Eth has 225 epochs per day
+    uint256 internal constant EPOCHS_PER_DAY = 225;
+
+    // 1 VT is burned per 225 epochs
+    uint256 internal constant BURN_RATE_PER_EPOCH = 4444444444444445;
 
     bytes zeroPubKey = new bytes(48);
     bytes32 zeroPubKeyPart;
@@ -30,8 +56,6 @@ contract PufferProtocolTest is UnitTestHelper {
     bytes32 constant EIGEN_DA = bytes32("EIGEN_DA");
     bytes32 constant CRAZY_GAINS = bytes32("CRAZY_GAINS");
     bytes32 constant DEFAULT_DEPOSIT_ROOT = bytes32("depositRoot");
-
-    Permit emptyPermit;
 
     // 0.01 %
     uint256 pointZeroZeroOne = 0.0001e18;
@@ -52,6 +76,8 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.deal(address(this), 1000 ether);
 
+        vm.label(address(revenueDepositor), "RevenueDepositorProxy");
+
         // Setup roles
         bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = PufferProtocol.createPufferModule.selector;
@@ -65,7 +91,18 @@ contract PufferProtocolTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_COORDINATOR, address(this), 0);
+
+        // Grant revenue depositor roles to this contract for simplicity
+        bytes4[] memory revenueDepositorRole = new bytes4[](2);
+        revenueDepositorRole[0] = PufferRevenueDepositor.depositRevenue.selector;
+        revenueDepositorRole[1] = PufferRevenueDepositor.setRewardsDistributionWindow.selector;
+        accessManager.setTargetFunctionRole(address(revenueDepositor), revenueDepositorRole, ROLE_ID_REVENUE_DEPOSITOR);
+        accessManager.grantRole(ROLE_ID_REVENUE_DEPOSITOR, address(this), 0);
+
         vm.stopPrank();
+
+        revenueDepositor.setRewardsDistributionWindow(0);
 
         _skipDefaultFuzzAddresses();
 
@@ -79,13 +116,46 @@ contract PufferProtocolTest is UnitTestHelper {
     // Setup
     function test_setup() public view {
         assertTrue(address(pufferProtocol.PUFFER_VAULT()) != address(0), "puffer vault address");
+        assertTrue(
+            address(pufferProtocol.PUFFER_REVENUE_DISTRIBUTOR()) != address(0), "puffer revenue distributor address"
+        );
         address module = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
         assertEq(PufferModule(payable(module)).NAME(), PUFFER_MODULE_0, "bad name");
     }
 
+    function test_immutables() public view {
+        assertEq(address(pufferProtocol.PUFFER_VAULT()), address(pufferVault), "puffer vault address");
+        assertEq(
+            pufferProtocol.PUFFER_REVENUE_DISTRIBUTOR(), address(revenueDepositor), "puffer revenue distributor address"
+        );
+        assertEq(address(pufferProtocol.PUFFER_ORACLE()), address(pufferOracle), "puffer oracle address");
+        assertEq(
+            address(pufferProtocol.PUFFER_MODULE_MANAGER()),
+            address(pufferModuleManager),
+            "puffer module manager address"
+        );
+        assertEq(address(pufferProtocol.GUARDIAN_MODULE()), address(guardianModule), "puffer guardian module address");
+        assertEq(address(pufferProtocol.VALIDATOR_TICKET()), address(validatorTicket), "validator ticket address");
+        assertNotEq(address(pufferProtocol.BEACON_DEPOSIT_CONTRACT()), address(0), "beacon deposit contract address");
+
+        assertEq(
+            address(pufferProtocol.getPufferProtocolLogic()),
+            address(pufferProtocolLogic),
+            "puffer protocol logic address"
+        );
+    }
+
     // Register validator key
     function test_register_validator_key() public {
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
+
+        NodeInfo memory nodeInfo = pufferProtocol.getNodeInfo(address(this));
+        assertEq(nodeInfo.activeValidatorCount, 0);
+        assertEq(nodeInfo.pendingValidatorCount, 1);
+        assertEq(nodeInfo.deprecated_vtBalance, 0);
+        assertEq(nodeInfo.validationTime, (30 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice())); // 30 days of VT
+        assertEq(nodeInfo.epochPrice, 9803921568628); // VT Price per epoch
+        assertEq(nodeInfo.totalEpochsValidated, 0);
     }
 
     // Empty queue should return NO_VALIDATORS
@@ -97,8 +167,8 @@ contract PufferProtocolTest is UnitTestHelper {
 
     // Test Skipping the validator
     function test_skip_provisioning() public {
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("bob"), PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("bob"), PUFFER_MODULE_0, 0);
 
         (bytes32 moduleName, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
         uint256 moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
@@ -114,7 +184,7 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(moduleLimit.numberOfRegisteredValidators, 2, "2 active validators");
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
+        emit IPufferProtocolEvents.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
@@ -132,11 +202,9 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(moduleName, PUFFER_MODULE_0, "module");
         assertEq(idx, 1, "idx should be 1");
 
-        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
-
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
         moduleSelectionIndex = pufferProtocol.getModuleSelectIndex();
         assertEq(moduleSelectionIndex, 1, "module idx changed");
     }
@@ -144,26 +212,8 @@ contract PufferProtocolTest is UnitTestHelper {
     // Create an existing module should revert
     function test_create_existing_module_fails() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.ModuleAlreadyExists.selector);
+        vm.expectRevert(PufferProtocolBase.ModuleAlreadyExists.selector);
         pufferProtocol.createPufferModule(PUFFER_MODULE_0);
-    }
-
-    // Invalid pub key shares length
-    function test_register_invalid_pubkey_shares_length() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), PUFFER_MODULE_0);
-        data.blsPubKeySet = new bytes(22); // Invalid length
-
-        vm.expectRevert(IPufferProtocol.InvalidBLSPublicKeySet.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, PUFFER_MODULE_0, emptyPermit, emptyPermit);
-    }
-
-    // Invalid private key shares length
-    function test_register_invalid_privKey_shares() public {
-        ValidatorKeyData memory data = _getMockValidatorKeyData(new bytes(48), PUFFER_MODULE_0);
-        data.blsEncryptedPrivKeyShares = new bytes[](2); // we have 3 guardians, and we try to give 2 priv key shares
-
-        vm.expectRevert(IPufferProtocol.InvalidBLSPrivateKeyShares.selector);
-        pufferProtocol.registerValidatorKey{ value: 4 ether }(data, PUFFER_MODULE_0, emptyPermit, emptyPermit);
     }
 
     // Try registering with invalid module
@@ -171,9 +221,9 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice() * 30;
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
+        vm.expectRevert(PufferProtocolBase.ValidatorLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
-            validatorKeyData, bytes32("imaginary module"), emptyPermit, emptyPermit
+            validatorKeyData, bytes32("imaginary module"), 0, new bytes[](0), block.timestamp + 1 days
         );
     }
 
@@ -181,58 +231,29 @@ contract PufferProtocolTest is UnitTestHelper {
     function test_register_with_non_whole_amount() public {
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
         uint256 amount = 5.11 ether;
 
         pufferProtocol.registerValidatorKey{ value: amount }(
-            validatorKeyData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+            validatorKeyData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
 
         assertEq(
-            validatorTicket.balanceOf(address(pufferProtocol)),
-            ((amount - 1 ether) * 1 ether) / vtPrice,
-            "VT after for pufferProtocol"
+            address(pufferProtocol).balance,
+            amount - 1.5 ether,
+            "protocol has the eth amount for VT, the bond is converted to pufETH"
         );
-    }
-
-    // If we are > burst threshold, treasury gets everything
-    function test_burst_threshold() external {
-        vm.roll(50401);
-
-        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
-        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
-        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
-
-        pufferOracle.setTotalNumberOfValidators(
-            5,
-            99999999,
-            _getGuardianEOASignatures(
-                LibGuardianMessages._getSetNumberOfValidatorsMessage({ numberOfValidators: 5, epochNumber: 99999999 })
-            )
-        );
-
-        uint256 sc = pufferOracle.getValidatorTicketPrice() * 30;
-        address treasury = validatorTicket.TREASURY();
-
-        uint256 balanceBefore = address(treasury).balance;
-
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-
-        uint256 balanceAfter = address(treasury).balance;
-
-        assertEq(balanceAfter, balanceBefore + sc, "treasury gets everything");
     }
 
     // Set validator limit and try registering that many validators
     function test_fuzz_register_many_validators(uint8 numberOfValidatorsToProvision) external {
         for (uint256 i = 0; i < uint256(numberOfValidatorsToProvision); ++i) {
-            vm.deal(address(this), 2 ether);
-            _registerValidatorKey(bytes32(i), PUFFER_MODULE_0);
+            vm.deal(address(this), 3 ether);
+            _registerValidatorKey(address(this), bytes32(i), PUFFER_MODULE_0, 0);
         }
     }
 
-    // Try registering without RAVE evidence
-    function test_register_no_sgx() public {
+    // Try registering with an invalid number of batches
+    function test_register_invalid_num_batches() public {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * 30;
 
         bytes memory pubKey = _getPubKey(bytes32("something"));
@@ -248,15 +269,19 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(0) // No rave
-         });
+            numBatches: 0
+        });
 
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, false);
-        pufferProtocol.registerValidatorKey{ value: vtPrice + 2 ether }(
-            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+        vm.expectRevert(PufferProtocolBase.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(
+            validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
+        );
+
+        validatorData.numBatches = 65;
+
+        vm.expectRevert(PufferProtocolBase.InvalidNumberOfBatches.selector);
+        pufferProtocol.registerValidatorKey{ value: vtPrice }(
+            validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
     }
 
@@ -275,26 +300,13 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: hex"aeaa", // invalid key
             signature: new bytes(0),
             depositDataRoot: bytes32(""),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(144),
-            raveEvidence: new bytes(1)
+            numBatches: 1
         });
 
-        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        vm.expectRevert(PufferProtocolBase.InvalidBLSPubKey.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
-            validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+            validatorData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
-    }
-
-    function test_get_payload() public view {
-        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(PUFFER_MODULE_0, false);
-
-        assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
-        assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
-        assertEq(guardianPubKeys[2], guardian3EnclavePubKey, "guardian3");
-
-        assertEq(guardianPubKeys.length, 3, "pubkeys len");
-        assertEq(threshold, 1, "threshold");
     }
 
     // Try to provision a validator when there is nothing to provision
@@ -302,26 +314,21 @@ contract PufferProtocolTest is UnitTestHelper {
         (, uint256 idx) = pufferProtocol.getNextValidatorToProvision();
         assertEq(type(uint256).max, idx, "module");
 
-        // Invalid signatures
-        bytes[] memory signatures =
-            _getGuardianSignatures(hex"0000000000000000000000000000000000000000000000000000000000000000");
-
         vm.expectRevert(); // panic
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     // If the deposit root is not bytes(0), it must match match the one returned from the beacon contract
     function test_provision_bad_deposit_hash() public {
-        _registerValidatorKey(zeroPubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), zeroPubKeyPart, PUFFER_MODULE_0, 0);
 
         bytes memory validatorSignature = _validatorSignature();
-        bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(zeroPubKeyPart));
 
-        vm.expectRevert(IPufferProtocol.InvalidDepositRootHash.selector);
-        pufferProtocol.provisionNode(guardianSignatures, validatorSignature, bytes32("badDepositRoot")); // "depositRoot" is hardcoded in the mock
+        vm.expectRevert(PufferProtocolBase.InvalidDepositRootHash.selector);
+        pufferProtocol.provisionNode(validatorSignature, bytes32("badDepositRoot")); // "depositRoot" is hardcoded in the mock
 
         // now it works
-        pufferProtocol.provisionNode(guardianSignatures, validatorSignature, DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(validatorSignature, DEFAULT_DEPOSIT_ROOT);
     }
 
     function test_register_multiple_validators_and_skipProvisioning(bytes32 alicePubKeyPart, bytes32 bobPubKeyPart)
@@ -334,7 +341,7 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory bobPubKey = _getPubKey(bobPubKeyPart);
 
         // 1. validator
-        _registerValidatorKey(zeroPubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), zeroPubKeyPart, PUFFER_MODULE_0, 0);
 
         Validator memory validator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 0);
         assertTrue(validator.node == address(this), "node operator");
@@ -342,35 +349,31 @@ contract PufferProtocolTest is UnitTestHelper {
 
         // 2. validator
         vm.startPrank(bob);
-        _registerValidatorKey(bobPubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(bob, bobPubKeyPart, PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // 3. validator
         vm.startPrank(alice);
-        _registerValidatorKey(alicePubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(alice, alicePubKeyPart, PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // 4. validator
-        _registerValidatorKey(zeroPubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), zeroPubKeyPart, PUFFER_MODULE_0, 0);
 
         // 5. Validator
-        _registerValidatorKey(zeroPubKeyPart, PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), zeroPubKeyPart, PUFFER_MODULE_0, 0);
 
         assertEq(pufferProtocol.getPendingValidatorIndex(PUFFER_MODULE_0), 5, "next pending validator index");
 
-        bytes[] memory signatures = _getGuardianSignatures(zeroPubKey);
-
         // 1. provision zero key
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
-
-        bytes[] memory bobSignatures = _getGuardianSignatures(bobPubKey);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(zeroPubKey, 0, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(bobSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(bobPubKey, 1, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         Validator memory bobValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 1);
 
@@ -378,10 +381,8 @@ contract PufferProtocolTest is UnitTestHelper {
 
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
-        signatures = _getGuardianSignatures(zeroPubKey);
-
-        emit SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Get validators
         Validator[] memory registeredValidators = pufferProtocol.getValidators(PUFFER_MODULE_0);
@@ -409,30 +410,28 @@ contract PufferProtocolTest is UnitTestHelper {
         newWeights[3] = CRAZY_GAINS;
 
         vm.expectEmit(true, true, true, true);
-        emit ModuleWeightsChanged(oldWeights, newWeights);
+        emit IPufferProtocolEvents.ModuleWeightsChanged(oldWeights, newWeights);
         pufferProtocol.setModuleWeights(newWeights);
 
         vm.deal(address(pufferVault), 10000 ether);
 
-        _registerValidatorKey(bytes32("bob"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("charlie"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("david"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("emma"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("benjamin"), EIGEN_DA);
-        _registerValidatorKey(bytes32("rocky"), CRAZY_GAINS);
+        _registerValidatorKey(address(this), bytes32("bob"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("charlie"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("david"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("emma"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(address(this), bytes32("benjamin"), EIGEN_DA, 0);
+        _registerValidatorKey(address(this), bytes32("rocky"), CRAZY_GAINS, 0);
 
         (bytes32 nextModule, uint256 nextId) = pufferProtocol.getNextValidatorToProvision();
 
         assertTrue(nextModule == PUFFER_MODULE_0, "module selection");
         assertTrue(nextId == 0, "module selection");
 
-        bytes[] memory signatures = _getGuardianSignatures(_getPubKey(bytes32("bob")));
-
         // Provision Bob that is not zero pubKey
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 0, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -440,11 +439,9 @@ contract PufferProtocolTest is UnitTestHelper {
         // Id is zero, because that is the first in this queue
         assertTrue(nextId == 0, "module id");
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("benjamin")));
-
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(_getPubKey(bytes32("benjamin")), 0, EIGEN_DA, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -455,7 +452,7 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.stopPrank();
 
         // Now jason registers to EIGEN_DA
-        _registerValidatorKey(bytes32("jason"), EIGEN_DA);
+        _registerValidatorKey(address(this), bytes32("jason"), EIGEN_DA, 0);
 
         // If we query next validator, it should switch back to EIGEN_DA (because of the weighted selection)
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
@@ -463,24 +460,15 @@ contract PufferProtocolTest is UnitTestHelper {
         assertTrue(nextModule == EIGEN_DA, "module selection");
         assertTrue(nextId == 1, "module id");
 
-        // Provisioning of rocky should fail, because jason is next in line
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
-        vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
-
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("jason")));
-
         // Provision Jason
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
-
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("rocky")));
 
         // Rocky is now in line
         assertTrue(nextModule == CRAZY_GAINS, "module selection");
         assertTrue(nextId == 0, "module id");
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         (nextModule, nextId) = pufferProtocol.getNextValidatorToProvision();
 
@@ -491,11 +479,9 @@ contract PufferProtocolTest is UnitTestHelper {
             pufferProtocol.getNextValidatorToBeProvisionedIndex(PUFFER_MODULE_0), 1, "next idx for no restaking module"
         );
 
-        signatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
-
         vm.expectEmit(true, true, true, true);
-        emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0);
-        pufferProtocol.provisionNode(signatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        emit IPufferProtocolEvents.SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 1, PUFFER_MODULE_0, 1);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     function test_create_puffer_module() public {
@@ -511,7 +497,7 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 result = PufferProtocolMockUpgrade(payable(address(pufferVault))).returnSomething();
 
         PufferProtocolMockUpgrade newImplementation = new PufferProtocolMockUpgrade(address(beacon));
-        pufferProtocol.upgradeToAndCall(address(newImplementation), "");
+        PufferProtocol(payable(address(pufferProtocol))).upgradeToAndCall(address(newImplementation), "");
 
         result = PufferProtocolMockUpgrade(payable(address(pufferProtocol))).returnSomething();
 
@@ -527,326 +513,175 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.expectRevert();
         pufferProtocol.registerValidatorKey{ value: type(uint256).max }(
-            validatorKeyData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+            validatorKeyData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
     }
 
-    // Node operator can deposit Bond in pufETH
-    function test_register_pufETH_approve_buy_VT() external {
+    function test_register_validator_key_new_flow() external {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
+
         vm.deal(alice, 10 ether);
 
-        uint256 expectedMint = pufferVault.previewDeposit(1 ether);
-        assertGt(expectedMint, 0, "should expect more pufETH");
+        uint256 amount = BOND + (pufferOracle.getValidatorTicketPrice() * MINIMUM_EPOCHS_VALIDATION);
 
-        // Alice mints 1 ETH of pufETH
         vm.startPrank(alice);
-        uint256 minted = pufferVault.depositETH{ value: 1 ether }(alice);
-        assertGt(minted, 0, "should mint pufETH");
 
-        // approve pufETH to pufferProtocol
-        pufferVault.approve(address(pufferProtocol), type(uint256).max);
-
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
-
-        // In this case, the only important data on permit is the amount
-        // Permit call will fail, but the amount is reused
-        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        Permit memory permit;
-        permit.amount = pufferVault.balanceOf(alice);
-
-        // Get the smoothing commitment amount for 180 days
-        uint256 sc = pufferOracle.getValidatorTicketPrice() * 180;
-
-        // Register validator key by paying SC in ETH and depositing bond in pufETH
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey{ value: sc }(data, PUFFER_MODULE_0, permit, emptyPermit);
-        // Alice has some dust in her wallet, because VT purchase changes the exchange rate, meaning pufETH is worth more
-        assertEq(pufferVault.balanceOf(alice), 1696417975049392, "1696417975049392 pufETH after for alice");
-        uint256 protocolPufETHBalance = pufferVault.balanceOf(address(pufferProtocol));
-        assertApproxEqRel(protocolPufETHBalance, 0.998303582024950608 ether, pointZeroZeroTwo, "~0.998 pufETH after");
-        assertApproxEqRel(
-            pufferVault.convertToAssets(protocolPufETHBalance), 1 ether, pointZeroZeroOne, "1 ETH worth of pufETH after"
-        );
-    }
-
-    // Node operator can deposit Bond with Permit and pay for the VT in ETH
-    function test_register_pufETH_permit_pay_VT() external {
-        bytes memory pubKey = _getPubKey(bytes32("alice"));
-        vm.deal(alice, 10 ether);
-
-        // Alice mints 1 ETH of pufETH
-        vm.startPrank(alice);
-        pufferVault.depositETH{ value: 1 ether }(alice);
-
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
-
-        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        // Generate Permit data for 2 pufETH to the protocol
-        Permit memory permit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), 2 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
-        );
-
-        uint256 numberOfDays = 180;
-        // Get the smoothing commitment amount for 6 months
-        uint256 sc = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        // Register validator key by paying SC in ETH and depositing bond in pufETH
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey{ value: sc }(data, PUFFER_MODULE_0, permit, emptyPermit);
-
-        // Alice has some dust in her wallet, because VT purchase changes the exchange rate, meaning pufETH is worth more
-        assertEq(pufferVault.balanceOf(alice), 1696417975049392, "1696417975049392 pufETH after for alice");
-
-        uint256 protocolPufETHBalance = pufferVault.balanceOf(address(pufferProtocol));
-        assertEq(protocolPufETHBalance, 0.998303582024950608 ether, "~0.99 pufETH after");
-        assertApproxEqRel(
-            pufferVault.convertToAssets(protocolPufETHBalance), 1 ether, pointZeroZeroOne, "1 ETH worth of pufETH after"
-        );
-    }
-
-    // Node operator can deposit both VT and pufETH with Permit
-    function test_register_both_permit() external {
-        bytes memory pubKey = _getPubKey(bytes32("alice"));
-        vm.deal(alice, 10 ether);
-
-        uint256 numberOfDays = 200;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        // Alice mints 1 ETH of pufETH
-        vm.startPrank(alice);
-        // Purchase pufETH
-        pufferVault.depositETH{ value: 1 ether }(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        // Because Alice purchased a lot of VT's, it changed the conversion rate
-        // Because of that the registerValidatorKey will .transferFrom a smaller amount of pufETH
-        uint256 leftOverPufETH = pufferVault.balanceOf(alice) - pufferVault.convertToShares(1 ether);
-
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
-        assertEq(validatorTicket.balanceOf(alice), _upscaleTo18Decimals(numberOfDays), "VT before for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before registration");
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
-        uint256 bond = 1 ether;
-        Permit memory pufETHPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), bond, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
-        );
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey(data, PUFFER_MODULE_0, pufETHPermit, vtPermit);
+        emit IPufferProtocolEvents.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
+        pufferProtocol.registerValidatorKey{ value: amount }(
+            data, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
+        );
 
-        assertEq(pufferVault.balanceOf(alice), leftOverPufETH, "alice should have some leftover pufETH");
-        assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
-        assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), bond, 0.002e18, "1 pufETH after");
-    }
-
-    // Node operator can deposit both VT and pufETH with .approve
-    function test_register_both_approve() external {
-        bytes memory pubKey = _getPubKey(bytes32("alice"));
-        vm.deal(alice, 10 ether);
-
-        uint256 numberOfDays = 200;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-        // Alice mints 1 ETH of pufETH
-        pufferVault.depositETH{ value: 1 ether }(alice);
-
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, 1, "1 pufETH before for alice"
+            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))), BOND, 1, "1 pufETH after"
         );
-        assertEq(validatorTicket.balanceOf(alice), _upscaleTo18Decimals(numberOfDays), "VT before for alice");
-
-        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-
-        uint256 bond = 1 ether;
-
-        pufferVault.approve(address(pufferProtocol), type(uint256).max);
-        validatorTicket.approve(address(pufferProtocol), type(uint256).max);
-
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = _upscaleTo18Decimals(numberOfDays); // upscale to 18 decimals
-
-        Permit memory pufETHPermit = emptyPermit;
-        pufETHPermit.amount = pufferVault.convertToShares(bond);
-
-        vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey(data, PUFFER_MODULE_0, pufETHPermit, vtPermit);
-
-        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertEq(validatorTicket.balanceOf(alice), 0, "0 vt after for alice");
-        // 1 wei diff
-        assertApproxEqAbs(
-            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))), bond, 1, "1 pufETH after"
-        );
+        assertEq(address(pufferProtocol).balance, amount - BOND, "amount locked in the protocol");
     }
 
-    // Node operator can pay for pufETH with ETH and use Permit for VT
-    function test_register_pufETH_pay_vt_approve() external {
+    function test_register_validator_key_new_flow_with_eth_deposit() external {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
+
         vm.deal(alice, 10 ether);
 
-        uint256 numberOfDays = 30;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
+        uint256 amount = BOND + (pufferOracle.getValidatorTicketPrice() * MINIMUM_EPOCHS_VALIDATION);
+        uint256 deadline = block.timestamp + 1 days;
 
         vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
 
-        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH before for alice");
-        assertEq(validatorTicket.balanceOf(alice), _upscaleTo18Decimals(numberOfDays), "VT before for alice");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before registration");
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        Permit memory permit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        // Alice is using SGX
-        uint256 bond = 1 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey{ value: bond }(data, PUFFER_MODULE_0, emptyPermit, permit);
+        emit IPufferProtocolEvents.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
+        pufferProtocol.registerValidatorKey{ value: amount }(data, PUFFER_MODULE_0, 0, new bytes[](0), deadline);
+        vm.stopPrank();
 
-        assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH after for alice");
-        assertApproxEqRel(pufferVault.balanceOf(address(pufferProtocol)), 1 ether, pointZeroFive, "~1 pufETH after");
+        assertApproxEqAbs(
+            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))), BOND, 1, "1 pufETH after"
+        );
+        assertEq(address(pufferProtocol).balance, amount - BOND, "amount locked in the protocol");
+
+        // Provision a newly registered validator
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        // alice validated for 20 days * 225 epochs = 4500 epochs with 1 validator
+        uint256 validatedEpochs = 4500;
+
+        bytes[] memory vtConsumptionSignatures = _getTotalEpochsValidatedSignatures(
+            alice, validatedEpochs, deadline, IPufferProtocolLogic.depositValidationTime.selector
+        );
+
+        // We deposit 10 VT for alice (legacy VT)
+        deal(address(validatorTicket), address(this), 10 ether);
+        validatorTicket.approve(address(pufferProtocol), 10 ether);
+        pufferProtocol.depositValidatorTickets(alice, 10 ether);
+
+        vm.startPrank(alice);
+
+        // We then deposit validation time for Alice, it should burn 10 legacy VTs, and 10 of the validation time
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidationTimeConsumed(
+            alice, 10 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 10 ether
+        ); // 10 Legacy VTs got burned
+        pufferProtocol.depositValidationTime{ value: 0.1 ether }(
+            EpochsValidatedSignature({
+                nodeOperator: alice,
+                totalEpochsValidated: validatedEpochs,
+                functionSelector: 0,
+                deadline: deadline,
+                signatures: vtConsumptionSignatures
+            })
+        );
     }
 
-    // Node operator can deposit Bond in pufETH
-    function test_register_validator_key_with_permit_reverts_invalid_vt_amount() external {
+    function testRevert_invalidETHPayment() external {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
         vm.deal(alice, 100 ether);
 
-        // Alice mints 2 ETH of pufETH
-        vm.startPrank(alice);
-        pufferVault.depositETH{ value: 2 ether }(alice);
-
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        // Generate Permit data for 10 pufETH to the protocol
-        Permit memory permit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), 0.5 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
-        );
 
         // Underpay VT
         vm.expectRevert();
-        pufferProtocol.registerValidatorKey{ value: 0.1 ether }(data, PUFFER_MODULE_0, permit, emptyPermit);
-    }
-
-    function test_validator_griefing_attack() external {
-        vm.deal(address(pufferVault), 100 ether);
-
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        bytes[] memory guardianSignatures = _getGuardianSignatures(_getPubKey(bytes32("alice")));
-        // Register and provision Alice
-        // Alice may be an active validator or it can be exited, doesn't matter
-        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
-
-        // Register another validator with using the same data
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-
-        // Try to provision it with the original message (replay attack)
-        // It should revert
-        vm.expectRevert(Unauthorized.selector);
-        pufferProtocol.provisionNode(guardianSignatures, _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.registerValidatorKey{ value: 0.1 ether }(
+            data, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
+        );
     }
 
     function test_validator_limit_per_module() external {
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorLimitPerModuleChanged(500, 1);
+        emit IPufferProtocolEvents.ValidatorLimitPerModuleChanged(500, 1);
         pufferProtocol.setValidatorLimitPerModule(PUFFER_MODULE_0, 1);
 
         // Revert if the registration will be over the limit
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
         bytes memory pubKey = _getPubKey(bytes32("bob"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        uint256 bond = 1 ether;
 
-        vm.expectRevert(IPufferProtocol.ValidatorLimitForModuleReached.selector);
-        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
-            validatorKeyData, PUFFER_MODULE_0, emptyPermit, emptyPermit
+        vm.expectRevert(PufferProtocolBase.ValidatorLimitForModuleReached.selector);
+        pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + BOND) }(
+            validatorKeyData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
     }
 
     function test_claim_bond_for_single_withdrawal() external {
-        uint256 startTimestamp = 1707411226;
-
         // Alice registers one validator and we provision it
-        vm.deal(alice, 2 ether);
+        vm.deal(alice, 3 ether);
         vm.deal(NoRestakingModule, 200 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 days;
 
         assertApproxEqAbs(
             pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
+            1.5 ether,
             1,
-            "~1 pufETH in protocol"
+            "~1.5 pufETH in protocol"
         );
 
         // bond + something for the validator registration
-        assertEq(address(pufferVault).balance, 1001.2835 ether, "vault eth balance");
+        assertEq(address(pufferVault).balance, 1001.5 ether, "vault eth balance");
 
         Validator memory validator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 0);
 
         assertEq(validator.bond, pufferVault.balanceOf(address(pufferProtocol)), "alice bond is in the protocol");
 
-        vm.warp(startTimestamp);
-
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Didn't claim the bond yet
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
-
-        // 15 days later (+16 is because 1 day is the start offset)
-        vm.warp(startTimestamp + 16 days);
 
         StoppedValidatorInfo memory validatorInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
             moduleName: PUFFER_MODULE_0,
             pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(16 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 16 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 16 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Valid proof
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
         // Alice got the pufETH
         assertEq(pufferVault.balanceOf(alice), validator.bond, "alice got the pufETH");
         // 1 wei diff
         assertApproxEqAbs(
-            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, 1, "assets owned by alice"
+            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1.5 ether, 1, "assets owned by alice"
         );
-
-        // Alice doesn't withdraw her VT's right away
-        vm.warp(startTimestamp + 50 days);
     }
 
     // Alice deposits VT for herself
@@ -863,16 +698,15 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(alice), 200 ether, "alice got 200 VT");
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 200 ether;
+        uint256 vtAmount = 200 ether;
 
         // Approve VT
         validatorTicket.approve(address(pufferProtocol), 2000 ether);
 
         // Deposit for herself
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(alice, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        emit IPufferProtocolEvents.ValidatorTicketsDeposited(alice, alice, 200 ether);
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 200 ether, "protocol got 200 VT");
         assertEq(validatorTicket.balanceOf(address(alice)), 0, "alice got 0");
@@ -892,108 +726,35 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(alice), 1000 ether, "alice got 1000 VT");
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
 
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 200 ether;
+        uint256 vtAmount = 200 ether;
 
         // Approve VT
         validatorTicket.approve(address(pufferProtocol), 2000 ether);
 
         // Deposit for herself
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(alice, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
+        emit IPufferProtocolEvents.ValidatorTicketsDeposited(alice, alice, 200 ether);
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
 
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 200 ether, "protocol got 200 VT");
         assertEq(validatorTicket.balanceOf(address(alice)), 800 ether, "alice got 800");
         assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 200 ether, "alice got 200 VT in the protocol");
 
         // Perform a second deposit of 800 VT
-        vtPermit.amount = 800 ether;
-        pufferProtocol.depositValidatorTickets((vtPermit), alice);
+        vtAmount = 800 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
         assertEq(
             pufferProtocol.getValidatorTicketsBalance(alice), 1000 ether, "alice should have 1000 vt in the protocol"
         );
     }
 
-    // Alice deposits VT for bob
-    function test_deposit_validator_tickets_permit_for_bob() public {
-        vm.deal(alice, 10 ether);
-
-        uint256 numberOfDays = 200;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        assertEq(validatorTicket.balanceOf(alice), 200 ether, "alice got 200 VT");
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
-
-        // Sign the permit
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        // Deposit for Bob
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-    }
-
-    // Alice double deposit VT for Bob
-    function test_double_deposit_validator_tickets_permit_for_bob() public {
-        vm.deal(alice, 1000 ether);
-
-        uint256 numberOfDays = 1000;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        assertEq(validatorTicket.balanceOf(alice), 1000 ether, "alice got 1000 VT");
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 0, "protocol got 0 VT");
-
-        // Sign the permit
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(200), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        // Deposit for Bob
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 200 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 200 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-        assertEq(validatorTicket.balanceOf(alice), 800 ether, "Alice still has 800 VTs left in wallet");
-
-        vm.startPrank(alice);
-        // Deposit for Bob again
-        Permit memory vtPermit2 = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(800), block.timestamp + 1000),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-        validatorTicket.approve(address(pufferProtocol), 800 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit2, bob);
-
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 1000 ether, "bob got the VTS in the protocol");
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "alice got no VTS in the protocol");
-        assertEq(validatorTicket.balanceOf(alice), 0, "Alice has no more VTs");
-    }
-
     function test_changeMinimumVTAmount() public {
-        assertEq(pufferProtocol.getMinimumVtAmount(), 28 ether, "initial value");
+        assertEq(pufferProtocol.getMinimumVtAmount(), 30 * EPOCHS_PER_DAY, "initial value");
 
         vm.startPrank(DAO);
-        pufferProtocol.changeMinimumVTAmount(50 ether);
+        pufferProtocol.changeMinimumVTAmount(50 * EPOCHS_PER_DAY);
 
-        assertEq(pufferProtocol.getMinimumVtAmount(), 50 ether, "value after change");
+        assertEq(pufferProtocol.getMinimumVtAmount(), 50 * EPOCHS_PER_DAY, "value after change");
     }
 
     // Alice tries to withdraw all VT before provisioning
@@ -1003,9 +764,9 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
 
         // Register Validator key registers validator with 30 VTs
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
 
-        vm.expectRevert(IPufferProtocol.ActiveOrPendingValidatorsExist.selector);
+        vm.expectRevert(PufferProtocolBase.ActiveOrPendingValidatorsExist.selector);
         pufferProtocol.withdrawValidatorTickets(30 ether, alice);
     }
 
@@ -1013,51 +774,55 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+
+        uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
+            pufferProtocol.getValidationTime(alice),
+            30 * EPOCHS_PER_DAY * vtPrice,
+            pointZeroZeroOne,
+            "alice should have ~30 VTS"
         );
 
         vm.stopPrank();
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.NumberOfRegisteredValidatorsChanged(PUFFER_MODULE_0, 0);
+        emit IPufferProtocolEvents.NumberOfRegisteredValidatorsChanged(PUFFER_MODULE_0, 0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice),
-            20 ether,
+            pufferProtocol.getValidationTime(alice),
+            20 * EPOCHS_PER_DAY * vtPrice,
             pointZeroZeroOne,
             "alice should have ~20 VTS -10 penalty"
         );
-
-        vm.startPrank(alice);
-        pufferProtocol.withdrawValidatorTickets(uint96(20 ether), alice);
-
-        assertEq(validatorTicket.balanceOf(alice), 20 ether, "alice got her VT");
     }
 
     function test_setVTPenalty() public {
-        assertEq(pufferProtocol.getVTPenalty(), 10 ether, "initial value");
+        // 10 days of VT penalty
+        uint256 penaltyETHAmount = 10 * EPOCHS_PER_DAY;
+        assertEq(pufferProtocol.getVTPenalty(), penaltyETHAmount, "initial value");
+
+        uint256 newPenaltyAmount = 20 * EPOCHS_PER_DAY;
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.VTPenaltyChanged(10 ether, 20 ether);
-        pufferProtocol.setVTPenalty(20 ether);
+        emit IPufferProtocolEvents.VTPenaltyChanged(penaltyETHAmount, newPenaltyAmount);
+        pufferProtocol.setVTPenalty(newPenaltyAmount);
 
-        assertEq(pufferProtocol.getVTPenalty(), 20 ether, "value after change");
+        assertEq(pufferProtocol.getVTPenalty(), newPenaltyAmount, "value after change");
     }
 
     function test_setVTPenalty_bigger_than_minimum_VT_amount() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
-        pufferProtocol.setVTPenalty(50 ether);
+        vm.expectRevert(PufferProtocolBase.InvalidVTAmount.selector);
+        pufferProtocol.setVTPenalty(50 * EPOCHS_PER_DAY);
     }
 
     function test_changeMinimumVTAmount_lower_than_penalty() public {
         vm.startPrank(DAO);
-        vm.expectRevert(IPufferProtocol.InvalidVTAmount.selector);
-        pufferProtocol.changeMinimumVTAmount(9 ether);
+        vm.expectRevert(PufferProtocolBase.InvalidVTAmount.selector);
+        pufferProtocol.changeMinimumVTAmount(9 * EPOCHS_PER_DAY);
     }
 
     function test_new_vtPenalty_works() public {
@@ -1067,42 +832,53 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
+        uint256 vtPricePerEpoch = pufferOracle.getValidatorTicketPrice();
+
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
+            pufferProtocol.getValidationTime(alice),
+            30 * EPOCHS_PER_DAY * vtPricePerEpoch,
+            pointZeroZeroOne,
+            "alice should have ~30 VTS"
         );
 
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         // Alice loses 20 VT's
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice), 10 ether, pointZeroZeroOne, "alice should have ~20 VTS"
+            pufferProtocol.getValidationTime(alice),
+            10 * EPOCHS_PER_DAY * vtPricePerEpoch,
+            pointZeroZeroOne,
+            "alice should have ~10 VTS"
         );
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Alice is not provisioned
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice), 40 ether, pointZeroZeroOne, "alice should have ~40 VTS"
+            pufferProtocol.getValidationTime(alice),
+            40 * EPOCHS_PER_DAY * vtPricePerEpoch,
+            pointZeroZeroOne,
+            "alice should have ~40 VTS"
         );
 
         // Set penalty to 0
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.VTPenaltyChanged(20 ether, 0);
+        emit IPufferProtocolEvents.VTPenaltyChanged(20 * EPOCHS_PER_DAY, 0);
         pufferProtocol.setVTPenalty(0);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice),
-            70 ether,
+            pufferProtocol.getValidationTime(alice),
+            70 * EPOCHS_PER_DAY * vtPricePerEpoch,
             pointZeroZeroOne,
             "alice should have ~70 VTS register"
         );
@@ -1110,8 +886,8 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
-            pufferProtocol.getValidatorTicketsBalance(alice),
-            70 ether,
+            pufferProtocol.getValidationTime(alice),
+            70 * EPOCHS_PER_DAY * vtPricePerEpoch,
             pointZeroZeroOne,
             "alice should have ~70 VTS end"
         );
@@ -1120,52 +896,71 @@ contract PufferProtocolTest is UnitTestHelper {
     function test_double_withdrawal_reverts() public {
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
 
-        assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 30 ether, "protocol has 30 VT");
         assertApproxEqAbs(
-            _getUnderlyingETHAmount(address(pufferProtocol)), 1 ether, 1, "protocol should have ~1 eth bond"
+            _getUnderlyingETHAmount(address(pufferProtocol)), 1.5 ether, 1, "protocol should have ~2 eth bond"
         );
+
+        uint256 deadline = block.timestamp + 1 days;
 
         vm.startPrank(alice);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
+        emit IPufferProtocolEvents.ValidationTimeConsumed(
+            alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
         _executeFullWithdrawal(
             StoppedValidatorInfo({
                 module: NoRestakingModule,
                 moduleName: PUFFER_MODULE_0,
                 pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
-                startEpoch: 100,
-                endEpoch: _getEpochNumber(28 days, 100),
-                wasSlashed: false
-            })
+                totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+                vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                    alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+                ),
+                wasSlashed: false,
+                isDownsize: false
+            }),
+            deadline
         );
 
-        // 28 got burned from Alice
-        assertApproxEqRel(
-            validatorTicket.balanceOf(address(pufferProtocol)), 2 ether, pointZeroZeroOne, "Protocol has 2 VT"
-        );
+        // 2 days are leftover from 30 (30 is minimum for registration)
+        uint256 leftOverTime = 2 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice();
 
-        assertApproxEqAbs(
-            _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
-        );
+        uint256 unusedValidationTime = pufferProtocol.getValidationTime(alice);
 
-        assertApproxEqAbs(_getUnderlyingETHAmount(address(alice)), 1 ether, 1, "alice got back the bond");
+        assertEq(unusedValidationTime, leftOverTime, "unused validation time");
+
+        // VTS got burned from puffer protocol
+        assertEq(address(pufferProtocol).balance, unusedValidationTime, "Protocol has some leftower ETH - unused VT");
+
+        vm.startPrank(alice);
+        pufferProtocol.withdrawValidationTime(uint96(unusedValidationTime), address(55));
+
+        assertEq(weth.balanceOf(address(55)), unusedValidationTime, "recipient got the validation time ETH");
+
+        assertApproxEqAbs(_getUnderlyingETHAmount(address(alice)), 1.5 ether, 1, "alice got back the bond");
+
+        bytes[] memory vtConsumptionSignature = _getTotalEpochsValidatedSignatures(
+            alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+        );
 
         // We've removed the validator data, meaning the validator status is 0 (UNINITIALIZED)
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidatorState.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(PufferProtocolBase.InvalidValidatorState.selector, 0));
         _executeFullWithdrawal(
             StoppedValidatorInfo({
                 module: NoRestakingModule,
                 moduleName: PUFFER_MODULE_0,
                 pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
-                startEpoch: 100,
-                endEpoch: _getEpochNumber(28 days, 100),
-                wasSlashed: false
-            })
+                totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+                vtConsumptionSignature: vtConsumptionSignature,
+                wasSlashed: false,
+                isDownsize: false
+            }),
+            deadline
         );
     }
 
@@ -1177,28 +972,27 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 aliceVTBalance = pufferProtocol.getValidatorTicketsBalance(alice);
 
-        assertApproxEqRel(aliceVTBalance, 2 ether, pointZeroZeroOne, "2 vt balance after");
+        assertEq(aliceVTBalance, 0, "0 vt token balance after");
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsWithdrawn(alice, alice, aliceVTBalance);
+        emit IPufferProtocolEvents.ValidatorTicketsWithdrawn(alice, alice, aliceVTBalance);
         pufferProtocol.withdrawValidatorTickets(uint96(aliceVTBalance), alice);
 
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "0 vt balance after");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "0 vt token balance after");
         assertEq(validatorTicket.balanceOf(alice), aliceVTBalance, "~20 vt alice before");
 
         uint256 bobVTBalance = pufferProtocol.getValidatorTicketsBalance(bob);
 
-        assertApproxEqRel(bobVTBalance, 2 ether, pointZeroZeroOne, "2 vt balance before bob");
+        assertEq(bobVTBalance, 0, "2 vt balance before bob");
 
         vm.startPrank(bob);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsWithdrawn(bob, alice, bobVTBalance);
+        emit IPufferProtocolEvents.ValidatorTicketsWithdrawn(bob, alice, bobVTBalance);
         pufferProtocol.withdrawValidatorTickets(uint96(bobVTBalance), alice);
 
-        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 0, "0 vt balance after bob");
-        assertApproxEqRel(validatorTicket.balanceOf(alice), 4 ether, pointZeroZeroOne, "4 vt alice after bobs gift");
+        assertEq(pufferProtocol.getValidatorTicketsBalance(bob), 0, "0 vt token balance after bob");
     }
 
     // Batch claim 32 ETH withdrawals
@@ -1206,14 +1000,24 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
         _registerAndProvisionNode(bytes32("bob"), PUFFER_MODULE_0, bob);
 
+        assertEq(_getUnderlyingETHAmount(address(pufferProtocol)), 3 ether, "protocol should have 3 eth bond");
+
+        // 28 days of epochs
+        uint256 epochsValidated = 28 * EPOCHS_PER_DAY;
+
+        uint256 deadline = block.timestamp + 1 days;
+
         StoppedValidatorInfo memory aliceInfo = StoppedValidatorInfo({
             module: NoRestakingModule,
             moduleName: PUFFER_MODULE_0,
             pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: epochsValidated,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, epochsValidated, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1221,9 +1025,12 @@ contract PufferProtocolTest is UnitTestHelper {
             moduleName: PUFFER_MODULE_0,
             pufferModuleIndex: 1,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: epochsValidated,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                bob, epochsValidated, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](2);
@@ -1231,26 +1038,31 @@ contract PufferProtocolTest is UnitTestHelper {
         stopInfos[1] = bobInfo;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
+        emit IPufferProtocolEvents.ValidationTimeConsumed(
+            alice, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidationTimeConsumed(
+            bob, 28 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice(), 0
         );
-        pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, 1);
 
-        assertApproxEqAbs(
-            _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
+        pufferProtocol.batchHandleWithdrawals(
+            stopInfos, _getHandleBatchWithdrawalMessage(stopInfos, deadline), deadline
         );
 
-        // Alice got more because she earned the rewards from Bob's registration
-        assertGe(_getUnderlyingETHAmount(address(alice)), 1 ether, "alice got back the bond gt");
+        assertEq(_getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, "protocol should have 0 eth bond");
 
-        assertApproxEqAbs(_getUnderlyingETHAmount(address(bob)), 1 ether, 1, "bob got back the bond");
+        assertEq(_getUnderlyingETHAmount(address(alice)), 1.5 ether, "alice got back the bond gt");
+
+        assertEq(_getUnderlyingETHAmount(address(bob)), 1.5 ether, "bob got back the bond");
     }
 
     // Batch claim of different amounts
+    // This one uses old validator tickets instead of new VT model
     function test_different_amounts_batch_claim() public {
         // Buy and approve VT
         validatorTicket.purchaseValidatorTicket{ value: 10 ether }(address(this));
@@ -1263,13 +1075,14 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerAndProvisionNode(bytes32("eve"), PUFFER_MODULE_0, eve);
 
         // Free VTS for everybody!!
-        Permit memory vtPermit = emptyPermit;
-        vtPermit.amount = 100 ether;
-        pufferProtocol.depositValidatorTickets(vtPermit, alice);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
-        pufferProtocol.depositValidatorTickets(vtPermit, charlie);
-        pufferProtocol.depositValidatorTickets(vtPermit, dianna);
-        pufferProtocol.depositValidatorTickets(vtPermit, eve);
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
+        pufferProtocol.depositValidatorTickets(bob, vtAmount);
+        pufferProtocol.depositValidatorTickets(charlie, vtAmount);
+        pufferProtocol.depositValidatorTickets(dianna, vtAmount);
+        pufferProtocol.depositValidatorTickets(eve, vtAmount);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](5);
         stopInfos[0] = StoppedValidatorInfo({
@@ -1277,96 +1090,105 @@ contract PufferProtocolTest is UnitTestHelper {
             module: NoRestakingModule,
             pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(35 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 35 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 35 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[1] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 1,
             withdrawalAmount: 31.9 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                bob, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[2] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 2,
             withdrawalAmount: 31 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(34 days, 100),
-            wasSlashed: true
+            totalEpochsValidated: 34 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                charlie, 34 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: true,
+            isDownsize: false
         });
         stopInfos[3] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 3,
             withdrawalAmount: 31.8 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(48 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 48 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                dianna, 48 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
         stopInfos[4] = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 4,
             withdrawalAmount: 31.5 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(2 days, 100),
-            wasSlashed: true
+            totalEpochsValidated: 2 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                eve, 2 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: true,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(35 days, 100))
+        emit IPufferProtocolEvents.ValidationTimeConsumed(alice, 0, 35 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidationTimeConsumed(bob, 0, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidatorExited(
+            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.1 ether), 1
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")),
-            1,
-            PUFFER_MODULE_0,
-            pufferVault.convertToSharesUp(0.1 ether),
-            _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
-        );
-        vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
+        emit IPufferProtocolEvents.ValidationTimeConsumed(charlie, 0, 34 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        emit IPufferProtocolEvents.ValidatorExited(
             _getPubKey(bytes32("charlie")),
             2,
             PUFFER_MODULE_0,
             pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2).bond,
-            _getVTBurnAmount(100, _getEpochNumber(34 days, 100))
+            1
         ); // got slashed
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("dianna")),
-            3,
-            PUFFER_MODULE_0,
-            pufferVault.convertToSharesUp(0.2 ether),
-            _getVTBurnAmount(100, _getEpochNumber(48 days, 100))
+        emit IPufferProtocolEvents.ValidationTimeConsumed(dianna, 0, 48 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        emit IPufferProtocolEvents.ValidatorExited(
+            _getPubKey(bytes32("dianna")), 3, PUFFER_MODULE_0, pufferVault.convertToSharesUp(0.2 ether), 1
         );
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("eve")),
-            4,
-            PUFFER_MODULE_0,
-            pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond,
-            28 ether // minimum vt amount
+        emit IPufferProtocolEvents.ValidationTimeConsumed(eve, 0, 2 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocolEvents.ValidatorExited(
+            _getPubKey(bytes32("eve")), 4, PUFFER_MODULE_0, pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond, 1
         ); // got slashed
-        pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
-
-        assertApproxEqAbs(
-            _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
+        pufferProtocol.batchHandleWithdrawals(
+            stopInfos, _getHandleBatchWithdrawalMessage(stopInfos, deadline), deadline
         );
 
-        // Alice got more because she earned the rewards from the others
-        assertGe(_getUnderlyingETHAmount(address(alice)), 1 ether, "alice got back the bond gt");
+        assertEq(_getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, "protocol should have 0 eth bond");
 
-        // Bob got 0.9 ETH bond + some rewards from the others
+        // // Alice got more because she earned the rewards from the others
+        assertGe(_getUnderlyingETHAmount(address(alice)), 1.5 ether, "alice got back the bond gt");
+
+        // // Bob got 0.9 ETH bond + some rewards from the others
         assertGe(_getUnderlyingETHAmount(address(bob)), 0.9 ether, "bob got back the bond gt");
 
-        // Charlie got 0 bond
+        // // Charlie got 0 bond
         assertEq(_getUnderlyingETHAmount(address(charlie)), 0, "charlie got 0 bond - slashed");
 
         assertGe(_getUnderlyingETHAmount(address(dianna)), 0.8 ether, "dianna got back the bond gt");
@@ -1374,18 +1196,177 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(_getUnderlyingETHAmount(address(eve)), 0, "eve got 0 bond - slashed");
     }
 
+    function test_oldVT_and_new_VT_model_only_vt_burned() public {
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "initial exchange rate is 1:1");
+
+        // Buy and approve VT, this changes the exchange rate
+        validatorTicket.purchaseValidatorTicket{ value: 1 ether }(address(this));
+        validatorTicket.approve(address(pufferProtocol), 1000 ether);
+
+        uint256 exchangeRateAfterVTPurchase = 1000945000000000000;
+
+        // Exchange rate remained unchanged, 1 wei diff (rounding)
+        assertApproxEqAbs(
+            pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "initial exchange rate is ~1:1"
+        );
+
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
+
+        uint256 deadline = block.timestamp + 1 days;
+
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 100 ether, "100 VT in the protocol");
+
+        // Alice is provisioned with 30 'new VT' and has 100 validator tickets deposited
+        // Total 130 'days' of validation
+        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
+
+        uint256 initialValidationTimeAfterProvisioning = pufferProtocol.getValidationTime(alice);
+
+        // Alice exits a validator after 65 days of validation
+        StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
+        stopInfos[0] = StoppedValidatorInfo({
+            moduleName: PUFFER_MODULE_0,
+            module: NoRestakingModule,
+            pufferModuleIndex: 0,
+            withdrawalAmount: 32 ether,
+            totalEpochsValidated: 65 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 65 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
+        });
+
+        // Exchange rate remained unchanged, 1 wei diff (rounding)
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "exchange rate is ~1:1");
+
+        pufferProtocol.batchHandleWithdrawals(
+            stopInfos, _getHandleBatchWithdrawalMessage(stopInfos, deadline), deadline
+        );
+
+        // Validation time is unchanged
+        assertEq(
+            pufferProtocol.getValidationTime(alice),
+            initialValidationTimeAfterProvisioning,
+            "Alice has the same amount of validation time"
+        );
+
+        // Alice has 100-65 days of VT left
+        assertEq(
+            pufferProtocol.getValidatorTicketsBalance(alice),
+            34.999999999999991875 ether,
+            "Alice has ~35 VT in the protocol"
+        );
+
+        // txs don't revert
+        vm.startPrank(alice);
+        pufferProtocol.withdrawValidationTime(uint96(initialValidationTimeAfterProvisioning), alice);
+        pufferProtocol.withdrawValidatorTickets(34.999999999999991875 ether, alice);
+
+        // Alice has 0 VT in the protocol
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "Alice has 0 VT in the protocol");
+
+        // Alice has 0 validation time
+        assertEq(pufferProtocol.getValidationTime(alice), 0, "Alice has 0 validation time");
+    }
+
+    function test_oldVT_and_new_VT_model_only_both_burned() public {
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "initial exchange rate is 1:1");
+
+        // Buy and approve VT, this changes the exchange rate
+        validatorTicket.purchaseValidatorTicket{ value: 1 ether }(address(this));
+        validatorTicket.approve(address(pufferProtocol), 1000 ether);
+
+        uint256 exchangeRateAfterVTPurchase = 1000945000000000000;
+
+        uint256 deadline = block.timestamp + 1 days;
+
+        // Exchange rate remained unchanged, 1 wei diff (rounding)
+        assertApproxEqAbs(
+            pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "initial exchange rate is ~1:1"
+        );
+
+        uint256 vtAmount = 100 ether;
+        pufferProtocol.depositValidatorTickets(alice, vtAmount);
+
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 100 ether, "100 VT in the protocol");
+
+        // Alice is provisioned with 30 'new VT' and has 100 validator tickets deposited
+        // Total 130 'days' of validation
+        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
+
+        // Alice exits a validator after 120 days of validation
+        StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
+        stopInfos[0] = StoppedValidatorInfo({
+            moduleName: PUFFER_MODULE_0,
+            module: NoRestakingModule,
+            pufferModuleIndex: 0,
+            withdrawalAmount: 32 ether,
+            totalEpochsValidated: 120 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 120 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
+        });
+
+        // Exchange rate remained unchanged, 1 wei diff (rounding)
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "exchange rate is ~1:1");
+
+        pufferProtocol.batchHandleWithdrawals(
+            stopInfos, _getHandleBatchWithdrawalMessage(stopInfos, deadline), deadline
+        );
+
+        // Nothing is changed, we didn't deposit revenue
+        assertApproxEqAbs(pufferVault.convertToAssets(1 ether), exchangeRateAfterVTPurchase, 1, "exchange rate is ~1:1");
+
+        revenueDepositor.depositRevenue();
+
+        assertGt(
+            pufferVault.convertToAssets(1 ether),
+            exchangeRateAfterVTPurchase,
+            "exchange rate is now bigger because of revenue deposit"
+        );
+
+        // Alice has 0 VT in the protocol
+        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0, "Alice has 0 VT in the protocol");
+
+        // It is expected to have 10 days of validation time
+        uint256 expectedLeftOverValidationTime = 10 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice();
+
+        // Alice has >0 validation time
+        assertEq(
+            pufferProtocol.getValidationTime(alice), expectedLeftOverValidationTime, "Alice has >0 validation time"
+        );
+
+        vm.startPrank(alice);
+        pufferProtocol.withdrawValidationTime(uint96(expectedLeftOverValidationTime), address(8888));
+
+        assertEq(
+            weth.balanceOf(address(8888)),
+            expectedLeftOverValidationTime,
+            "Recipient got WETH (validation time from Alice)"
+        );
+    }
+
     function test_single_withdrawal() public {
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
         _registerAndProvisionNode(bytes32("bob"), PUFFER_MODULE_0, bob);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         StoppedValidatorInfo memory aliceInfo = StoppedValidatorInfo({
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 0,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
 
         StoppedValidatorInfo memory bobInfo = StoppedValidatorInfo({
@@ -1393,30 +1374,31 @@ contract PufferProtocolTest is UnitTestHelper {
             module: NoRestakingModule,
             pufferModuleIndex: 1,
             withdrawalAmount: 32 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: false
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                bob, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
         });
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
-        ); // 10 days of VT
-        _executeFullWithdrawal(aliceInfo);
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, 0, 1); // 10 days of VT
+        emit IPufferProtocolEvents.ValidationTimeConsumed(alice, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
+        _executeFullWithdrawal(aliceInfo, deadline);
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
-        ); // 10 days of VT
-        _executeFullWithdrawal(bobInfo);
+        emit IPufferProtocolEvents.ValidatorExited(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, 1); // 10 days of VT
+        emit IPufferProtocolEvents.ValidationTimeConsumed(bob, 28 * EPOCHS_PER_DAY * BURN_RATE_PER_EPOCH, 0);
+        _executeFullWithdrawal(bobInfo, deadline);
 
         assertApproxEqAbs(
             _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
         );
 
         // Alice got more because she earned the rewards from Bob's registration
-        assertGe(_getUnderlyingETHAmount(address(alice)), 1 ether, "alice got back the bond gt");
+        assertGe(_getUnderlyingETHAmount(address(alice)), 1.5 ether, "alice got back the bond gt");
 
-        assertApproxEqAbs(_getUnderlyingETHAmount(address(bob)), 1 ether, 1, "bob got back the bond");
+        assertApproxEqAbs(_getUnderlyingETHAmount(address(bob)), 1.5 ether, 1, "bob got back the bond");
     }
 
     function test_batch_vs_multiple_single_withdrawals() public {
@@ -1439,36 +1421,36 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(bobBalanceBefore, pufferVault.balanceOf(bob), "bob balance");
     }
 
-    function _executeFullWithdrawal(StoppedValidatorInfo memory validatorInfo) internal {
+    function _executeFullWithdrawal(StoppedValidatorInfo memory validatorInfo, uint256 deadline) internal {
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
         stopInfos[0] = validatorInfo;
 
         vm.stopPrank(); // this contract has the PAYMASTER role, so we need to stop the prank
         pufferProtocol.batchHandleWithdrawals({
             validatorInfos: stopInfos,
-            guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos)
+            guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos, deadline),
+            deadline: deadline
         });
     }
 
-    // Register 2 validators and provision 1 validator and post full withdrawal proof for 29 eth (slash 3 ETH on one validator)
+    // Register 2 validators and provision 1 validator and post full withdrawal proof for 29 eth (slash 1.5 ETH from NoOp)
     // Case 1
     function test_slashing_case_1() public {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Get the exchange rate before provisioning validators
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
-        assertEq(exchangeRateBefore, 999433604122689216, "shares before provisioning");
+        // This is because VT settlement now happens later, so the exchange rate is 1:1
+        assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         // Give funds to modules
         vm.deal(NoRestakingModule, 200 ether);
@@ -1481,48 +1463,50 @@ contract PufferProtocolTest is UnitTestHelper {
             module: NoRestakingModule,
             pufferModuleIndex: 0,
             withdrawalAmount: 29 ether,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            wasSlashed: true
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns two bonds from Alice (she registered 2 validators, but only one got activated)
         // If the other one was active it would get ejected by the guardians
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
         // 1 ETH gives you more pufETH after the `retrieveBond` call, meaning it is worse than before
         assertLt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
 
-        // The other validator has less than 1 ETH in the bond
-        // Bad dept is shared between all pufETH holders
         assertApproxEqRel(
             pufferVault.balanceOf(address(pufferProtocol)),
-            1 ether,
+            1.5 ether,
             pointZeroOne,
-            "1 ETH worth of pufETH in the protocol"
+            "1.5 ETH worth of pufETH in the protocol"
         );
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH alice");
+
+        // Provision another Alice Validator works
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
-    // Register 2 validators, provision 1, slash 1.5 whole validator bond owned by node operator
+    // Register 2 validators, provision 1, slash 2.5 whole validator bond owned by node operator
     // Case 2
     function test_slashing_case_2() public {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Get the exchange rate before provisioning validators
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
-        assertEq(exchangeRateBefore, 999433604122689216, "shares before provisioning");
+        assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1533,48 +1517,58 @@ contract PufferProtocolTest is UnitTestHelper {
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 0,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            withdrawalAmount: 30.5 ether,
-            wasSlashed: true
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            withdrawalAmount: 29.5 ether,
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
-        // 1 ETH gives you more pufETH after the `retrieveBond` call, meaning it is worse than before
+        // 1 ETH gives you more pufETH after the `retrieveBond` call, meaning it is better for pufETH holders
         assertLt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
 
         // The other validator has less than 1 ETH in the bond
         // Bad dept is shared between all pufETH holders
         assertApproxEqRel(
             pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
+            1.5 ether,
             pointZeroOne,
-            "1 ether ETH worth of pufETH in the protocol"
+            "1.5 ether ETH worth of pufETH in the protocol"
         );
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH alice");
     }
 
-    // Register 2 validators, provision 1, slash 1 whole validator bond (1 ETH)
+    // Register 2 validators, provision 1, slash 1 whole validator bond (2 ETH)
     // Case 3
     function test_slashing_case_3() public {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Get the exchange rate before provisioning validators
-        uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
-        assertEq(exchangeRateBefore, 999433604122689216, "shares before provisioning");
+        uint256 exchangeRateBefore = pufferVault.convertToAssets(1 ether);
+        // 2 bonds * 1.5 ETH + 1000 initial value in the vault
+        assertEq(address(pufferVault).balance, 1003 ether, "1003 ETH in the vault");
+        assertEq(exchangeRateBefore, 1 ether, "shares before provisioning, 1:1");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        // We provision one validator
+        assertEq(address(pufferVault).balance, 971 ether, "971 ETH in the vault");
+
+        // Stays the same
+        assertEq(pufferVault.convertToAssets(1 ether), 1 ether, "shares after provisioning");
+        assertEq(weth.balanceOf(address(pufferVault)), 0 ether, "0 WETH in the vault");
+
+        uint256 deadline = block.timestamp + 1 days;
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1585,34 +1579,40 @@ contract PufferProtocolTest is UnitTestHelper {
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 0,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
-            withdrawalAmount: 31 ether,
-            wasSlashed: true
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            withdrawalAmount: 30.9 ether, // 1.1 ETH slashed
+            wasSlashed: true,
+            isDownsize: false
         });
 
         // Burns one whole bond
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
-        // Exchange rate remains the same, it is slightly better
-        assertApproxEqRel(
-            exchangeRateBefore, pufferVault.convertToShares(1 ether), pointZeroZeroOne, "shares after retrieve"
+        // 30 ETH was returned to the vault
+        assertEq(address(pufferVault).balance, 1001.9 ether, "1001.9 ETH in the vault");
+
+        revenueDepositor.depositRevenue();
+
+        assertGt(weth.balanceOf(address(pufferVault)), 0 ether, "WETH in the vault");
+
+        // Exchange rate changes in favour of remaining pufETH holders
+        assertLt(
+            exchangeRateBefore,
+            pufferVault.convertToAssets(1 ether),
+            "exchange rate after validator exits is better for pufETH holders"
         );
-        // 1 ETH gives you less pufETH after the `retrieveBond` call, meaning it is better than before (slightly)
-        assertGt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
 
-        // Alice has a little over 1 ETH because she earned something for paying the VT on the second validator registration
+        // Alice has a little over 1.5 ETH because she earned something from herself (her own exit + slashing)
         assertApproxEqRel(
             pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
-            pointZeroZeroOne,
-            "1 ETH worth of pufETH in the protocol"
+            1.5 ether,
+            pointZeroOne,
+            "1.5 ETH worth of pufETH in the protocol"
         );
-        assertGt(
-            pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
-            "1 ETH worth of pufETH in the protocol gt"
-        );
+        // Alice didn't receive any bond for that one validator exit
         assertEq(pufferVault.balanceOf(alice), 0, "0 pufETH alice");
     }
 
@@ -1622,19 +1622,17 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Get the exchange rate before provisioning validators
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
-        assertEq(exchangeRateBefore, 999433604122689216, "shares before provisioning");
+        assertEq(exchangeRateBefore, 1 ether, "shares before provisioning");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1645,24 +1643,29 @@ contract PufferProtocolTest is UnitTestHelper {
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 0,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(28 days, 100),
+            totalEpochsValidated: 28 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 28 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
             withdrawalAmount: 31.9 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
-        // Exchange rate stays the same
-        assertEq(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
+        revenueDepositor.depositRevenue();
 
-        // Alice has ~ 1 ETH locked in the protocol
+        // Exchange rate is better for pufETH holders
+        assertGt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
+
+        // Alice has ~ 1.5 ETH locked in the protocol
         assertApproxEqRel(
             pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
-            pointZeroZeroOne,
-            "1 ETH worth of pufETH in the protocol"
+            1.5 ether,
+            pointZeroOne,
+            "1.5 ETH worth of pufETH in the protocol"
         );
         // Alice got a little over 0.9 ETH worth of pufETH because she earned something for paying the VT on the second validator registration
         assertGt(pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 0.9 ether, ">0.9 ETH worth of pufETH alice");
@@ -1674,21 +1677,19 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
         // Get the exchange rate before provisioning validators
         uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
-        assertEq(exchangeRateBefore, 999433604122689216, "shares before provisioning");
+        assertEq(exchangeRateBefore, 1 ether, "shares before provisioning");
 
-        uint256 startTimestamp = 1707411226;
-        vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
+
+        uint256 deadline = block.timestamp + 1 days;
 
         // Now the node operators submit proofs to get back their bond
         vm.startPrank(alice);
@@ -1697,39 +1698,46 @@ contract PufferProtocolTest is UnitTestHelper {
             moduleName: PUFFER_MODULE_0,
             module: NoRestakingModule,
             pufferModuleIndex: 0,
-            startEpoch: 100,
-            endEpoch: _getEpochNumber(15 days, 100),
+            totalEpochsValidated: 15 * EPOCHS_PER_DAY,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                alice, 15 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
             withdrawalAmount: 32.1 ether,
-            wasSlashed: false
+            wasSlashed: false,
+            isDownsize: false
         });
 
         // Burns one whole bond
-        _executeFullWithdrawal(validatorInfo);
+        _executeFullWithdrawal(validatorInfo, deadline);
 
-        // Exchange rate stays the same
-        assertEq(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
+        revenueDepositor.depositRevenue();
+
+        // Exchange rate is better for pufETH holders
+        assertGt(exchangeRateBefore, pufferVault.convertToShares(1 ether), "shares after retrieve");
 
         // Alice has ~ 1 ETH locked in the protocol
         assertApproxEqRel(
             pufferVault.convertToAssets(pufferVault.balanceOf(address(pufferProtocol))),
-            1 ether,
+            1.5 ether,
             pointZeroZeroOne,
-            "1 ETH worth of pufETH in the protocol"
+            "1.5 ETH worth of pufETH in the protocol"
         );
-        // Alice got a little over 1 ETH worth of pufETH because she earned something for paying the VT on the second validator registration
-        assertGt(pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1 ether, ">1 ETH worth of pufETH alice");
+        // Alice got a little over 1.5 ETH worth of pufETH because she earned something for paying the VT on the second validator registration
+        assertGt(pufferVault.convertToAssets(pufferVault.balanceOf(alice)), 1.5 ether, ">1.5 ETH worth of pufETH alice");
     }
 
     function test_validator_early_exit_dos() public {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256 deadline = block.timestamp + 1 days;
+
+        // We would handle this case on the backend, the guardians would return a value + a signature to mitigate this
 
         // Alice exited after 1 day
         _executeFullWithdrawal(
@@ -1738,13 +1746,21 @@ contract PufferProtocolTest is UnitTestHelper {
                 moduleName: PUFFER_MODULE_0,
                 pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
-                startEpoch: 100,
-                endEpoch: _getEpochNumber(1 days, 100),
-                wasSlashed: false
-            })
+                totalEpochsValidated: 10 * EPOCHS_PER_DAY, // penalty is 10
+                vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                    alice, 10 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+                ), // penalty is 10
+                wasSlashed: false,
+                isDownsize: false
+            }),
+            deadline
         );
 
-        assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 2 ether, "alice got 2 VT left in the protocol");
+        uint256 leftOverValidationTime = 20 * EPOCHS_PER_DAY * pufferOracle.getValidatorTicketPrice();
+
+        assertEq(
+            pufferProtocol.getValidationTime(alice), leftOverValidationTime, "alice got 20 days left in the protocol"
+        );
     }
 
     // Alice registers one 30 VT validator
@@ -1754,16 +1770,16 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.deal(alice, 10 ether);
 
         vm.startPrank(alice);
-        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(alice, bytes32("alice"), PUFFER_MODULE_0, 0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(bytes32("alice"))), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.startPrank(DAO);
         pufferProtocol.changeMinimumVTAmount(35 ether);
         vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 days;
 
         // Alice exited after 1 day
         _executeFullWithdrawal(
@@ -1772,66 +1788,38 @@ contract PufferProtocolTest is UnitTestHelper {
                 moduleName: PUFFER_MODULE_0,
                 pufferModuleIndex: 0,
                 withdrawalAmount: 32 ether,
-                startEpoch: 100,
-                endEpoch: _getEpochNumber(3 days, 100),
-                wasSlashed: false
-            })
+                totalEpochsValidated: 3 * EPOCHS_PER_DAY,
+                vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                    alice, 3 * EPOCHS_PER_DAY, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+                ),
+                wasSlashed: false,
+                isDownsize: false
+            }),
+            deadline
         );
 
         assertEq(pufferProtocol.getValidatorTicketsBalance(alice), 0 ether, "alice got 0 VT left in the protocol");
     }
 
-    // User purchases a lot of VT using ETH, but uses Permit to transfer pufETH
-    function test_purchase_big_amount_of_vt() public {
+    // User deposits a lot of ETH (validator tickets)
+    function test_big_eth_deposit() public {
         bytes memory pubKey = _getPubKey(bytes32("alice"));
-        vm.deal(alice, 10 ether);
-
-        // Alice mints 1 ETH of pufETH
-        vm.startPrank(alice);
-        pufferVault.depositETH{ value: 1 ether }(alice);
 
         assertEq(pufferVault.balanceOf(address(pufferProtocol)), 0, "zero pufETH before");
-        assertEq(pufferVault.balanceOf(alice), 1 ether, "1 pufETH before for alice");
 
         ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
-        // Generate Permit data for 1 pufETH to the protocol
-        Permit memory permit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
-        );
+        uint256 deadline = block.timestamp + 1 days;
 
         // Register validator key by paying SC in ETH and depositing bond in pufETH
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, true);
-        pufferProtocol.registerValidatorKey{ value: 9 ether }(data, PUFFER_MODULE_0, permit, emptyPermit);
+        emit IPufferProtocolEvents.ValidationTimeDeposited({ node: address(this), ethAmount: 7.5 ether });
+        emit IPufferProtocolEvents.ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, 1);
+        pufferProtocol.registerValidatorKey{ value: 9 ether }(data, PUFFER_MODULE_0, 0, new bytes[](0), deadline);
 
-        // Because alice purchased VT in the registration TX, it modified the exchange rate and we take less pufETH from her.
-        assertEq(pufferVault.balanceOf(alice), 8424921124709635, "alice has 8424921124709635 pufETH after registering");
-    }
-
-    // Alice uses Permit for VT and pays for the bond with ETH, but sends more ETH than needed
-    function test_revert_for_excess_eth() public {
-        bytes memory pubKey = _getPubKey(bytes32("alice"));
-        vm.deal(alice, 10 ether);
-
-        uint256 numberOfDays = 30;
-        uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
-
-        // Alice mints 1 ETH of pufETH
-        vm.startPrank(alice);
-        // Alice purchases VT
-        validatorTicket.purchaseValidatorTicket{ value: amount }(alice);
-
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), _upscaleTo18Decimals(numberOfDays), block.timestamp),
-            validatorTicket.DOMAIN_SEPARATOR()
-        );
-
-        ValidatorKeyData memory data = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-
-        // User pays for the bond in pufETH, but decides to send more than the bond 1.1 eth
-        vm.expectRevert(IPufferProtocol.InvalidETHAmount.selector);
-        pufferProtocol.registerValidatorKey{ value: 1.1 ether }(data, PUFFER_MODULE_0, emptyPermit, vtPermit);
+        // Protocol holds 7.5 ETHER
+        assertEq(address(pufferProtocol).balance, 7.5 ether, "7.5 ETH in the protocol");
+        assertEq(pufferVault.balanceOf(address(pufferProtocol)), 1.5 ether, "Bond in pufETH is held by the protocol");
     }
 
     // Alice deposits VT to Bob and Bob has no validators in Puffer
@@ -1840,13 +1828,12 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.startPrank(alice);
         validatorTicket.purchaseValidatorTicket{ value: 10 ether }(alice);
 
-        Permit memory vtPermit = _signPermit(
-            _testTemps("alice", address(pufferProtocol), 50 ether, block.timestamp), validatorTicket.DOMAIN_SEPARATOR()
-        );
+        uint256 vtAmount = 50 ether;
+        validatorTicket.approve(address(pufferProtocol), vtAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorTicketsDeposited(bob, alice, 50 ether);
-        pufferProtocol.depositValidatorTickets(vtPermit, bob);
+        emit IPufferProtocolEvents.ValidatorTicketsDeposited(bob, alice, vtAmount);
+        pufferProtocol.depositValidatorTickets(bob, vtAmount);
 
         vm.startPrank(bob);
         pufferProtocol.withdrawValidatorTickets(50 ether, bob);
@@ -1854,43 +1841,16 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
     }
 
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
-        // If there is no module return empty byte array
-        if (validator.module == address(0)) {
-            return new bytes[](0);
-        }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
+    function test_batchHandleWithdrawals_restricted() public {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
+        pufferProtocol.batchHandleWithdrawals(new StoppedValidatorInfo[](0), new bytes[](0), block.timestamp);
+    }
 
-        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pendingIdx,
-            pubKey,
-            _validatorSignature(),
-            withdrawalCredentials,
-            pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: _validatorSignature(),
-                withdrawalCredentials: withdrawalCredentials
-            })
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
+    function test_skipProvisioning_restricted() public {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
+        pufferProtocol.skipProvisioning(0, new bytes[](0));
     }
 
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
@@ -1915,12 +1875,46 @@ contract PufferProtocolTest is UnitTestHelper {
         return guardianSignatures;
     }
 
-    function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos)
+    /**
+     * @notice Get the guardian signatures from the backend API for the total validated epochs by the node operator
+     * @param node The address of the node operator
+     * @param validatedEpochsTotal The total number of validated epochs (sum for all the validators and their consumption)
+     * @param deadline The deadline for the signature
+     * @return guardianSignatures The guardian signatures
+     */
+    function _getTotalEpochsValidatedSignatures(
+        address node,
+        uint256 validatedEpochsTotal,
+        uint256 deadline,
+        bytes32 funcSelector
+    ) internal view returns (bytes[] memory) {
+        uint256 nonce = pufferProtocol.nonces(funcSelector, node);
+
+        bytes32 digest = _getTotalEpochsValidatedMessage(node, validatedEpochsTotal, nonce, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SK, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SK, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
+    }
+
+    function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos, uint256 deadline)
         internal
         view
         returns (bytes[] memory)
     {
-        bytes32 digest = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+        bytes32 digest = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos, deadline);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -1947,7 +1941,7 @@ contract PufferProtocolTest is UnitTestHelper {
             hex"8aa088146c8c6ca6d8ad96648f20e791be7c449ce7035a6bd0a136b8c7b7867f730428af8d4a2b69658bfdade185d6110b938d7a59e98d905e922d53432e216dc88c3384157d74200d3f2de51d31737ce19098ff4d4f54f77f0175e23ac98da5";
     }
 
-    // Generates a mock validator data for SGX 1 ETH case
+    // Generates a mock validator data for 1.5 ETH case
     function _getMockValidatorKeyData(bytes memory pubKey, bytes32 moduleName)
         internal
         view
@@ -1974,10 +1968,8 @@ contract PufferProtocolTest is UnitTestHelper {
                 signature: validatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             }),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: bytes("mock rave") // Guardians are checking it off chain
-         });
+            numBatches: 1
+        });
 
         return validatorData;
     }
@@ -2005,37 +1997,44 @@ contract PufferProtocolTest is UnitTestHelper {
 
     /**
      * @dev Registers validator key and pays for everything in ETH
+     * @dev epochValidated = sum for all all the validators and their consumption
      */
-    function _registerValidatorKey(bytes32 pubKeyPart, bytes32 moduleName) internal {
-        uint256 numberOfDays = 30;
-        uint256 vtPrice = pufferOracle.getValidatorTicketPrice() * numberOfDays;
+    function _registerValidatorKey(
+        address nodeOperator,
+        bytes32 pubKeyPart,
+        bytes32 moduleName,
+        uint256 epochsValidated
+    ) internal {
+        uint256 amount = BOND + (pufferOracle.getValidatorTicketPrice() * MINIMUM_EPOCHS_VALIDATION);
+
         bytes memory pubKey = _getPubKey(pubKeyPart);
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, moduleName);
         uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-        uint256 bond = 1 ether;
+        uint256 deadline = block.timestamp + 1 days;
 
-        // Empty permit means that the node operator is paying with ETH for both bond & VT in the registration transaction
+        bytes[] memory vtConsumptionSignatures = _getTotalEpochsValidatedSignatures(
+            nodeOperator, epochsValidated, deadline, IPufferProtocolLogic.registerValidatorKey.selector
+        );
+
         vm.expectEmit(true, true, true, true);
-        emit ValidatorKeyRegistered(pubKey, idx, moduleName, true);
-        pufferProtocol.registerValidatorKey{ value: (vtPrice + bond) }(
-            validatorKeyData, moduleName, emptyPermit, emptyPermit
+        emit IPufferProtocolEvents.ValidatorKeyRegistered(pubKey, idx, moduleName, 1);
+        pufferProtocol.registerValidatorKey{ value: amount }(
+            validatorKeyData, moduleName, epochsValidated, vtConsumptionSignatures, deadline
         );
     }
 
     /**
-     * @dev Registers and provisions a new validator with 1 ETH bond (enclave) and 30 VTs (see _registerValidatorKey)
+     * @dev Registers and provisions a new validator with 2 ETH bond and 30 VTs (see _registerValidatorKey)
      */
     function _registerAndProvisionNode(bytes32 pubKeyPart, bytes32 moduleName, address nodeOperator) internal {
         vm.deal(nodeOperator, 10 ether);
 
         vm.startPrank(nodeOperator);
-        _registerValidatorKey(pubKeyPart, moduleName);
+        _registerValidatorKey(nodeOperator, pubKeyPart, moduleName, 0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(pubKeyPart)), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     /**
@@ -2050,21 +2049,110 @@ contract PufferProtocolTest is UnitTestHelper {
         return amount * 1 ether;
     }
 
-    function _getEpochNumber(uint256 validationTimeInSeconds, uint256 startEpoch)
-        internal
-        pure
-        returns (uint256 endEpoch)
-    {
-        uint256 secondsInEpoch = 32 * 12;
-        uint256 numberOfEpochs = validationTimeInSeconds / secondsInEpoch;
-        return startEpoch + numberOfEpochs;
+    function test_getNodeInfo() public view {
+        // Test non-existent node
+        NodeInfo memory nodeInfo = pufferProtocol.getNodeInfo(address(0x123));
+        assertEq(nodeInfo.activeValidatorCount, 0);
+        assertEq(nodeInfo.pendingValidatorCount, 0);
+        assertEq(nodeInfo.deprecated_vtBalance, 0);
+        assertEq(nodeInfo.validationTime, 0);
+        assertEq(nodeInfo.epochPrice, 0);
+        assertEq(nodeInfo.totalEpochsValidated, 0);
+
+        // Test registered node (alice)
+        nodeInfo = pufferProtocol.getNodeInfo(alice);
+        assertEq(nodeInfo.activeValidatorCount, 0);
+        assertEq(nodeInfo.pendingValidatorCount, 0);
+        assertEq(nodeInfo.deprecated_vtBalance, 0);
+        assertEq(nodeInfo.validationTime, 0);
+        assertEq(nodeInfo.epochPrice, 0);
+        assertEq(nodeInfo.totalEpochsValidated, 0);
     }
 
-    function _getVTBurnAmount(uint256 startEpoch, uint256 endEpoch) internal pure returns (uint256) {
-        uint256 validatedEpochs = endEpoch - startEpoch;
-        // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
-        // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
-        return validatedEpochs * 4444444444444445;
+    function test_setVTPenalty_invalid_amount() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(PufferProtocolBase.InvalidVTAmount.selector);
+        pufferProtocol.setVTPenalty(type(uint256).max);
+    }
+
+    function test_checkValidatorRegistrationInputs_invalid_pubkey() public {
+        bytes memory invalidPubKey = new bytes(47); // Invalid length
+        ValidatorKeyData memory data = _getMockValidatorKeyData(invalidPubKey, PUFFER_MODULE_0);
+
+        vm.expectRevert(PufferProtocolBase.InvalidBLSPubKey.selector);
+        pufferProtocol.registerValidatorKey{ value: 3 ether }(
+            data, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
+        );
+    }
+
+    function test_changeMinimumVTAmount_invalid_amount() public {
+        vm.startPrank(DAO);
+        vm.expectRevert(PufferProtocolBase.InvalidVTAmount.selector);
+        pufferProtocol.changeMinimumVTAmount(0);
+    }
+
+    function test_panic_batch_withdrawals() public {
+        uint256 deadline = block.timestamp + 1 days;
+
+        // Test with zero epochs
+        StoppedValidatorInfo memory info = StoppedValidatorInfo({
+            module: NoRestakingModule,
+            moduleName: PUFFER_MODULE_0,
+            pufferModuleIndex: 0,
+            withdrawalAmount: 32 ether,
+            totalEpochsValidated: type(uint256).max,
+            vtConsumptionSignature: _getTotalEpochsValidatedSignatures(
+                bob, type(uint256).max, deadline, IPufferProtocolLogic.batchHandleWithdrawals.selector
+            ),
+            wasSlashed: false,
+            isDownsize: false
+        });
+
+        StoppedValidatorInfo[] memory validatorInfos = new StoppedValidatorInfo[](1);
+        validatorInfos[0] = info;
+
+        _registerAndProvisionNode(bytes32("bob"), PUFFER_MODULE_0, bob);
+
+        // Panic Error is expected panic: arithmetic underflow or overflow (0x11)
+        vm.expectRevert(bytes("panic: arithmetic underflow or overflow (0x11)"));
+        pufferProtocol.batchHandleWithdrawals(
+            validatorInfos, _getHandleBatchWithdrawalMessage(validatorInfos, deadline), deadline
+        );
+    }
+
+    function test_useVTOrValidationTime_edge_cases() public {
+        // Test with zero VT and validation time
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
+
+        // Test with maximum VT and validation time
+        vm.deal(alice, 1000 ether);
+        vm.startPrank(alice);
+        validatorTicket.purchaseValidatorTicket{ value: 1000 ether }(alice);
+        validatorTicket.approve(address(pufferProtocol), type(uint256).max);
+        pufferProtocol.depositValidatorTickets(alice, 0);
+        vm.stopPrank();
+    }
+
+    function test_settleVTAccounting_edge_cases() public {
+        // Test with zero VT balance
+        _registerValidatorKey(address(this), bytes32("alice"), PUFFER_MODULE_0, 0);
+
+        // Test with maximum VT balance
+        vm.deal(alice, 1000 ether);
+        vm.startPrank(alice);
+        validatorTicket.purchaseValidatorTicket{ value: 1000 ether }(alice);
+        validatorTicket.approve(address(pufferProtocol), type(uint256).max);
+        pufferProtocol.depositValidatorTickets(alice, 0);
+        vm.stopPrank();
+    }
+
+    function _getTotalEpochsValidatedMessage(
+        address node,
+        uint256 totalEpochsValidated,
+        uint256 nonce,
+        uint256 deadline
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(node, totalEpochsValidated, nonce, deadline)).toEthSignedMessageHash();
     }
 }
 

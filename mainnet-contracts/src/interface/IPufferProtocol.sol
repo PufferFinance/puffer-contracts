@@ -8,11 +8,13 @@ import { PufferModuleManager } from "../PufferModuleManager.sol";
 import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
 import { Status } from "../struct/Status.sol";
+import { WithdrawalType } from "../struct/WithdrawalType.sol";
 import { Permit } from "../structs/Permit.sol";
 import { ValidatorTicket } from "../ValidatorTicket.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { ModuleLimit } from "../struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
+import { EpochsValidatedSignature } from "../struct/Signatures.sol";
 import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol";
 
 /**
@@ -21,162 +23,6 @@ import { IBeaconDepositContract } from "../interface/IBeaconDepositContract.sol"
  * @custom:security-contact security@puffer.fi
  */
 interface IPufferProtocol {
-    /**
-     * @notice Thrown when the deposit state that is provided doesn't match the one on Beacon deposit contract
-     */
-    error InvalidDepositRootHash();
-
-    /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians threshold number
-     * @dev Signature "0x8cdea6a6"
-     */
-    error InvalidBLSPublicKeySet();
-
-    /**
-     * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
-     * @dev Signature "0x22242546"
-     */
-    error ActiveOrPendingValidatorsExist();
-
-    /**
-     * @notice Thrown on the module creation if the module already exists
-     * @dev Signature "0x2157f2d7"
-     */
-    error ModuleAlreadyExists();
-
-    /**
-     * @notice Thrown when the new validators tires to register to a module, but the validator limit for that module is already reached
-     * @dev Signature "0xb75c5781"
-     */
-    error ValidatorLimitForModuleReached();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
-
-    /**
-     * @notice Thrown when validator is not in a valid state
-     * @dev Signature "0x3001591c"
-     */
-    error InvalidValidatorState(Status status);
-
-    /**
-     * @notice Thrown if the sender did not send enough ETH in the transaction
-     * @dev Signature "0x242b035c"
-     */
-    error InvalidETHAmount();
-
-    /**
-     * @notice Thrown if the sender tries to register validator with invalid VT amount
-     * @dev Signature "0x95c01f62"
-     */
-    error InvalidVTAmount();
-
-    /**
-     * @notice Thrown if the ETH transfer from the PufferModule to the PufferVault fails
-     * @dev Signature "0x625a40e6"
-     */
-    error Failed();
-
-    /**
-     * @notice Emitted when the number of active validators changes
-     * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
-     */
-    event NumberOfRegisteredValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfRegisteredValidators);
-
-    /**
-     * @notice Emitted when the new Puffer module is created
-     * @dev Signature "0x8ad2a9260a8e9a01d1ccd66b3875bcbdf8c4d0c552bc51a7d2125d4146e1d2d6"
-     */
-    event NewPufferModuleCreated(address module, bytes32 indexed moduleName, bytes32 withdrawalCredentials);
-
-    /**
-     * @notice Emitted when the module's validator limit is changed from `oldLimit` to `newLimit`
-     * @dev Signature "0x21e92cbdc47ef718b9c77ea6a6ee50ff4dd6362ee22041ab77a46dacb93f5355"
-     */
-    event ValidatorLimitPerModuleChanged(uint256 oldLimit, uint256 newLimit);
-
-    /**
-     * @notice Emitted when the minimum number of days for ValidatorTickets is changed from `oldMinimumNumberOfDays` to `newMinimumNumberOfDays`
-     * @dev Signature "0xc6f97db308054b44394df54aa17699adff6b9996e9cffb4dcbcb127e20b68abc"
-     */
-    event MinimumVTAmountChanged(uint256 oldMinimumNumberOfDays, uint256 newMinimumNumberOfDays);
-
-    /**
-     * @notice Emitted when the VT Penalty amount is changed from `oldPenalty` to `newPenalty`
-     * @dev Signature "0xfceca97b5d1d1164f9a15e42f38eaf4a6e760d8505f06161a258d4bf21cc4ee7"
-     */
-    event VTPenaltyChanged(uint256 oldPenalty, uint256 newPenalty);
-
-    /**
-     * @notice Emitted when VT is deposited to the protocol
-     * @dev Signature "0xd47eb90c0b945baf5f3ae3f1384a7a524a6f78f1461b354c4a09c4001a5cee9c"
-     */
-    event ValidatorTicketsDeposited(address indexed node, address indexed depositor, uint256 amount);
-
-    /**
-     * @notice Emitted when VT is withdrawn from the protocol
-     * @dev Signature "0xdf7e884ecac11650e1285647b057fa733a7bb9f1da100e7a8c22aafe4bdf6f40"
-     */
-    event ValidatorTicketsWithdrawn(address indexed node, address indexed recipient, uint256 amount);
-
-    /**
-     * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
-     * @dev Signature "0x088dc5dc64f3e8df8da5140a284d3018a717d6b009e605513bb28a2b466d38ee"
-     */
-    event ValidatorSkipped(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
-
-    /**
-     * @notice Emitted when the module weights changes from `oldWeights` to `newWeights`
-     * @dev Signature "0xd4c9924bd67ff5bd900dc6b1e03b839c6ffa35386096b0c2a17c03638fa4ebff"
-     */
-    event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
-
-    /**
-     * @notice Emitted when the Validator key is registered
-     * @param pubKey is the validator public key
-     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param moduleName is the staking Module
-     * @param usingEnclave is indicating if the validator is using secure enclave
-     * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
-     */
-    event ValidatorKeyRegistered(
-        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
-    );
-
-    /**
-     * @notice Emitted when the Validator exited and stopped validating
-     * @param pubKey is the validator public key
-     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param moduleName is the staking Module
-     * @param pufETHBurnAmount The amount of pufETH burned from the Node Operator
-     * @dev Signature "0xf435da9e3aeccc40d39fece7829f9941965ceee00d31fa7a89d608a273ea906e"
-     */
-    event ValidatorExited(
-        bytes pubKey,
-        uint256 indexed pufferModuleIndex,
-        bytes32 indexed moduleName,
-        uint256 pufETHBurnAmount,
-        uint256 vtBurnAmount
-    );
-
-    /**
-     * @notice Emitted when the Validator is provisioned
-     * @param pubKey is the validator public key
-     * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
-     * @param moduleName is the staking Module
-     * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
-     */
-    event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
-
     /**
      * @notice Returns validator information
      * @param moduleName is the staking Module
@@ -188,6 +34,7 @@ interface IPufferProtocol {
     /**
      * @notice Returns Penalty for submitting a bad validator registration
      * @dev If the guardians skip a validator, the node operator will be penalized
+     * @return Number of epochs to burn for a penalty if a validator is skipped. epochs * vtPricePerEpoch = penalty in ETH
      * /// todo write any possible reasons for skipping a validator, here and in skipValidator method
      */
     function getVTPenalty() external view returns (uint256);
@@ -201,36 +48,45 @@ interface IPufferProtocol {
 
     /**
      * @notice Deposits Validator Tickets for the `node`
+     * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
-    function depositValidatorTickets(Permit calldata permit, address node) external;
+    function depositValidatorTickets(address node, uint256 vtAmount) external;
 
     /**
      * @notice Withdraws the `amount` of Validator Tickers from the `msg.sender` to the `recipient`
+     * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
 
     /**
-     * @notice Batch settling of validator withdrawals
-     *
-     * @notice Settles a validator withdrawal
-     * @dev This is one of the most important methods in the protocol
-     * It has multiple tasks:
-     * 1. Burn the pufETH from the node operator (if the withdrawal amount was lower than 32 ETH)
-     * 2. Burn the Validator Tickets from the node operator
-     * 3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
-     * 4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
+     * @notice Requests a withdrawal for the given validators. This withdrawal can be total or partial.
+     *         If the amount is 0, the withdrawal is total and the validator will be fully exited.
+     *         If it is a partial withdrawal, the validator should not be below 32 ETH or the request will be ignored.
+     * @param moduleName The name of the module
+     * @param indices The indices of the validators to withdraw
+     * @param gweiAmounts The amounts of the validators to withdraw, in Gwei
+     * @param withdrawalType The type of withdrawal
+     * @param validatorAmountsSignatures The signatures of the guardians to validate the amount of the validators to withdraw
+     * @param deadline The deadline for the signatures
+     * @dev The pubkeys should be active validators on the same module
+     * @dev There are 3 types of withdrawal:
+     *      EXIT_VALIDATOR: The validator is fully exited. The gweiAmount needs to be 0
+     *      DOWNSIZE: The number of batches of the validator is reduced. The gweiAmount needs to be exactly a multiple of a batch size (32 ETH in gwei)
+     *              And the validator should have more than the requested number of batches
+     *      WITHDRAW_REWARDS: The amount cannot be higher than what the protocol provisioned for the validator and must be validated by the guardians via the `validatorAmountsSignatures`
+     * @dev The validatorAmountsSignatures is only needed when the withdrawal type is DOWNSIZE orWITHDRAW_REWARDS
+     * @dev According to EIP-7002 there is a fee for each validator withdrawal request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
-    function batchHandleWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
-    ) external;
-
-    /**
-     * @notice Skips the next validator for `moduleName`
-     * @dev Restricted to Guardians
-     */
-    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
+    function requestWithdrawal(
+        bytes32 moduleName,
+        uint256[] calldata indices,
+        uint64[] calldata gweiAmounts,
+        WithdrawalType[] calldata withdrawalType,
+        bytes[][] calldata validatorAmountsSignatures,
+        uint256 deadline
+    ) external payable;
 
     /**
      * @notice Returns the guardian module
@@ -239,6 +95,7 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns the Validator ticket ERC20 token
+     * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function VALIDATOR_TICKET() external view returns (ValidatorTicket);
 
@@ -263,6 +120,11 @@ interface IPufferProtocol {
     function BEACON_DEPOSIT_CONTRACT() external view returns (IBeaconDepositContract);
 
     /**
+     * @notice Returns the Puffer Revenue Distributor
+     */
+    function PUFFER_REVENUE_DISTRIBUTOR() external view returns (address payable);
+
+    /**
      * @notice Returns the current module weights
      */
     function getModuleWeights() external view returns (bytes32[] memory);
@@ -278,14 +140,12 @@ interface IPufferProtocol {
     function getModuleAddress(bytes32 moduleName) external view returns (address);
 
     /**
-     * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @notice Provisions the next node that is in line for provisioning
+     * @param validatorSignature The signature of the validator to provision
+     * @param depositRootHash The deposit root hash of the validator
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external;
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external;
 
     /**
      * @notice Returns the deposit_data_root
@@ -319,25 +179,6 @@ interface IPufferProtocol {
     function createPufferModule(bytes32 moduleName) external returns (address);
 
     /**
-     * @notice Registers a new validator key in a `moduleName` queue with a permit
-     * @dev There is a queue per moduleName and it is FIFO
-     *
-     * If you are depositing without the permit, make sure to .approve pufETH to PufferProtocol
-     * and populate permit.amount with the correct amount
-     *
-     * @param data The validator key data
-     * @param moduleName The name of the module
-     * @param pufETHPermit The permit for the pufETH
-     * @param vtPermit The permit for the ValidatorTicket
-     */
-    function registerValidatorKey(
-        ValidatorKeyData calldata data,
-        bytes32 moduleName,
-        Permit calldata pufETHPermit,
-        Permit calldata vtPermit
-    ) external payable;
-
-    /**
      * @notice Returns the pending validator index for `moduleName`
      */
     function getPendingValidatorIndex(bytes32 moduleName) external view returns (uint256);
@@ -351,6 +192,7 @@ interface IPufferProtocol {
      * @notice Returns the amount of Validator Tickets locked in the PufferProtocol for the `owner`
      * The real VT balance may be different from the balance in the PufferProtocol
      * When the Validator is exited, the VTs are burned and the balance is decreased
+     * DEPRECATED - This method is deprecated and will be removed in the future upgrade
      */
     function getValidatorTicketsBalance(address owner) external returns (uint256);
 
@@ -367,9 +209,19 @@ interface IPufferProtocol {
     function getWithdrawalCredentials(address module) external view returns (bytes memory);
 
     /**
-     * @notice Returns the minimum amount of Validator Tokens to run a validator
+     * @notice Returns the minimum amount of Epochs a validator needs to run
      */
     function getMinimumVtAmount() external view returns (uint256);
+
+    /**
+     * @notice Returns the Puffer Protocol Logic
+     */
+    function getPufferProtocolLogic() external view returns (address);
+
+    /**
+     * @notice Returns the validation time for the `owner`
+     */
+    function getValidationTime(address owner) external view returns (uint256);
 
     /**
      * @notice Reverts if the system is paused

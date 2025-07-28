@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { Permit } from "../src/structs/Permit.sol";
 import { ValidatorKeyData } from "../src/struct/ValidatorKeyData.sol";
-import { IPufferProtocol } from "../src/interface/IPufferProtocol.sol";
+import { IPufferProtocolFull } from "../src/interface/IPufferProtocolFull.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
@@ -37,16 +37,18 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
+    uint256 private constant SIGNATURE_VALIDITY_PERIOD = 1 days; // TODO: Check this value with team
+
     function setUp() public {
         if (block.chainid == 17000) {
             // Holesky
             protocolAddress = 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
-            pufferProtocol = PufferProtocol(protocolAddress);
+            pufferProtocol = PufferProtocol(payable(protocolAddress));
             forkVersion = "0x01017000";
         } else if (block.chainid == 1) {
             // Mainnet
             protocolAddress = 0xf7b6B32492c2e13799D921E84202450131bd238B;
-            pufferProtocol = PufferProtocol(protocolAddress);
+            pufferProtocol = PufferProtocol(payable(protocolAddress));
             forkVersion = "0x00000000";
         }
 
@@ -102,28 +104,12 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 blsPubKey: stdJson.readBytes(registrationJson, ".bls_pub_key"),
                 signature: stdJson.readBytes(registrationJson, ".signature"),
                 depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root"),
-                blsEncryptedPrivKeyShares: blsEncryptedPrivKeyShares,
-                blsPubKeySet: stdJson.readBytes(registrationJson, ".bls_pub_key_set"),
-                raveEvidence: ""
+                numBatches: 1
             });
 
-            Permit memory pufETHPermit = _signPermit({
-                to: protocolAddress,
-                amount: 2 ether, // Hardcoded to 2 pufETH
-                nonce: pufETH.nonces(msg.sender),
-                deadline: block.timestamp + 12 hours,
-                domainSeparator: pufETH.DOMAIN_SEPARATOR()
-            });
-
-            Permit memory vtPermit = _signPermit({
-                to: protocolAddress,
-                amount: vtAmount * 1 ether, // Upscale to 10**18
-                nonce: validatorTicket.nonces(msg.sender),
-                deadline: block.timestamp + 12 hours,
-                domainSeparator: validatorTicket.DOMAIN_SEPARATOR()
-            });
-
-            IPufferProtocol(protocolAddress).registerValidatorKey(validatorData, moduleName, pufETHPermit, vtPermit);
+            IPufferProtocolFull(protocolAddress).registerValidatorKey(
+                validatorData, moduleName, 0, new bytes[](0), block.timestamp + SIGNATURE_VALIDITY_PERIOD
+            );
 
             registeredPubKeys.push(validatorData.blsPubKey);
         }
@@ -170,8 +156,9 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
         uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
         bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
-        address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
-        bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
+        address moduleAddress = IPufferProtocolFull(protocolAddress).getModuleAddress(moduleName);
+        bytes memory withdrawalCredentials =
+            IPufferProtocolFull(protocolAddress).getWithdrawalCredentials(moduleAddress);
 
         string[] memory inputs = new string[](17);
         inputs[0] = "coral-cli";

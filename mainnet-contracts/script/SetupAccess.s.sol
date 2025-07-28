@@ -21,6 +21,7 @@ import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCa
 import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
 import { GenerateRestakingOperatorCalldata } from
     "../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
+import { IPufferProtocolLogic } from "../src/interface/IPufferProtocolLogic.sol";
 
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -28,7 +29,8 @@ import {
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_COORDINATOR,
-    ROLE_ID_VT_PRICER
+    ROLE_ID_VT_PRICER,
+    ROLE_ID_VALIDATOR_EXITOR
 } from "../script/Roles.sol";
 
 contract SetupAccess is BaseScript {
@@ -153,7 +155,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](4);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](7);
@@ -181,6 +183,23 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
+        // ValidatorExitor selectors
+        bytes4[] memory requestWithdrawalSelector = new bytes4[](1);
+        requestWithdrawalSelector[0] = PufferModuleManager.requestWithdrawal.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            requestWithdrawalSelector,
+            ROLE_ID_VALIDATOR_EXITOR
+        );
+
+        calldatas[3] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            requestWithdrawalSelector,
+            ROLE_ID_PUFFER_PROTOCOL
+        );
         return calldatas;
     }
 
@@ -304,8 +323,8 @@ contract SetupAccess is BaseScript {
 
         bytes4[] memory paymasterSelectors = new bytes4[](3);
         paymasterSelectors[0] = PufferProtocol.provisionNode.selector;
-        paymasterSelectors[1] = PufferProtocol.skipProvisioning.selector;
-        paymasterSelectors[2] = PufferProtocol.batchHandleWithdrawals.selector;
+        paymasterSelectors[1] = IPufferProtocolLogic.skipProvisioning.selector;
+        paymasterSelectors[2] = IPufferProtocolLogic.batchHandleWithdrawals.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -314,11 +333,13 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](4);
-        publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
+        bytes4[] memory publicSelectors = new bytes4[](6);
+        publicSelectors[0] = IPufferProtocolLogic.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
         publicSelectors[3] = PufferProtocol.revertIfPaused.selector;
+        publicSelectors[4] = IPufferProtocolLogic.depositValidationTime.selector;
+        publicSelectors[5] = IPufferProtocolLogic.withdrawValidationTime.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

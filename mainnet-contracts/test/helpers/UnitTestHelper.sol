@@ -38,6 +38,7 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { IPufferProtocolFull } from "../../src/interface/IPufferProtocolFull.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -90,7 +91,7 @@ contract UnitTestHelper is Test, BaseScript {
     stETHMock public stETH;
     IWETH public weth;
 
-    PufferProtocol public pufferProtocol;
+    IPufferProtocolFull public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public pufferModuleManager;
     ValidatorTicket public validatorTicket;
@@ -110,7 +111,7 @@ contract UnitTestHelper is Test, BaseScript {
     L2RewardManager public l2RewardManager;
     PufferRevenueDepositor public revenueDepositor;
     ConnextMock public connext;
-
+    PufferProtocol public pufferProtocolLogic;
     address public DAO = makeAddr("DAO");
     address public PAYMASTER = makeAddr("PUFFER_PAYMASTER"); // 0xA540f91Fb840381BCCf825a16A9fbDD0a19deFB1
     address public l2RewardsManagerMock = makeAddr("l2RewardsManagerMock");
@@ -201,7 +202,7 @@ contract UnitTestHelper is Test, BaseScript {
 
         (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
 
-        pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
+        pufferProtocol = IPufferProtocolFull(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         timelock = pufferDeployment.timelock;
         verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
@@ -220,7 +221,7 @@ contract UnitTestHelper is Test, BaseScript {
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
-
+        pufferProtocolLogic = PufferProtocol(payable(pufferDeployment.pufferProtocolLogic));
         // pufETH dependencies
         pufferVault = PufferVaultV5(payable(pufferDeployment.pufferVault));
         pufferDepositor = PufferDepositor(payable(pufferDeployment.pufferDepositor));

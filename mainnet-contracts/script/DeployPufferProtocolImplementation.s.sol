@@ -29,7 +29,8 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
                 guardianModule: GuardianModule(payable(_getGuardianModule())),
                 moduleManager: _getPufferModuleManager(),
                 oracle: IPufferOracleV2(_getPufferOracle()),
-                beaconDepositContract: _getBeaconDepositContract()
+                beaconDepositContract: _getBeaconDepositContract(),
+                pufferRevenueDistributor: payable(_getRevenueDepositor())
             })
         );
 

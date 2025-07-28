@@ -47,14 +47,15 @@ library LibGuardianMessages {
     /**
      * @notice Returns the message to be signed for handling the batch withdrawal
      * @param validatorInfos is an array of validator information
+     * @param deadline is the deadline for the signature
      * @return the message to be signed
      */
-    function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos)
+    function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos, uint256 deadline)
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(validatorInfos)).toEthSignedMessageHash();
+        return keccak256(abi.encode(validatorInfos, deadline)).toEthSignedMessageHash();
     }
 
     /**
@@ -84,6 +85,15 @@ library LibGuardianMessages {
         returns (bytes32)
     {
         return keccak256(abi.encode(moduleName, root, blockNumber)).toEthSignedMessageHash();
+    }
+
+    /**
+     * @notice Returns the message to be signed for any message
+     * @param hashedMessage is the hashed message to be signed
+     * @return the message to be signed
+     */
+    function _getAnyHashedMessage(bytes32 hashedMessage) internal pure returns (bytes32) {
+        return hashedMessage.toEthSignedMessageHash();
     }
 }
 /* solhint-disable func-named-parameters */

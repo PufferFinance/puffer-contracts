@@ -8,7 +8,5 @@ struct ValidatorKeyData {
     bytes blsPubKey;
     bytes signature;
     bytes32 depositDataRoot;
-    bytes[] blsEncryptedPrivKeyShares;
-    bytes blsPubKeySet;
-    bytes raveEvidence;
+    uint8 numBatches;
 }
