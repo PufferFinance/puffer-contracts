@@ -21,6 +21,7 @@ import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCa
 import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
 import { GenerateRestakingOperatorCalldata } from
     "../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
+import { GenerateFeeSetterCalldata } from "../script/AccessManagerMigrations/08_GenerateFeeSetterCalldata.s.sol";
 
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
@@ -80,6 +81,10 @@ contract SetupAccess is BaseScript {
         cd = new GenerateRestakingOperatorCalldata().run(deployment.restakingOperatorController);
         (s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateRestakingOperatorCalldata");
+
+        cd = new GenerateFeeSetterCalldata().run(deployment.pufferVault);
+        (s,) = address(accessManager).call(cd);
+        require(s, "failed setupAccess GenerateFeeSetterCalldata");
     }
 
     function _generateAccessCalldata(

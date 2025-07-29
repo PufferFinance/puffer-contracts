@@ -698,7 +698,7 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         assertEq(pufferVault.asset(), address(weth), "asset should be WETH");
         assertEq(pufferVault.totalSupply(), 1000 ether, "totalSupply should be 1000 ETH");
 
-        vm.startPrank(address(timelock));
+        vm.startPrank(DAO);
         pufferVault.setExitFeeBasisPoints(0);
 
         vm.startPrank(LIQUIDITY_PROVIDER);

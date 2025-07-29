@@ -19,6 +19,7 @@ import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableM
 import { IPufferVaultV5 } from "./interface/IPufferVaultV5.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
+import { InvalidAddress } from "./Errors.sol";
 
 /**
  * @title PufferVaultV5
@@ -39,6 +40,7 @@ contract PufferVaultV5 is
     using Math for uint256;
 
     uint256 private constant _BASIS_POINT_SCALE = 1e4;
+    uint256 private constant _MAX_EXIT_FEE_BASIS_POINTS = 2_50; // 2.5%
     IStETH internal immutable _ST_ETH;
     ILidoWithdrawalQueue internal immutable _LIDO_WITHDRAWAL_QUEUE;
     IWETH internal immutable _WETH;
@@ -288,11 +290,24 @@ contract PufferVaultV5 is
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
         }
+        VaultStorage storage $ = _getPufferVaultStorage();
 
-        _wrapETH(assets);
+        uint256 treasuryExitFeeBasisPoints = $.treasuryExitFeeBasisPoints;
 
-        uint256 shares = previewWithdraw(assets);
+        uint256 assetsWithFeeIncluded = _assetsWithFee(assets, $.exitFeeBasisPoints + treasuryExitFeeBasisPoints);
+
+        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, treasuryExitFeeBasisPoints);
+
+        uint256 shares = super.previewWithdraw(assetsWithFeeIncluded);
+
+        _wrapETH(assets + treasuryFee);
+
         _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
+
+        // Transfer fee to treasury if needed
+        if (treasuryFee > 0) {
+            SafeERC20.safeTransfer(_WETH, $.treasury, treasuryFee);
+        }
 
         return shares;
     }
@@ -321,11 +336,24 @@ contract PufferVaultV5 is
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
         }
 
-        uint256 assets = previewRedeem(shares);
+        VaultStorage storage $ = _getPufferVaultStorage();
 
-        _wrapETH(assets);
+        uint256 assetsWithFeeIncluded = super.previewRedeem(shares);
+
+        uint256 exitFee = _feeOnRaw(assetsWithFeeIncluded, $.exitFeeBasisPoints);
+        uint256 treasuryFee = _feeOnRaw(assetsWithFeeIncluded, $.treasuryExitFeeBasisPoints);
+
+        // nosemgrep basic-arithmetic-underflow
+        uint256 assets = assetsWithFeeIncluded - exitFee - treasuryFee;
+
+        _wrapETH(assets + treasuryFee);
 
         _withdraw({ caller: _msgSender(), receiver: receiver, owner: owner, assets: assets, shares: shares });
+
+        // Transfer fee to treasury if needed
+        if (treasuryFee > 0) {
+            SafeERC20.safeTransfer(_WETH, $.treasury, treasuryFee);
+        }
 
         return assets;
     }
@@ -447,6 +475,29 @@ contract PufferVaultV5 is
     }
 
     /**
+     * @param newTreasuryExitFeeBasisPoints is the new treasury exit fee basis points
+     * @param newTreasury is the new treasury address
+     * @dev Restricted to the DAO
+     */
+    function setTreasuryExitFeeBasisPoints(uint96 newTreasuryExitFeeBasisPoints, address newTreasury)
+        external
+        restricted
+    {
+        // 2.5% is the maximum exit fee
+        if (newTreasuryExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
+            revert InvalidExitFeeBasisPoints();
+        }
+        VaultStorage storage $ = _getPufferVaultStorage();
+        // If we are setting a treasury exit fee >0, the treasury address must be set
+        require(newTreasuryExitFeeBasisPoints == 0 || newTreasury != address(0), InvalidAddress());
+        emit TreasuryExitFeeBasisPointsSet(
+            $.treasuryExitFeeBasisPoints, newTreasuryExitFeeBasisPoints, $.treasury, newTreasury
+        );
+        $.treasuryExitFeeBasisPoints = newTreasuryExitFeeBasisPoints;
+        $.treasury = newTreasury;
+    }
+
+    /**
      * @notice Returns the maximum amount of assets that can be withdrawn from the vault for a given owner
      * If the user has more assets than the available vault's liquidity, the user will be able to withdraw up to the available liquidity
      * else the user will be able to withdraw up to their assets
@@ -456,9 +507,12 @@ contract PufferVaultV5 is
     function maxWithdraw(address owner) public view virtual override returns (uint256 maxAssets) {
         uint256 maxUserAssets = previewRedeem(balanceOf(owner));
 
-        uint256 vaultLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+        uint256 availableLiquidity = (_WETH.balanceOf(address(this)) + (address(this).balance));
+        availableLiquidity = _assetsWithFee(availableLiquidity, getExitFeeBasisPoints());
+        availableLiquidity -= _feeOnRaw(availableLiquidity, getTotalExitFeeBasisPoints());
+
         // Return the minimum of user's assets and available liquidity
-        return Math.min(maxUserAssets, vaultLiquidity);
+        return Math.min(maxUserAssets, availableLiquidity);
     }
 
     /**
@@ -472,8 +526,10 @@ contract PufferVaultV5 is
         uint256 shares = balanceOf(owner);
         // Calculate max shares based on available liquidity (WETH + ETH balance)
         uint256 availableLiquidity = _WETH.balanceOf(address(this)) + (address(this).balance);
+        availableLiquidity = _assetsWithFee(availableLiquidity, getExitFeeBasisPoints());
+
         // Calculate how many shares can be redeemed from the available liquidity after fees
-        uint256 maxSharesFromLiquidity = previewWithdraw(availableLiquidity);
+        uint256 maxSharesFromLiquidity = super.previewWithdraw(availableLiquidity);
         // Return the minimum of user's shares and shares from available liquidity
         return Math.min(shares, maxSharesFromLiquidity);
     }
@@ -482,8 +538,7 @@ contract PufferVaultV5 is
      * @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
      */
     function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
-        uint256 fee = _feeOnRaw(assets, getExitFeeBasisPoints());
-        return super.previewWithdraw(assets + fee);
+        return super.previewWithdraw(_assetsWithFee(assets, getTotalExitFeeBasisPoints()));
     }
 
     /**
@@ -492,7 +547,7 @@ contract PufferVaultV5 is
     function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewRedeem(shares);
         // nosemgrep basic-arithmetic-underflow
-        return assets - _feeOnTotal(assets, getExitFeeBasisPoints());
+        return assets - _feeOnRaw(assets, getTotalExitFeeBasisPoints());
     }
 
     /**
@@ -501,6 +556,30 @@ contract PufferVaultV5 is
     function getExitFeeBasisPoints() public view virtual returns (uint256) {
         VaultStorage storage $ = _getPufferVaultStorage();
         return $.exitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the current treasury exit fee basis points
+     */
+    function getTreasuryExitFeeBasisPoints() public view virtual returns (uint96) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.treasuryExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the total exit fee basis points
+     */
+    function getTotalExitFeeBasisPoints() public view virtual returns (uint256) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.exitFeeBasisPoints + $.treasuryExitFeeBasisPoints;
+    }
+
+    /**
+     * @notice Returns the treasury address
+     */
+    function getTreasury() public view virtual returns (address) {
+        VaultStorage storage $ = _getPufferVaultStorage();
+        return $.treasury;
     }
 
     /**
@@ -561,21 +640,21 @@ contract PufferVaultV5 is
     }
 
     /**
-     * @dev Calculates the fee part of an amount `assets` that already includes fees.
-     * Used in {IERC4626-redeem}.
+     * @dev Calculates the amount of assets that includes fees.
+     * Used in {IERC4626-previewWithdraw}.
      */
-    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
-        return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
+    function _assetsWithFee(uint256 assets, uint256 feeBasisPoints) internal pure virtual returns (uint256) {
+        return assets.mulDiv(_BASIS_POINT_SCALE, (_BASIS_POINT_SCALE - feeBasisPoints));
     }
 
     /**
      * @notice Updates the exit fee basis points
-     * @dev 200 Basis points = 2% is the maximum exit fee
+     * @dev 250 Basis points = 2.5% is the maximum exit fee
      */
     function _setExitFeeBasisPoints(uint256 newExitFeeBasisPoints) internal virtual {
         VaultStorage storage $ = _getPufferVaultStorage();
-        // 2% is the maximum exit fee
-        if (newExitFeeBasisPoints > 200) {
+        // 2.5% is the maximum exit fee
+        if (newExitFeeBasisPoints > _MAX_EXIT_FEE_BASIS_POINTS) {
             revert InvalidExitFeeBasisPoints();
         }
         emit ExitFeeBasisPointsSet($.exitFeeBasisPoints, newExitFeeBasisPoints);
