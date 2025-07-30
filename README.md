@@ -1,6 +1,7 @@
 # <h1 align="center">Puffer Contracts</h1>
+
 [![Website][Website-badge]][Website] [![Docs][docs-badge]][docs]
-  [![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
+[![Discord][discord-badge]][discord] [![X][X-badge]][X] [![Foundry][foundry-badge]][foundry]
 
 [Website-badge]: https://img.shields.io/badge/WEBSITE-8A2BE2
 [Website]: https://www.puffer.fi
@@ -16,6 +17,7 @@
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
 ## Overview
+
 Stakers can deposit ETH and mint the [pufETH nLRT](https://docs.puffer.fi/protocol/nlrt#pufeth) via the PufferVault contract, which serves as a redeemable receipt for their restaked ETH. If sufficient exit liquidity is available, stakers can reclaim their ETH from the PufferVault. Over time, the redeemable amount is expected to increase from [validator tickets](https://docs.puffer.fi/protocol/validator-tickets) and restaking rewards.
 
 In [contrast with conventional liquid staking tokens (LSTs)](https://docs.puffer.fi/protocol/nlrt#what-is-an-lst), pufETH can provide strictly more rewards for its holders. Not only does pufETH encompass PoS rewards and restaking rewards, but its value can accelerate quickly due to validator ticket sales. Furthermore, the PoS rewards for stakers are decoupled from the protocol validators' performance.
@@ -26,17 +28,18 @@ pufETH is implemented as a reward-bearing ERC20 token, following [ERC4626](https
 
 Read more about pufETH and native Liquid Restaking Tokens (nLRTs) in the [Puffer Docs](https://docs.puffer.fi/protocol/nlrt#pufeth) website.
 
-
 ## How pufETH Works
+
 Stakers deposit ETH to the PufferVault contract to mint the pufETH nLRT. At the protocol's inception, pufETH's conversion rate is one-to-one, but is expected to increase over time. Assuming the protocol performs well, i.e., accrues more rewards than penalties, the amount of ETH redeemable for pufETH will increase.
 
 ### Calculating the Conversion Rate
+
 The conversion rate can be calculated simply as:
 
 ```
 conversion rate = (deposits + rewards - penalties) / pufETH supply
 ```
-  
+
 Where:
 
 - deposits and pufETH supply increase proportionally as stakers deposit ETH to mint pufETH, leaving the conversion rate unaffected.
@@ -45,18 +48,18 @@ Where:
 
 - penalties accrue if validators are slashed on PoS for more than their 2 ETH collateral, which is [disincentivized behavior](https://docs.puffer.fi/protocol/validator-tickets#why--noop-incentives) and mitigated through [anti-slashing technology](https://docs.puffer.fi/technology/secure-signer). Penalties can also accrue if the restaking operator is slashed running AVSs, which is why Puffer is [restricting restaking operator participation](https://docs.puffer.fi/protocol/puffer-modules#restricting-reops) during its nascent stages.
 
-
 ## Contract addresses
+
 - PufferVault (pufETH token): `0xD9A442856C234a39a81a089C06451EBAa4306a72`
 
 For more detailed information on the contract deployments (Mainnet, Holesky, etc) and the ABIs, please check the [Deployments and ACL](https://github.com/PufferFinance/Deployments-and-ACL/blob/main/docs/deployments/) repository.
 
-
 ## Audits
+
 - Cantina/Spearbit:
   - [Cantina-VaultV5](./audits/Cantina-VaultV5.pdf)
   - [Cantina-sCARROT](./audits/Cantina-sCARROT.pdf)
-- BlockSec: 
+- BlockSec:
   - [pufETH V1](./audits/BlockSec-pufETH-v1.pdf)
   - [pufETH V2 & PufferProtocol](./audits/BlockSec%20-%20pufETHV2%20&%20PufferProtocol.pdf)
   - [Puffer L2 Staking](./audits/Blocksec%20-%20Puffer%20L2%20Staking.pdf)
@@ -64,7 +67,8 @@ For more detailed information on the contract deployments (Mainnet, Holesky, etc
   - [2 Step Withdrawals](./audits/BlockSec%20-%202-Step%20Withdrawals.pdf)
   - [PUFFER](./audits/BlockSec%20-%20PUFFER.pdf)
   - [ValidatorTicket upgrade & PufferRevenueDepositor](./audits/BlockSec%20-%20VT%20upgrade%20&%20PufferRevenueDepositor.pdf)
-- SlowMist: 
+  - [1 Step Withdrawal Fee Rework](./audits/BlockSec%20-%201-Step%20Withdrawal%20Fee%20Rework.pdf)
+- SlowMist:
   - [pufETH V1](./audits/SlowMist-pufETH-v1.pdf)
   - [pufETH V2 & PufferProtocol](./audits/SlowMist%20-%20pufETHV2%20&%20PufferProtocol.pdf)
   - [Puffer L2 Staking](./audits/SlowMist%20-%20Puffer%20L2%20Staking.pdf)
