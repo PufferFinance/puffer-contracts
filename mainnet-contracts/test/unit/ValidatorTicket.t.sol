@@ -13,10 +13,10 @@ import { PUBLIC_ROLE, ROLE_ID_PUFETH_BURNER } from "../../script/Roles.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import "forge-std/console.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 /**
  * @dev This test is for the ValidatorTicket smart contract with `src/PufferOracle.sol`
  */
-
 contract ValidatorTicketTest is UnitTestHelper {
     using ECDSA for bytes32;
     using Address for address;
@@ -104,7 +104,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
         uint256 amount = 5.123 ether;
-        uint256 expectedTotal = (amount * 1 ether / vtPrice);
+        uint256 expectedTotal = ((amount * 1 ether) / vtPrice);
 
         vm.deal(address(this), amount);
         uint256 mintedAmount = validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
@@ -217,7 +217,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         address recipient = actors[2];
 
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
-        uint256 requiredETH = vtAmount * vtPrice / 1 ether;
+        uint256 requiredETH = (vtAmount * vtPrice) / 1 ether;
 
         uint256 pufETHToETHExchangeRate = pufferVault.convertToAssets(1 ether);
         uint256 expectedPufEthUsed = (requiredETH * 1 ether) / pufETHToETHExchangeRate;
