@@ -181,7 +181,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         ModuleLimit memory moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
 
-        assertEq(moduleLimit.numberOfRegisteredValidators, 2, "2 active validators");
+        assertEq(moduleLimit.numberOfRegisteredBatches, 2, "2 active batches");
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocolEvents.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
@@ -189,7 +189,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
 
-        assertEq(moduleLimit.numberOfRegisteredValidators, 1, "1 active validator");
+        assertEq(moduleLimit.numberOfRegisteredBatches, 1, "1 active batches");
 
         // This contract should receive pufETH because of the skipProvisioning
         assertTrue(pufferVault.balanceOf(address(this)) != 0, "non zero pufETH");
@@ -221,7 +221,7 @@ contract PufferProtocolTest is UnitTestHelper {
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice() * 30;
         bytes memory pubKey = _getPubKey(bytes32("charlie"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
-        vm.expectRevert(PufferProtocolBase.ValidatorLimitForModuleReached.selector);
+        vm.expectRevert(PufferProtocolBase.NumBatchesLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorKeyData, bytes32("imaginary module"), 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -617,14 +617,14 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocolEvents.ValidatorLimitPerModuleChanged(500, 1);
-        pufferProtocol.setValidatorLimitPerModule(PUFFER_MODULE_0, 1);
+        pufferProtocol.setBatchesLimitPerModule(PUFFER_MODULE_0, 1);
 
         // Revert if the registration will be over the limit
         uint256 smoothingCommitment = pufferOracle.getValidatorTicketPrice();
         bytes memory pubKey = _getPubKey(bytes32("bob"));
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, PUFFER_MODULE_0);
 
-        vm.expectRevert(PufferProtocolBase.ValidatorLimitForModuleReached.selector);
+        vm.expectRevert(PufferProtocolBase.NumBatchesLimitForModuleReached.selector);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + BOND) }(
             validatorKeyData, PUFFER_MODULE_0, 0, new bytes[](0), block.timestamp + 1 days
         );
@@ -787,7 +787,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.stopPrank();
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocolEvents.NumberOfRegisteredValidatorsChanged(PUFFER_MODULE_0, 0);
+        emit IPufferProtocolEvents.NumberOfRegisteredBatchesChanged(PUFFER_MODULE_0, 0);
         pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
 
         assertApproxEqRel(
@@ -1981,7 +1981,7 @@ contract PufferProtocolTest is UnitTestHelper {
     function _createModules() internal {
         // Create EIGEN_DA module
         pufferProtocol.createPufferModule(EIGEN_DA);
-        pufferProtocol.setValidatorLimitPerModule(EIGEN_DA, 15);
+        pufferProtocol.setBatchesLimitPerModule(EIGEN_DA, 15);
 
         // Include the EIGEN_DA in module selection
         bytes32[] memory newWeights = new bytes32[](4);

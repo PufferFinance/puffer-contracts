@@ -307,12 +307,14 @@ contract SetupAccess is BaseScript {
     function _setupPufferProtocolRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](7);
         selectors[0] = PufferProtocol.createPufferModule.selector;
         selectors[1] = PufferProtocol.setModuleWeights.selector;
-        selectors[2] = PufferProtocol.setValidatorLimitPerModule.selector;
+        selectors[2] = PufferProtocol.setBatchesLimitPerModule.selector;
         selectors[3] = PufferProtocol.changeMinimumVTAmount.selector;
         selectors[4] = PufferProtocol.setVTPenalty.selector;
+        selectors[5] = PufferProtocol.setPufferProtocolLogic.selector;
+        selectors[6] = PufferProtocol.setCurrentNumBatches.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

@@ -8,10 +8,10 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 interface IPufferProtocolEvents {
     /**
-     * @notice Emitted when the number of active validators changes
-     * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
+     * @notice Emitted when the number of active batches changes
+     * @dev Signature "0xe0be9dc31510a09f13dba14d047e637a5bee5976426ec076ebf3aa3884099d5e"
      */
-    event NumberOfRegisteredValidatorsChanged(bytes32 indexed moduleName, uint256 newNumberOfRegisteredValidators);
+    event NumberOfRegisteredBatchesChanged(bytes32 indexed moduleName, uint256 numberOfRegisteredBatches);
 
     /**
      * @notice Emitted when the validation time is deposited
@@ -158,4 +158,10 @@ interface IPufferProtocolEvents {
      * @dev Signature "0xe271f36954242c619ce9d0f727a7d3b5f4db04666752aaeb20bca6d52098792a"
      */
     event PufferProtocolLogicSet(address oldPufferProtocolLogic, address newPufferProtocolLogic);
+
+    /**
+     * @notice Emitted when the current number of batches is set
+     * @dev Signature "0x4d193bcf314540fd194820a44042b5d498e3f07ab578fcd422f1023a4123f32b"
+     */
+    event CurrentNumBatchesSet(bytes32[] moduleNames, uint128[] newCurrentNumBatches);
 }
