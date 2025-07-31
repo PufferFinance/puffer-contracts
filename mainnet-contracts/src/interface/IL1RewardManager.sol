@@ -122,13 +122,6 @@ interface IL1RewardManager {
     event L2RewardClaimerUpdated(address indexed account, address indexed claimer);
 
     /**
-     * @notice Event emitted when the pufETH OFT address is updated
-     * @param oldPufETHOFT The old pufETH OFT address
-     * @param newPufETHOFT The new pufETH OFT address
-     */
-    event PufETHOFTUpdated(address indexed oldPufETHOFT, address indexed newPufETHOFT);
-
-    /**
      * @notice Event emitted when the destination EID is updated
      * @param oldDestinationEID The old destination EID
      * @param newDestinationEID The new destination EID

@@ -97,7 +97,8 @@ contract DeployFWR is DeployerHelper {
         // L1RewardManager
         L1RewardManager l1ReeardManagerImpl = new L1RewardManager(
             _getPufferVault(), // pufETH
-            l2RewardManagerProxy // l2RewardsManager
+            l2RewardManagerProxy, // l2RewardsManager
+            _getPufETHOFTAdapter() // pufETH_OFT
         );
 
         vm.label(address(l1ReeardManagerImpl), "l1ReeardManagerImpl");

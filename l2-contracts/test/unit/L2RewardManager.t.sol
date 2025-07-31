@@ -168,7 +168,8 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         // L1RewardManager - deploy with the correct L2 address
         L1RewardManager l1RewardManagerImpl = new L1RewardManager(
             address(pufferVault), // pufETH (actually the vault in this test)
-            address(l2RewardManager) // l2RewardsManager
+            address(l2RewardManager), // l2RewardsManager
+            makeAddr("pufETHOFT") // pufETHOFTAdapter
         );
 
         UUPSUpgradeable(address(l1RewardManagerProxy)).upgradeToAndCall(

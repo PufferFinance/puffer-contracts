@@ -52,10 +52,6 @@ abstract contract L1RewardManagerStorage {
          */
         mapping(address bridge => uint32 deprecatedDestinationDomainId) _deprecatedBridges;
         /**
-         * @notice The pufETH OFT address for singleton design
-         */
-        address pufETHOFT;
-        /**
          * @notice The destination endpoint ID for LayerZero bridging
          */
         uint32 destinationEID;

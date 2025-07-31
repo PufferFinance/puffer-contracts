@@ -35,7 +35,8 @@ contract UpgradeL1RewardManager is DeployerHelper {
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager(
             _getPufferVault(), // pufETH
-            l2RewardsManagerProxy // l2RewardsManager
+            l2RewardsManagerProxy, // l2RewardsManager
+            _getPufETHOFTAdapter() // pufETH_OFT
         );
         vm.label(address(l1RewardManagerImpl), "l1RewardManagerImpl");
 
@@ -49,7 +50,8 @@ contract UpgradeL1RewardManager is DeployerHelper {
         // Load addresses for Sepolia
         _getDeployer();
 
-        L1RewardManager newImplementation = new L1RewardManager(_getPufferVault(), address(l1RewardManagerProxy)); // L1 proxy address
+        L1RewardManager newImplementation =
+            new L1RewardManager(_getPufferVault(), address(l1RewardManagerProxy), _getPufETHOFTAdapter()); // L1 proxy address
         console.log("L1RewardManager Implementation", address(newImplementation));
 
         UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(address(newImplementation), "");

@@ -105,7 +105,8 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         ERC1967Proxy l2RewardManagerProxy = new ERC1967Proxy(noImpl, "");
         L1RewardManager l1RewardManagerImpl = new L1RewardManager(
             address(pufferVault), // pufETH
-            address(l2RewardManagerProxy) // l2RewardsManager
+            address(l2RewardManagerProxy), // l2RewardsManager
+            address(pufETHOFTAdapter) // pufETHOFTAdapter
         );
 
         L1RewardManager l1RewardManagerProxy = L1RewardManager(
@@ -160,8 +161,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         // xpufETH.setLockbox(address(lockBox));
         // xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
-        // Set the singleton pufETH OFT and destination EID
-        l1RewardManager.setPufETHOFT(address(pufETHOFTAdapter));
+        // Set destination EID
         l1RewardManager.setDestinationEID(dstEid);
 
         vm.stopPrank();
@@ -186,25 +186,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
     }
 
     function test_Constructor() public {
-        new L1RewardManager(address(1), address(2));
-    }
-
-    function test_setPufETHOFT() public {
-        address newPufETHOFT = address(0x123);
-
-        vm.expectRevert(abi.encodeWithSelector(InvalidAddress.selector));
-        vm.startPrank(DAO);
-        l1RewardManager.setPufETHOFT(address(0));
-        vm.stopPrank();
-
-        vm.startPrank(DAO);
-        address currentPufETHOFT = l1RewardManager.getPufETHOFT();
-        vm.expectEmit(true, true, false, false);
-        emit IL1RewardManager.PufETHOFTUpdated(currentPufETHOFT, newPufETHOFT);
-        l1RewardManager.setPufETHOFT(newPufETHOFT);
-
-        assertEq(l1RewardManager.getPufETHOFT(), newPufETHOFT);
-        vm.stopPrank();
+        new L1RewardManager(address(1), address(2), address(3));
     }
 
     function test_setDestinationEID() public {

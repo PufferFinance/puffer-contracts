@@ -5,7 +5,6 @@ import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
@@ -33,16 +32,24 @@ contract L1RewardManager is
      * @notice The PufferVault contract on Ethereum Mainnet
      */
     PufferVaultV5 public immutable PUFFER_VAULT;
+
+    /**
+     * @notice The pufETH OFT address for singleton design
+     * @dev Immutable since it is known at deployment time on L1 and cannot be changed afterwards
+     */
+    IOFT public immutable PUFETH_OFT;
+
     /**
      * @notice The Rewards Manager contract on L2
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    constructor(address pufETH, address l2RewardsManager) {
+    constructor(address pufETH, address l2RewardsManager, address pufETH_OFT) {
         if (pufETH == address(0) || l2RewardsManager == address(0)) {
             revert InvalidAddress();
         }
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
+        PUFETH_OFT = IOFT(payable(pufETH_OFT));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }
@@ -61,7 +68,7 @@ contract L1RewardManager is
         bytes memory options =
             OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0).addExecutorLzComposeOption(0, 50000, 0);
 
-        IOFT($.pufETHOFT).send{ value: msg.value }(
+        PUFETH_OFT.send{ value: msg.value }(
             IOFT.SendParam({
                 dstEid: $.destinationEID,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
@@ -109,7 +116,7 @@ contract L1RewardManager is
         // Mint the rewards and lock them into the pufETHAdapter to be bridged to L2
         (uint256 ethToPufETHRate, uint256 shares) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
 
-        PUFFER_VAULT.approve($.pufETHOFT, shares);
+        PUFFER_VAULT.approve(address(PUFETH_OFT), shares);
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
@@ -123,7 +130,7 @@ contract L1RewardManager is
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0) // Gas for lzReceive
             .addExecutorLzComposeOption(0, 50000, 0); // Gas for lzCompose
 
-        IOFT($.pufETHOFT).send{ value: msg.value }(
+        PUFETH_OFT.send{ value: msg.value }(
             IOFT.SendParam({
                 dstEid: $.destinationEID,
                 to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
@@ -165,10 +172,8 @@ contract L1RewardManager is
         address, /* _executor */
         bytes calldata /* _extraData */
     ) external payable override restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
         // Ensure that only the whitelisted pufETH OFT can call this function
-        if (oft != $.pufETHOFT) {
+        if (oft != address(PUFETH_OFT)) {
             revert Unauthorized();
         }
 
@@ -222,36 +227,13 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice Sets the pufETH OFT address
-     * @param newPufETHOFT The new pufETH OFT address
-     */
-    function setPufETHOFT(address newPufETHOFT) external restricted {
-        if (newPufETHOFT == address(0)) {
-            revert InvalidAddress();
-        }
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        address oldPufETHOFT = $.pufETHOFT;
-        $.pufETHOFT = newPufETHOFT;
-        emit PufETHOFTUpdated({ oldPufETHOFT: oldPufETHOFT, newPufETHOFT: newPufETHOFT });
-    }
-
-    /**
      * @notice Sets the destination endpoint ID
      * @param newDestinationEID The new destination endpoint ID
      */
     function setDestinationEID(uint32 newDestinationEID) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        uint32 oldDestinationEID = $.destinationEID;
+        emit DestinationEIDUpdated({ oldDestinationEID: $.destinationEID, newDestinationEID: newDestinationEID });
         $.destinationEID = newDestinationEID;
-        emit DestinationEIDUpdated({ oldDestinationEID: oldDestinationEID, newDestinationEID: newDestinationEID });
-    }
-
-    /**
-     * @notice Returns the pufETH OFT address
-     */
-    function getPufETHOFT() external view returns (address) {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.pufETHOFT;
     }
 
     /**

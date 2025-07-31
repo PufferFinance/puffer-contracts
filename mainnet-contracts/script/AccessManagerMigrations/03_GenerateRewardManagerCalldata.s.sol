@@ -59,11 +59,10 @@ contract GenerateRewardManagerCalldata is Script {
 
         calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l1Bridge, 0);
 
-        bytes4[] memory daoSelectors = new bytes4[](4);
-        daoSelectors[0] = L1RewardManager.setPufETHOFT.selector;
-        daoSelectors[1] = L1RewardManager.setDestinationEID.selector;
-        daoSelectors[2] = L1RewardManager.setAllowedRewardMintAmount.selector;
-        daoSelectors[3] = L1RewardManager.setAllowedRewardMintFrequency.selector;
+        bytes4[] memory daoSelectors = new bytes4[](3);
+        daoSelectors[0] = L1RewardManager.setDestinationEID.selector;
+        daoSelectors[1] = L1RewardManager.setAllowedRewardMintAmount.selector;
+        daoSelectors[2] = L1RewardManager.setAllowedRewardMintFrequency.selector;
 
         calldatas[3] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, daoSelectors, ROLE_ID_DAO
