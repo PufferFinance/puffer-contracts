@@ -19,6 +19,7 @@ abstract contract DeployerHelper is Script {
     uint256 public sepolia = 11155111;
     uint256 public opSepolia = 11155420;
     uint256 public ape = 33139;
+    uint256 public hoodi = 560048;
 
     function _getDeployer() internal returns (address) {
         (, address msgSender,) = vm.readCallers();
@@ -125,6 +126,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x61A44645326846F9b5d9c6f91AD27C3aD28EA390
             return 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
+        } else if (block.chainid == hoodi) {
+            // Treasury address for Hoodi testnet (using deployer address for testnet)
+            return 0xb20332fb753496be0C64a3e9B71812101DC42774;
         }
 
         revert("Treasury not available for this chain");
@@ -137,6 +141,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xcAe751b75833ef09627549868A04E32679386e7C
             return 0xcAe751b75833ef09627549868A04E32679386e7C;
+        } else if (block.chainid == hoodi) {
+            // AllocationManager address on Hoodi testnet (same as EigenSlasher)
+            return 0x95a7431400F362F3647a69535C5666cA0133CAA0;
         }
 
         revert("EigenSlasher not available for this chain");
@@ -149,6 +156,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x99c3E46E575df251149866285DdA7DAEba875B71
             return 0x99c3E46E575df251149866285DdA7DAEba875B71;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x649ADE3a5cbAb61b9297Def8Ad19E2f04528222d
+            return 0x649ADE3a5cbAb61b9297Def8Ad19E2f04528222d;
         }
 
         revert("RestakingOperatorBeacon not available for this chain");
@@ -161,6 +171,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x4242424242424242424242424242424242424242
             return 0x4242424242424242424242424242424242424242;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x00000000219ab540356cBB839Cbe05303d7705Fa
+            return 0x00000000219ab540356cBB839Cbe05303d7705Fa;
         }
 
         revert("BeaconDepositContract not available for this chain");
@@ -173,6 +186,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x0910310130d1c062DEF8B807528bdac80203BC66
             return 0x0910310130d1c062DEF8B807528bdac80203BC66;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x711d5f6c1fa2E6dC11eD60Aa420647c8156DFd73
+            return 0x711d5f6c1fa2E6dC11eD60Aa420647c8156DFd73;
         }
 
         revert("GuardianModule not available for this chain");
@@ -185,6 +201,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x4B0542470935ed4b085C3AD1983E85f5623ABf89
             return 0x4B0542470935ed4b085C3AD1983E85f5623ABf89;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x34A2525D7ACE0C579B763FF15f59aE469A9Ab937
+            return 0x34A2525D7ACE0C579B763FF15f59aE469A9Ab937;
         }
 
         revert("PufferModuleBeacon not available for this chain");
@@ -197,6 +216,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x30770d7E3e71112d7A6b7259542D1f680a70e315
             return 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xcd1442415Fc5C29Aa848A49d2e232720BE07976c
+            return 0xcd1442415Fc5C29Aa848A49d2e232720BE07976c;
         }
 
         revert("EigenPodManager not available for this chain");
@@ -221,6 +243,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x09BE86B01c1e32dCa2ebdEDb01cD5A3F798b80C5
             return 0x09BE86B01c1e32dCa2ebdEDb01cD5A3F798b80C5;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xcfc84cED34265A021C2652292dDe48c64A716e47
+            return 0xcfc84cED34265A021C2652292dDe48c64A716e47;
         }
 
         revert("AVSContractsRegistry not available for this chain");
@@ -245,6 +270,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xAcc1fb458a1317E886dB376Fc8141540537E68fE
             return 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+        } else if (block.chainid == hoodi) {
+            // EigenLayer address on Hoodi testnet
+            return 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
         }
 
         revert("RewardsCoordinator not available for this chain");
@@ -257,6 +285,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034
             return 0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x3508A952176b3c15387C97BE809eaffB1982176a
+            return 0x3508A952176b3c15387C97BE809eaffB1982176a;
         }
 
         revert("stETH not available for this chain");
@@ -301,6 +332,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x8e043ed3F06720615685D4978770Cd5C8fe90fe3
             return 0x8e043ed3F06720615685D4978770Cd5C8fe90fe3;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD211960A914c8bCadFAf1Dff2d266127cbec55Bb
+            return 0xD211960A914c8bCadFAf1Dff2d266127cbec55Bb;
         }
 
         revert("puffer oracle not available for this chain");
@@ -313,6 +347,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xA44151489861Fe9e3055d95adC98FbD462B948e7
             return 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x867837a9722C512e0862d8c2E15b8bE220E8b87d
+            return 0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
         }
 
         revert("eigen delegation manager not available for this chain");
@@ -325,6 +362,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x1d181cBd1825e9eBC6AD966878D555A7215FF4F0
             return 0x1d181cBd1825e9eBC6AD966878D555A7215FF4F0;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x5c3D79EB9d343ed6b69D49Db1F7a000869886c6c
+            return 0x5c3D79EB9d343ed6b69D49Db1F7a000869886c6c;
         }
 
         revert("WETH not available for this chain");
@@ -337,6 +377,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50
             return 0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50;
+        } else if (block.chainid == hoodi) {
+            // No Lido withdrawal queue on Hoodi testnet, using stETH address as fallback
+            return 0xA1e64F52b83C9D0c2b2B5b7e16c8D5b9B3d8e4EA;
         }
 
         revert("lido withdrawal queue not available for this chain");
@@ -355,6 +398,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == binance) {
             // https://bscscan.com/address/0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474
             return 0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474;
+        } else if (block.chainid == hoodi) {
+            // Deployed AccessManager address from PufETH deployment
+            return 0x74Cec4ACf425458c9FD1c792Ed2DE6e2339F7b59;
         } else if (block.chainid == sepolia) {
             // https://sepolia.etherscan.io/address/0xc98dFfD21F55f2eb2461E6cD7f8838DC33AEddDc
             return 0xc98dFfD21F55f2eb2461E6cD7f8838DC33AEddDc;
@@ -377,6 +423,9 @@ abstract contract DeployerHelper is Script {
             // PufferVaultMock
             // https://sepolia.etherscan.io/address/0xd85D701A660a61D9737D05397612EF08be2cE62D
             return 0xd85D701A660a61D9737D05397612EF08be2cE62D;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xd4A57B33bB84903e7B180f885bb64a2a8b140D85
+            return 0xd4A57B33bB84903e7B180f885bb64a2a8b140D85;
         }
 
         revert("PufferVault not available for this chain");
@@ -389,6 +438,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x20377c306451140119C9967Ba6D0158a05b4eD07
             return 0x20377c306451140119C9967Ba6D0158a05b4eD07;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD591b120c63916B1d195d54d863cff5d6632219e
+            return 0xD591b120c63916B1d195d54d863cff5d6632219e;
         }
 
         revert("PufferModuleManager not available for this chain");
@@ -401,6 +453,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xB028194785178a94Fe608994A4d5AD84c285A640
             return 0xB028194785178a94Fe608994A4d5AD84c285A640;
+        } else if (block.chainid == hoodi) {
+            // Deployed ValidatorTicket address
+            return 0x6E0225679209459a355297A43B61cAFbC1Ca8d46;
         }
 
         revert("ValidatorTicket not available for this chain");
@@ -413,6 +468,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD
             return 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x182FcF340d50dEB1FCa0B15F9097025fC99DDB7c
+            return 0x182FcF340d50dEB1FCa0B15F9097025fC99DDB7c;
         }
 
         revert("PufferProtocol not available for this chain");
@@ -423,8 +481,11 @@ abstract contract DeployerHelper is Script {
             // https://etherscan.io/address/0x953b4113716CE71596F7Ba6B0E75050c25c493c1
             return 0x953b4113716CE71596F7Ba6B0E75050c25c493c1;
         } else if (block.chainid == holesky) {
-            // https://holesky.etherscan.io/address/TODO
+            // TODO: Deploy RestakingOperatorController on Holesky
             return address(0); // TODO
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x7aD345dC8583015f31E8f03CAE9cA09706514349
+            return 0x7aD345dC8583015f31E8f03CAE9cA09706514349;
         }
 
         revert("RestakingOperatorController not available for this chain");
@@ -533,6 +594,9 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == ape) {
             // https://apescan.io/address/0x36E3881Ff855c264045c22179b6fBc01430F97EC
             return 0x36E3881Ff855c264045c22179b6fBc01430F97EC;
+        } else if (block.chainid == hoodi) {
+            // Placeholder OPS multisig address for Hoodi testnet
+            return 0x0000000000000000000000000000000000000016;
         }
 
         revert("OPSMultisig not available for this chain");
@@ -551,6 +615,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8
             return 0x6c25aE178aC3466A63A552d4D6509c3d7385A0b8;
+        } else if (block.chainid == hoodi) {
+            // Placeholder AeraVault address for Hoodi testnet
+            return 0x0000000000000000000000000000000000000017;
         }
 
         revert("AeraVault not available for this chain");
@@ -578,6 +645,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x21660F4681aD5B6039007f7006b5ab0EF9dE7882
             return 0x21660F4681aD5B6039007f7006b5ab0EF9dE7882;
+        } else if (block.chainid == hoodi) {
+            // Deployed RevenueDepositor proxy address
+            return 0x028f33E487669A8Eed8934ad222CFCE7780FC32F;
         }
 
         revert("RevenueDepositor not available for this chain");
