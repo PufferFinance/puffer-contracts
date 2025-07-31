@@ -196,12 +196,12 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
             $.nodeOperatorInfo[msg.sender].validationTime += (msg.value - bondAmountEth);
             ++$.nodeOperatorInfo[msg.sender].pendingValidatorCount;
             ++$.pendingValidatorIndices[moduleName];
-            ++$.moduleLimits[moduleName].numberOfRegisteredValidators;
+            $.moduleLimits[moduleName].numberOfRegisteredBatches += numBatches;
         }
 
-        emit NumberOfRegisteredValidatorsChanged({
+        emit NumberOfRegisteredBatchesChanged({
             moduleName: moduleName,
-            newNumberOfRegisteredValidators: $.moduleLimits[moduleName].numberOfRegisteredValidators
+            numberOfRegisteredBatches: $.moduleLimits[moduleName].numberOfRegisteredBatches
         });
         emit ValidatorKeyRegistered({
             pubKey: data.blsPubKey,
@@ -283,7 +283,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         // slither-disable-next-line unchecked-transfer
         _PUFFER_VAULT.transfer(node, $.validators[moduleName][skippedIndex].bond);
 
-        _decreaseNumberOfRegisteredValidators($, moduleName);
+        _decreaseNumberOfRegisteredBatches($, moduleName, $.validators[moduleName][skippedIndex].numBatches);
         unchecked {
             ++$.nextToBeProvisioned[moduleName];
         }
@@ -585,7 +585,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         bondBurnAmount = _getBondBurnAmount({
             validatorInfo: validatorInfo,
             validatorBondAmount: bondAmount,
-            numBatches: validator.numBatches
+            numBatches: numBatches
         });
 
         emit ValidatorExited({
@@ -597,7 +597,7 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         });
 
         // Decrease the number of registered validators for that module
-        _decreaseNumberOfRegisteredValidators($, validatorInfo.moduleName);
+        _decreaseNumberOfRegisteredBatches($, validatorInfo.moduleName, validator.numBatches);
 
         // Storage VT and the active validator count update for the Node Operator
         // nosemgrep basic-arithmetic-underflow
@@ -611,9 +611,11 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
     }
 
-    function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {
-        --$.moduleLimits[moduleName].numberOfRegisteredValidators;
-        emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
+    function _decreaseNumberOfRegisteredBatches(ProtocolStorage storage $, bytes32 moduleName, uint128 numBatches)
+        internal
+    {
+        $.moduleLimits[moduleName].numberOfRegisteredBatches -= numBatches;
+        emit NumberOfRegisteredBatchesChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredBatches);
     }
 
     function _getBondBurnAmount(
@@ -648,10 +650,11 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         require(0 < data.numBatches && data.numBatches < 65, InvalidNumberOfBatches());
 
         // This acts as a validation if the module is existent
-        // +1 is to validate the current transaction registration
+        // +numBatches is to validate the current transaction registration
         require(
-            ($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) <= $.moduleLimits[moduleName].allowedLimit,
-            ValidatorLimitForModuleReached()
+            ($.moduleLimits[moduleName].numberOfRegisteredBatches + data.numBatches)
+                <= $.moduleLimits[moduleName].allowedLimit,
+            NumBatchesLimitForModuleReached()
         );
 
         require(data.blsPubKey.length == _BLS_PUB_KEY_LENGTH, InvalidBLSPubKey());

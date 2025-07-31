@@ -252,8 +252,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @dev Restricted to the DAO
      */
-    function setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
-        _setValidatorLimitPerModule(moduleName, limit);
+    function setBatchesLimitPerModule(bytes32 moduleName, uint128 limit) external restricted {
+        _setBatchesLimitPerModule(moduleName, limit);
     }
 
     /**
@@ -268,6 +268,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function setPufferProtocolLogic(address newPufferProtocolLogic) external restricted {
         _setPufferProtocolLogic(newPufferProtocolLogic);
+    }
+
+    /**
+     * @dev Restricted to the DAO
+     */
+    function setCurrentNumBatches(bytes32[] calldata moduleNames, uint128[] calldata newCurrentNumBatches)
+        external
+        restricted
+    {
+        require(moduleNames.length == newCurrentNumBatches.length, InputArrayLengthMismatch());
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        for (uint256 i = 0; i < moduleNames.length; i++) {
+            $.moduleLimits[moduleNames[i]].numberOfRegisteredBatches = newCurrentNumBatches[i];
+        }
+        emit CurrentNumBatchesSet(moduleNames, newCurrentNumBatches);
     }
 
     /**
@@ -440,9 +455,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     function revertIfPaused() external restricted { }
 
-    function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
+    function _setBatchesLimitPerModule(bytes32 moduleName, uint128 limit) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
-        require($.moduleLimits[moduleName].numberOfRegisteredValidators <= limit, ValidatorLimitForModuleReached());
+        require($.moduleLimits[moduleName].numberOfRegisteredBatches <= limit, NumBatchesLimitForModuleReached());
         emit ValidatorLimitPerModuleChanged($.moduleLimits[moduleName].allowedLimit, limit);
         $.moduleLimits[moduleName].allowedLimit = limit;
     }
@@ -468,7 +483,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         $.moduleWeights.push(moduleName);
         bytes32 withdrawalCredentials = bytes32(module.getWithdrawalCredentials());
         emit NewPufferModuleCreated(address(module), moduleName, withdrawalCredentials);
-        _setValidatorLimitPerModule(moduleName, 500);
+        _setBatchesLimitPerModule(moduleName, _DEFAULT_MAX_BATCHES_PER_MODULE);
         return address(module);
     }
 

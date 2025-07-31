@@ -75,5 +75,5 @@ struct ProtocolStorage {
 
 struct ModuleLimit {
     uint128 allowedLimit;
-    uint128 numberOfRegisteredValidators;
+    uint128 numberOfRegisteredBatches;
 }

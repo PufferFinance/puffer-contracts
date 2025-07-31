@@ -39,9 +39,9 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
 
     /**
      * @notice Thrown when the new validators tires to register to a module, but the validator limit for that module is already reached
-     * @dev Signature "0xb75c5781"
+     * @dev Signature "0x7cb4ca32"
      */
-    error ValidatorLimitForModuleReached();
+    error NumBatchesLimitForModuleReached();
 
     /**
      * @notice Thrown when the BLS public key is not valid
@@ -157,6 +157,11 @@ abstract contract PufferProtocolBase is PufferProtocolStorage, ProtocolSignature
      * @dev 32 ETH in Gwei
      */
     uint256 internal constant _32_ETH_GWEI = 32 * 10 ** 9;
+
+    /**
+     * @dev Default maximum number of batches per module
+     */
+    uint128 internal constant _DEFAULT_MAX_BATCHES_PER_MODULE = 500;
 
     IGuardianModule internal immutable _GUARDIAN_MODULE;
 
