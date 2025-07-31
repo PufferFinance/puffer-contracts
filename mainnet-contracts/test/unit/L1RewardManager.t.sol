@@ -87,9 +87,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
             )
         );
 
-        // ✅ Add enforced options for both OFT contracts
-        // _setEnforcedOptionsForOFTs();
-
         // config and wire the ofts
         address[] memory ofts = new address[](2);
         ofts[0] = address(pufETHOFTAdapter);
@@ -220,21 +217,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
 
         assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
-    }
-
-    function testRevert_MintAndBridgeRewardsInvalidBridge() public allowedDailyFrequency allowMintAmount(100 ether) {
-        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            rewardsAmount: 100 ether,
-            startEpoch: startEpoch,
-            endEpoch: endEpoch,
-            rewardsRoot: bytes32(0),
-            rewardsURI: "uri"
-        });
-
-        // ✅ Use arbitrary value for LayerZero fees
-        uint256 layerZeroFee = 0.01 ether;
-        // In singleton design, this should work since we have a valid pufETH OFT set
-        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
     }
 
     function test_depositRewardsBackToTheVault() public {
@@ -480,13 +462,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(newClaimer);
     }
 
-    function testRevert_setClaimerInvalidBrige() public {
-        uint256 layerZeroFee = 0.01 ether;
-        vm.expectEmit(true, true, true, true);
-        emit IL1RewardManager.L2RewardClaimerUpdated(address(this), address(0x123));
-        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(address(0x123));
-    }
-
     function testRevert_callFromInvalidBridgeOrigin() public {
         vm.startPrank(address(this));
 
@@ -534,56 +509,6 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
 
         assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
-    }
-
-    /**
-     * @notice Test that setL2RewardClaimer works with enforced options
-     */
-    function test_SetL2RewardClaimerWithEnforcedOptions() public {
-        address newClaimer = address(0x123);
-
-        // ✅ Use arbitrary value for LayerZero fees
-        uint256 layerZeroFee = 0.01 ether;
-        l1RewardManager.setL2RewardClaimer{ value: layerZeroFee }(newClaimer);
-
-        // Verify the function executed without reverting
-        assertTrue(true, "setL2RewardClaimer with enforced options works");
-    }
-
-    // Helpers
-
-    /**
-     * @notice Sets enforced options for the OFT contracts to ensure proper gas limits
-     * @dev This mimics the production configuration from pufETH.simple.config.ts
-     */
-    function _setEnforcedOptionsForOFTs() internal {
-        // Create enforced options for LZ_RECEIVE (msgType 1) and COMPOSE (msgType 2)
-        EnforcedOptionParam[] memory enforcedOptions = new EnforcedOptionParam[](3);
-
-        // LZ_RECEIVE option for msgType 1 - higher gas limit
-        enforcedOptions[0] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 1,
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
-        });
-
-        // LZ_RECEIVE option for msgType 2 - higher gas limit
-        enforcedOptions[1] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 2,
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(100000, 0)
-        });
-
-        // COMPOSE option for msgType 2 - higher gas limit
-        enforcedOptions[2] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 2,
-            options: OptionsBuilder.newOptions().addExecutorLzComposeOption(0, 100000, 0)
-        });
-
-        // Set enforced options for both OFT contracts
-        IOAppOptionsType3(address(pufETHOFTAdapter)).setEnforcedOptions(enforcedOptions);
-        IOAppOptionsType3(address(pufETHOFT)).setEnforcedOptions(enforcedOptions);
     }
 
     /**
