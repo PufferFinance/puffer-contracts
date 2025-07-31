@@ -273,7 +273,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @dev Restricted to the DAO
      */
-    function setCurrentNumBatches(bytes32[] calldata moduleNames, uint128[] calldata newCurrentNumBatches) external restricted {
+    function setCurrentNumBatches(bytes32[] calldata moduleNames, uint128[] calldata newCurrentNumBatches)
+        external
+        restricted
+    {
         require(moduleNames.length == newCurrentNumBatches.length, InputArrayLengthMismatch());
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         for (uint256 i = 0; i < moduleNames.length; i++) {

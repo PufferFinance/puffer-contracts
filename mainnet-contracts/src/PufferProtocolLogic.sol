@@ -611,7 +611,9 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         return (bondBurnAmount, bondAmount - bondBurnAmount, numBatches);
     }
 
-    function _decreaseNumberOfRegisteredBatches(ProtocolStorage storage $, bytes32 moduleName, uint128 numBatches) internal {
+    function _decreaseNumberOfRegisteredBatches(ProtocolStorage storage $, bytes32 moduleName, uint128 numBatches)
+        internal
+    {
         $.moduleLimits[moduleName].numberOfRegisteredBatches -= numBatches;
         emit NumberOfRegisteredBatchesChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredBatches);
     }
@@ -650,7 +652,8 @@ contract PufferProtocolLogic is PufferProtocolBase, IPufferProtocolLogic {
         // This acts as a validation if the module is existent
         // +numBatches is to validate the current transaction registration
         require(
-            ($.moduleLimits[moduleName].numberOfRegisteredBatches + data.numBatches) <= $.moduleLimits[moduleName].allowedLimit,
+            ($.moduleLimits[moduleName].numberOfRegisteredBatches + data.numBatches)
+                <= $.moduleLimits[moduleName].allowedLimit,
             NumBatchesLimitForModuleReached()
         );
 
