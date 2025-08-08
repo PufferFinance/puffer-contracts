@@ -14,7 +14,7 @@ import { Permit } from "./structs/Permit.sol";
  *         in steps over a period of time
  * @custom:security-contact security@puffer.fi
  */
-contract CarrotVesting is Ownable2Step {
+contract CarrotVestingMulti is Ownable2Step {
     using SafeERC20 for IERC20;
 
     error AlreadyInitialized();
@@ -24,7 +24,6 @@ contract CarrotVesting is Ownable2Step {
     error InvalidMaxCarrotAmount();
     error InvalidTotalPufferRewards();
     error NotStarted();
-    error AlreadyDeposited();
     error InvalidAmount();
     error NoClaimableAmount();
     error MaxCarrotAmountReached();
@@ -84,6 +83,7 @@ contract CarrotVesting is Ownable2Step {
     }
 
     uint256 public constant MIN_TIME_TO_DISMANTLE_VESTING = 365 days; // 1 year @TODO Check if this is valid
+    uint256 public constant MIN_CARROT_AMOUNT = 1 ether; // 1 CARROT @TODO Check if this amount is valid
 
     IERC20 public immutable CARROT;
     IERC20 public immutable PUFFER;
@@ -98,7 +98,7 @@ contract CarrotVesting is Ownable2Step {
     uint256 public totalDepositedAmount;
     bool public isDismantled;
 
-    mapping(address user => Vesting vestingInfo) public vestings;
+    mapping(address user => Vesting[] vestingInfo) public vestings;
 
     modifier onlyNotDismantled() {
         require(!isDismantled, AlreadyDismantled());
@@ -166,13 +166,22 @@ contract CarrotVesting is Ownable2Step {
      * @notice Claims PUFFER tokens from the vesting
      */
     function claim() external onlyNotDismantled returns (uint256) {
-        uint256 claimableAmount = calculateClaimableAmount(msg.sender);
-        require(claimableAmount > 0, NoClaimableAmount());
-        PUFFER.safeTransfer(msg.sender, claimableAmount);
-        vestings[msg.sender].lastClaimedTimestamp = block.timestamp;
-        vestings[msg.sender].claimedAmount += claimableAmount;
-        emit Claimed(msg.sender, claimableAmount);
-        return claimableAmount;
+        uint256 totalClaimableAmount;
+        uint256 claimableAmount;
+        for (uint256 i = 0; i < vestings[msg.sender].length; i++) {
+            claimableAmount = _calculateClaimableAmount(msg.sender, i);
+            if (claimableAmount > 0) {
+                vestings[msg.sender][i].lastClaimedTimestamp = block.timestamp;
+                vestings[msg.sender][i].claimedAmount += claimableAmount;
+                totalClaimableAmount += claimableAmount;
+            }
+        }
+        if (totalClaimableAmount == 0) {
+            revert NoClaimableAmount();
+        }
+        PUFFER.safeTransfer(msg.sender, totalClaimableAmount);
+        emit Claimed(msg.sender, totalClaimableAmount);
+        return totalClaimableAmount;
     }
 
     /**
@@ -188,13 +197,49 @@ contract CarrotVesting is Ownable2Step {
 
     /**
      * @notice Calculates the amount of PUFFER tokens that a user can claim at the current timestamp
-     * @dev This calculates the number of steps that has passed since the user deposited and then calculates the amount of PUFFER tokens that the user could claim
-     *      Then it subtracts the amount of PUFFER tokens that the user has already claimed so far
+     * @dev For each vesting of the user, it calculates the number of steps that has passed since the user deposited and then calculates the amount
+     *      of PUFFER tokens that the user could claim. Then it subtracts the amount of PUFFER tokens that the user has already claimed so far
      * @param user The address of the user to calculate the claimable amount for
      * @return The amount of PUFFER tokens that the user can claim
      */
-    function calculateClaimableAmount(address user) public view returns (uint256) {
-        Vesting memory vesting = vestings[user];
+    function calculateClaimableAmount(address user) external view returns (uint256) {
+        uint256 totalClaimableAmount;
+        for (uint256 i = 0; i < vestings[user].length; i++) {
+            totalClaimableAmount += _calculateClaimableAmount(user, i);
+        }
+        return totalClaimableAmount;
+    }
+
+    /**
+     * @notice Returns the vesting information for a user
+     * @param user The address of the user to get the vesting information for
+     * @return An array with the vesting information for the user
+     */
+    function getVestingInfo(address user) external view returns (Vesting[] memory) {
+        return vestings[user];
+    }
+
+    function _deposit(uint256 amount) internal onlyNotDismantled {
+        require(block.timestamp >= startTimestamp, NotStarted());
+        require(totalDepositedAmount + amount <= maxCarrotAmount, MaxCarrotAmountReached());
+        require(amount >= MIN_CARROT_AMOUNT, InvalidAmount());
+        CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
+
+        vestings[msg.sender].push(
+            Vesting({
+                depositedAmount: amount,
+                claimedAmount: 0,
+                lastClaimedTimestamp: block.timestamp,
+                depositedTimestamp: block.timestamp
+            })
+        );
+
+        totalDepositedAmount += amount;
+        emit Deposited(msg.sender, amount);
+    }
+
+    function _calculateClaimableAmount(address user, uint256 index) internal view returns (uint256) {
+        Vesting memory vesting = vestings[user][index];
         if (vesting.depositedAmount == 0) {
             return 0;
         }
@@ -210,19 +255,5 @@ contract CarrotVesting is Ownable2Step {
         //     return 0;
         // }
         return claimableAmount - vesting.claimedAmount;
-    }
-
-    function _deposit(uint256 amount) internal onlyNotDismantled {
-        require(block.timestamp >= startTimestamp, NotStarted());
-        require(totalDepositedAmount + amount <= maxCarrotAmount, MaxCarrotAmountReached());
-        Vesting storage vesting = vestings[msg.sender];
-        require(vesting.depositedAmount == 0, AlreadyDeposited());
-        require(amount > 0, InvalidAmount());
-        CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
-        vesting.depositedAmount = amount;
-        vesting.depositedTimestamp = block.timestamp;
-        vesting.lastClaimedTimestamp = block.timestamp;
-        totalDepositedAmount += amount;
-        emit Deposited(msg.sender, amount);
     }
 }
