@@ -164,6 +164,7 @@ contract CarrotVestingMulti is Ownable2Step {
 
     /**
      * @notice Claims PUFFER tokens from the vesting
+     * @return The amount of PUFFER tokens that was claimed
      */
     function claim() external onlyNotDismantled returns (uint256) {
         uint256 totalClaimableAmount;
@@ -251,9 +252,6 @@ contract CarrotVestingMulti is Ownable2Step {
         uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / (duration / steps);
         uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / steps;
         uint256 claimableAmount = (depositedAmountClaimable * exchangeRate / 1e18);
-        // if(vesting.claimedAmount > claimableAmount) { // Avoid underflow TODO: Check if this is needed
-        //     return 0;
-        // }
         return claimableAmount - vesting.claimedAmount;
     }
 }
