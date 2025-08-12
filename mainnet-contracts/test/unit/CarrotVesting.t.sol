@@ -5,6 +5,7 @@ import { CarrotVesting } from "../../src/CarrotVesting.sol";
 import { CARROT } from "../../src/CARROT.sol";
 import { PUFFER } from "../../src/PUFFER.sol";
 import { Permit } from "../../src/structs/Permit.sol";
+import { InvalidAddress } from "../../src/Errors.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Test } from "forge-std/Test.sol";
@@ -54,10 +55,15 @@ contract CarrotVestingTest is Test {
         _;
     }
 
-    function test_constructor() public view {
+    function test_constructor() public {
         assertEq(address(carrotVesting.CARROT()), address(carrot), "CARROT address is not correct");
         assertEq(address(carrotVesting.PUFFER()), address(puffer), "PUFFER address is not correct");
         assertEq(carrotVesting.owner(), address(this), "Owner is not correct");
+
+        vm.expectRevert(InvalidAddress.selector);
+        new CarrotVesting(address(0), address(puffer), address(this));
+        vm.expectRevert(InvalidAddress.selector);
+        new CarrotVesting(address(carrot), address(0), address(this));
     }
 
     function test_initialize_Unauthorized() public {

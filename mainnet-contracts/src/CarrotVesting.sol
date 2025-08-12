@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Permit } from "./structs/Permit.sol";
+import { InvalidAddress } from "./Errors.sol";
 
 /**
  * @title Carrot Vesting
@@ -106,6 +107,8 @@ contract CarrotVesting is Ownable2Step {
     }
 
     constructor(address carrot, address puffer, address initialOwner) Ownable(initialOwner) {
+        require(carrot != address(0), InvalidAddress());
+        require(puffer != address(0), InvalidAddress());
         CARROT = IERC20(carrot);
         PUFFER = IERC20(puffer);
     }
@@ -140,7 +143,14 @@ contract CarrotVesting is Ownable2Step {
         exchangeRate = 1e18 * _totalPufferRewards / _maxCarrotAmount;
         totalPufferRewards = _totalPufferRewards;
         PUFFER.safeTransferFrom(msg.sender, address(this), _totalPufferRewards);
-        emit Initialized(_startTimestamp, _duration, _steps, _maxCarrotAmount, _totalPufferRewards, exchangeRate);
+        emit Initialized({
+            startTimestamp: _startTimestamp,
+            duration: _duration,
+            steps: _steps,
+            maxCarrotAmount: _maxCarrotAmount,
+            totalPufferRewards: _totalPufferRewards,
+            exchangeRate: exchangeRate
+        });
     }
 
     /**
@@ -169,10 +179,10 @@ contract CarrotVesting is Ownable2Step {
     function claim() external onlyNotDismantled returns (uint256) {
         uint256 claimableAmount = calculateClaimableAmount(msg.sender);
         require(claimableAmount > 0, NoClaimableAmount());
-        PUFFER.safeTransfer(msg.sender, claimableAmount);
         vestings[msg.sender].lastClaimedTimestamp = block.timestamp;
         vestings[msg.sender].claimedAmount += claimableAmount;
-        emit Claimed(msg.sender, claimableAmount);
+        emit Claimed({ user: msg.sender, claimedAmount: claimableAmount });
+        PUFFER.safeTransfer(msg.sender, claimableAmount);
         return claimableAmount;
     }
 
@@ -184,7 +194,7 @@ contract CarrotVesting is Ownable2Step {
         isDismantled = true;
         uint256 pufferAmountWithdrawn = PUFFER.balanceOf(address(this));
         PUFFER.safeTransfer(msg.sender, pufferAmountWithdrawn);
-        emit Dismantled(pufferAmountWithdrawn);
+        emit Dismantled({ pufferAmountWithdrawn: pufferAmountWithdrawn });
     }
 
     /**
@@ -216,11 +226,11 @@ contract CarrotVesting is Ownable2Step {
         Vesting storage vesting = vestings[msg.sender];
         require(vesting.depositedAmount == 0, AlreadyDeposited());
         require(amount > 0, InvalidAmount());
-        CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
         vesting.depositedAmount = amount;
         vesting.depositedTimestamp = block.timestamp;
         vesting.lastClaimedTimestamp = block.timestamp;
         totalDepositedAmount += amount;
-        emit Deposited(msg.sender, amount);
+        emit Deposited({ user: msg.sender, amount: amount });
+        CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
     }
 }
