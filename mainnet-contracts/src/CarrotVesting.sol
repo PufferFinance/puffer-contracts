@@ -22,13 +22,10 @@ contract CarrotVesting is Ownable2Step {
     error InvalidStartTimestamp();
     error InvalidDuration();
     error InvalidSteps();
-    error InvalidMaxCarrotAmount();
-    error InvalidTotalPufferRewards();
     error NotStarted();
     error AlreadyDeposited();
     error InvalidAmount();
     error NoClaimableAmount();
-    error MaxCarrotAmountReached();
     error AlreadyDismantled();
     error NotEnoughTimePassed();
 
@@ -37,18 +34,8 @@ contract CarrotVesting is Ownable2Step {
      * @param startTimestamp The timestamp when the vesting starts
      * @param duration The duration of the vesting (seconds since the user deposits)
      * @param steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
-     * @param maxCarrotAmount The maximum amount of CARROT that can be deposited
-     * @param totalPufferRewards The total amount of PUFFER rewards to be distributed
-     * @param exchangeRate The exchange rate of PUFFER to CARROT with 18 decimals
      */
-    event Initialized(
-        uint256 startTimestamp,
-        uint256 duration,
-        uint256 steps,
-        uint256 maxCarrotAmount,
-        uint256 totalPufferRewards,
-        uint256 exchangeRate
-    );
+    event Initialized(uint256 startTimestamp, uint256 duration, uint256 steps);
 
     /**
      * @notice Emitted when a user deposits CARROT
@@ -78,25 +65,26 @@ contract CarrotVesting is Ownable2Step {
      * @param depositedTimestamp The timestamp when the user deposited
      */
     struct Vesting {
-        uint256 depositedAmount;
-        uint256 claimedAmount;
-        uint256 lastClaimedTimestamp;
-        uint256 depositedTimestamp;
+        uint128 depositedAmount;
+        uint128 claimedAmount;
+        uint48 lastClaimedTimestamp;
+        uint48 depositedTimestamp;
     }
 
     uint256 public constant MIN_TIME_TO_DISMANTLE_VESTING = 365 days; // 1 year @TODO Check if this is valid
+    uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
+    uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether; // This is the total amount of PUFFER rewards to be distributed (55M)
+    uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
 
     IERC20 public immutable CARROT;
     IERC20 public immutable PUFFER;
 
-    uint256 public startTimestamp = type(uint256).max; // Default value is max uint256 instead of 0 to avoid 2 checks in deposit function
-    uint256 public duration;
-    uint256 public steps;
-    uint256 public maxCarrotAmount; // This is the total supply of CARROT which is 100M
-    uint256 public totalPufferRewards; // This is the total amount of PUFFER rewards to be distributed (55M)
-    uint256 public exchangeRate; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
+    // These 4 variables are in just one slot to save gas (48 + 32 + 32 + 128 = 240)
+    uint48 public startTimestamp = type(uint48).max; // Default value is max uint48 instead of 0 to avoid 2 checks in deposit function
+    uint32 public duration;
+    uint32 public steps;
+    uint128 public totalDepositedAmount;
 
-    uint256 public totalDepositedAmount;
     bool public isDismantled;
 
     mapping(address user => Vesting vestingInfo) public vestings;
@@ -119,38 +107,18 @@ contract CarrotVesting is Ownable2Step {
      * @param _startTimestamp The timestamp when the vesting starts
      * @param _duration The duration of the vesting (seconds since the user deposits)
      * @param _steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
-     * @param _maxCarrotAmount The maximum amount of CARROT that can be deposited
-     * @param _totalPufferRewards The total amount of PUFFER rewards to be distributed
      */
-    function initialize(
-        uint256 _startTimestamp,
-        uint256 _duration,
-        uint256 _steps,
-        uint256 _maxCarrotAmount,
-        uint256 _totalPufferRewards
-    ) external onlyOwner {
-        require(startTimestamp == type(uint256).max, AlreadyInitialized());
+    function initialize(uint48 _startTimestamp, uint32 _duration, uint32 _steps) external onlyOwner {
+        require(startTimestamp == type(uint48).max, AlreadyInitialized());
         require(_startTimestamp >= block.timestamp, InvalidStartTimestamp());
         require(_duration > 0, InvalidDuration());
         require(_steps > 0, InvalidSteps());
-        require(_maxCarrotAmount > 0, InvalidMaxCarrotAmount());
-        require(_totalPufferRewards > 0, InvalidTotalPufferRewards());
 
         startTimestamp = _startTimestamp;
         duration = _duration;
         steps = _steps;
-        maxCarrotAmount = _maxCarrotAmount;
-        exchangeRate = 1e18 * _totalPufferRewards / _maxCarrotAmount;
-        totalPufferRewards = _totalPufferRewards;
-        PUFFER.safeTransferFrom(msg.sender, address(this), _totalPufferRewards);
-        emit Initialized({
-            startTimestamp: _startTimestamp,
-            duration: _duration,
-            steps: _steps,
-            maxCarrotAmount: _maxCarrotAmount,
-            totalPufferRewards: _totalPufferRewards,
-            exchangeRate: exchangeRate
-        });
+        PUFFER.safeTransferFrom(msg.sender, address(this), TOTAL_PUFFER_REWARDS);
+        emit Initialized({ startTimestamp: _startTimestamp, duration: _duration, steps: _steps });
     }
 
     /**
@@ -176,10 +144,10 @@ contract CarrotVesting is Ownable2Step {
      * @notice Claims PUFFER tokens from the vesting
      * @return The amount of PUFFER tokens that was claimed
      */
-    function claim() external onlyNotDismantled returns (uint256) {
-        uint256 claimableAmount = calculateClaimableAmount(msg.sender);
+    function claim() external onlyNotDismantled returns (uint128) {
+        uint128 claimableAmount = calculateClaimableAmount(msg.sender);
         require(claimableAmount > 0, NoClaimableAmount());
-        vestings[msg.sender].lastClaimedTimestamp = block.timestamp;
+        vestings[msg.sender].lastClaimedTimestamp = uint48(block.timestamp);
         vestings[msg.sender].claimedAmount += claimableAmount;
         emit Claimed({ user: msg.sender, claimedAmount: claimableAmount });
         PUFFER.safeTransfer(msg.sender, claimableAmount);
@@ -204,7 +172,7 @@ contract CarrotVesting is Ownable2Step {
      * @param user The address of the user to calculate the claimable amount for
      * @return The amount of PUFFER tokens that the user can claim
      */
-    function calculateClaimableAmount(address user) public view returns (uint256) {
+    function calculateClaimableAmount(address user) public view returns (uint128) {
         Vesting memory vesting = vestings[user];
         if (vesting.depositedAmount == 0) {
             return 0;
@@ -216,20 +184,19 @@ contract CarrotVesting is Ownable2Step {
         uint256 claimingTimestamp = endOfVesting > block.timestamp ? block.timestamp : endOfVesting;
         uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / (duration / steps);
         uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / steps;
-        uint256 claimableAmount = (depositedAmountClaimable * exchangeRate / 1e18);
-        return claimableAmount - vesting.claimedAmount;
+        uint256 claimableAmount = (depositedAmountClaimable * EXCHANGE_RATE / 1e18);
+        return uint128(claimableAmount) - vesting.claimedAmount;
     }
 
     function _deposit(uint256 amount) internal onlyNotDismantled {
         require(block.timestamp >= startTimestamp, NotStarted());
-        require(totalDepositedAmount + amount <= maxCarrotAmount, MaxCarrotAmountReached());
         Vesting storage vesting = vestings[msg.sender];
         require(vesting.depositedAmount == 0, AlreadyDeposited());
         require(amount > 0, InvalidAmount());
-        vesting.depositedAmount = amount;
-        vesting.depositedTimestamp = block.timestamp;
-        vesting.lastClaimedTimestamp = block.timestamp;
-        totalDepositedAmount += amount;
+        vesting.depositedAmount = uint128(amount);
+        vesting.depositedTimestamp = uint48(block.timestamp);
+        vesting.lastClaimedTimestamp = uint48(block.timestamp);
+        totalDepositedAmount += uint128(amount);
         emit Deposited({ user: msg.sender, amount: amount });
         CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
     }

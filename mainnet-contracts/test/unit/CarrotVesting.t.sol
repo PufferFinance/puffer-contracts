@@ -15,10 +15,10 @@ contract CarrotVestingTest is Test {
     CARROT public carrot;
     PUFFER public puffer;
 
-    uint256 public constant DURATION = 6 * 30 days;
-    uint256 public constant STEPS = 6;
-    uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
+    uint32 public constant DURATION = 6 * 30 days;
+    uint32 public constant STEPS = 6;
     uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether;
+    uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether;
     uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT;
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -46,12 +46,9 @@ contract CarrotVestingTest is Test {
         emit CarrotVesting.Initialized(
             block.timestamp,
             DURATION,
-            STEPS,
-            MAX_CARROT_AMOUNT,
-            TOTAL_PUFFER_REWARDS,
-            1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT
+            STEPS
         );
-        carrotVesting.initialize(block.timestamp, DURATION, STEPS, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS);
         _;
     }
 
@@ -69,36 +66,31 @@ contract CarrotVestingTest is Test {
     function test_initialize_Unauthorized() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        carrotVesting.initialize(block.timestamp, DURATION, STEPS, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS);
         vm.stopPrank();
     }
 
     function test_initialize_AlreadyInitialized() public initialized {
         vm.expectRevert(CarrotVesting.AlreadyInitialized.selector);
-        carrotVesting.initialize(block.timestamp, DURATION, STEPS, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS);
     }
 
     function test_initialize_failed() public {
         vm.expectRevert(CarrotVesting.InvalidStartTimestamp.selector);
-        carrotVesting.initialize(block.timestamp - 1, DURATION, STEPS, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp - 1), DURATION, STEPS);
         vm.expectRevert(CarrotVesting.InvalidDuration.selector);
-        carrotVesting.initialize(block.timestamp, 0, STEPS, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), 0, STEPS);
         vm.expectRevert(CarrotVesting.InvalidSteps.selector);
-        carrotVesting.initialize(block.timestamp, DURATION, 0, MAX_CARROT_AMOUNT, TOTAL_PUFFER_REWARDS);
-        vm.expectRevert(CarrotVesting.InvalidMaxCarrotAmount.selector);
-        carrotVesting.initialize(block.timestamp, DURATION, STEPS, 0, TOTAL_PUFFER_REWARDS);
-        vm.expectRevert(CarrotVesting.InvalidTotalPufferRewards.selector);
-        carrotVesting.initialize(block.timestamp, DURATION, STEPS, MAX_CARROT_AMOUNT, 0);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, 0);
     }
 
     function test_initialize() public initialized {
         assertEq(carrotVesting.startTimestamp(), block.timestamp, "Start timestamp is not correct");
         assertEq(carrotVesting.duration(), DURATION, "Duration is not correct");
         assertEq(carrotVesting.steps(), STEPS, "Steps are not correct");
-        assertEq(carrotVesting.maxCarrotAmount(), MAX_CARROT_AMOUNT, "Max carrot amount is not correct");
-        assertEq(carrotVesting.totalPufferRewards(), TOTAL_PUFFER_REWARDS, "Total puffer rewards are not correct");
+        assertEq(carrotVesting.totalDepositedAmount(), 0, "Total deposited amount is not correct");
         assertEq(
-            carrotVesting.exchangeRate(),
+            carrotVesting.EXCHANGE_RATE(),
             1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT,
             "Exchange rate is not correct"
         );
@@ -107,29 +99,6 @@ contract CarrotVestingTest is Test {
     function test_deposit_NotStarted() public {
         vm.expectRevert(CarrotVesting.NotStarted.selector);
         carrotVesting.deposit(100 ether);
-    }
-
-    function test_deposit_MaxCarrotAmountReached() public initialized {
-        uint256 overTheLimitAmount = MAX_CARROT_AMOUNT + 1;
-        deal(address(carrot), alice, overTheLimitAmount);
-        vm.startPrank(alice);
-        carrot.approve(address(carrotVesting), overTheLimitAmount);
-        vm.expectRevert(CarrotVesting.MaxCarrotAmountReached.selector);
-        carrotVesting.deposit(overTheLimitAmount);
-        vm.stopPrank();
-    }
-
-    function test_deposit_MaxCarrotAmountReached2() public initialized {
-        deal(address(carrot), alice, MAX_CARROT_AMOUNT);
-        vm.startPrank(alice);
-        carrot.approve(address(carrotVesting), MAX_CARROT_AMOUNT);
-        carrotVesting.deposit(MAX_CARROT_AMOUNT);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        carrot.approve(address(carrotVesting), 1);
-        vm.expectRevert(CarrotVesting.MaxCarrotAmountReached.selector);
-        carrotVesting.deposit(1);
-        vm.stopPrank();
     }
 
     function test_deposit_AlreadyDeposited() public initialized {
@@ -167,25 +136,6 @@ contract CarrotVestingTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(CarrotVesting.NotStarted.selector);
-        carrotVesting.depositWithPermit(permit);
-        vm.stopPrank();
-    }
-
-    function test_depositWithPermit_MaxCarrotAmountReached() public initialized {
-        uint256 overTheLimitAmount = MAX_CARROT_AMOUNT + 1;
-        deal(address(carrot), alice, overTheLimitAmount);
-
-        // Generate a valid permit
-        Permit memory permit = _signPermit(
-            "alice",
-            address(carrotVesting),
-            overTheLimitAmount,
-            block.timestamp + 1000,
-            IERC20Permit(address(carrot)).DOMAIN_SEPARATOR()
-        );
-
-        vm.startPrank(alice);
-        vm.expectRevert(CarrotVesting.MaxCarrotAmountReached.selector);
         carrotVesting.depositWithPermit(permit);
         vm.stopPrank();
     }
@@ -394,23 +344,17 @@ contract CarrotVestingTest is Test {
     function test_claim_fuzzy(
         uint256 duration,
         uint256 steps,
-        uint256 maxCarrotAmount,
-        uint256 totalPufferRewards,
         uint256 depositAmount,
         uint256 waitTime
     ) public {
         duration = bound(duration, 10 days, 365 days);
         steps = bound(steps, 2, 100);
-        maxCarrotAmount = bound(maxCarrotAmount, 100 ether, 100_000_000 ether);
-        totalPufferRewards = bound(totalPufferRewards, 100 ether, 100_000_000 ether);
-        depositAmount = bound(depositAmount, 1 ether, maxCarrotAmount);
+        depositAmount = bound(depositAmount, 1 ether, MAX_CARROT_AMOUNT);
         uint256 stepDuration = duration / steps;
         waitTime = bound(waitTime, stepDuration, duration);
 
-        uint256 exchangeRate = totalPufferRewards * 1e18 / maxCarrotAmount;
-
-        puffer.approve(address(carrotVesting), totalPufferRewards);
-        carrotVesting.initialize(block.timestamp, duration, steps, maxCarrotAmount, totalPufferRewards);
+        puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), uint32(duration), uint32(steps));
 
         deal(address(carrot), alice, depositAmount);
 
@@ -422,7 +366,7 @@ contract CarrotVestingTest is Test {
 
         uint256 numStepsPassed = (block.timestamp - initTimestamp) / stepDuration;
 
-        uint256 expectedClaimableAmount = (numStepsPassed * depositAmount / steps) * exchangeRate / 1e18;
+        uint256 expectedClaimableAmount = (numStepsPassed * depositAmount / steps) * EXCHANGE_RATE / 1e18;
 
         vm.startPrank(alice);
         vm.expectEmit(address(carrotVesting));
@@ -440,24 +384,19 @@ contract CarrotVestingTest is Test {
     function test_claim_fuzzy2(
         uint256 duration,
         uint256 steps,
-        uint256 maxCarrotAmount,
-        uint256 totalPufferRewards,
         uint256 depositAmount,
         uint256 waitTime
     ) public {
         duration = bound(duration, 10 days, 365 days);
         steps = bound(steps, 2, 100);
-        maxCarrotAmount = bound(maxCarrotAmount, 100 ether, 100_000_000 ether);
-        totalPufferRewards = bound(totalPufferRewards, 100 ether, 100_000_000 ether);
-        depositAmount = bound(depositAmount, 1 ether, maxCarrotAmount);
+        depositAmount = bound(depositAmount, 1 ether, MAX_CARROT_AMOUNT);
         uint256 stepDuration = duration / steps;
         waitTime = bound(waitTime, stepDuration, duration - stepDuration);
 
-        uint256 exchangeRate = totalPufferRewards * 1e18 / maxCarrotAmount;
-        uint256 totalExpectedClaimableAmount = exchangeRate * depositAmount / 1e18;
+        uint256 totalExpectedClaimableAmount = EXCHANGE_RATE * depositAmount / 1e18;
 
-        puffer.approve(address(carrotVesting), totalPufferRewards);
-        carrotVesting.initialize(block.timestamp, duration, steps, maxCarrotAmount, totalPufferRewards);
+        puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
+        carrotVesting.initialize(uint48(block.timestamp), uint32(duration), uint32(steps));
 
         deal(address(carrot), alice, depositAmount);
 
@@ -469,7 +408,7 @@ contract CarrotVestingTest is Test {
 
         uint256 numStepsPassed = (block.timestamp - initTimestamp) / stepDuration;
 
-        uint256 expectedClaimableAmount = (numStepsPassed * depositAmount / steps) * exchangeRate / 1e18;
+        uint256 expectedClaimableAmount = (numStepsPassed * depositAmount / steps) * EXCHANGE_RATE / 1e18;
 
         vm.startPrank(alice);
         vm.expectEmit(address(carrotVesting));
