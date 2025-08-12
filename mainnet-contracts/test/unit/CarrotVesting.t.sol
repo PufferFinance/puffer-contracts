@@ -43,11 +43,7 @@ contract CarrotVestingTest is Test {
     modifier initialized() {
         puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
         vm.expectEmit(true, true, true, true);
-        emit CarrotVesting.Initialized(
-            block.timestamp,
-            DURATION,
-            STEPS
-        );
+        emit CarrotVesting.Initialized(block.timestamp, DURATION, STEPS);
         carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS);
         _;
     }
@@ -341,12 +337,7 @@ contract CarrotVestingTest is Test {
         assertApproxEqAbs(puffer.balanceOf(address(carrotVesting)), 0, 1, "Puffer balance is not correct");
     }
 
-    function test_claim_fuzzy(
-        uint256 duration,
-        uint256 steps,
-        uint256 depositAmount,
-        uint256 waitTime
-    ) public {
+    function test_claim_fuzzy(uint256 duration, uint256 steps, uint256 depositAmount, uint256 waitTime) public {
         duration = bound(duration, 10 days, 365 days);
         steps = bound(steps, 2, 100);
         depositAmount = bound(depositAmount, 1 ether, MAX_CARROT_AMOUNT);
@@ -381,12 +372,7 @@ contract CarrotVestingTest is Test {
         _checkVesting(alice, depositAmount, expectedClaimableAmount, block.timestamp, initTimestamp);
     }
 
-    function test_claim_fuzzy2(
-        uint256 duration,
-        uint256 steps,
-        uint256 depositAmount,
-        uint256 waitTime
-    ) public {
+    function test_claim_fuzzy2(uint256 duration, uint256 steps, uint256 depositAmount, uint256 waitTime) public {
         duration = bound(duration, 10 days, 365 days);
         steps = bound(steps, 2, 100);
         depositAmount = bound(depositAmount, 1 ether, MAX_CARROT_AMOUNT);
