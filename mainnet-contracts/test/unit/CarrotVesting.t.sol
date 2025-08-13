@@ -494,31 +494,141 @@ contract CarrotVestingTest is Test {
         _checkVesting(alice, depositAmount, totalExpectedClaimableAmount, block.timestamp, initTimestamp);
     }
 
-    function test_dismantle_Unauthorized() public initialized {
+    function test_startPufferRecovery_Unauthorized() public initialized {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        carrotVesting.dismantle();
+        carrotVesting.startPufferRecovery();
         vm.stopPrank();
     }
 
-    function test_dismantle_NotEnoughTimePassed() public initialized {
+    function test_startPufferRecovery_NotEnoughTimePassed() public initialized {
         vm.expectRevert(CarrotVesting.NotEnoughTimePassed.selector);
-        carrotVesting.dismantle();
+        carrotVesting.startPufferRecovery();
     }
 
-    function test_dismantle() public initialized {
-        skip(carrotVesting.MIN_TIME_TO_DISMANTLE_VESTING());
+    function test_startPufferRecovery_AlreadyStarted() public initialized {
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+        carrotVesting.startPufferRecovery();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.IN_PROGRESS
+            )
+        );
+        carrotVesting.startPufferRecovery();
+    }
+
+    function test_startPufferRecovery() public initialized {
+
+        _deposit(bob, 10 ether);
+
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+
         vm.expectEmit(true, true, true, true);
-        emit CarrotVesting.Dismantled(TOTAL_PUFFER_REWARDS);
-        carrotVesting.dismantle();
-        assertTrue(carrotVesting.isDismantled(), "Vesting is not dismantled");
+        emit CarrotVesting.PufferRecoveryStarted(block.timestamp);
+        carrotVesting.startPufferRecovery();
 
+        assertEq(
+            uint8(carrotVesting.pufferRecoveryStatus()),
+            uint8(CarrotVesting.PufferRecoveryStatus.IN_PROGRESS),
+            "Recovery status should be IN_PROGRESS"
+        );
+        assertEq(
+            carrotVesting.pufferRecoveryStartTimestamp(), block.timestamp, "Recovery start timestamp should be set"
+        );
+
+        // Users should not be able to deposit after recovery starts
         vm.startPrank(alice);
-        vm.expectRevert(CarrotVesting.AlreadyDismantled.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.IN_PROGRESS
+            )
+        );
         carrotVesting.deposit(1 ether);
+        vm.stopPrank();
 
-        vm.expectRevert(CarrotVesting.AlreadyDismantled.selector);
+        // Users should still be able to claim
+        vm.startPrank(bob);
+        uint256 expectedRewards = 10 ether * EXCHANGE_RATE / 1e18;
+        vm.expectEmit(true, true, true, true);
+        emit CarrotVesting.Claimed(bob, expectedRewards);
+        uint256 returnedClaimedAmount = carrotVesting.claim();
+        assertEq(returnedClaimedAmount, expectedRewards, "Claimed amount is not correct");
+        vm.stopPrank();
+    }
+
+    function test_completePufferRecovery_Unauthorized() public initialized {
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+        carrotVesting.startPufferRecovery();
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
+        carrotVesting.completePufferRecovery();
+        vm.stopPrank();
+    }
+
+    function test_completePufferRecovery_NotStarted() public initialized {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.NOT_STARTED
+            )
+        );
+        carrotVesting.completePufferRecovery();
+    }
+
+    function test_completePufferRecovery_NotEnoughTimePassed() public initialized {
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+        carrotVesting.startPufferRecovery();
+
+        vm.expectRevert(CarrotVesting.NotEnoughTimePassed.selector);
+        carrotVesting.completePufferRecovery();
+    }
+
+    function test_completePufferRecovery_AlreadyCompleted() public initialized {
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+        carrotVesting.startPufferRecovery();
+        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD());
+        carrotVesting.completePufferRecovery();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.COMPLETED
+            )
+        );
+        carrotVesting.completePufferRecovery();
+    }
+
+    function test_completePufferRecovery() public initialized {
+        skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
+        carrotVesting.startPufferRecovery();
+        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD());
+
+        vm.expectEmit(true, true, true, true);
+        emit CarrotVesting.PufferRecoveryCompleted(TOTAL_PUFFER_REWARDS);
+        uint256 withdrawnAmount = carrotVesting.completePufferRecovery();
+
+        assertEq(withdrawnAmount, TOTAL_PUFFER_REWARDS, "Withdrawn amount should equal total puffer rewards");
+        assertEq(
+            uint8(carrotVesting.pufferRecoveryStatus()),
+            uint8(CarrotVesting.PufferRecoveryStatus.COMPLETED),
+            "Recovery status should be COMPLETED"
+        );
+
+        // Users should not be able to claim or deposit after recovery is completed
+        vm.startPrank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.COMPLETED
+            )
+        );
         carrotVesting.claim();
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.COMPLETED
+            )
+        );
+        carrotVesting.deposit(1 ether);
         vm.stopPrank();
     }
 

@@ -28,8 +28,8 @@ contract CarrotVesting is Ownable2Step {
     error InvalidAmount();
     error NoClaimableAmount();
     error MaxCarrotAmountReached();
-    error AlreadyDismantled();
     error NotEnoughTimePassed();
+    error InvalidPufferRecoveryStatus(PufferRecoveryStatus status);
 
     /**
      * @notice Emitted when the contract is initialized
@@ -64,10 +64,16 @@ contract CarrotVesting is Ownable2Step {
     event Claimed(address indexed user, uint256 claimedAmount);
 
     /**
-     * @notice Emitted when the vesting is dismantled
+     * @notice Emitted when the puffer recovery starts
+     * @param pufferRecoveryStartTimestamp The timestamp when the puffer recovery starts
+     */
+    event PufferRecoveryStarted(uint256 pufferRecoveryStartTimestamp);
+
+    /**
+     * @notice Emitted when the puffer recovery is completed
      * @param pufferAmountWithdrawn The amount of PUFFER that was withdrawn
      */
-    event Dismantled(uint256 pufferAmountWithdrawn);
+    event PufferRecoveryCompleted(uint256 pufferAmountWithdrawn);
 
     /**
      * @notice Struct to store the vesting information for a user
@@ -83,7 +89,14 @@ contract CarrotVesting is Ownable2Step {
         uint256 depositedTimestamp;
     }
 
-    uint256 public constant MIN_TIME_TO_DISMANTLE_VESTING = 365 days; // 1 year @TODO Check if this is valid
+    enum PufferRecoveryStatus {
+        NOT_STARTED,
+        IN_PROGRESS,
+        COMPLETED
+    }
+
+    uint256 public constant MIN_TIME_TO_START_PUFFER_RECOVERY = 365 days; // 1 year @TODO Check if this is valid
+    uint256 public constant PUFFER_RECOVERY_GRACE_PERIOD = 8 * 30 days; // 8 months
 
     IERC20 public immutable CARROT;
     IERC20 public immutable PUFFER;
@@ -96,14 +109,9 @@ contract CarrotVesting is Ownable2Step {
     uint256 public exchangeRate; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
 
     uint256 public totalDepositedAmount;
-    bool public isDismantled;
-
+    PufferRecoveryStatus public pufferRecoveryStatus;
+    uint256 public pufferRecoveryStartTimestamp;
     mapping(address user => Vesting vestingInfo) public vestings;
-
-    modifier onlyNotDismantled() {
-        require(!isDismantled, AlreadyDismantled());
-        _;
-    }
 
     constructor(address carrot, address puffer, address initialOwner) Ownable(initialOwner) {
         CARROT = IERC20(carrot);
@@ -166,7 +174,10 @@ contract CarrotVesting is Ownable2Step {
      * @notice Claims PUFFER tokens from the vesting
      * @return The amount of PUFFER tokens that was claimed
      */
-    function claim() external onlyNotDismantled returns (uint256) {
+    function claim() external returns (uint256) {
+        require(
+            pufferRecoveryStatus != PufferRecoveryStatus.COMPLETED, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
+        );
         uint256 claimableAmount = calculateClaimableAmount(msg.sender);
         require(claimableAmount > 0, NoClaimableAmount());
         PUFFER.safeTransfer(msg.sender, claimableAmount);
@@ -177,14 +188,37 @@ contract CarrotVesting is Ownable2Step {
     }
 
     /**
-     * @notice Dismantles the vesting and returns the remaining PUFFER tokens to the owner
+     * @notice Starts the puffer recovery process
+     * @dev This function can only be called by the owner
+     * @dev This initiates the puffer recovery process and sets the puffer recovery start timestamp.
+     *      Once it's started, users cannot start new vesting processes. There is a grace period of 8 months after the puffer recovery starts.
      */
-    function dismantle() external onlyOwner onlyNotDismantled {
-        require(block.timestamp >= startTimestamp + MIN_TIME_TO_DISMANTLE_VESTING, NotEnoughTimePassed());
-        isDismantled = true;
+    function startPufferRecovery() external onlyOwner {
+        require(
+            pufferRecoveryStatus == PufferRecoveryStatus.NOT_STARTED, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
+        );
+        require(block.timestamp >= startTimestamp + MIN_TIME_TO_START_PUFFER_RECOVERY, NotEnoughTimePassed());
+        pufferRecoveryStatus = PufferRecoveryStatus.IN_PROGRESS;
+        pufferRecoveryStartTimestamp = block.timestamp;
+        emit PufferRecoveryStarted(pufferRecoveryStartTimestamp);
+    }
+
+    /**
+     * @notice Completes the puffer recovery process
+     * @dev This function can only be called by the owner
+     * @dev This completes the puffer recovery process and transfers the remaining PUFFER tokens to the owner.
+     *      Once it's completed, users cannot claim anymore PUFFER tokens (or start new vesting processes).
+     */
+    function completePufferRecovery() external onlyOwner returns (uint256) {
+        require(
+            pufferRecoveryStatus == PufferRecoveryStatus.IN_PROGRESS, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
+        );
+        require(block.timestamp >= pufferRecoveryStartTimestamp + PUFFER_RECOVERY_GRACE_PERIOD, NotEnoughTimePassed());
+        pufferRecoveryStatus = PufferRecoveryStatus.COMPLETED;
         uint256 pufferAmountWithdrawn = PUFFER.balanceOf(address(this));
         PUFFER.safeTransfer(msg.sender, pufferAmountWithdrawn);
-        emit Dismantled(pufferAmountWithdrawn);
+        emit PufferRecoveryCompleted(pufferAmountWithdrawn);
+        return pufferAmountWithdrawn;
     }
 
     /**
@@ -210,7 +244,10 @@ contract CarrotVesting is Ownable2Step {
         return claimableAmount - vesting.claimedAmount;
     }
 
-    function _deposit(uint256 amount) internal onlyNotDismantled {
+    function _deposit(uint256 amount) internal {
+        require(
+            pufferRecoveryStatus == PufferRecoveryStatus.NOT_STARTED, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
+        );
         require(block.timestamp >= startTimestamp, NotStarted());
         require(totalDepositedAmount + amount <= maxCarrotAmount, MaxCarrotAmountReached());
         Vesting storage vesting = vestings[msg.sender];
