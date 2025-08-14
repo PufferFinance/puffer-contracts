@@ -59,8 +59,9 @@ const config: HardhatUserConfig = {
         // Ethereum Mainnet (EID=30101)
         'ethereum-mainnet': {
             eid: EndpointId.ETHEREUM_V2_MAINNET,
-            url: 'https://mainnet.gateway.tenderly.co/4T8uVUWd2hhleYHsoWNQCp',
+            url: 'https://eth.llamarpc.com',
             accounts,
+            timeout: 120000,
         },
         // another network you want to connect to
         // 'bsc-mainnet': {
@@ -68,15 +69,22 @@ const config: HardhatUserConfig = {
         //     url: 'https://bsc-dataseed.binance.org',
         //     accounts,
         // },
-        'hyperliquid-mainnet': {
-            eid: EndpointId.HYPERLIQUID_V2_MAINNET,
-            url: 'https://rpc.hyperliquid.xyz/evm',
+        // 'hyperliquid-mainnet': {
+        //     eid: EndpointId.HYPERLIQUID_V2_MAINNET,
+        //     url: 'https://rpc.hyperliquid.xyz/evm',
+        //     accounts,
+        // },
+        // 'tac-mainnet': {
+        //     eid: EndpointId.TAC_V2_MAINNET,
+        //     url: 'https://rpc.tac.build',
+        //     accounts,
+        // },
+        base: {
+            eid: EndpointId.BASE_V2_MAINNET,
+            // url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
+            url: 'https://base.api.onfinality.io/public',
             accounts,
-        },
-        'tac-mainnet': {
-            eid: EndpointId.TAC_V2_MAINNET,
-            url: 'https://rpc.tac.build',
-            accounts,
+            timeout: 120000,
         },
         hardhat: {
             // Need this for testing because TestHelperOz5.sol is exceeding the compiled contract size limit
@@ -93,28 +101,30 @@ const config: HardhatUserConfig = {
         apiKey: {
             // Ethereum
             mainnet: 'VN5BY6VUXDAHEBK7XQHWQUVNPEPW3IVQSY',
+            // Base
+            base: 'PR9JJCIV5WBY6Q9H2578F62XQSYK4QPTUP',
             // Hyperliquid
             'hyperevm-mainnet': 'empty',
             // TAC
             'tac-mainnet': 'empty',
         },
         customChains: [
-            {
-                network: 'hyperevm-mainnet',
-                chainId: 999,
-                urls: {
-                    apiURL: 'https://www.hyperscan.com/api',
-                    browserURL: 'https://www.hyperscan.com',
-                },
-            },
-            {
-                network: 'tac-mainnet',
-                chainId: 239,
-                urls: {
-                    apiURL: 'https://explorer.tac.build/api',
-                    browserURL: 'https://explorer.tac.build',
-                },
-            },
+            // {
+            //     network: 'hyperevm-mainnet',
+            //     chainId: 999,
+            //     urls: {
+            //         apiURL: 'https://www.hyperscan.com/api',
+            //         browserURL: 'https://www.hyperscan.com',
+            //     },
+            // },
+            // {
+            //     network: 'tac-mainnet',
+            //     chainId: 239,
+            //     urls: {
+            //         apiURL: 'https://explorer.tac.build/api',
+            //         browserURL: 'https://explorer.tac.build',
+            //     },
+            // },
         ],
         // customChains: [
         //     {

@@ -10,7 +10,7 @@ const ethereumContract: OmniPointHardhat = {
 }
 
 const bscContract: OmniPointHardhat = {
-    eid: EndpointId.BSC_V2_MAINNET,
+    eid: EndpointId.BASE_V2_MAINNET,
     contractName: 'PUFFER',
 }
 
@@ -38,7 +38,13 @@ const EVM_ENFORCED_OPTIONS: OAppEnforcedOption[] = [
 
 export default async function () {
     const connections = await generateConnectionsConfig([
-        [ethereumContract, bscContract, [['P2P', 'Horizen'], []], [15, 20], [EVM_ENFORCED_OPTIONS, EVM_ENFORCED_OPTIONS]],
+        [
+            ethereumContract,
+            bscContract,
+            [['P2P', 'Horizen'], []],
+            [15, 15],
+            [EVM_ENFORCED_OPTIONS, EVM_ENFORCED_OPTIONS],
+        ],
     ])
 
     return {

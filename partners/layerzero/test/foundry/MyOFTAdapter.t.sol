@@ -2,29 +2,31 @@
 pragma solidity ^0.8.20;
 
 // Mock imports
-import { OFTMock } from "../mocks/OFTMock.sol";
-import { OFTAdapterMock } from "../mocks/OFTAdapterMock.sol";
-import { ERC20Mock } from "../mocks/ERC20Mock.sol";
-import { OFTComposerMock } from "../mocks/OFTComposerMock.sol";
+import {OFTMock} from "../mocks/OFTMock.sol";
+import {OFTAdapterMock} from "../mocks/OFTAdapterMock.sol";
+import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {OFTComposerMock} from "../mocks/OFTComposerMock.sol";
 
 // OApp imports
-import { IOAppOptionsType3, EnforcedOptionParam } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
-import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+import {
+    IOAppOptionsType3, EnforcedOptionParam
+} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
+import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 
 // OFT imports
-import { IOFT, SendParam, OFTReceipt } from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
-import { MessagingFee, MessagingReceipt } from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
-import { OFTMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTMsgCodec.sol";
-import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+import {IOFT, SendParam, OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
+import {MessagingFee, MessagingReceipt} from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
+import {OFTMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTMsgCodec.sol";
+import {OFTComposeMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
 
 // OZ imports
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Forge imports
 import "forge-std/console.sol";
 
 // DevTools imports
-import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 
 contract MyOFTAdapterTest is TestHelperOz5 {
     using OptionsBuilder for bytes;
@@ -51,15 +53,13 @@ contract MyOFTAdapterTest is TestHelperOz5 {
 
         aOFTAdapter = OFTAdapterMock(
             _deployOApp(
-                type(OFTAdapterMock).creationCode,
-                abi.encode(address(aToken), address(endpoints[aEid]), address(this))
+                type(OFTAdapterMock).creationCode, abi.encode(address(aToken), address(endpoints[aEid]), address(this))
             )
         );
 
         bOFT = OFTMock(
             _deployOApp(
-                type(OFTMock).creationCode,
-                abi.encode("Token", "TOKEN", address(endpoints[bEid]), address(this))
+                type(OFTMock).creationCode, abi.encode("Token", "TOKEN", address(endpoints[bEid]), address(this))
             )
         );
 
@@ -88,15 +88,8 @@ contract MyOFTAdapterTest is TestHelperOz5 {
     function test_send_oft_adapter() public {
         uint256 tokensToSend = 1 ether;
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0);
-        SendParam memory sendParam = SendParam(
-            bEid,
-            addressToBytes32(userB),
-            tokensToSend,
-            tokensToSend,
-            options,
-            "",
-            ""
-        );
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(userB), tokensToSend, tokensToSend, options, "", "");
         MessagingFee memory fee = aOFTAdapter.quoteSend(sendParam, false);
 
         assertEq(aToken.balanceOf(userA), initialBalance);
@@ -107,7 +100,7 @@ contract MyOFTAdapterTest is TestHelperOz5 {
         aToken.approve(address(aOFTAdapter), tokensToSend);
 
         vm.prank(userA);
-        aOFTAdapter.send{ value: fee.nativeFee }(sendParam, fee, payable(address(this)));
+        aOFTAdapter.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
         verifyPackets(bEid, addressToBytes32(address(bOFT)));
 
         assertEq(aToken.balanceOf(userA), initialBalance - tokensToSend);
@@ -120,20 +113,11 @@ contract MyOFTAdapterTest is TestHelperOz5 {
 
         OFTComposerMock composer = new OFTComposerMock();
 
-        bytes memory options = OptionsBuilder
-            .newOptions()
-            .addExecutorLzReceiveOption(200000, 0)
-            .addExecutorLzComposeOption(0, 500000, 0);
+        bytes memory options =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(200000, 0).addExecutorLzComposeOption(0, 500000, 0);
         bytes memory composeMsg = hex"1234";
-        SendParam memory sendParam = SendParam(
-            bEid,
-            addressToBytes32(address(composer)),
-            tokensToSend,
-            tokensToSend,
-            options,
-            composeMsg,
-            ""
-        );
+        SendParam memory sendParam =
+            SendParam(bEid, addressToBytes32(address(composer)), tokensToSend, tokensToSend, options, composeMsg, "");
         MessagingFee memory fee = aOFTAdapter.quoteSend(sendParam, false);
 
         assertEq(aToken.balanceOf(userA), initialBalance);
@@ -144,11 +128,8 @@ contract MyOFTAdapterTest is TestHelperOz5 {
         aToken.approve(address(aOFTAdapter), tokensToSend);
 
         vm.prank(userA);
-        (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) = aOFTAdapter.send{ value: fee.nativeFee }(
-            sendParam,
-            fee,
-            payable(address(this))
-        );
+        (MessagingReceipt memory msgReceipt, OFTReceipt memory oftReceipt) =
+            aOFTAdapter.send{value: fee.nativeFee}(sendParam, fee, payable(address(this)));
         verifyPackets(bEid, addressToBytes32(address(bOFT)));
 
         // lzCompose params
@@ -158,10 +139,7 @@ contract MyOFTAdapterTest is TestHelperOz5 {
         bytes32 guid_ = msgReceipt.guid;
         address to_ = address(composer);
         bytes memory composerMsg_ = OFTComposeMsgCodec.encode(
-            msgReceipt.nonce,
-            aEid,
-            oftReceipt.amountReceivedLD,
-            abi.encodePacked(addressToBytes32(userA), composeMsg)
+            msgReceipt.nonce, aEid, oftReceipt.amountReceivedLD, abi.encodePacked(addressToBytes32(userA), composeMsg)
         );
         this.lzCompose(dstEid_, from_, options_, guid_, to_, composerMsg_);
 

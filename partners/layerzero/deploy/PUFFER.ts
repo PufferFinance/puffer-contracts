@@ -40,19 +40,36 @@ const deploy: DeployFunction = async (hre) => {
         return
     }
 
-    const { address } = await deploy(contractName, {
+    const { address, newlyDeployed } = await deploy(contractName, {
         from: deployer,
         args: [
-            'PUFFER', // name
-            'PUFFER', // symbol
             endpointV2Deployment.address, // LayerZero's EndpointV2 address
             deployer, // owner
         ],
         log: true,
-        skipIfAlreadyDeployed: false,
+        skipIfAlreadyDeployed: true,
     })
 
     console.log(`Deployed contract: ${contractName}, network: ${hre.network.name}, address: ${address}`)
+
+    // Verify the contract if it was newly deployed
+    if (newlyDeployed) {
+        console.log(`Verifying contract ${contractName} on ${hre.network.name}...`)
+        try {
+            await hre.run('verify:verify', {
+                contract: 'contracts/PUFFER.sol:PUFFER',
+                address,
+                constructorArguments: [
+                    endpointV2Deployment.address, // LayerZero's EndpointV2 address
+                    deployer, // owner
+                ],
+                force: true,
+            })
+            console.log(`Contract ${contractName} verified successfully`)
+        } catch (error) {
+            console.error(`Failed to verify contract ${contractName}:`, error)
+        }
+    }
 }
 
 deploy.tags = [contractName]

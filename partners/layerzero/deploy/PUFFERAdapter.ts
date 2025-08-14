@@ -35,24 +35,43 @@ const deploy: DeployFunction = async (hre) => {
 
     // The token address must be defined in hardhat.config.ts
     // If the token address is not defined, the deployment will log a warning and skip the deployment
-    if (hre.network.config.oftAdapter == null) {
-        console.warn(`oftAdapter not configured on network config, skipping OFTWrapper deployment`)
+    // if (hre.network.config.oftAdapter == null) {
+    //     console.warn(`oftAdapter not configured on network config, skipping OFTWrapper deployment`)
 
-        return
-    }
+    //     return
+    // }
 
-    const { address } = await deploy(contractName, {
+    const { address, newlyDeployed } = await deploy(contractName, {
         from: deployer,
         args: [
-            hre.network.config.oftAdapter.tokenAddress, // token address
+            '0x4d1C297d39C5c1277964D0E3f8Aa901493664530', // token address
             endpointV2Deployment.address, // LayerZero's EndpointV2 address
             deployer, // owner
         ],
         log: true,
-        skipIfAlreadyDeployed: false,
+        skipIfAlreadyDeployed: true,
     })
 
     console.log(`Deployed contract: ${contractName}, network: ${hre.network.name}, address: ${address}`)
+
+    // Verify the contract if it was newly deployed
+    if (newlyDeployed) {
+        console.log(`Verifying contract ${contractName} on ${hre.network.name}...`)
+        try {
+            await hre.run('verify:verify', {
+                contract: 'contracts/PUFFERAdapter.sol:PUFFERAdapter',
+                address,
+                constructorArguments: [
+                    '0x4d1C297d39C5c1277964D0E3f8Aa901493664530', // token address
+                    endpointV2Deployment.address, // LayerZero's EndpointV2 address
+                    deployer, // owner
+                ],
+            })
+            console.log(`Contract ${contractName} verified successfully`)
+        } catch (error) {
+            console.error(`Failed to verify contract ${contractName}:`, error)
+        }
+    }
 }
 
 deploy.tags = [contractName]
