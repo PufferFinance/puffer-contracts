@@ -222,9 +222,12 @@ contract CarrotVestingTest is Test {
         skip(1);
 
         uint256 expectedClaimableAmount = EXCHANGE_RATE * depositAmount / STEPS / 1e18;
-        { // Inside block to prevent Stack Too Deep
+        {
+            // Inside block to prevent Stack Too Deep
             uint256 calculatedClaimAmount = carrotVesting.calculateClaimableAmount(alice);
-            assertApproxEqAbs(calculatedClaimAmount, expectedClaimableAmount, 1, "Calculated claimed amount is not correct");
+            assertApproxEqAbs(
+                calculatedClaimAmount, expectedClaimableAmount, 1, "Calculated claimed amount is not correct"
+            );
         }
 
         uint256 pufferBalanceBefore = puffer.balanceOf(alice);

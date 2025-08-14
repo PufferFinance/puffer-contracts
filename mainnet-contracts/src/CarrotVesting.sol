@@ -192,7 +192,10 @@ contract CarrotVesting is Ownable2Step {
         require(
             pufferRecoveryStatus == PufferRecoveryStatus.IN_PROGRESS, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
         );
-        require(block.timestamp >= pufferRecoveryStartTimestamp + duration + PUFFER_RECOVERY_GRACE_PERIOD, NotEnoughTimePassed());
+        require(
+            block.timestamp >= pufferRecoveryStartTimestamp + duration + PUFFER_RECOVERY_GRACE_PERIOD,
+            NotEnoughTimePassed()
+        );
         pufferRecoveryStatus = PufferRecoveryStatus.COMPLETED;
         uint256 pufferAmountWithdrawn = PUFFER.balanceOf(address(this));
         PUFFER.safeTransfer(msg.sender, pufferAmountWithdrawn);
