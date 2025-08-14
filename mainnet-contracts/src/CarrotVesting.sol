@@ -26,7 +26,6 @@ contract CarrotVesting is Ownable2Step {
     error AlreadyDeposited();
     error InvalidAmount();
     error NoClaimableAmount();
-
     error NotEnoughTimePassed();
     error InvalidPufferRecoveryStatus(PufferRecoveryStatus status);
 
@@ -43,7 +42,7 @@ contract CarrotVesting is Ownable2Step {
      * @param user The address of the user who deposited
      * @param amount The amount of CARROT that was deposited
      */
-    event Deposited(address indexed user, uint256 amount);
+    event VestingStarted(address indexed user, uint256 amount);
 
     /**
      * @notice Emitted when a user claims PUFFER
@@ -135,19 +134,19 @@ contract CarrotVesting is Ownable2Step {
      * @notice Deposits CARROT to burn them and start the vesting process to get PUFFER tokens in return
      * @param amount The amount of CARROT to deposit
      */
-    function deposit(uint256 amount) external {
-        _deposit(amount);
+    function startVesting(uint256 amount) external {
+        _startVesting(amount);
     }
 
     /**
      * @notice Deposits CARROT to burn them and start the vesting process to get PUFFER tokens in return using a permit
      * @param permitData The permit data
      */
-    function depositWithPermit(Permit calldata permitData) external {
+    function startVestingWithPermit(Permit calldata permitData) external {
         IERC20Permit(address(CARROT)).permit(
             msg.sender, address(this), permitData.amount, permitData.deadline, permitData.v, permitData.r, permitData.s
         );
-        _deposit(permitData.amount);
+        _startVesting(permitData.amount);
     }
 
     /**
@@ -224,7 +223,7 @@ contract CarrotVesting is Ownable2Step {
         return uint128(claimableAmount) - vesting.claimedAmount;
     }
 
-    function _deposit(uint256 amount) internal {
+    function _startVesting(uint256 amount) internal {
         require(
             pufferRecoveryStatus == PufferRecoveryStatus.NOT_STARTED, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
         );
@@ -236,7 +235,7 @@ contract CarrotVesting is Ownable2Step {
         vesting.depositedTimestamp = uint48(block.timestamp);
         vesting.lastClaimedTimestamp = uint48(block.timestamp);
         totalDepositedAmount += uint128(amount);
-        emit Deposited({ user: msg.sender, amount: amount });
+        emit VestingStarted(msg.sender, amount);
         CARROT.safeTransferFrom(msg.sender, address(0xDEAD), amount); // Burn the CARROT
     }
 }

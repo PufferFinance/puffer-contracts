@@ -92,24 +92,24 @@ contract CarrotVestingTest is Test {
         );
     }
 
-    function test_deposit_NotStarted() public {
+    function test_startVesting_NotStarted() public {
         vm.expectRevert(CarrotVesting.NotStarted.selector);
-        carrotVesting.deposit(100 ether);
+        carrotVesting.startVesting(100 ether);
     }
 
-    function test_deposit_AlreadyDeposited() public initialized {
+    function test_startVesting_AlreadyDeposited() public initialized {
         vm.startPrank(alice);
         carrot.approve(address(carrotVesting), 200 ether);
-        carrotVesting.deposit(100 ether);
+        carrotVesting.startVesting(100 ether);
         vm.expectRevert(CarrotVesting.AlreadyDeposited.selector);
-        carrotVesting.deposit(100 ether);
+        carrotVesting.startVesting(100 ether);
         vm.stopPrank();
     }
 
-    function test_deposit() public initialized {
+    function test_startVesting() public initialized {
         uint256 carrotBalanceBefore = carrot.balanceOf(alice);
         uint256 depositAmount = 100 ether;
-        _deposit(alice, depositAmount);
+        _startVesting(alice, depositAmount);
 
         uint256 carrotBalanceAfter = carrot.balanceOf(alice);
         assertEq(carrotBalanceAfter, carrotBalanceBefore - depositAmount, "Carrot balance is not correct");
@@ -118,7 +118,7 @@ contract CarrotVestingTest is Test {
         _checkVesting(alice, depositAmount, 0, block.timestamp, block.timestamp);
     }
 
-    function test_depositWithPermit_NotStarted() public {
+    function test_startVestingWithPermit_NotStarted() public {
         uint256 depositAmount = 100 ether;
 
         // Generate a valid permit
@@ -132,17 +132,17 @@ contract CarrotVestingTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(CarrotVesting.NotStarted.selector);
-        carrotVesting.depositWithPermit(permit);
+        carrotVesting.startVestingWithPermit(permit);
         vm.stopPrank();
     }
 
-    function test_depositWithPermit_AlreadyDeposited() public initialized {
+    function test_startVestingWithPermit_AlreadyDeposited() public initialized {
         uint256 depositAmount = 100 ether;
 
-        // First deposit with regular deposit function
+        // First deposit with regular startVesting function
         vm.startPrank(alice);
         carrot.approve(address(carrotVesting), depositAmount);
-        carrotVesting.deposit(depositAmount);
+        carrotVesting.startVesting(depositAmount);
         vm.stopPrank();
 
         // Try to deposit again with permit
@@ -156,11 +156,11 @@ contract CarrotVestingTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(CarrotVesting.AlreadyDeposited.selector);
-        carrotVesting.depositWithPermit(permit);
+        carrotVesting.startVestingWithPermit(permit);
         vm.stopPrank();
     }
 
-    function test_depositWithPermit() public initialized {
+    function test_startVestingWithPermit() public initialized {
         uint256 carrotBalanceBefore = carrot.balanceOf(alice);
         uint256 depositAmount = 100 ether;
 
@@ -175,8 +175,8 @@ contract CarrotVestingTest is Test {
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
-        emit CarrotVesting.Deposited(alice, depositAmount);
-        carrotVesting.depositWithPermit(permit);
+        emit CarrotVesting.VestingStarted(alice, depositAmount);
+        carrotVesting.startVestingWithPermit(permit);
         vm.stopPrank();
 
         uint256 carrotBalanceAfter = carrot.balanceOf(alice);
@@ -191,7 +191,7 @@ contract CarrotVestingTest is Test {
         vm.expectRevert(CarrotVesting.NoClaimableAmount.selector);
         carrotVesting.claim();
 
-        _deposit(alice, 100 ether);
+        _startVesting(alice, 100 ether);
 
         vm.expectRevert(CarrotVesting.NoClaimableAmount.selector);
         carrotVesting.claim();
@@ -201,7 +201,7 @@ contract CarrotVestingTest is Test {
     function test_claim() public initialized {
         uint256 initTimestamp = block.timestamp;
         uint256 depositAmount = 100 ether;
-        _deposit(alice, depositAmount);
+        _startVesting(alice, depositAmount);
 
         uint256 stepDuration = DURATION / STEPS;
         uint256 totalExpectedClaimableAmount = EXCHANGE_RATE * depositAmount / 1e18;
@@ -273,7 +273,7 @@ contract CarrotVestingTest is Test {
 
     function test_claimAllAtOnce() public initialized {
         uint256 depositAmount = 100 ether;
-        _deposit(alice, depositAmount);
+        _startVesting(alice, depositAmount);
         uint256 initTimestamp = block.timestamp;
 
         uint256 pufferBalanceBefore = puffer.balanceOf(alice);
@@ -313,8 +313,8 @@ contract CarrotVestingTest is Test {
         uint256 totalExpectedClaimableAmountAlice = EXCHANGE_RATE * depositAmountAlice / 1e18;
         uint256 totalExpectedClaimableAmountBob = EXCHANGE_RATE * depositAmountBob / 1e18;
 
-        _deposit(alice, depositAmountAlice);
-        _deposit(bob, depositAmountBob);
+        _startVesting(alice, depositAmountAlice);
+        _startVesting(bob, depositAmountBob);
 
         skip(DURATION);
 
@@ -349,7 +349,7 @@ contract CarrotVestingTest is Test {
 
         deal(address(carrot), alice, depositAmount);
 
-        _deposit(alice, depositAmount);
+        _startVesting(alice, depositAmount);
 
         uint256 initTimestamp = block.timestamp;
 
@@ -386,7 +386,7 @@ contract CarrotVestingTest is Test {
 
         deal(address(carrot), alice, depositAmount);
 
-        _deposit(alice, depositAmount);
+        _startVesting(alice, depositAmount);
 
         uint256 initTimestamp = block.timestamp;
 
@@ -450,8 +450,7 @@ contract CarrotVestingTest is Test {
     }
 
     function test_startPufferRecovery() public initialized {
-
-        _deposit(bob, 10 ether);
+        _startVesting(bob, 10 ether);
 
         skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
 
@@ -475,7 +474,7 @@ contract CarrotVestingTest is Test {
                 CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.IN_PROGRESS
             )
         );
-        carrotVesting.deposit(1 ether);
+        carrotVesting.startVesting(1 ether);
         vm.stopPrank();
 
         // Users should still be able to claim
@@ -559,16 +558,16 @@ contract CarrotVestingTest is Test {
                 CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.COMPLETED
             )
         );
-        carrotVesting.deposit(1 ether);
+        carrotVesting.startVesting(1 ether);
         vm.stopPrank();
     }
 
-    function _deposit(address user, uint256 amount) internal {
+    function _startVesting(address user, uint256 amount) internal {
         vm.startPrank(user);
         carrot.approve(address(carrotVesting), amount);
         vm.expectEmit(true, true, true, true);
-        emit CarrotVesting.Deposited(user, amount);
-        carrotVesting.deposit(amount);
+        emit CarrotVesting.VestingStarted(user, amount);
+        carrotVesting.startVesting(amount);
         vm.stopPrank();
     }
 
