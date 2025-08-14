@@ -84,7 +84,7 @@ contract CarrotVesting is Ownable2Step {
     }
 
     uint256 public constant MIN_TIME_TO_START_PUFFER_RECOVERY = 365 days; // 1 year @TODO Check if this is valid
-    uint256 public constant PUFFER_RECOVERY_GRACE_PERIOD = 8 * 30 days; // 8 months
+    uint256 public constant PUFFER_RECOVERY_GRACE_PERIOD = 2 * 30 days; // 2 months since the puffer recovery starts + the duration of the vesting
     uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
     uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether; // This is the total amount of PUFFER rewards to be distributed (55M)
     uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
@@ -192,7 +192,7 @@ contract CarrotVesting is Ownable2Step {
         require(
             pufferRecoveryStatus == PufferRecoveryStatus.IN_PROGRESS, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
         );
-        require(block.timestamp >= pufferRecoveryStartTimestamp + PUFFER_RECOVERY_GRACE_PERIOD, NotEnoughTimePassed());
+        require(block.timestamp >= pufferRecoveryStartTimestamp + duration + PUFFER_RECOVERY_GRACE_PERIOD, NotEnoughTimePassed());
         pufferRecoveryStatus = PufferRecoveryStatus.COMPLETED;
         uint256 pufferAmountWithdrawn = PUFFER.balanceOf(address(this));
         PUFFER.safeTransfer(msg.sender, pufferAmountWithdrawn);

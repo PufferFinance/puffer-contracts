@@ -106,6 +106,11 @@ contract CarrotVestingTest is Test {
         vm.stopPrank();
     }
 
+    function test_startVesting_InvalidAmount() public initialized {
+        vm.expectRevert(CarrotVesting.InvalidAmount.selector);
+        carrotVesting.startVesting(0);
+    }
+
     function test_startVesting() public initialized {
         uint256 carrotBalanceBefore = carrot.balanceOf(alice);
         uint256 depositAmount = 100 ether;
@@ -217,6 +222,10 @@ contract CarrotVestingTest is Test {
         skip(1);
 
         uint256 expectedClaimableAmount = EXCHANGE_RATE * depositAmount / STEPS / 1e18;
+        { // Inside block to prevent Stack Too Deep
+            uint256 calculatedClaimAmount = carrotVesting.calculateClaimableAmount(alice);
+            assertApproxEqAbs(calculatedClaimAmount, expectedClaimableAmount, 1, "Calculated claimed amount is not correct");
+        }
 
         uint256 pufferBalanceBefore = puffer.balanceOf(alice);
 
@@ -517,7 +526,7 @@ contract CarrotVestingTest is Test {
     function test_completePufferRecovery_AlreadyCompleted() public initialized {
         skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
         carrotVesting.startPufferRecovery();
-        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD());
+        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD() + DURATION);
         carrotVesting.completePufferRecovery();
 
         vm.expectRevert(
@@ -531,7 +540,7 @@ contract CarrotVestingTest is Test {
     function test_completePufferRecovery() public initialized {
         skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
         carrotVesting.startPufferRecovery();
-        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD());
+        skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD() + DURATION);
 
         vm.expectEmit(true, true, true, true);
         emit CarrotVesting.PufferRecoveryCompleted(TOTAL_PUFFER_REWARDS);
