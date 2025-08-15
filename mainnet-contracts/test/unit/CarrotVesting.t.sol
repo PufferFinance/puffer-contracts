@@ -542,6 +542,11 @@ contract CarrotVestingTest is Test {
         carrotVesting.completePufferRecovery(treasury);
     }
 
+    function test_completePufferRecovery_InvalidAddress() public initialized {
+        vm.expectRevert(InvalidAddress.selector);
+        carrotVesting.completePufferRecovery(address(0));
+    }
+
     function test_completePufferRecovery() public initialized {
         skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
         carrotVesting.startPufferRecovery();
