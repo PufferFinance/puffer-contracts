@@ -92,15 +92,17 @@ contract CarrotVesting is Ownable2Step {
     IERC20 public immutable CARROT;
     IERC20 public immutable PUFFER;
 
-    // These 4 variables are in just one slot to save gas (48 + 32 + 32 + 128 = 240)
+    // SLOT 1 - Along with the `_pendingOwner` address (160 + 48 + 8 = 216)
+    uint48 public pufferRecoveryStartTimestamp;
+    PufferRecoveryStatus public pufferRecoveryStatus;
+
+    // SLOT 2 - (48 + 32 + 32 + 128 = 240)
     uint48 public startTimestamp = type(uint48).max; // Default value is max uint48 instead of 0 to avoid 2 checks in deposit function
     uint32 public duration;
     uint32 public steps;
     uint128 public totalDepositedAmount;
 
-    PufferRecoveryStatus public pufferRecoveryStatus;
-    uint256 public pufferRecoveryStartTimestamp;
-
+    // SLOT 3
     mapping(address user => Vesting vestingInfo) public vestings;
 
     constructor(address carrot, address puffer, address initialOwner) Ownable(initialOwner) {
@@ -178,17 +180,19 @@ contract CarrotVesting is Ownable2Step {
         );
         require(block.timestamp >= startTimestamp + MIN_TIME_TO_START_PUFFER_RECOVERY, NotEnoughTimePassed());
         pufferRecoveryStatus = PufferRecoveryStatus.IN_PROGRESS;
-        pufferRecoveryStartTimestamp = block.timestamp;
+        pufferRecoveryStartTimestamp = uint48(block.timestamp);
         emit PufferRecoveryStarted(pufferRecoveryStartTimestamp);
     }
 
     /**
      * @notice Completes the puffer recovery process
+     * @param to The address to transfer the PUFFER tokens to
      * @dev This function can only be called by the owner
      * @dev This completes the puffer recovery process and transfers the remaining PUFFER tokens to the owner.
      *      Once it's completed, users cannot claim anymore PUFFER tokens (or start new vesting processes).
      */
-    function completePufferRecovery() external onlyOwner returns (uint256) {
+    function completePufferRecovery(address to) external onlyOwner returns (uint256) {
+        require(to != address(0), InvalidAddress());
         require(
             pufferRecoveryStatus == PufferRecoveryStatus.IN_PROGRESS, InvalidPufferRecoveryStatus(pufferRecoveryStatus)
         );
@@ -198,7 +202,7 @@ contract CarrotVesting is Ownable2Step {
         );
         pufferRecoveryStatus = PufferRecoveryStatus.COMPLETED;
         uint256 pufferAmountWithdrawn = PUFFER.balanceOf(address(this));
-        PUFFER.safeTransfer(msg.sender, pufferAmountWithdrawn);
+        PUFFER.safeTransfer(to, pufferAmountWithdrawn);
         emit PufferRecoveryCompleted({ pufferAmountWithdrawn: pufferAmountWithdrawn });
         return pufferAmountWithdrawn;
     }

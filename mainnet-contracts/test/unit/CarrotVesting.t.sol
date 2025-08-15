@@ -23,6 +23,7 @@ contract CarrotVestingTest is Test {
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
     address public dead = address(0xDEAD);
+    address public treasury = makeAddr("treasury");
 
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -38,6 +39,7 @@ contract CarrotVestingTest is Test {
 
         vm.label(alice, "alice");
         vm.label(bob, "bob");
+        vm.label(treasury, "treasury");
     }
 
     modifier initialized() {
@@ -505,7 +507,7 @@ contract CarrotVestingTest is Test {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        carrotVesting.completePufferRecovery();
+        carrotVesting.completePufferRecovery(treasury);
         vm.stopPrank();
     }
 
@@ -515,7 +517,7 @@ contract CarrotVestingTest is Test {
                 CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.NOT_STARTED
             )
         );
-        carrotVesting.completePufferRecovery();
+        carrotVesting.completePufferRecovery(treasury);
     }
 
     function test_completePufferRecovery_NotEnoughTimePassed() public initialized {
@@ -523,21 +525,21 @@ contract CarrotVestingTest is Test {
         carrotVesting.startPufferRecovery();
 
         vm.expectRevert(CarrotVesting.NotEnoughTimePassed.selector);
-        carrotVesting.completePufferRecovery();
+        carrotVesting.completePufferRecovery(treasury);
     }
 
     function test_completePufferRecovery_AlreadyCompleted() public initialized {
         skip(carrotVesting.MIN_TIME_TO_START_PUFFER_RECOVERY());
         carrotVesting.startPufferRecovery();
         skip(carrotVesting.PUFFER_RECOVERY_GRACE_PERIOD() + DURATION);
-        carrotVesting.completePufferRecovery();
+        carrotVesting.completePufferRecovery(treasury);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 CarrotVesting.InvalidPufferRecoveryStatus.selector, CarrotVesting.PufferRecoveryStatus.COMPLETED
             )
         );
-        carrotVesting.completePufferRecovery();
+        carrotVesting.completePufferRecovery(treasury);
     }
 
     function test_completePufferRecovery() public initialized {
@@ -547,7 +549,7 @@ contract CarrotVestingTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit CarrotVesting.PufferRecoveryCompleted(TOTAL_PUFFER_REWARDS);
-        uint256 withdrawnAmount = carrotVesting.completePufferRecovery();
+        uint256 withdrawnAmount = carrotVesting.completePufferRecovery(treasury);
 
         assertEq(withdrawnAmount, TOTAL_PUFFER_REWARDS, "Withdrawn amount should equal total puffer rewards");
         assertEq(
@@ -555,6 +557,8 @@ contract CarrotVestingTest is Test {
             uint8(CarrotVesting.PufferRecoveryStatus.COMPLETED),
             "Recovery status should be COMPLETED"
         );
+
+        assertEq(puffer.balanceOf(treasury), TOTAL_PUFFER_REWARDS, "Treasury should receive all puffer rewards");
 
         // Users should not be able to claim or deposit after recovery is completed
         vm.startPrank(alice);
