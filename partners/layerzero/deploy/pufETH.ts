@@ -44,8 +44,6 @@ const deploy: DeployFunction = async (hre) => {
         from: deployer,
         contract: 'contracts/pufETH.sol:pufETH',
         args: [
-            'pufETH', // name
-            'pufETH', // symbol
             endpointV2Deployment.address, // LayerZero's EndpointV2 address
             deployer, // owner
         ],
@@ -63,8 +61,6 @@ const deploy: DeployFunction = async (hre) => {
                 contract: 'contracts/pufETH.sol:pufETH',
                 address,
                 constructorArguments: [
-                    'pufETH', // name
-                    'pufETH', // symbol
                     endpointV2Deployment.address, // LayerZero's EndpointV2 address
                     deployer, // owner
                 ],

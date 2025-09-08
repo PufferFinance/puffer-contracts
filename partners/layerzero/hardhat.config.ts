@@ -79,10 +79,16 @@ const config: HardhatUserConfig = {
         //     url: 'https://rpc.tac.build',
         //     accounts,
         // },
-        base: {
-            eid: EndpointId.BASE_V2_MAINNET,
-            // url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
-            url: 'https://base.api.onfinality.io/public',
+        // base: {
+        //     eid: EndpointId.BASE_V2_MAINNET,
+        //     // url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
+        //     url: 'https://base.api.onfinality.io/public',
+        //     accounts,
+        //     timeout: 120000,
+        // },
+        linea: {
+            eid: EndpointId.ZKCONSENSYS_V2_MAINNET,
+            url: 'https://1rpc.io/linea',
             accounts,
             timeout: 120000,
         },
@@ -98,17 +104,16 @@ const config: HardhatUserConfig = {
         },
     },
     etherscan: {
-        apiKey: {
-            // Ethereum
-            mainnet: 'VN5BY6VUXDAHEBK7XQHWQUVNPEPW3IVQSY',
-            // Base
-            base: 'PR9JJCIV5WBY6Q9H2578F62XQSYK4QPTUP',
-            // Hyperliquid
-            'hyperevm-mainnet': 'empty',
-            // TAC
-            'tac-mainnet': 'empty',
-        },
+        apiKey: 'J43TVJFZUHAVRBD2T6CDHDSA35EHCNTK96',
         customChains: [
+            {
+                network: 'linea',
+                chainId: 59144,
+                urls: {
+                    apiURL: 'https://api.etherscan.io/v2/api?chainid=59144',
+                    browserURL: 'https://lineascan.build',
+                },
+            },
             // {
             //     network: 'hyperevm-mainnet',
             //     chainId: 999,
@@ -126,25 +131,6 @@ const config: HardhatUserConfig = {
             //     },
             // },
         ],
-        // customChains: [
-        //     {
-        //         network: 'bsc',
-        //         chainId: 56,
-        //         urls: {
-        //             apiURL: 'https://api.bscscan.com/api',
-        //             browserURL: 'https://bscscan.com',
-        //         },
-        //     },
-        //     {
-        //         network: 'bscTestnet',
-        //         chainId: 97,
-        //         urls: {
-        //             apiURL: 'https://api-testnet.bscscan.com/api',
-        //             browserURL: 'https://testnet.bscscan.com',
-        //         },
-        //     },
-        // Add other custom chains as needed
-        // ],
     },
 }
 
