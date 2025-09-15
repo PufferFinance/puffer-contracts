@@ -3,7 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -18,6 +19,8 @@ import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTCom
 
 // Unified interface for pufETH OFT that provides both ERC20 and LayerZero OFT functionality
 interface IPufETH is IOFT, IERC20 { }
+
+using SafeERC20 for IERC20;
 
 /**
  * @title L2RewardManager
@@ -42,7 +45,7 @@ contract L2RewardManager is
     address public immutable xPufETH;
 
     constructor(address l1RewardManager, address xpufETH) {
-        if (l1RewardManager == address(0)) {
+        if (l1RewardManager == address(0) || xpufETH == address(0)) {
             revert InvalidAddress();
         }
         L1_REWARD_MANAGER = l1RewardManager;
@@ -80,10 +83,13 @@ contract L2RewardManager is
             }
 
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
+                // If timeBridged is 0, the interval has been reverted (permanently locked)
+                uint256 lockedUntil = epochRecord.timeBridged == 0 ? 0 : epochRecord.timeBridged + $.claimingDelay;
+                
                 revert ClaimingLocked({
                     intervalId: claimOrders[i].intervalId,
                     account: claimOrders[i].account,
-                    lockedUntil: epochRecord.timeBridged + $.claimingDelay
+                    lockedUntil: lockedUntil
                 });
             }
 
@@ -110,13 +116,13 @@ contract L2RewardManager is
             uint256 xPufETHBalance = IERC20(xPufETH).balanceOf(address(this));
             if (xPufETHBalance > 0) {
                 if (xPufETHBalance >= amountToTransfer) {
-                    IERC20(xPufETH).transfer(recipient, amountToTransfer);
+                    IERC20(xPufETH).safeTransfer(recipient, amountToTransfer);
                 } else {
-                    IERC20(xPufETH).transfer(recipient, xPufETHBalance);
-                    IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer - xPufETHBalance);
+                    IERC20(xPufETH).safeTransfer(recipient, xPufETHBalance);
+                    IERC20($.pufETHOFT).safeTransfer(recipient, amountToTransfer - xPufETHBalance);
                 }
             } else {
-                IPufETH($.pufETHOFT).transfer(recipient, amountToTransfer);
+                IERC20($.pufETHOFT).safeTransfer(recipient, amountToTransfer);
             }
 
             emit Claimed({
