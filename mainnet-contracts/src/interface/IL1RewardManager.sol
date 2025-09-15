@@ -75,6 +75,16 @@ interface IL1RewardManager {
     error InvalidAddress();
 
     /**
+     * @notice Error indicating an invalid rewards root.
+     */
+    error InvalidRewardsRoot();
+
+    /**
+     * @notice Error indicating that the interval ID has already been used.
+     */
+    error DuplicateIntervalId(bytes32 intervalId);
+
+    /**
      * @notice Event emitted when rewards are minted and bridged.
      * @param rewardsAmount The amount of rewards minted and bridged.
      * @param startEpoch The starting epoch for the rewards.
@@ -127,4 +137,11 @@ interface IL1RewardManager {
      * @param newDestinationEID The new destination EID
      */
     event DestinationEIDUpdated(uint32 oldDestinationEID, uint32 newDestinationEID);
+
+    /**
+     * @notice Checks if an interval ID has already been used
+     * @param intervalId The interval ID to check
+     * @return True if the interval ID has been used, false otherwise
+     */
+    function isIntervalIdUsed(bytes32 intervalId) external view returns (bool);
 }

@@ -102,6 +102,10 @@ contract L1RewardManager is
     function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
+        if (params.rewardsRoot == bytes32(0)) {
+            revert InvalidRewardsRoot();
+        }
+
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
             revert InvalidMintAmount();
         }
@@ -109,6 +113,15 @@ contract L1RewardManager is
         if (($.lastRewardMintTimestamp + $.allowedRewardMintFrequency) > block.timestamp) {
             revert NotAllowedMintFrequency();
         }
+
+        bytes32 intervalId = keccak256(abi.encodePacked(params.startEpoch, params.endEpoch)); 
+        
+        // Check duplicate interval ID
+        if ($.usedIntervalIds[intervalId]) {
+            revert DuplicateIntervalId(intervalId);
+        }
+
+        $.usedIntervalIds[intervalId] = true;
 
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
@@ -242,6 +255,14 @@ contract L1RewardManager is
     function getDestinationEID() external view returns (uint32) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.destinationEID;
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function isIntervalIdUsed(bytes32 intervalId) external view returns (bool) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.usedIntervalIds[intervalId];
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {

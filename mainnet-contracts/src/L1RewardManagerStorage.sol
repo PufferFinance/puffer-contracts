@@ -55,6 +55,10 @@ abstract contract L1RewardManagerStorage {
          * @notice The destination endpoint ID for LayerZero bridging
          */
         uint32 destinationEID;
+        /**
+         * @notice Mapping to track all used interval IDs to prevent duplicate epoch ranges
+         */
+        mapping(bytes32 intervalId => bool isUsed) usedIntervalIds;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))
