@@ -40,6 +40,7 @@ contract CarrotVestingTest is Test {
         CarrotVesting carrotVestingImpl = new CarrotVesting{ salt: salt }(address(carrot), address(puffer));
         ERC1967Proxy proxy = new ERC1967Proxy(address(carrotVestingImpl), "");
         carrotVesting = CarrotVesting(payable(proxy));
+        carrotVesting.initialize(address(this));
 
         puffer.unpause();
         carrot.transfer(alice, 100_00 ether);
@@ -53,8 +54,8 @@ contract CarrotVestingTest is Test {
     modifier initialized() {
         puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
         vm.expectEmit(true, true, true, true);
-        emit CarrotVesting.Initialized(block.timestamp, DURATION, STEPS);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS, address(this));
+        emit CarrotVesting.VestingInitialized(block.timestamp, DURATION, STEPS);
+        carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, STEPS);
         _;
     }
 
@@ -68,22 +69,27 @@ contract CarrotVestingTest is Test {
         new CarrotVesting(address(carrot), address(0));
     }
 
-    function test_initialize_InvalidInitialization() public initialized {
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS, bob);
-    }
-
     function test_initialize_failed() public {
         vm.expectRevert(CarrotVesting.InvalidStartTimestamp.selector);
-        carrotVesting.initialize(uint48(block.timestamp - 1), DURATION, STEPS, address(this));
+        carrotVesting.initializeVesting(uint48(block.timestamp - 1), DURATION, STEPS);
         vm.expectRevert(CarrotVesting.InvalidDuration.selector);
-        carrotVesting.initialize(uint48(block.timestamp), 0, STEPS, address(this));
+        carrotVesting.initializeVesting(uint48(block.timestamp), 0, STEPS);
         vm.expectRevert(CarrotVesting.InvalidSteps.selector);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, 0, address(this));
+        carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, 0);
         vm.expectRevert(CarrotVesting.InvalidDuration.selector);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, DURATION + 1, address(this));
-        vm.expectRevert(InvalidAddress.selector);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS, address(0));
+        carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, DURATION + 1);
+    }
+
+    function test_initialize_twice() public initialized {
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, STEPS);
+    }
+
+    function test_initialize_Unauthorized() public {
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
+        carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, STEPS);
+        vm.stopPrank();
     }
 
     function test_initialize() public initialized {
@@ -346,7 +352,7 @@ contract CarrotVestingTest is Test {
         waitTime = bound(waitTime, stepDuration, duration);
 
         puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
-        carrotVesting.initialize(uint48(block.timestamp), uint32(duration), uint32(steps), address(this));
+        carrotVesting.initializeVesting(uint48(block.timestamp), uint32(duration), uint32(steps));
 
         deal(address(carrot), alice, depositAmount);
 
@@ -383,7 +389,7 @@ contract CarrotVestingTest is Test {
         uint256 totalExpectedClaimableAmount = EXCHANGE_RATE * depositAmount / 1e18;
 
         puffer.approve(address(carrotVesting), TOTAL_PUFFER_REWARDS);
-        carrotVesting.initialize(uint48(block.timestamp), uint32(duration), uint32(steps), address(this));
+        carrotVesting.initializeVesting(uint48(block.timestamp), uint32(duration), uint32(steps));
 
         deal(address(carrot), alice, depositAmount);
 
@@ -531,7 +537,7 @@ contract CarrotVestingTest is Test {
         assertEq(pufferBalanceAfter, 0, "Puffer balance is not correct");
         assertEq(pufferTreasuryBalance, pufferRecovered, "Puffer treasury balance is not correct");
         assertEq(pufferBalanceBefore, pufferRecovered, "Puffer treasury balance is not correct");
-        assertEq(carrotVesting.isDismantled(), true, "Contract is not dismantled");
+        assertEq(carrotVesting.getIsDismantled(), true, "Contract is not dismantled");
     }
 
     function test_pause_Unauthorized() public initialized {

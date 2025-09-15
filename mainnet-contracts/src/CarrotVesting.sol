@@ -36,12 +36,12 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     error AlreadyDismantled();
 
     /**
-     * @notice Emitted when the contract is initialized
+     * @notice Emitted when the vesting is initialized
      * @param startTimestamp The timestamp when the vesting starts
      * @param duration The duration of the vesting (seconds since the user deposits)
      * @param steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
      */
-    event Initialized(uint256 startTimestamp, uint256 duration, uint256 steps);
+    event VestingInitialized(uint256 startTimestamp, uint256 duration, uint256 steps);
 
     /**
      * @notice Emitted when a user deposits CARROT
@@ -80,33 +80,38 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
 
     /**
      * @notice Initializes the contract
+     * @param initialOwner The address of the owner of the contract
+     */
+    function initialize(address initialOwner) external initializer {
+        __Ownable_init(initialOwner);
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+    }
+
+    /**
+     * @notice Initializes the vesting
      * @dev This function can only be called once by the owner
      * @param startTimestamp The timestamp when the vesting starts
      * @param duration The duration of the vesting (seconds since the user deposits)
      * @param steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
-     * @param initialOwner The address of the owner of the contract
      */
-    function initialize(uint48 startTimestamp, uint32 duration, uint32 steps, address initialOwner)
+    function initializeVesting(uint48 startTimestamp, uint32 duration, uint32 steps)
         external
-        initializer
+        onlyOwner
+        reinitializer(2)
     {
         require(startTimestamp >= block.timestamp, InvalidStartTimestamp());
         require(duration > 0, InvalidDuration());
         require(steps > 0, InvalidSteps());
         require(duration >= steps, InvalidDuration());
-        require(initialOwner != address(0), InvalidAddress());
-
-        __Ownable_init(initialOwner);
-        __Pausable_init();
-        __UUPSUpgradeable_init();
-        __Ownable2Step_init();
 
         VestingStorage storage $ = _getCarrotVestingStorage();
         $.startTimestamp = startTimestamp;
         $.duration = duration;
         $.steps = steps;
         PUFFER.safeTransferFrom(msg.sender, address(this), TOTAL_PUFFER_REWARDS);
-        emit Initialized({ startTimestamp: startTimestamp, duration: duration, steps: steps });
+        emit VestingInitialized({ startTimestamp: startTimestamp, duration: duration, steps: steps });
     }
 
     /**
@@ -213,7 +218,7 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
      * @notice Gets if the contract is dismantled. Once the contract is dismantled, users cannot start new vesting processes or claim anymore PUFFER tokens
      * @return If the contract is dismantled
      */
-    function isDismantled() external view returns (bool) {
+    function getIsDismantled() external view returns (bool) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.isDismantled;
     }
