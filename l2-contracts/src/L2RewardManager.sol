@@ -85,7 +85,7 @@ contract L2RewardManager is
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
                 // If timeBridged is 0, the interval has been reverted (permanently locked)
                 uint256 lockedUntil = epochRecord.timeBridged == 0 ? 0 : epochRecord.timeBridged + $.claimingDelay;
-                
+
                 revert ClaimingLocked({
                     intervalId: claimOrders[i].intervalId,
                     account: claimOrders[i].account,
