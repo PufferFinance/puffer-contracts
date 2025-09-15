@@ -114,8 +114,8 @@ contract L1RewardManager is
             revert NotAllowedMintFrequency();
         }
 
-        bytes32 intervalId = keccak256(abi.encodePacked(params.startEpoch, params.endEpoch)); 
-        
+        bytes32 intervalId = keccak256(abi.encodePacked(params.startEpoch, params.endEpoch));
+
         // Check duplicate interval ID
         if ($.usedIntervalIds[intervalId]) {
             revert DuplicateIntervalId(intervalId);
