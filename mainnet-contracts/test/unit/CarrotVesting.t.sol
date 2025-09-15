@@ -81,7 +81,7 @@ contract CarrotVestingTest is Test {
         vm.expectRevert(CarrotVesting.InvalidSteps.selector);
         carrotVesting.initialize(uint48(block.timestamp), DURATION, 0, address(this));
         vm.expectRevert(CarrotVesting.InvalidDuration.selector);
-        carrotVesting.initialize(uint48(block.timestamp), DURATION, DURATION+1, address(this));
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, DURATION + 1, address(this));
         vm.expectRevert(InvalidAddress.selector);
         carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS, address(0));
     }
