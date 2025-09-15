@@ -80,6 +80,10 @@ contract CarrotVestingTest is Test {
         carrotVesting.initialize(uint48(block.timestamp), 0, STEPS, address(this));
         vm.expectRevert(CarrotVesting.InvalidSteps.selector);
         carrotVesting.initialize(uint48(block.timestamp), DURATION, 0, address(this));
+        vm.expectRevert(CarrotVesting.InvalidDuration.selector);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, DURATION+1, address(this));
+        vm.expectRevert(InvalidAddress.selector);
+        carrotVesting.initialize(uint48(block.timestamp), DURATION, STEPS, address(0));
     }
 
     function test_initialize() public initialized {
@@ -176,6 +180,12 @@ contract CarrotVestingTest is Test {
         vm.expectRevert(CarrotVesting.NoClaimableAmount.selector);
         carrotVesting.claim();
         vm.stopPrank();
+    }
+
+    function test_claim_Dismantled() public initialized {
+        carrotVesting.recoverPuffer(treasury);
+        vm.expectRevert(CarrotVesting.AlreadyDismantled.selector);
+        carrotVesting.claim();
     }
 
     function test_claim() public initialized {

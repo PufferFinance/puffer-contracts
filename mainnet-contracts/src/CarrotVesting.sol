@@ -81,18 +81,20 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     /**
      * @notice Initializes the contract
      * @dev This function can only be called once by the owner
-     * @param _startTimestamp The timestamp when the vesting starts
-     * @param _duration The duration of the vesting (seconds since the user deposits)
-     * @param _steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     * @param startTimestamp The timestamp when the vesting starts
+     * @param duration The duration of the vesting (seconds since the user deposits)
+     * @param steps The number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
      * @param initialOwner The address of the owner of the contract
      */
-    function initialize(uint48 _startTimestamp, uint32 _duration, uint32 _steps, address initialOwner)
+    function initialize(uint48 startTimestamp, uint32 duration, uint32 steps, address initialOwner)
         external
         initializer
     {
-        require(_startTimestamp >= block.timestamp, InvalidStartTimestamp());
-        require(_duration > 0, InvalidDuration());
-        require(_steps > 0, InvalidSteps());
+        require(startTimestamp >= block.timestamp, InvalidStartTimestamp());
+        require(duration > 0, InvalidDuration());
+        require(steps > 0, InvalidSteps());
+        require(duration >= steps, InvalidDuration());
+        require(initialOwner != address(0), InvalidAddress());
 
         __Ownable_init(initialOwner);
         __Pausable_init();
@@ -100,11 +102,11 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         __Ownable2Step_init();
 
         VestingStorage storage $ = _getCarrotVestingStorage();
-        $.startTimestamp = _startTimestamp;
-        $.duration = _duration;
-        $.steps = _steps;
+        $.startTimestamp = startTimestamp;
+        $.duration = duration;
+        $.steps = steps;
         PUFFER.safeTransferFrom(msg.sender, address(this), TOTAL_PUFFER_REWARDS);
-        emit Initialized({ startTimestamp: _startTimestamp, duration: _duration, steps: _steps });
+        emit Initialized({ startTimestamp: startTimestamp, duration: duration, steps: steps });
     }
 
     /**
