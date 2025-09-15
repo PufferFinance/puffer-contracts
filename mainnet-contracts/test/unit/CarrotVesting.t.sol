@@ -515,6 +515,11 @@ contract CarrotVestingTest is Test {
         vm.stopPrank();
     }
 
+    function test_recoverPuffer_InvalidAddress() public initialized {
+        vm.expectRevert(InvalidAddress.selector);
+        carrotVesting.recoverPuffer(address(0));
+    }
+
     function test_recoverPuffer() public initialized {
         uint256 pufferBalanceBefore = puffer.balanceOf(address(carrotVesting));
         assertEq(pufferBalanceBefore, TOTAL_PUFFER_REWARDS, "Puffer initial balance is not correct");
