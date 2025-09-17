@@ -56,9 +56,13 @@ abstract contract L1RewardManagerStorage {
          */
         uint32 destinationEID;
         /**
-         * @notice Mapping to track all used interval IDs to prevent duplicate epoch ranges
+         * @notice The last successfully processed interval end epoch
          */
-        mapping(bytes32 intervalId => bool isUsed) usedIntervalIds;
+        uint256 lastIntervalEndEpoch;
+        /**
+         * @notice The current interval end epoch being processed
+         */
+        uint256 currentIntervalEndEpoch;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))

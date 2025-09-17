@@ -80,9 +80,9 @@ interface IL1RewardManager {
     error InvalidRewardsRoot();
 
     /**
-     * @notice Error indicating that the interval ID has already been used.
+     * @notice Error indicating that the start epoch is invalid (not greater than last processed end epoch).
      */
-    error DuplicateIntervalId(bytes32 intervalId);
+    error InvalidStartEpoch();
 
     /**
      * @notice Event emitted when rewards are minted and bridged.
@@ -137,11 +137,4 @@ interface IL1RewardManager {
      * @param newDestinationEID The new destination EID
      */
     event DestinationEIDUpdated(uint32 oldDestinationEID, uint32 newDestinationEID);
-
-    /**
-     * @notice Checks if an interval ID has already been used
-     * @param intervalId The interval ID to check
-     * @return True if the interval ID has been used, false otherwise
-     */
-    function isIntervalIdUsed(bytes32 intervalId) external view returns (bool);
 }

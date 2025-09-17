@@ -206,7 +206,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
             rewardsAmount: rewardsAmount,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
-            rewardsRoot: bytes32(0),
+            rewardsRoot: bytes32(hex"aabbccdd"),
             rewardsURI: "uri"
         });
 
@@ -379,7 +379,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
             rewardsAmount: 200 ether, // assuming this is more than allowed
             startEpoch: 1,
             endEpoch: 2,
-            rewardsRoot: bytes32(0),
+            rewardsRoot: bytes32(hex"aabbccdd"),
             rewardsURI: "uri"
         });
 
@@ -398,7 +398,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
             rewardsAmount: 1 ether,
             startEpoch: 1,
             endEpoch: 2,
-            rewardsRoot: bytes32(0),
+            rewardsRoot: bytes32(hex"aabbccdd"),
             rewardsURI: "uri"
         });
 
@@ -498,7 +498,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
             rewardsAmount: rewardsAmount,
             startEpoch: startEpoch,
             endEpoch: endEpoch,
-            rewardsRoot: bytes32(0),
+            rewardsRoot: bytes32(hex"aabbccdd"),
             rewardsURI: "uri"
         });
 
@@ -509,6 +509,424 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
 
         assertEq(pufferVault.totalAssets(), initialTotalAssets + 100 ether);
+    }
+
+    // ============ EPOCH TRACKING TESTS ============
+
+    function test_InitialEpochState() public {
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 0, "Initial lastIntervalEndEpoch should be 0");
+        assertEq(l1RewardManager.getCurrentIntervalEndEpoch(), 0, "Initial currentIntervalEndEpoch should be 0");
+    }
+
+    function test_FirstSuccessfulMintUpdatesEpochs() public allowedDailyFrequency allowMintAmount(100 ether) {
+        uint256 testStartEpoch = 100;
+        uint256 testEndEpoch = 200;
+
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: testStartEpoch,
+            endEpoch: testEndEpoch,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        // Before mint
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 0, "lastIntervalEndEpoch should be 0 before first mint");
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(), 0, "currentIntervalEndEpoch should be 0 before first mint"
+        );
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
+
+        // After first mint
+        assertEq(
+            l1RewardManager.getLastIntervalEndEpoch(), 0, "lastIntervalEndEpoch should still be 0 after first mint"
+        );
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(),
+            testEndEpoch,
+            "currentIntervalEndEpoch should be updated to endEpoch"
+        );
+    }
+
+    function test_SecondSuccessfulMintUpdatesEpochs() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 201, // Must be > 200
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+
+        // After second mint
+        assertEq(
+            l1RewardManager.getLastIntervalEndEpoch(),
+            200,
+            "lastIntervalEndEpoch should be updated to previous endEpoch"
+        );
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(),
+            300,
+            "currentIntervalEndEpoch should be updated to new endEpoch"
+        );
+    }
+
+    function testRevert_InvalidStartEpoch() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Check state after first mint
+        uint256 lastEpoch = l1RewardManager.getLastIntervalEndEpoch();
+        uint256 currentEpoch = l1RewardManager.getCurrentIntervalEndEpoch();
+        console.log("After first mint - lastEpoch:", lastEpoch);
+        console.log("After first mint - currentEpoch:", currentEpoch);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint with invalid startEpoch (should be > 200)
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 150, // Invalid: <= 200
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidStartEpoch.selector));
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+    }
+
+    function testRevert_StartEpochEqualToLastEndEpoch() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint with startEpoch equal to last endEpoch (should be > 200)
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 200, // Invalid: equal to last endEpoch
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidStartEpoch.selector));
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+    }
+
+    function test_RevertUpdatesCurrentEpoch() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 201,
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+
+        // Verify state before revert
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 200, "lastIntervalEndEpoch should be 200 before revert");
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(), 300, "currentIntervalEndEpoch should be 300 before revert"
+        );
+
+        // Simulate revert via lzCompose
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(201),
+            endEpoch: uint72(300),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 50 ether,
+            ethAmount: 50 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
+
+        bytes memory composeMsg = abi.encode(epochRecord);
+        deal(address(pufferVault), address(l1RewardManager), 50 ether);
+
+        vm.startPrank(address(layerzeroL1Endpoint));
+        bytes32 composeFrom = addressToBytes32(address(l2RewardManager));
+        bytes memory _msg = encode(0, 2, 50 ether, abi.encodePacked(composeFrom, composeMsg));
+
+        l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
+        vm.stopPrank();
+
+        // Verify state after revert
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 200, "lastIntervalEndEpoch should remain 200 after revert");
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(),
+            200,
+            "currentIntervalEndEpoch should be reset to 200 after revert"
+        );
+    }
+
+    function test_MintAfterRevert() public allowedDailyFrequency allowMintAmount(100 ether) {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 201,
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+
+        // Simulate revert
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(201),
+            endEpoch: uint72(300),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 50 ether,
+            ethAmount: 50 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
+
+        bytes memory composeMsg = abi.encode(epochRecord);
+        deal(address(pufferVault), address(l1RewardManager), 50 ether);
+
+        vm.startPrank(address(layerzeroL1Endpoint));
+        bytes32 composeFrom = addressToBytes32(address(l2RewardManager));
+        bytes memory _msg = encode(0, 2, 50 ether, abi.encodePacked(composeFrom, composeMsg));
+
+        l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
+        vm.stopPrank();
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Third mint after revert (should work with startEpoch > 200)
+        IL1RewardManager.MintAndBridgeParams memory params3 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 75 ether,
+            startEpoch: 201, // Can reuse the same startEpoch since previous was reverted
+            endEpoch: 350,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri3"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params3);
+
+        // Verify state after third mint
+        assertEq(
+            l1RewardManager.getLastIntervalEndEpoch(),
+            200,
+            "lastIntervalEndEpoch should remain 200 (previous successful)"
+        );
+        assertEq(l1RewardManager.getCurrentIntervalEndEpoch(), 350, "currentIntervalEndEpoch should be updated to 350");
+    }
+
+    function testRevert_MintAfterRevertWithInvalidStartEpoch()
+        public
+        allowedDailyFrequency
+        allowMintAmount(100 ether)
+    {
+        // First mint
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 201,
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+
+        // Simulate revert
+        L2RewardManagerStorage.EpochRecord memory epochRecord = L2RewardManagerStorage.EpochRecord({
+            startEpoch: uint72(201),
+            endEpoch: uint72(300),
+            timeBridged: uint48(block.timestamp),
+            ethToPufETHRate: 1 ether,
+            pufETHAmount: 50 ether,
+            ethAmount: 50 ether,
+            rewardRoot: bytes32(hex"aabb")
+        });
+
+        bytes memory composeMsg = abi.encode(epochRecord);
+        deal(address(pufferVault), address(l1RewardManager), 50 ether);
+
+        vm.startPrank(address(layerzeroL1Endpoint));
+        bytes32 composeFrom = addressToBytes32(address(l2RewardManager));
+        bytes memory _msg = encode(0, 2, 50 ether, abi.encodePacked(composeFrom, composeMsg));
+
+        l1RewardManager.lzCompose(address(pufETHOFTAdapter), bytes32(0), _msg, address(0), "");
+        vm.stopPrank();
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Third mint with invalid startEpoch (should fail)
+        IL1RewardManager.MintAndBridgeParams memory params3 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 75 ether,
+            startEpoch: 150, // Invalid: <= 200
+            endEpoch: 350,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri3"
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidStartEpoch.selector));
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params3);
+    }
+
+    function test_ConsecutiveSuccessfulMints() public allowedDailyFrequency allowMintAmount(100 ether) {
+        uint256 layerZeroFee = 0.01 ether;
+
+        // First mint: 100-200
+        IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri1"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params1);
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 0, "After first mint: lastIntervalEndEpoch should be 0");
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(), 200, "After first mint: currentIntervalEndEpoch should be 200"
+        );
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Second mint: 201-300
+        IL1RewardManager.MintAndBridgeParams memory params2 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 50 ether,
+            startEpoch: 201,
+            endEpoch: 300,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri2"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params2);
+        assertEq(
+            l1RewardManager.getLastIntervalEndEpoch(), 200, "After second mint: lastIntervalEndEpoch should be 200"
+        );
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(),
+            300,
+            "After second mint: currentIntervalEndEpoch should be 300"
+        );
+
+        // Warp time to allow next mint
+        vm.warp(block.timestamp + 1 days + 1);
+
+        // Third mint: 301-400
+        IL1RewardManager.MintAndBridgeParams memory params3 = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 75 ether,
+            startEpoch: 301,
+            endEpoch: 400,
+            rewardsRoot: bytes32(hex"aabbccdd"),
+            rewardsURI: "uri3"
+        });
+
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params3);
+        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 300, "After third mint: lastIntervalEndEpoch should be 300");
+        assertEq(
+            l1RewardManager.getCurrentIntervalEndEpoch(), 400, "After third mint: currentIntervalEndEpoch should be 400"
+        );
+    }
+
+    function testRevert_InvalidRewardsRoot() public allowedDailyFrequency allowMintAmount(100 ether) {
+        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
+            rewardsAmount: 100 ether,
+            startEpoch: 100,
+            endEpoch: 200,
+            rewardsRoot: bytes32(0), // Invalid: empty rewards root
+            rewardsURI: "uri"
+        });
+
+        uint256 layerZeroFee = 0.01 ether;
+        vm.expectRevert(abi.encodeWithSelector(IL1RewardManager.InvalidRewardsRoot.selector));
+        l1RewardManager.mintAndBridgeRewards{ value: layerZeroFee }(params);
     }
 
     /**
