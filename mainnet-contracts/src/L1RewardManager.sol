@@ -102,6 +102,10 @@ contract L1RewardManager is
     function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
+        if (params.rewardsRoot == bytes32(0)) {
+            revert InvalidRewardsRoot();
+        }
+
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
             revert InvalidMintAmount();
         }
@@ -109,6 +113,17 @@ contract L1RewardManager is
         if (($.lastRewardMintTimestamp + $.allowedRewardMintFrequency) > block.timestamp) {
             revert NotAllowedMintFrequency();
         }
+
+        // Update lastIntervalEndEpoch to the previous currentIntervalEndEpoch
+        $.lastIntervalEndEpoch = $.currentIntervalEndEpoch;
+
+        // Check that startEpoch is greater than the last processed end epoch
+        if (params.startEpoch <= $.lastIntervalEndEpoch) {
+            revert InvalidStartEpoch();
+        }
+
+        // Update current interval end epoch
+        $.currentIntervalEndEpoch = params.endEpoch;
 
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
@@ -195,6 +210,10 @@ contract L1RewardManager is
         // The PufferVault will burn the pufETH from this contract and subtract the ETH amount from the ethRewardsAmount
         PUFFER_VAULT.revertMintRewards({ pufETHAmount: epochRecord.pufETHAmount, ethAmount: epochRecord.ethAmount });
 
+        // When reverted, set current end epoch back to last end epoch
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.currentIntervalEndEpoch = $.lastIntervalEndEpoch;
+
         // We emit the event to the L1RewardManager contract
         emit RevertedRewards({
             rewardsAmount: epochRecord.ethAmount,
@@ -242,6 +261,22 @@ contract L1RewardManager is
     function getDestinationEID() external view returns (uint32) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
         return $.destinationEID;
+    }
+
+    /**
+     * @notice Returns the last successfully processed interval end epoch
+     */
+    function getLastIntervalEndEpoch() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.lastIntervalEndEpoch;
+    }
+
+    /**
+     * @notice Returns the current interval end epoch being processed
+     */
+    function getCurrentIntervalEndEpoch() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.currentIntervalEndEpoch;
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {

@@ -75,6 +75,16 @@ interface IL1RewardManager {
     error InvalidAddress();
 
     /**
+     * @notice Error indicating an invalid rewards root.
+     */
+    error InvalidRewardsRoot();
+
+    /**
+     * @notice Error indicating that the start epoch is invalid (not greater than last processed end epoch).
+     */
+    error InvalidStartEpoch();
+
+    /**
      * @notice Event emitted when rewards are minted and bridged.
      * @param rewardsAmount The amount of rewards minted and bridged.
      * @param startEpoch The starting epoch for the rewards.

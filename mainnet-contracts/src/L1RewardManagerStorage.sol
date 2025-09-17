@@ -55,6 +55,14 @@ abstract contract L1RewardManagerStorage {
          * @notice The destination endpoint ID for LayerZero bridging
          */
         uint32 destinationEID;
+        /**
+         * @notice The last successfully processed interval end epoch
+         */
+        uint256 lastIntervalEndEpoch;
+        /**
+         * @notice The current interval end epoch being processed
+         */
+        uint256 currentIntervalEndEpoch;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))
