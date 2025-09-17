@@ -185,8 +185,8 @@ contract L2RewardManager is
      *
      * In order to freeze the claiming for the interval, the interval must be locked.
      *
-     * revertInterval is called to bridge the xPufETH back to the L1.
-     * On the L1, we unwrap xPufETH -> pufETH and burn the pufETH to undo the minting and bridging of the rewards.
+     * revertInterval is called to bridge the pufETH OFT back to the L1.
+     * On the L1, we burn the pufETH to undo the minting and bridging of the rewards.
      *
      * msg.value is used to pay for the relayer fee on the destination chain.
      */
@@ -416,6 +416,9 @@ contract L2RewardManager is
             revert UnableToRevertInterval();
         }
 
+        // Delete the epoch record before to minimize re-entrancy
+        delete $.epochRecords[intervalId];
+
         // We bridge the pufETH back to the L1
         // We don't need to approve since the oft is itself the pufETH token
         IPufETH($.pufETHOFT).send{ value: msg.value }(
@@ -431,8 +434,6 @@ contract L2RewardManager is
             IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
             msg.sender // refundAddress
         );
-
-        delete $.epochRecords[intervalId];
 
         emit ClaimingIntervalReverted({
             startEpoch: startEpoch,
