@@ -45,7 +45,7 @@ contract L1RewardManager is
     address public immutable L2_REWARDS_MANAGER;
 
     constructor(address pufETH, address l2RewardsManager, address pufETH_OFT) {
-        if (pufETH == address(0) || l2RewardsManager == address(0)) {
+        if (pufETH == address(0) || l2RewardsManager == address(0) || pufETH_OFT == address(0)) {
             revert InvalidAddress();
         }
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
