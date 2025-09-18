@@ -43,7 +43,8 @@ contract UpgradeL1RewardManager is DeployerHelper {
         console.log("Queue TX From Timelock to -> l1RewardManagerProxy", l1RewardManagerProxy);
         console.logBytes(upgradeCallData);
         console.log("================================================");
-        accessManagerCallData = calldataGenerator.generateL1Calldata(address(l1RewardManagerProxy), _getLayerZeroV2Endpoint());
+        accessManagerCallData =
+            calldataGenerator.generateL1Calldata(address(l1RewardManagerProxy), _getLayerZeroV2Endpoint());
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
         console.logBytes(accessManagerCallData);
