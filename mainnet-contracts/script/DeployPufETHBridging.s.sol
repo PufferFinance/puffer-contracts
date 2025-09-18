@@ -7,14 +7,15 @@ import { BaseScript } from ".//BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
-import { xPufETH } from "src/l2/xPufETH.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
-import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
-import { ConnextMock } from "../test/mocks/ConnextMock.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
+import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
+import { TestHelperOz5 } from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
+import { console } from "forge-std/console.sol";
 
 /**
  * @title DeployPufETHBridging
@@ -33,62 +34,102 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  *         PK=${deployer_pk} forge script script/DeployPufETHBridging.s.sol:DeployPufETHBridging --sig 'run(address)' "VAULTADDRESS" -vvvv --rpc-url=... --broadcast
  */
 contract DeployPufETHBridging is BaseScript {
+    // Declaration of mock endpoint IDs.
+    uint16 layerzeroL1Eid = 1;
+    uint16 layerzeroL2Eid = 2;
+
     function run(PufferDeployment memory deployment)
         public
         broadcast
         returns (BridgingDeployment memory bridgingDeployment)
     {
+        // console.log("address of _broadcaster", address(_broadcaster));
+        // console.log("address this contract", address(this));
+        // TestHelperOz5.setUp();
+        // console.log("setup done 2");
+
+        // Setup function to initialize 2 Mock Endpoints with Mock MessageLib.
+        // setUpEndpoints(2, LibraryType.UltraLightNode);
+
+        // address layerzeroL1EndpointAddress = endpoints[layerzeroL1Eid];
+        address layerzeroL1EndpointAddress;
+        address layerzeroL2EndpointAddress;
+        // console.log("layerzeroL1EndpointAddress", layerzeroL1EndpointAddress);
+
+        // address layerzeroL2EndpointAddress = endpoints[layerzeroL2Eid];
+        // console.log("layerzeroL2EndpointAddress", layerzeroL2EndpointAddress);
+
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        xPufETH xpufETHImplementation = new xPufETH();
+        // xPufETH xpufETHImplementation = new xPufETH();
 
-        xPufETH xPufETHProxy = xPufETH(
-            address(
-                new ERC1967Proxy{ salt: bytes32("xPufETH") }(
-                    address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
-                )
-            )
-        );
+        // xPufETH xPufETHProxy = xPufETH(
+        //     address(
+        //         new ERC1967Proxy{ salt: bytes32("xPufETH") }(
+        //             address(xpufETHImplementation), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
+        //         )
+        //     )
+        // );
 
-        address everclearBridge = address(new ConnextMock());
+        // address everclearBridge = address(new ConnextMock());
+        // address endpoint = 0x1a44076050125825900e736c501f859c50fE728c;
 
-        address noImpl = address(new NoImplementation());
+        // console.log("endpoint", endpoint);
+        console.log("pufferVault", address(deployment.pufferVault));
+        console.log("broadcaster", _broadcaster);
 
-        ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
+        pufETHAdapter pufETHOFTAdapter;
+        // address[] memory sender = setupOApps(type(pufETHAdapter).creationCode, 1, 1);
+        // pufETHOFTAdapter = pufETHAdapter(payable(sender[0]));
+        console.log("pufETHOFTAdapter", address(pufETHOFTAdapter));
 
-        // Deploy the lockbox
-        XERC20Lockbox xERC20Lockbox =
-            new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
+        pufETH pufETHOFT;
+        // address[] memory sender2 = setupOApps(type(pufETH).creationCode, 1, 1);
+        // pufETHOFT = pufETH(payable(sender2[0]));
+        console.log("pufETHOFT", address(pufETHOFT));
 
-        // L1RewardManager
-        L1RewardManager l1RewardManagerImpl = new L1RewardManager({
-            xPufETH: address(xPufETHProxy),
-            pufETH: deployment.pufferVault,
-            lockbox: address(xERC20Lockbox),
-            l2RewardsManager: address(l2RewardsManagerProxy)
-        });
+        // we will generate it from the test helper of layerzero
+        // console.log("pufETHOFTAdapter", pufETHOFTAdapter);
+        // address pufETHOFT ;
+        // console.log("pufETHOFT", pufETHOFT);
 
-        L1RewardManager l1RewardManagerProxy = L1RewardManager(
-            address(
-                new ERC1967Proxy(
-                    address(l1RewardManagerImpl), abi.encodeCall(xPufETH.initialize, (deployment.accessManager))
-                )
-            )
-        );
+        // address noImpl = address(new NoImplementation());
 
-        L2RewardManager l2RewardManagerImpl = new L2RewardManager(everclearBridge, address(l1RewardManagerProxy));
+        // ERC1967Proxy l2RewardsManagerProxy = new ERC1967Proxy(noImpl, "");
 
-        UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
-            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
-        );
+        // // // Deploy the lockbox
+        // // XERC20Lockbox xERC20Lockbox =
+        // //     new XERC20Lockbox({ xerc20: address(xPufETHProxy), erc20: deployment.pufferVault });
+
+        // // L1RewardManager
+        // L1RewardManager l1RewardManagerImpl = new L1RewardManager({
+        //     oft: address(pufETHOFTAdapter),
+        //     pufETH: deployment.pufferVault,
+        //     l2RewardsManager: address(l2RewardsManagerProxy)
+        // });
+
+        // L1RewardManager l1RewardManagerProxy = L1RewardManager(
+        //     address(
+        //         new ERC1967Proxy(
+        //             address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (deployment.accessManager))
+        //         )
+        //     )
+        // );
+
+        // L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(pufETHOFT), address(l1RewardManagerProxy));
+
+        // UUPSUpgradeable(address(l2RewardsManagerProxy)).upgradeToAndCall(
+        //     address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (deployment.accessManager))
+        // );
 
         bridgingDeployment = BridgingDeployment({
-            connext: everclearBridge,
-            xPufETH: address(xPufETHProxy),
-            xPufETHLockBox: address(xERC20Lockbox),
-            l1RewardManager: address(l1RewardManagerProxy),
-            l2RewardManager: address(l2RewardsManagerProxy)
+            pufETHOFTAdapter: address(pufETHOFTAdapter),
+            pufETHOFT: address(pufETHOFT),
+            l1RewardManager: address(0),
+            l2RewardManager: address(0),
+            layerzeroL1Endpoint: layerzeroL1EndpointAddress,
+            layerzeroL2Endpoint: layerzeroL2EndpointAddress
         });
     }
 }

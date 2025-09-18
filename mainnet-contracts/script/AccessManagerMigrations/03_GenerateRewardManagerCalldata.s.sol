@@ -19,7 +19,7 @@ import {
 } from "../../script/Roles.sol";
 
 /**
- * @title GenerateAccessManagerCalldata3
+ * @title GenerateRewardManagerCalldata
  * @author Puffer Finance
  * @notice Generates the AccessManager call data to setup the public access
  * The returned calldata is queued and executed by the Operations Multisig
@@ -27,7 +27,11 @@ import {
  * 2. ... 7 days later ...
  * 3. timelock.executeTransaction(address(accessManager), encodedMulticall, 1)
  */
-contract GenerateAccessManagerCalldata3 is Script {
+contract GenerateRewardManagerCalldata is Script {
+    /**
+     * @param l1Bridge The LayerZero V2 endpoint address on L1/source chain.
+     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     */
     function generateL1Calldata(
         address l1RewardManagerProxy,
         address l1Bridge,
@@ -47,7 +51,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         );
 
         bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = L1RewardManager.xReceive.selector;
+        bridgeSelectors[0] = L1RewardManager.lzCompose.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, bridgeSelectors, ROLE_ID_BRIDGE
@@ -56,7 +60,7 @@ contract GenerateAccessManagerCalldata3 is Script {
         calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l1Bridge, 0);
 
         bytes4[] memory daoSelectors = new bytes4[](3);
-        daoSelectors[0] = L1RewardManager.updateBridgeData.selector;
+        daoSelectors[0] = L1RewardManager.setDestinationEID.selector;
         daoSelectors[1] = L1RewardManager.setAllowedRewardMintAmount.selector;
         daoSelectors[2] = L1RewardManager.setAllowedRewardMintFrequency.selector;
 
@@ -106,11 +110,16 @@ contract GenerateAccessManagerCalldata3 is Script {
         return encodedMulticall;
     }
 
+    /**
+     * @dev
+     * @param l2Bridge The LayerZero V2 endpoint address on L2/destination chain.
+     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     */
     function generateL2Calldata(address l2RewardManagerProxy, address l2Bridge) public pure returns (bytes memory) {
         bytes[] memory calldatasL2 = new bytes[](5);
 
         bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
-        bridgeSelectorsL2[0] = L2RewardManager.xReceive.selector;
+        bridgeSelectorsL2[0] = L2RewardManager.lzCompose.selector;
 
         calldatasL2[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -137,9 +146,10 @@ contract GenerateAccessManagerCalldata3 is Script {
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), paymasterSelectors, ROLE_ID_DAO
         );
 
-        bytes4[] memory daoSelectors = new bytes4[](2);
-        daoSelectors[0] = L2RewardManager.updateBridgeData.selector;
-        daoSelectors[1] = L2RewardManager.setDelayPeriod.selector;
+        bytes4[] memory daoSelectors = new bytes4[](3);
+        daoSelectors[0] = L2RewardManager.setDelayPeriod.selector;
+        daoSelectors[1] = L2RewardManager.setPufETHOFT.selector;
+        daoSelectors[2] = L2RewardManager.setDestinationEID.selector;
 
         calldatasL2[4] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO

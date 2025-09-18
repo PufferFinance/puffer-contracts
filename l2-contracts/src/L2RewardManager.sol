@@ -3,17 +3,24 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IL2RewardManager } from "./interface/IL2RewardManager.sol";
-import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
 import { L2RewardManagerStorage } from "./L2RewardManagerStorage.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { InvalidAmount, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { IBridgeInterface } from "mainnet-contracts/src/interface/Connext/IBridgeInterface.sol";
+import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { IL1RewardManager } from "mainnet-contracts/src/interface/IL1RewardManager.sol";
 import { InvalidAddress } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerStorage.sol";
+import { IOFT } from "mainnet-contracts/src/interface/LayerZero/IOFT.sol";
+import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
+import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+
+// Unified interface for pufETH OFT that provides both ERC20 and LayerZero OFT functionality
+interface IPufETH is IOFT, IERC20 { }
+
+using SafeERC20 for IERC20;
 
 /**
  * @title L2RewardManager
@@ -23,23 +30,26 @@ import { L1RewardManagerStorage } from "mainnet-contracts/src/L1RewardManagerSto
 contract L2RewardManager is
     IL2RewardManager,
     L2RewardManagerStorage,
-    IXReceiver,
     AccessManagedUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    IOAppComposer
 {
     /**
-     * @notice xPufETH token on this chain
-     */
-    IERC20 public immutable XPUFETH;
-
-    /**
-     * @notice Burner contract on Ethereum Mainnet
+     * @notice The rewards manager contract on L1
      */
     address public immutable L1_REWARD_MANAGER;
 
-    constructor(address xPufETH, address l1RewardManager) {
-        XPUFETH = IERC20(xPufETH);
+    /**
+     * @notice The address of the old pufETH token
+     */
+    address public immutable xPufETH;
+
+    constructor(address l1RewardManager, address xpufETH) {
+        if (l1RewardManager == address(0) || xpufETH == address(0)) {
+            revert InvalidAddress();
+        }
         L1_REWARD_MANAGER = l1RewardManager;
+        xPufETH = xpufETH;
         _disableInitializers();
     }
 
@@ -73,10 +83,13 @@ contract L2RewardManager is
             }
 
             if (_isClaimingLocked(claimOrders[i].intervalId)) {
+                // If timeBridged is 0, the interval has been reverted (permanently locked)
+                uint256 lockedUntil = epochRecord.timeBridged == 0 ? 0 : epochRecord.timeBridged + $.claimingDelay;
+
                 revert ClaimingLocked({
                     intervalId: claimOrders[i].intervalId,
                     account: claimOrders[i].account,
-                    lockedUntil: epochRecord.timeBridged + $.claimingDelay
+                    lockedUntil: lockedUntil
                 });
             }
 
@@ -99,7 +112,18 @@ contract L2RewardManager is
             recipient = recipient == address(0) ? claimOrders[i].account : recipient;
 
             // if the custom claimer is set, then transfer the tokens to the set claimer
-            XPUFETH.transfer(recipient, amountToTransfer);
+            // First we transfer any remaining xPufETH in this contract to the recipient
+            uint256 xPufETHBalance = IERC20(xPufETH).balanceOf(address(this));
+            if (xPufETHBalance > 0) {
+                if (xPufETHBalance >= amountToTransfer) {
+                    IERC20(xPufETH).safeTransfer(recipient, amountToTransfer);
+                } else {
+                    IERC20(xPufETH).safeTransfer(recipient, xPufETHBalance);
+                    IERC20($.pufETHOFT).safeTransfer(recipient, amountToTransfer - xPufETHBalance);
+                }
+            } else {
+                IERC20($.pufETHOFT).safeTransfer(recipient, amountToTransfer);
+            }
 
             emit Claimed({
                 recipient: recipient,
@@ -111,36 +135,47 @@ contract L2RewardManager is
     }
 
     /**
-     * @notice Receives the xPufETH from L1 and the bridging data from the L1 Reward Manager
-     * @dev Restricted access to `ROLE_ID_BRIDGE`
+     * @notice Handles incoming composed messages from LayerZero Endpoint on L2
+     * @notice Receives the pufETH from L1 and the bridging data from the L1 Reward Manager
+     * @dev Ensures the message comes from the correct OApp (pufETH OFT) and is sent through the authorized endpoint.
+     * @dev Restricted to the LayerZero Endpoint contract on L2
+     * @param oft The address of the oft (pufETH OFT) on L2
+     * @param message The calldata received from L1RewardManager
      */
-    function xReceive(
-        bytes32,
-        uint256 amount,
-        address,
-        address originSender,
-        uint32 originDomainId,
-        bytes memory callData
-    ) external override(IXReceiver) restricted returns (bytes memory) {
-        if (originSender != address(L1_REWARD_MANAGER)) {
-            revert Unauthorized();
-        }
-
+    function lzCompose(
+        address oft,
+        bytes32, /* _guid */
+        bytes calldata message,
+        address, /* _executor */
+        bytes calldata /* _extraData */
+    ) external payable override restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
+        // Ensure that only the whitelisted pufETH OFT can call this function
+        if (oft != $.pufETHOFT) {
             revert Unauthorized();
         }
 
-        IL1RewardManager.BridgingParams memory bridgingParams = abi.decode(callData, (IL1RewardManager.BridgingParams));
+        // Decode the OFT compose message to extract the original sender, amount and the actual message
+        bytes32 composeFrom = OFTComposeMsgCodec.composeFrom(message);
+        bytes memory actualMessage = OFTComposeMsgCodec.composeMsg(message);
+        uint256 amount = OFTComposeMsgCodec.amountLD(message);
+
+        // Validate that the original sender is our legitimate L1RewardManager
+        address originalSender = address(uint160(uint256(composeFrom)));
+        if (originalSender != L1_REWARD_MANAGER) {
+            revert Unauthorized();
+        }
+
+        // Decode the actual message to get the bridging parameters
+        IL1RewardManager.BridgingParams memory bridgingParams =
+            abi.decode(actualMessage, (IL1RewardManager.BridgingParams));
 
         if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.MintAndBridge) {
             _handleMintAndBridge(amount, bridgingParams.data);
         } else if (bridgingParams.bridgingType == IL1RewardManager.BridgingType.SetClaimer) {
             _handleSetClaimer(bridgingParams.data);
         }
-        // Return empty data
-        return "";
     }
 
     /**
@@ -150,19 +185,15 @@ contract L2RewardManager is
      *
      * In order to freeze the claiming for the interval, the interval must be locked.
      *
-     * revertInterval is called to bridge the xPufETH back to the L1.
-     * On the L1, we unwrap xPufETH -> pufETH and burn the pufETH to undo the minting and bridging of the rewards.
+     * revertInterval is called to bridge the pufETH OFT back to the L1.
+     * On the L1, we burn the pufETH to undo the minting and bridging of the rewards.
      *
      * msg.value is used to pay for the relayer fee on the destination chain.
      */
-    function freezeAndRevertInterval(address bridge, uint256 startEpoch, uint256 endEpoch)
-        external
-        payable
-        restricted
-    {
+    function freezeAndRevertInterval(uint256 startEpoch, uint256 endEpoch) external payable restricted {
         _freezeClaimingForInterval(startEpoch, endEpoch);
 
-        _revertInterval(bridge, startEpoch, endEpoch);
+        _revertInterval(startEpoch, endEpoch);
     }
 
     /**
@@ -174,28 +205,12 @@ contract L2RewardManager is
     }
 
     /**
-     * @notice Reverts the already frozen interval. It bridges the xPufETH back to the L1
-     * @dev On the L1, we unwrap xPufETH to pufETH and burn the pufETH to undo the minting
+     * @notice Reverts the already frozen interval. It bridges the pufETH back to the L1
+     * @dev On the L1, we burn the pufETH to undo the minting
      * We use msg.value to pay for the relayer fee on the destination chain.
      */
-    function revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) external payable restricted {
-        _revertInterval(bridge, startEpoch, endEpoch);
-    }
-
-    /**
-     * @notice Updates the bridge data.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
-     */
-    function updateBridgeData(address bridge, BridgeData memory bridgeData) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        if (bridge == address(0)) {
-            revert InvalidAddress();
-        }
-
-        $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
-        emit BridgeDataUpdated(bridge, bridgeData);
+    function revertInterval(uint256 startEpoch, uint256 endEpoch) external payable restricted {
+        _revertInterval(startEpoch, endEpoch);
     }
 
     /**
@@ -204,6 +219,31 @@ contract L2RewardManager is
      */
     function setDelayPeriod(uint256 delayPeriod) external restricted {
         _setClaimingDelay(delayPeriod);
+    }
+
+    /**
+     * @notice Sets the pufETH OFT address
+     * @param newPufETHOFT The new pufETH OFT address
+     */
+    function setPufETHOFT(address newPufETHOFT) external restricted {
+        if (newPufETHOFT == address(0)) {
+            revert InvalidAddress();
+        }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        address oldPufETHOFT = $.pufETHOFT;
+        $.pufETHOFT = newPufETHOFT;
+        emit PufETHOFTUpdated({ oldPufETHOFT: oldPufETHOFT, newPufETHOFT: newPufETHOFT });
+    }
+
+    /**
+     * @notice Sets the destination endpoint ID
+     * @param newDestinationEID The new destination endpoint ID
+     */
+    function setDestinationEID(uint32 newDestinationEID) external restricted {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        uint32 oldDestinationEID = $.destinationEID;
+        $.destinationEID = newDestinationEID;
+        emit DestinationEIDUpdated({ oldDestinationEID: oldDestinationEID, newDestinationEID: newDestinationEID });
     }
 
     /**
@@ -252,14 +292,25 @@ contract L2RewardManager is
         return $.claimingDelay;
     }
 
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getPufETHOFT() external view returns (address) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.pufETHOFT;
+    }
+
+    /**
+     * @inheritdoc IL2RewardManager
+     */
+    function getDestinationEID() external view returns (uint32) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.destinationEID;
+    }
+
     function _handleMintAndBridge(uint256 amount, bytes memory data) internal {
         L1RewardManagerStorage.MintAndBridgeData memory params =
             abi.decode(data, (L1RewardManagerStorage.MintAndBridgeData));
-
-        // Sanity check
-        if (amount != ((params.rewardsAmount * params.ethToPufETHRate) / 1 ether)) {
-            revert InvalidAmount();
-        }
 
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -349,14 +400,8 @@ contract L2RewardManager is
     /**
      * @notice Reverts the already frozen interval
      */
-    function _revertInterval(address bridge, uint256 startEpoch, uint256 endEpoch) internal {
+    function _revertInterval(uint256 startEpoch, uint256 endEpoch) internal {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        BridgeData memory bridgeData = $.bridges[bridge];
-
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
-        }
 
         bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
 
@@ -371,19 +416,24 @@ contract L2RewardManager is
             revert UnableToRevertInterval();
         }
 
-        XPUFETH.approve(bridge, epochRecord.pufETHAmount);
-
-        IBridgeInterface(bridge).xcall{ value: msg.value }({
-            destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: L1_REWARD_MANAGER, // Address of the target contract
-            asset: address(XPUFETH), // Address of the token contract
-            delegate: msg.sender, // Address that can revert or forceLocal on destination
-            amount: epochRecord.pufETHAmount, // Amount of tokens to transfer
-            slippage: 0, // Max slippage the user will accept in BPS (e.g. 300 = 3%)
-            callData: abi.encode(epochRecord) // Encoded data to send
-         });
-
+        // Delete the epoch record before to minimize re-entrancy
         delete $.epochRecords[intervalId];
+
+        // We bridge the pufETH back to the L1
+        // We don't need to approve since the oft is itself the pufETH token
+        IPufETH($.pufETHOFT).send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
+                to: bytes32(uint256(uint160(L1_REWARD_MANAGER))),
+                amountLD: epochRecord.pufETHAmount,
+                minAmountLD: 0,
+                extraOptions: bytes(""),
+                composeMsg: abi.encode(epochRecord),
+                oftCmd: bytes("")
+            }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            msg.sender // refundAddress
+        );
 
         emit ClaimingIntervalReverted({
             startEpoch: startEpoch,

@@ -68,6 +68,16 @@ interface IL2RewardManager {
     function isClaimingLocked(bytes32 intervalId) external view returns (bool);
 
     /**
+     * @notice Returns the pufETH OFT address
+     */
+    function getPufETHOFT() external view returns (address);
+
+    /**
+     * @notice Returns the destination endpoint ID
+     */
+    function getDestinationEID() external view returns (uint32);
+
+    /**
      * @notice Event emitted when rewards root and rate are posted
      * @param rewardsAmount The total rewards amount
      * @param ethToPufETHRate The exchange rate from ETH to pufETH
@@ -120,18 +130,25 @@ interface IL2RewardManager {
     event ClaimingDelayChanged(uint256 oldDelay, uint256 newDelay);
 
     /**
-     * @notice Event emitted when bridge data is updated.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
-     */
-    event BridgeDataUpdated(address indexed bridge, L2RewardManagerStorage.BridgeData bridgeData);
-
-    /**
      * @notice Emitted when the claiming interval is frozen
      * @param startEpoch The start epoch of the interval
      * @param endEpoch The end epoch of the interval
      */
     event ClaimingIntervalFrozen(uint256 startEpoch, uint256 endEpoch);
+
+    /**
+     * @notice Event emitted when the pufETH OFT address is updated
+     * @param oldPufETHOFT The old pufETH OFT address
+     * @param newPufETHOFT The new pufETH OFT address
+     */
+    event PufETHOFTUpdated(address indexed oldPufETHOFT, address indexed newPufETHOFT);
+
+    /**
+     * @notice Event emitted when the destination EID is updated
+     * @param oldDestinationEID The old destination EID
+     * @param newDestinationEID The new destination EID
+     */
+    event DestinationEIDUpdated(uint32 oldDestinationEID, uint32 newDestinationEID);
 
     /**
      * @notice Thrown if the `account` already claimed the rewards for the interval

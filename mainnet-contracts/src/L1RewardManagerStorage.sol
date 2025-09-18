@@ -36,15 +36,6 @@ abstract contract L1RewardManagerStorage {
     }
 
     /**
-     * @notice Data required for bridging.
-     * @param destinationDomainId The destination domain ID.
-     */
-    struct BridgeData {
-        // using struct to allow future addition to this
-        uint32 destinationDomainId;
-    }
-
-    /**
      * @custom:storage-location erc7201:l1rewardmanager.storage
      * @dev +-----------------------------------------------------------+
      *      |                                                           |
@@ -56,7 +47,22 @@ abstract contract L1RewardManagerStorage {
         uint104 allowedRewardMintAmount;
         uint104 allowedRewardMintFrequency;
         uint48 lastRewardMintTimestamp;
-        mapping(address bridge => BridgeData bridgeData) bridges;
+        /**
+         * @dev DEPRECATED: Unused bridge mapping, kept for storage layout compatibility
+         */
+        mapping(address bridge => uint32 deprecatedDestinationDomainId) _deprecatedBridges;
+        /**
+         * @notice The destination endpoint ID for LayerZero bridging
+         */
+        uint32 destinationEID;
+        /**
+         * @notice The last successfully processed interval end epoch
+         */
+        uint256 lastIntervalEndEpoch;
+        /**
+         * @notice The current interval end epoch being processed
+         */
+        uint256 currentIntervalEndEpoch;
     }
 
     // keccak256(abi.encode(uint256(keccak256("l1rewardmanager.storage")) - 1)) & ~bytes32(uint256(0xff))

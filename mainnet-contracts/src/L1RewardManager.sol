@@ -3,16 +3,16 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IXReceiver } from "@connext/interfaces/core/IXReceiver.sol";
-import { IXERC20Lockbox } from "./interface/IXERC20Lockbox.sol";
 import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
-import { IBridgeInterface } from "./interface/Connext/IBridgeInterface.sol";
 import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
+import { IOFT } from "./interface/LayerZero/IOFT.sol";
+import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
+import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
+import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 
 /**
  * @title L1RewardManager
@@ -20,33 +20,36 @@ import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.
  * @custom:security-contact security@puffer.fi
  */
 contract L1RewardManager is
-    IXReceiver,
     IL1RewardManager,
     L1RewardManagerStorage,
     AccessManagedUpgradeable,
-    UUPSUpgradeable
+    UUPSUpgradeable,
+    IOAppComposer
 {
-    /**
-     * @notice The XPUFETH token contract on Ethereum Mainnet
-     */
-    IERC20 public immutable XPUFETH;
+    using OptionsBuilder for bytes;
+
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
      */
     PufferVaultV5 public immutable PUFFER_VAULT;
+
     /**
-     * @notice The XERC20Lockbox contract on Ethereum Mainnet
+     * @notice The pufETH OFT address for singleton design
+     * @dev Immutable since it is known at deployment time on L1 and cannot be changed afterwards
      */
-    IXERC20Lockbox public immutable LOCKBOX;
+    IOFT public immutable PUFETH_OFT;
+
     /**
      * @notice The Rewards Manager contract on L2
      */
     address public immutable L2_REWARDS_MANAGER;
 
-    constructor(address xPufETH, address lockbox, address pufETH, address l2RewardsManager) {
-        XPUFETH = IERC20(xPufETH);
-        LOCKBOX = IXERC20Lockbox(lockbox);
+    constructor(address pufETH, address l2RewardsManager, address pufETH_OFT) {
+        if (pufETH == address(0) || l2RewardsManager == address(0) || pufETH_OFT == address(0)) {
+            revert InvalidAddress();
+        }
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
+        PUFETH_OFT = IOFT(payable(pufETH_OFT));
         L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }
@@ -59,46 +62,49 @@ contract L1RewardManager is
     /**
      * @inheritdoc IL1RewardManager
      */
-    function setL2RewardClaimer(address bridge, address claimer) external payable {
+    function setL2RewardClaimer(address claimer) external payable {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
-        BridgeData memory bridgeData = $.bridges[bridge];
+        bytes memory options =
+            OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0).addExecutorLzComposeOption(0, 50000, 0);
 
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
-        }
-
-        // msg.value is used to pay for the relayer fee on the destination chain
-        IBridgeInterface(bridge).xcall{ value: msg.value }({
-            destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: L2_REWARDS_MANAGER, // Address of the target contract on the destination chain
-            delegate: claimer, // Address that can revert on destination
-            asset: address(0), // Address of the token contract
-            amount: 0, // We don't transfer any tokens
-            slippage: 0, // No slippage
-            callData: abi.encode(
-                BridgingParams({
-                    bridgingType: BridgingType.SetClaimer,
-                    data: abi.encode(SetClaimerParams({ account: msg.sender, claimer: claimer }))
-                })
-            ) // Encoded data to bridge to the target contract
-         });
-
+        PUFETH_OFT.send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
+                to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
+                amountLD: 0,
+                minAmountLD: 0,
+                extraOptions: options,
+                composeMsg: abi.encode(
+                    BridgingParams({
+                        bridgingType: BridgingType.SetClaimer,
+                        data: abi.encode(SetClaimerParams({ account: msg.sender, claimer: claimer }))
+                    })
+                ),
+                oftCmd: bytes("")
+            }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            msg.sender // refundAddress
+        );
         emit L2RewardClaimerUpdated(msg.sender, claimer);
     }
 
     /**
-     * @notice Mints pufETH, converts it to xPufETH and bridges it to the L2RewardsClaimer contract on L2 according to the provided parameters.
+     * @notice Mints pufETH, locks into the pufETHAdapter and bridges it to the L2RewardManager contract on L2 according to the provided parameters.
      * @dev Restricted access to `ROLE_ID_OPERATIONS_PAYMASTER`
      *
-     * The bridge must be allowlisted in the contract and the amount must be less than the allowed mint amount.
+     * The oft must be allowlisted in the contract and the amount must be less than the allowed mint amount.
      * The minting can be done at most once per allowed frequency.
      *
-     * This action can be reverted by the L2RewardsClaimer contract on L2.
-     * The l2RewradClaimer can revert this action by bridging back the assets to this contract (see xReceive).
+     * This action can be reverted by the L2RewardManager contract on L2.
+     * The L2RewardManager can revert this action by bridging back the assets to this contract (see lzCompose).
      */
     function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        if (params.rewardsRoot == bytes32(0)) {
+            revert InvalidRewardsRoot();
+        }
 
         if (params.rewardsAmount > $.allowedRewardMintAmount) {
             revert InvalidMintAmount();
@@ -108,22 +114,24 @@ contract L1RewardManager is
             revert NotAllowedMintFrequency();
         }
 
-        BridgeData memory bridgeData = $.bridges[params.bridge];
-        if (bridgeData.destinationDomainId == 0) {
-            revert BridgeNotAllowlisted();
+        // Update lastIntervalEndEpoch to the previous currentIntervalEndEpoch
+        $.lastIntervalEndEpoch = $.currentIntervalEndEpoch;
+
+        // Check that startEpoch is greater than the last processed end epoch
+        if (params.startEpoch <= $.lastIntervalEndEpoch) {
+            revert InvalidStartEpoch();
         }
+
+        // Update current interval end epoch
+        $.currentIntervalEndEpoch = params.endEpoch;
 
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
 
-        // Mint the rewards and deposit them into the lockbox
+        // Mint the rewards and lock them into the pufETHAdapter to be bridged to L2
         (uint256 ethToPufETHRate, uint256 shares) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
 
-        PUFFER_VAULT.approve(address(LOCKBOX), shares);
-        LOCKBOX.deposit(shares);
-
-        // This contract approves transfer to the bridge
-        XPUFETH.approve(address(params.bridge), shares);
+        PUFFER_VAULT.approve(address(PUFETH_OFT), shares);
 
         MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
             rewardsAmount: params.rewardsAmount,
@@ -134,18 +142,24 @@ contract L1RewardManager is
             rewardsURI: params.rewardsURI
         });
 
-        // we use value to pay for the relayer fee on the destination chain
-        IBridgeInterface(params.bridge).xcall{ value: msg.value }({
-            destination: bridgeData.destinationDomainId, // Domain ID of the destination chain
-            to: L2_REWARDS_MANAGER, // Address of the target contract on the destination chain
-            asset: address(XPUFETH), // We are bridging xPufETH
-            delegate: msg.sender, // Address that can revert or forceLocal on destination
-            amount: shares, // Amount of xPufETH to bridge
-            slippage: 0, // No slippage
-            callData: abi.encode(
-                BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) })
-            ) // Encoded data to send
-         });
+        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0) // Gas for lzReceive
+            .addExecutorLzComposeOption(0, 50000, 0); // Gas for lzCompose
+
+        PUFETH_OFT.send{ value: msg.value }(
+            IOFT.SendParam({
+                dstEid: $.destinationEID,
+                to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
+                amountLD: shares,
+                minAmountLD: 0,
+                extraOptions: options,
+                composeMsg: abi.encode(
+                    BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) })
+                ),
+                oftCmd: bytes("")
+            }),
+            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
+            msg.sender // refundAddress
+        );
 
         emit MintedAndBridgedRewards({
             rewardsAmount: params.rewardsAmount,
@@ -158,68 +172,62 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice This contract receives XPufETH from the L2RewardManager via the bridge, unwraps it to pufETH and then burns the pufETH, reverting the original mintAndBridge call
-     * @dev Restricted access to `ROLE_ID_BRIDGE`
+     * @notice Handles incoming composed messages from LayerZero Endpoint on L1
+     * @notice Revert the original mintAndBridge call
+     * @dev Ensures the message comes from the correct OApp and is sent through the authorized endpoint.
+     * @dev Restricted to the LayerZero Endpoint contract on L1
+     *
+     * @param oft The address of the pufETH OFTAdapter that is sending the composed message.
+     * @param message The calldata received from L2RewardManager.
      */
-    function xReceive(bytes32, uint256, address, address originSender, uint32 originDomainId, bytes calldata callData)
-        external
-        override(IXReceiver)
-        restricted
-        returns (bytes memory)
-    {
-        // The call must originate from the L2_REWARDS_MANAGER
-        if (originSender != address(L2_REWARDS_MANAGER)) {
+    function lzCompose(
+        address oft,
+        bytes32, /* _guid */
+        bytes calldata message,
+        address, /* _executor */
+        bytes calldata /* _extraData */
+    ) external payable override restricted {
+        // Ensure that only the whitelisted pufETH OFT can call this function
+        if (oft != address(PUFETH_OFT)) {
             revert Unauthorized();
         }
 
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        // Decode the OFT compose message to extract the original sender and validate authenticity
+        bytes32 composeFrom = OFTComposeMsgCodec.composeFrom(message);
+        bytes memory actualMessage = OFTComposeMsgCodec.composeMsg(message);
 
-        if ($.bridges[msg.sender].destinationDomainId != originDomainId) {
+        // Validate that the original sender is our legitimate L2RewardManager
+        address originalSender = address(uint160(uint256(composeFrom)));
+        if (originalSender != L2_REWARDS_MANAGER) {
             revert Unauthorized();
         }
 
-        // We decode the data to get the amount of shares(pufETH) and the ETH amount.
+        // We decode the actual message to get the amount of shares(pufETH) and the ETH amount.
         L2RewardManagerStorage.EpochRecord memory epochRecord =
-            abi.decode(callData, (L2RewardManagerStorage.EpochRecord));
+            abi.decode(actualMessage, (L2RewardManagerStorage.EpochRecord));
 
-        XPUFETH.approve(address(LOCKBOX), epochRecord.pufETHAmount);
-        // get the pufETH
-        LOCKBOX.withdraw(epochRecord.pufETHAmount);
-
+        // This contract has already received the pufETH from pufETHAdapter after bridging back to L1
         // The PufferVault will burn the pufETH from this contract and subtract the ETH amount from the ethRewardsAmount
         PUFFER_VAULT.revertMintRewards({ pufETHAmount: epochRecord.pufETHAmount, ethAmount: epochRecord.ethAmount });
 
+        // When reverted, set current end epoch back to last end epoch
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        $.currentIntervalEndEpoch = $.lastIntervalEndEpoch;
+
+        // We emit the event to the L1RewardManager contract
         emit RevertedRewards({
             rewardsAmount: epochRecord.ethAmount,
             startEpoch: epochRecord.startEpoch,
             endEpoch: epochRecord.endEpoch,
             rewardsRoot: epochRecord.rewardRoot
         });
-
-        return "";
     }
-
-    /**
-     * @notice Updates the bridge data.
-     * @param bridge The address of the bridge.
-     * @param bridgeData The updated bridge data.
-     * @dev Restricted access to `ROLE_ID_DAO`
-     */
-    function updateBridgeData(address bridge, BridgeData calldata bridgeData) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        if (bridge == address(0)) {
-            revert InvalidAddress();
-        }
-
-        $.bridges[bridge].destinationDomainId = bridgeData.destinationDomainId;
-        emit BridgeDataUpdated(bridge, bridgeData);
-    }
-
     /**
      * @notice Sets the allowed reward mint amount.
      * @param newAmount The new allowed reward mint amount.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
+
     function setAllowedRewardMintAmount(uint104 newAmount) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -238,14 +246,37 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice Returns the bridge data for a given bridge.
-     * @param bridge The address of the bridge.
-     * @return The bridge data.
+     * @notice Sets the destination endpoint ID
+     * @param newDestinationEID The new destination endpoint ID
      */
-    function getBridge(address bridge) external view returns (BridgeData memory) {
+    function setDestinationEID(uint32 newDestinationEID) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
+        emit DestinationEIDUpdated({ oldDestinationEID: $.destinationEID, newDestinationEID: newDestinationEID });
+        $.destinationEID = newDestinationEID;
+    }
 
-        return $.bridges[bridge];
+    /**
+     * @notice Returns the destination endpoint ID
+     */
+    function getDestinationEID() external view returns (uint32) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.destinationEID;
+    }
+
+    /**
+     * @notice Returns the last successfully processed interval end epoch
+     */
+    function getLastIntervalEndEpoch() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.lastIntervalEndEpoch;
+    }
+
+    /**
+     * @notice Returns the current interval end epoch being processed
+     */
+    function getCurrentIntervalEndEpoch() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.currentIntervalEndEpoch;
     }
 
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {

@@ -98,7 +98,7 @@ jobs:
 
       - name: "Generate the coverage report"
         working-directory: l2-contracts
-        run: 'export FOUNDRY_PROFILE=ci && forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv'
+        run: 'export FOUNDRY_PROFILE=ci && forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv --ir-minimum'
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v4"

@@ -59,7 +59,7 @@ contract DeployApechainXpufETH is DeployerHelper {
 
         // setup the limits for the bridge
         bytes memory setLimitsCalldata =
-            abi.encodeWithSelector(xPufETH.setLimits.selector, _getEverclear(), MINTING_LIMIT, BURNING_LIMIT);
+            abi.encodeWithSelector(xPufETH.setLimits.selector, _getDeprecatedEverclear(), MINTING_LIMIT, BURNING_LIMIT);
 
         accessManager.execute(address(xPufETHProxy), setLimitsCalldata);
 

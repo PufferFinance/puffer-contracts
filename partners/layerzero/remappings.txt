@@ -1,0 +1,10 @@
+forge-std/=node_modules/forge-std/src/
+@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@layerzerolabs/oft-evm/=node_modules/@layerzerolabs/oft-evm/
+@layerzerolabs/lz-evm-protocol-v2/=node_modules/@layerzerolabs/lz-evm-protocol-v2/
+@layerzerolabs/test-devtools-evm-foundry/=node_modules/@layerzerolabs/test-devtools-evm-foundry/
+@layerzerolabs/lz-evm-messagelib-v2/=node_modules/@layerzerolabs/lz-evm-messagelib-v2/
+@layerzerolabs/oapp-evm/=node_modules/@layerzerolabs/oapp-evm/
+@layerzerolabs/lz-evm-v1-0.7/=node_modules/@layerzerolabs/lz-evm-v1-0.7/
+solidity-bytes-utils/=node_modules/solidity-bytes-utils/

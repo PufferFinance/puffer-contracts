@@ -25,12 +25,14 @@ import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
-import { xPufETH } from "src/l2/xPufETH.sol";
-import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
+// import { xPufETH } from "src/l2/xPufETH.sol";
+// import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
-import { ConnextMock } from "../mocks/ConnextMock.sol";
+// import { ConnextMock } from "../mocks/ConnextMock.sol";
+import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
+import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_PAYMASTER,
@@ -104,12 +106,16 @@ contract UnitTestHelper is Test, BaseScript {
     AVSContractsRegistry public avsContractsRegistry;
     RestakingOperatorController public restakingOperatorController;
     ValidatorTicketPricer public validatorTicketPricer;
-    xPufETH public xpufETH;
-    XERC20Lockbox public lockBox;
+    // xPufETH public xpufETH;
+    // XERC20Lockbox public lockBox;
     L1RewardManager public l1RewardManager;
     L2RewardManager public l2RewardManager;
     PufferRevenueDepositor public revenueDepositor;
-    ConnextMock public connext;
+    // pufETH public pufETHOFT;
+    // pufETHAdapter public pufETHOFTAdapter;
+    address public layerzeroL1Endpoint;
+    address public layerzeroL2Endpoint;
+    // ConnextMock public connext;
 
     address public DAO = makeAddr("DAO");
     address public PAYMASTER = makeAddr("PUFFER_PAYMASTER"); // 0xA540f91Fb840381BCCf825a16A9fbDD0a19deFB1
@@ -214,12 +220,16 @@ contract UnitTestHelper is Test, BaseScript {
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));
         restakingOperatorController = RestakingOperatorController(payable(pufferDeployment.restakingOperatorController));
-        xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
-        lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
+        // xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
+        // lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
         l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
-        connext = ConnextMock(payable(bridgingDeployment.connext));
+        // connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
+        // pufETHOFT = pufETH(payable(bridgingDeployment.pufETHOFT));
+        // pufETHOFTAdapter = pufETHAdapter(payable(bridgingDeployment.pufETHOFTAdapter));
+        layerzeroL1Endpoint = bridgingDeployment.layerzeroL1Endpoint;
+        layerzeroL2Endpoint = bridgingDeployment.layerzeroL2Endpoint;
 
         // pufETH dependencies
         pufferVault = PufferVaultV5(payable(pufferDeployment.pufferVault));

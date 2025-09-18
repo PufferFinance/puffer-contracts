@@ -1,0 +1,6 @@
+module.exports = [
+    'PUFFER',
+    'PUFFER',
+    '0x1a44076050125825900e736c501f859c50fE728c',
+    '0x1BfAec64abFddcC8c5dA134880d1E71f3E03689E',
+]
