@@ -8,6 +8,7 @@ import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { XERC20Lockbox } from "../src/XERC20Lockbox.sol";
+import { GenerateRewardManagerCalldata } from "./AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 /**
  * @dev
  * To run the simulation do the following:
@@ -17,46 +18,33 @@ import { XERC20Lockbox } from "../src/XERC20Lockbox.sol";
  */
 
 contract UpgradeL2RewardManager is DeployerHelper {
-    address l1RewardManagerProxy = address(0x016810D99Bdec8F8D26646b6B74D751f7b1a55a2);
-    address l2RewardsManagerProxy = address(0xF7cd14c371bF9bE0BD2F210d72aF597da493F96C);
-    address l1PufferVault;
+    address l1RewardManagerProxy = address(0x157788cc028Ac6405bD406f2D1e0A8A22b3cf17b);
+    address l2RewardsManagerProxy = _getL2RewardsManager();
+
+    bytes public upgradeCallData;
+    bytes public accessManagerCallData;
 
     function run() public {
-        vm.createSelectFork(vm.rpcUrl("sepolia"));
+        GenerateRewardManagerCalldata calldataGenerator = new GenerateRewardManagerCalldata();
 
         vm.startBroadcast();
-        // Load addresses for Sepolia
-        _getDeployer();
 
-        //deploy new LockBox contract if needed
-        // XERC20Lockbox lockbox = new XERC20Lockbox({
-        //     xerc20: xPufETH,
-        //     erc20: pufferVault
-        // });
-
-        // L1RewardManager
-        L1RewardManager l1RewardManagerImpl = new L1RewardManager(
-            _getPufferVault(), // pufETH
-            l2RewardsManagerProxy, // l2RewardsManager
-            _getPufETHOFTAdapter() // pufETH_OFT
-        );
-        vm.label(address(l1RewardManagerImpl), "l1RewardManagerImpl");
-
-        // For testnet, the deployer can execute the upgrade
-        UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(address(l1RewardManagerImpl), "");
-        vm.stopBroadcast();
-
-        // Upgrade stuff on L2
-        vm.createSelectFork(vm.rpcUrl("opsepolia"));
-        vm.startBroadcast();
-        // Load addresses for Sepolia
         _getDeployer();
 
         L2RewardManager newImplementation =
             new L2RewardManager(address(l1RewardManagerProxy), address(_getDeprecatedXPufETH())); // L1 proxy address
+        vm.label(address(newImplementation), "L2RewardManagerImplementation");
         console.log("L2RewardManager Implementation", address(newImplementation));
 
-        UUPSUpgradeable(l2RewardsManagerProxy).upgradeToAndCall(address(newImplementation), "");
+        upgradeCallData = abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newImplementation), ""));
+        console.log("Queue TX From Timelock to -> l2RewardsManagerProxy", l2RewardsManagerProxy);
+        console.logBytes(upgradeCallData);
+        console.log("================================================");
+        accessManagerCallData = calldataGenerator.generateL2Calldata(address(l2RewardsManagerProxy), _getLayerZeroV2Endpoint());
+
+        console.log("Queue from Timelock -> AccessManager", _getAccessManager());
+        console.logBytes(accessManagerCallData);
+
         vm.stopBroadcast();
     }
 }

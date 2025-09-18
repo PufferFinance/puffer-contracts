@@ -512,6 +512,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x1a44076050125825900e736c501f859c50fE728c
             return 0x1a44076050125825900e736c501f859c50fE728c;
+        } else if (block.chainid == base) {
+            // https://basescan.org/address/0x1a44076050125825900e736c501f859c50fE728c
+            return 0x1a44076050125825900e736c501f859c50fE728c;
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x6EDCE65403992e310A62460808c4b910D972f10f
             return 0x6EDCE65403992e310A62460808c4b910D972f10f;
@@ -628,5 +631,23 @@ abstract contract DeployerHelper is Script {
         }
 
         revert("RevenueDepositor not available for this chain");
+    }
+
+    function _getL1RewardManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x157788cc028Ac6405bD406f2D1e0A8A22b3cf17b
+            return 0x157788cc028Ac6405bD406f2D1e0A8A22b3cf17b;
+        }
+
+        revert("L1RewardManager not available for this chain");
+    }
+
+    function _getL2RewardsManager() internal view returns (address) {
+        if (block.chainid == base) {
+            // https://basescan.org/address/0xF9Dd335bF363b2E4ecFe3c94A86EBD7Dd3Dcf0e7
+            return 0xF9Dd335bF363b2E4ecFe3c94A86EBD7Dd3Dcf0e7;
+        }
+
+        revert("L2RewardsManager not available for this chain");
     }
 }

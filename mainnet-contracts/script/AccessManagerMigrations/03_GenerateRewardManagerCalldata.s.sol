@@ -32,13 +32,8 @@ contract GenerateRewardManagerCalldata is Script {
      * @param l1Bridge The LayerZero V2 endpoint address on L1/source chain.
      * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
      */
-    function generateL1Calldata(
-        address l1RewardManagerProxy,
-        address l1Bridge,
-        address pufferVaultProxy,
-        address pufferModuleManagerProxy
-    ) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](9);
+    function generateL1Calldata(address l1RewardManagerProxy, address l1Bridge) public pure returns (bytes memory) {
+        bytes[] memory calldatas = new bytes[](4);
 
         bytes4[] memory paymasterSelectors = new bytes4[](1);
         paymasterSelectors[0] = L1RewardManager.mintAndBridgeRewards.selector;
@@ -66,40 +61,6 @@ contract GenerateRewardManagerCalldata is Script {
 
         calldatas[3] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, daoSelectors, ROLE_ID_DAO
-        );
-
-        bytes4[] memory vaultSelectors = new bytes4[](2);
-        vaultSelectors[0] = PufferVaultV5.mintRewards.selector;
-        vaultSelectors[1] = PufferVaultV5.revertMintRewards.selector;
-        calldatas[4] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferVaultProxy, vaultSelectors, ROLE_ID_L1_REWARD_MANAGER
-        );
-
-        calldatas[5] =
-            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_L1_REWARD_MANAGER, l1RewardManagerProxy, 0);
-
-        bytes4[] memory pufferModuleManagerSelectors = new bytes4[](1);
-        pufferModuleManagerSelectors[0] = PufferVaultV5.depositRewards.selector;
-
-        calldatas[6] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferVaultProxy,
-            pufferModuleManagerSelectors,
-            ROLE_ID_VAULT_WITHDRAWER
-        );
-
-        calldatas[7] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_VAULT_WITHDRAWER, pufferModuleManagerProxy, 0
-        );
-
-        bytes4[] memory paymasterSelectorsOnModuleManager = new bytes4[](1);
-        paymasterSelectorsOnModuleManager[0] = PufferModuleManager.transferRewardsToTheVault.selector;
-
-        calldatas[8] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferModuleManagerProxy,
-            paymasterSelectorsOnModuleManager,
-            ROLE_ID_OPERATIONS_PAYMASTER
         );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));

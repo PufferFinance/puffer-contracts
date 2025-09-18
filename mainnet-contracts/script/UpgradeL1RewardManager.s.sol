@@ -6,6 +6,7 @@ import { stdJson } from "forge-std/StdJson.sol";
 import { L1RewardManager } from "../src/L1RewardManager.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { GenerateRewardManagerCalldata } from "./AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 /**
  * @dev
  * To run the simulation do the following:
@@ -15,22 +16,18 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  */
 
 contract UpgradeL1RewardManager is DeployerHelper {
-    address l1RewardManagerProxy = address(0x10f970bcb84B82B82a65eBCbF45F26dD26D69F12);
-    address l2RewardsManagerProxy = address(0xF7cd14c371bF9bE0BD2F210d72aF597da493F96C);
-    address l1PufferVault;
+    address l1RewardManagerProxy = _getL1RewardManager();
+    address l2RewardsManagerProxy = address(0xF9Dd335bF363b2E4ecFe3c94A86EBD7Dd3Dcf0e7);
+
+    bytes public upgradeCallData;
+    bytes public accessManagerCallData;
 
     function run() public {
-        vm.createSelectFork(vm.rpcUrl("sepolia"));
+        GenerateRewardManagerCalldata calldataGenerator = new GenerateRewardManagerCalldata();
 
         vm.startBroadcast();
-        // Load addresses for Sepolia
+        // Load addresses for Mainnet
         _getDeployer();
-
-        //deploy new LockBox contract if needed
-        // XERC20Lockbox lockbox = new XERC20Lockbox({
-        //     xerc20: xPufETH,
-        //     erc20: pufferVault
-        // });
 
         // L1RewardManager
         L1RewardManager l1RewardManagerImpl = new L1RewardManager(
@@ -40,21 +37,17 @@ contract UpgradeL1RewardManager is DeployerHelper {
         );
         vm.label(address(l1RewardManagerImpl), "l1RewardManagerImpl");
 
-        // For testnet, the deployer can execute the upgrade
-        UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(address(l1RewardManagerImpl), "");
-        vm.stopBroadcast();
+        // For mainnet, we need to prepare calldata so that we can call timelock to upgrade
+        // Upgrade on mainnet
+        upgradeCallData = abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(l1RewardManagerImpl), ""));
+        console.log("Queue TX From Timelock to -> l1RewardManagerProxy", l1RewardManagerProxy);
+        console.logBytes(upgradeCallData);
+        console.log("================================================");
+        accessManagerCallData = calldataGenerator.generateL1Calldata(address(l1RewardManagerProxy), _getLayerZeroV2Endpoint());
 
-        // Upgrade stuff on L2
-        vm.createSelectFork(vm.rpcUrl("opsepolia"));
-        vm.startBroadcast();
-        // Load addresses for Sepolia
-        _getDeployer();
+        console.log("Queue from Timelock -> AccessManager", _getAccessManager());
+        console.logBytes(accessManagerCallData);
 
-        L1RewardManager newImplementation =
-            new L1RewardManager(_getPufferVault(), address(l1RewardManagerProxy), _getPufETHOFTAdapter()); // L1 proxy address
-        console.log("L1RewardManager Implementation", address(newImplementation));
-
-        UUPSUpgradeable(l1RewardManagerProxy).upgradeToAndCall(address(newImplementation), "");
         vm.stopBroadcast();
     }
 }
