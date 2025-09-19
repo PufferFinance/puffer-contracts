@@ -7,15 +7,17 @@ import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.
 import { IL1RewardManager } from "../../src/interface/IL1RewardManager.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
-
+import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { L1RewardManagerStorage } from "../../src/L1RewardManagerStorage.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import {
     ROLE_ID_DAO,
     PUBLIC_ROLE,
     ROLE_ID_BRIDGE,
     ROLE_ID_L1_REWARD_MANAGER,
-    ROLE_ID_OPERATIONS_PAYMASTER
+    ROLE_ID_OPERATIONS_PAYMASTER,
+    ROLE_ID_VAULT_WITHDRAWER
 } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
 import { GenerateRewardManagerCalldata } from
@@ -131,17 +133,29 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         console.log("l2RewardManagerProxy", address(l2RewardManagerProxy));
         console.log("l1RewardManagerImpl", address(l1RewardManagerImpl));
 
-        // bytes4[] memory xpufETHselectors = new bytes4[](3);
-        // xpufETHselectors[0] = xPufETH.mint.selector;
-        // xpufETHselectors[1] = xPufETH.burn.selector;
-
-        // bytes4[] memory xpufETHDAOselectors = new bytes4[](2);
-        // xpufETHDAOselectors[0] = xPufETH.setLimits.selector;
-        // xpufETHDAOselectors[1] = xPufETH.setLockbox.selector;
-
         vm.startPrank(_broadcaster);
-        // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
-        // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
+
+        bytes4[] memory mintRewardsSelectors = new bytes4[](2);
+        mintRewardsSelectors[0] = PufferVaultV5.mintRewards.selector;
+        mintRewardsSelectors[1] = PufferVaultV5.revertMintRewards.selector;
+
+        accessManager.setTargetFunctionRole(address(pufferVault), mintRewardsSelectors, ROLE_ID_L1_REWARD_MANAGER);
+        accessManager.grantRole(ROLE_ID_L1_REWARD_MANAGER, address(l1RewardManager), 0);
+
+        bytes4[] memory paymasterSelectors = new bytes4[](1);
+        paymasterSelectors[0] = PufferModuleManager.transferRewardsToTheVault.selector;
+
+        accessManager.setTargetFunctionRole(
+            address(pufferModuleManager), paymasterSelectors, ROLE_ID_OPERATIONS_PAYMASTER
+        );
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+
+        bytes4[] memory pmmSelectors = new bytes4[](1);
+        pmmSelectors[0] = PufferVaultV5.depositRewards.selector;
+
+        accessManager.setTargetFunctionRole(address(pufferVault), pmmSelectors, ROLE_ID_VAULT_WITHDRAWER);
+        accessManager.grantRole(ROLE_ID_VAULT_WITHDRAWER, address(pufferModuleManager), 0);
+
         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
             address(l1RewardManager), address(layerzeroL1Endpoint)
         );
@@ -150,13 +164,9 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
         vm.label(address(l1RewardManager), "L1RewardManager");
 
-        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
-
         vm.stopPrank();
 
         vm.startPrank(DAO);
-        // xpufETH.setLockbox(address(lockBox));
-        // xpufETH.setLimits(address(connext), 1000 ether, 1000 ether);
 
         // Set destination EID
         l1RewardManager.setDestinationEID(dstEid);

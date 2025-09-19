@@ -27,9 +27,9 @@ build_info = true
 useLiteralContent = false
 optimizer = true
 optimizer_runs = 200
-evm_version = "cancun" # is live on mainnet
+evm_version = "prague" # is live on mainnet
 seed = "0x1337"
-solc = "0.8.28"
+solc = "0.8.30"
 # via_ir = true
 
 [fmt]

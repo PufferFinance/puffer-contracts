@@ -176,9 +176,8 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
             address(l1RewardManagerImpl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager)))
         );
 
-        bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-            address(l1RewardManager), address(endpoints[srcEid]), address(pufferVault), address(0)
-        );
+        bytes memory cd =
+            new GenerateRewardManagerCalldata().generateL1Calldata(address(l1RewardManager), address(endpoints[srcEid]));
 
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed access manager 1");
