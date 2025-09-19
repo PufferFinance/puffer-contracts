@@ -10,7 +10,7 @@
 [discord]: https://discord.gg/pufferfi
 [docs-badge]: https://img.shields.io/badge/DOCS-8A2BE2
 [docs]: https://docs.puffer.fi/
-[discord-badge]: https://dcbadge.vercel.app/api/server/pufferfi?style=flat
+[discord-badge]: https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white
 [gha]: https://github.com/PufferFinance/PufferPool/actions
 [gha-badge]: https://github.com/PufferFinance/PufferPool/actions/workflows/ci.yml/badge.svg
 [foundry]: https://getfoundry.sh
@@ -69,10 +69,12 @@ For more detailed information on the contract deployments (Mainnet, Holesky, etc
   - [ValidatorTicket upgrade & PufferRevenueDepositor](./audits/BlockSec%20-%20VT%20upgrade%20&%20PufferRevenueDepositor.pdf)
   - [1 Step Withdrawal Fee Rework](./audits/BlockSec%20-%201-Step%20Withdrawal%20Fee%20Rework.pdf)
 - SlowMist:
-  - [pufETH V1](./audits/SlowMist-pufETH-v1.pdf)
-  - [pufETH V2 & PufferProtocol](./audits/SlowMist%20-%20pufETHV2%20&%20PufferProtocol.pdf)
-  - [Puffer L2 Staking](./audits/SlowMist%20-%20Puffer%20L2%20Staking.pdf)
-  - [Puffer Point Token Wrapper](./audits/SlowMist%20-%20Puffer%20Point%20Token%20Wrapper.pdf)
+    - [Carrot Vesting contract](./audits/Vesting%20Contract%20-%20SlowMist%20Audit%20Report.pdf)
+    - [Rewards Contract](./audits/Rewards%20Contract%20-%20SlowMist%20Audit%20Report.pdf)
+    - [pufETH V1](./audits/SlowMist-pufETH-v1.pdf)
+    - [pufETH V2 & PufferProtocol](./audits/SlowMist%20-%20pufETHV2%20&%20PufferProtocol.pdf)
+    - [Puffer L2 Staking](./audits/SlowMist%20-%20Puffer%20L2%20Staking.pdf)
+    - [Puffer Point Token Wrapper](./audits/SlowMist%20-%20Puffer%20Point%20Token%20Wrapper.pdf)
 - Nethermind: [pufETH V2 & PufferProtocol](https://github.com/NethermindEth/PublicAuditReports/blob/main/NM0202-FINAL_PUFFER.pdf)
 - Creed: [pufETH V2 & PufferProtocol](https://github.com/PufferFinance/PufferPool/blob/polish-docs/docs/audits/Creed_Puffer_Finance_Audit_April2024.pdf)
 - Quantstamp: [pufETH V1](./audits/Quantstamp-pufETH-v1.pdf)

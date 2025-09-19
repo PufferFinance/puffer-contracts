@@ -143,7 +143,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHDAOselectors, ROLE_ID_DAO);
         // accessManager.setTargetFunctionRole(address(xpufETH), xpufETHselectors, PUBLIC_ROLE);
         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-            address(l1RewardManager), address(layerzeroL1Endpoint), address(pufferVault), address(pufferModuleManager)
+            address(l1RewardManager), address(layerzeroL1Endpoint)
         );
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateRewardManagerCalldata");
