@@ -8,9 +8,9 @@ block_number = 0 # Our RAVE evidence is generated for blockhash(0) which is byte
 fs_permissions = [{ access = "read-write", path = "./"}]
 optimizer = true
 optimizer_runs = 200
-evm_version = "cancun" # is live on mainnet
+evm_version = "prague" # is live on mainnet
 seed = "0x1337"
-solc = "0.8.26"
+solc = "0.8.30"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
