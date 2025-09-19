@@ -177,7 +177,7 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         );
 
         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-            address(l1RewardManager), address(endpoints[srcEid]), address(pufferVault), address(0)
+            address(l1RewardManager), address(endpoints[srcEid])
         );
 
         (bool s,) = address(accessManager).call(cd);
