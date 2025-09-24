@@ -783,6 +783,173 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         assertEq(address(withdrawalManager).balance, 0, "WithdrawalManager should have 0 ETH");
     }
 
+    function test_cancelWithdrawal() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+        _givePufETH(depositAmount, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), alice);
+        vm.stopPrank();
+
+        uint256 withdrawalIdx = batchSize; // First withdrawal after the initial empty batch
+        uint256 aliceBalanceBefore = pufferVault.balanceOf(alice);
+
+        // Cancel the withdrawal
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferWithdrawalManager.WithdrawalCancelled(withdrawalIdx, depositAmount, alice);
+        withdrawalManager.cancelWithdrawal(withdrawalIdx);
+
+        // Check that pufETH was returned to alice
+        assertEq(pufferVault.balanceOf(alice), aliceBalanceBefore + depositAmount, "Alice should receive pufETH back");
+
+        // Check that withdrawal data was cleared
+        PufferWithdrawalManagerStorage.Withdrawal memory withdrawal = withdrawalManager.getWithdrawal(withdrawalIdx);
+        assertEq(withdrawal.recipient, address(0), "Withdrawal recipient should be cleared");
+        assertEq(withdrawal.pufETHAmount, 0, "Withdrawal amount should be cleared");
+    }
+
+    function test_cancelWithdrawal_doesNotExist() public {
+        vm.prank(alice);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalDoesNotExist.selector);
+        withdrawalManager.cancelWithdrawal(999);
+    }
+
+    function test_cancelWithdrawal_alreadyCompleted() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // Fill the batch completely before finalizing
+        for (uint256 i = 0; i < batchSize; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        uint256 withdrawalIdx = batchSize;
+
+        // Finalize and complete the withdrawal first
+        vm.prank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+
+        vm.prank(alice);
+        withdrawalManager.completeQueuedWithdrawal(withdrawalIdx);
+
+        // Try to cancel the already completed withdrawal
+        vm.prank(alice);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAlreadyCompleted.selector);
+        withdrawalManager.cancelWithdrawal(withdrawalIdx);
+    }
+
+    function test_cancelWithdrawal_alreadyFinalized() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // Fill the batch completely before finalizing
+        for (uint256 i = 0; i < batchSize; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        uint256 withdrawalIdx = batchSize;
+
+        // Finalize the batch
+        vm.prank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+
+        // Try to cancel the finalized withdrawal
+        vm.prank(alice);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAlreadyFinalized.selector);
+        withdrawalManager.cancelWithdrawal(withdrawalIdx);
+    }
+
+    function test_cancelWithdrawal_notOwner() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+        _givePufETH(depositAmount, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), alice);
+        vm.stopPrank();
+
+        uint256 withdrawalIdx = batchSize;
+
+        // Try to cancel someone else's withdrawal
+        vm.prank(bob);
+        vm.expectRevert(IPufferWithdrawalManager.NotWithdrawalOwner.selector);
+        withdrawalManager.cancelWithdrawal(withdrawalIdx);
+    }
+
+    function test_cancelWithdrawal_updatesBatch() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+        _givePufETH(depositAmount, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), alice);
+        vm.stopPrank();
+
+        uint256 withdrawalIdx = batchSize;
+        uint256 batchIdx = withdrawalIdx / batchSize;
+
+        // Check initial batch state
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchBefore = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchBefore.toBurn, depositAmount, "Initial toBurn should be depositAmount");
+        assertGt(batchBefore.toTransfer, 0, "Initial toTransfer should be > 0");
+
+        // Cancel the withdrawal
+        vm.prank(alice);
+        withdrawalManager.cancelWithdrawal(withdrawalIdx);
+
+        // Check that batch was updated
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchAfter = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchAfter.toBurn, 0, "toBurn should be 0 after cancellation");
+        assertEq(batchAfter.toTransfer, 0, "toTransfer should be 0 after cancellation");
+    }
+
+    function test_cancelWithdrawal_multipleInBatch() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // Create multiple withdrawals in the same batch
+        for (uint256 i = 0; i < 3; i++) {
+            address actor = actors[i];
+            _givePufETH(depositAmount, actor);
+
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        uint256 batchIdx = batchSize / batchSize; // Should be 1
+
+        // Check initial batch state
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchBefore = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchBefore.toBurn, depositAmount * 3, "Initial toBurn should be 3 * depositAmount");
+
+        // Cancel two withdrawals
+        vm.prank(actors[0]);
+        withdrawalManager.cancelWithdrawal(batchSize);
+
+        vm.prank(actors[1]);
+        withdrawalManager.cancelWithdrawal(batchSize + 1);
+
+        // Check that batch was updated correctly
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchAfter = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchAfter.toBurn, depositAmount, "toBurn should be depositAmount after cancelling 2 withdrawals");
+        assertEq(
+            batchAfter.toTransfer, depositAmount, "toTransfer should be depositAmount after cancelling 2 withdrawals"
+        );
+    }
+
     function _givePufETH(uint256 ethAmount, address recipient) internal returns (uint256) {
         vm.deal(address(this), ethAmount);
 
@@ -800,5 +967,239 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         pufferVault.approve(address(withdrawalManager), pufETHAmount);
         withdrawalManager.requestWithdrawal(uint128(pufETHAmount), actor);
         vm.stopPrank();
+    }
+
+    /**
+     * @dev Test constructor with batchSize = 0 to cover uncovered constructor line
+     */
+    function test_constructor_batchSizeZero() public {
+        // This should work fine, but we need to test the constructor path
+        PufferWithdrawalManager impl = new PufferWithdrawalManager(0, pufferVault, weth);
+        assertEq(impl.BATCH_SIZE(), 0);
+    }
+
+    /**
+     * @dev Test oneWithdrawalRequestAllowed modifier revert path
+     */
+    function test_oneWithdrawalRequestAllowed_revert() public withUnlimitedWithdrawalLimit {
+        // Upgrade to the real implementation to test the modifier
+        address newImpl = address(
+            new PufferWithdrawalManager(batchSize, PufferVaultV5(payable(address(pufferVault))), IWETH(address(weth)))
+        );
+        vm.prank(timelock);
+        withdrawalManager.upgradeToAndCall(newImpl, "");
+
+        _givePufETH(200 ether, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), type(uint256).max);
+
+        withdrawalManager.requestWithdrawal(uint128(100 ether), alice);
+
+        // This should revert due to the modifier
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.MultipleWithdrawalsAreForbidden.selector));
+        withdrawalManager.requestWithdrawal(uint128(100 ether), alice);
+        vm.stopPrank();
+    }
+
+    /**
+     * @dev Test finalizeWithdrawals edge cases for uncovered branches
+     */
+    function test_finalizeWithdrawals_edgeCases() public withUnlimitedWithdrawalLimit {
+        // Test finalizing batch 0 (should revert)
+        vm.startPrank(PAYMASTER);
+        vm.expectRevert(abi.encodeWithSelector(IPufferWithdrawalManager.BatchAlreadyFinalized.selector, 0));
+        withdrawalManager.finalizeWithdrawals(0);
+        vm.stopPrank();
+
+        // Test finalizing when no batches are full
+        vm.startPrank(PAYMASTER);
+        vm.expectRevert(IPufferWithdrawalManager.BatchesAreNotFull.selector);
+        withdrawalManager.finalizeWithdrawals(1);
+        vm.stopPrank();
+    }
+
+    /**
+     * @dev Test completeQueuedWithdrawal edge cases for uncovered branches
+     */
+    function test_completeQueuedWithdrawal_edgeCases() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // Fill the batch
+        for (uint256 i = 0; i < batchSize; i++) {
+            address actor = actors[i];
+            _givePufETH(depositAmount, actor);
+            vm.prank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            vm.prank(actor);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+        }
+
+        // Test completing withdrawal from unfinalized batch
+        vm.expectRevert(IPufferWithdrawalManager.NotFinalized.selector);
+        withdrawalManager.completeQueuedWithdrawal(batchSize);
+
+        // Finalize the batch
+        vm.prank(PAYMASTER);
+        withdrawalManager.finalizeWithdrawals(1);
+
+        // Test completing already completed withdrawal
+        vm.prank(actors[0]);
+        withdrawalManager.completeQueuedWithdrawal(batchSize);
+
+        vm.prank(actors[0]);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAlreadyCompleted.selector);
+        withdrawalManager.completeQueuedWithdrawal(batchSize);
+    }
+
+    /**
+     * @dev Test _processWithdrawalRequest edge cases for uncovered branches
+     */
+    function test_processWithdrawalRequest_edgeCases() public withUnlimitedWithdrawalLimit {
+        // Test withdrawal amount too high
+        vm.startPrank(DAO);
+        withdrawalManager.changeMaxWithdrawalAmount(0.1 ether);
+        vm.stopPrank();
+
+        _givePufETH(1 ether, alice);
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), 1 ether);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAmountTooHigh.selector);
+        withdrawalManager.requestWithdrawal(uint128(1 ether), alice);
+        vm.stopPrank();
+    }
+
+    /**
+     * @dev Test _authorizeUpgrade edge cases for uncovered branches
+     */
+    function test_authorizeUpgrade_edgeCases() public {
+        // Test upgrade with different batch size
+        address newImpl = address(new PufferWithdrawalManager(999, pufferVault, weth));
+
+        vm.startPrank(timelock);
+        vm.expectRevert(IPufferWithdrawalManager.BatchSizeCannotChange.selector);
+        withdrawalManager.upgradeToAndCall(newImpl, "");
+        vm.stopPrank();
+    }
+
+    /**
+     * @dev Test receive function
+     */
+    function test_receive() public {
+        uint256 amount = 1 ether;
+        vm.deal(address(this), amount);
+
+        (bool success,) = address(withdrawalManager).call{ value: amount }("");
+        assertTrue(success);
+        assertEq(address(withdrawalManager).balance, amount);
+    }
+
+    /**
+     * @dev Test finalizing batch with one canceled request and claiming other requests
+     */
+    function test_finalizeBatchWithCanceledRequest() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+
+        // Create withdrawals to fill a batch (batchSize = 10)
+        for (uint256 i = 0; i < batchSize; i++) {
+            address actor = actors[i % actors.length];
+            _givePufETH(depositAmount, actor);
+
+            vm.startPrank(actor);
+            pufferVault.approve(address(withdrawalManager), depositAmount);
+            withdrawalManager.requestWithdrawal(uint128(depositAmount), actor);
+            vm.stopPrank();
+        }
+
+        uint256 batchIdx = 1; // First non-zero batch
+        uint256 canceledWithdrawalIdx = batchSize; // First withdrawal in the batch
+
+        // Check initial batch state
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchBefore = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchBefore.toBurn, batchSize * depositAmount, "Initial toBurn should be batchSize * depositAmount");
+        assertEq(
+            batchBefore.toTransfer, batchSize * depositAmount, "Initial toTransfer should be batchSize * depositAmount"
+        );
+        assertEq(batchBefore.withdrawalsClaimed, 0, "Initial withdrawalsClaimed should be 0");
+
+        // Cancel one withdrawal (Alice's withdrawal)
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferWithdrawalManager.WithdrawalCancelled(canceledWithdrawalIdx, depositAmount, alice);
+        withdrawalManager.cancelWithdrawal(canceledWithdrawalIdx);
+
+        // Check that batch was updated after cancellation
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchAfterCancel = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchAfterCancel.toBurn, (batchSize - 1) * depositAmount, "toBurn should be reduced by depositAmount");
+        assertEq(
+            batchAfterCancel.toTransfer,
+            (batchSize - 1) * depositAmount,
+            "toTransfer should be reduced by depositAmount"
+        );
+
+        // Verify Alice got her pufETH back
+        assertEq(pufferVault.balanceOf(alice), depositAmount, "Alice should have her pufETH back");
+
+        // Verify canceled withdrawal data was cleared
+        PufferWithdrawalManagerStorage.Withdrawal memory canceledWithdrawal =
+            withdrawalManager.getWithdrawal(canceledWithdrawalIdx);
+        assertEq(canceledWithdrawal.recipient, address(0), "Canceled withdrawal recipient should be cleared");
+        assertEq(canceledWithdrawal.pufETHAmount, 0, "Canceled withdrawal amount should be cleared");
+
+        // Finalize the batch
+        vm.prank(PAYMASTER);
+        vm.expectEmit(true, true, true, true);
+        emit IPufferWithdrawalManager.BatchFinalized(
+            batchIdx,
+            (batchSize - 1) * depositAmount, // expectedETHAmount
+            (batchSize - 1) * depositAmount, // actualEthAmount
+            (batchSize - 1) * depositAmount // pufETHBurnAmount
+        );
+        withdrawalManager.finalizeWithdrawals(1);
+
+        // Check batch state after finalization
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchAfterFinalize = withdrawalManager.getBatch(batchIdx);
+        assertEq(batchAfterFinalize.toBurn, (batchSize - 1) * depositAmount, "toBurn should remain the same");
+        assertEq(batchAfterFinalize.toTransfer, (batchSize - 1) * depositAmount, "toTransfer should remain the same");
+        assertEq(batchAfterFinalize.withdrawalsClaimed, 1, "withdrawalsClaimed should be 1 (the canceled withdrawal)");
+
+        // Test claiming other requests in the batch (skip the canceled one)
+        for (uint256 i = 1; i < batchSize; i++) {
+            uint256 withdrawalIdx = batchSize + i;
+            address actor = actors[i % actors.length];
+            uint256 actorBalanceBefore = weth.balanceOf(actor);
+
+            vm.prank(actor);
+            vm.expectEmit(true, true, true, true);
+            emit IPufferWithdrawalManager.WithdrawalCompleted(withdrawalIdx, depositAmount, 1 ether, actor);
+            withdrawalManager.completeQueuedWithdrawal(withdrawalIdx);
+
+            uint256 actorBalanceAfter = weth.balanceOf(actor);
+            assertEq(actorBalanceAfter - actorBalanceBefore, depositAmount, "Actor should receive depositAmount in ETH");
+        }
+
+        // Check final batch state
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batchFinal = withdrawalManager.getBatch(batchIdx);
+        assertEq(
+            batchFinal.withdrawalsClaimed,
+            batchSize,
+            "withdrawalsClaimed should be batchSize (1 canceled + 9 completed)"
+        );
+        assertEq(
+            batchFinal.amountClaimed,
+            (batchSize - 1) * depositAmount,
+            "amountClaimed should be (batchSize - 1) * depositAmount"
+        );
+
+        // Verify Alice cannot claim the canceled withdrawal
+        vm.prank(alice);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAlreadyCompleted.selector);
+        withdrawalManager.completeQueuedWithdrawal(canceledWithdrawalIdx);
+
+        // Verify the canceled withdrawal slot is empty
+        PufferWithdrawalManagerStorage.Withdrawal memory emptyWithdrawal =
+            withdrawalManager.getWithdrawal(canceledWithdrawalIdx);
+        assertEq(emptyWithdrawal.recipient, address(0), "Canceled withdrawal should remain empty");
+        assertEq(emptyWithdrawal.pufETHAmount, 0, "Canceled withdrawal amount should remain 0");
     }
 }
