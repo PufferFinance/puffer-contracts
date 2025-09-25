@@ -1247,4 +1247,40 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         // Verify withdrawal was created despite failed permit
         assertEq(withdrawalManager.getWithdrawal(batchSize).pufETHAmount, 1 ether, "Withdrawal should be created");
     }
+
+    function test_cancelNonExistantWithdrawal() public {
+        vm.prank(alice);
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalDoesNotExist.selector);
+        withdrawalManager.cancelWithdrawal(999);
+    }
+
+    function test_cancel_OtherRecipientWithdrawal() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+        _givePufETH(depositAmount, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), alice);
+
+        // Bob tries to cancel Alice's withdrawal
+        vm.startPrank(bob);
+        vm.expectRevert(IPufferWithdrawalManager.NotWithdrawalOwner.selector);
+        withdrawalManager.cancelWithdrawal(batchSize);
+    }
+
+    function test_cancel_alreadyFinalizedWithdrawal() public withUnlimitedWithdrawalLimit {
+        uint256 depositAmount = 1 ether;
+        _givePufETH(depositAmount, alice);
+
+        vm.startPrank(alice);
+        pufferVault.approve(address(withdrawalManager), depositAmount);
+        withdrawalManager.requestWithdrawal(uint128(depositAmount), alice);
+
+        // First time it works
+        withdrawalManager.cancelWithdrawal(batchSize);
+
+        // Second time it reverts
+        vm.expectRevert(IPufferWithdrawalManager.WithdrawalAlreadyCompleted.selector);
+        withdrawalManager.cancelWithdrawal(batchSize);
+    }
 }
