@@ -231,24 +231,24 @@ contract PufferWithdrawalManager is
         require(withdrawalIdx < $.withdrawals.length, WithdrawalDoesNotExist());
 
         Withdrawal memory withdrawal = $.withdrawals[withdrawalIdx];
+        address recipient = withdrawal.recipient;
 
         // Check if withdrawal has already been completed (recipient is set to address(0) when completed)
-        require(withdrawal.recipient != address(0), WithdrawalAlreadyCompleted());
+        require(recipient != address(0), WithdrawalAlreadyCompleted());
 
         // Check if the caller is the original recipient
-        require(withdrawal.recipient == msg.sender, NotWithdrawalOwner());
+        require(recipient == msg.sender, NotWithdrawalOwner());
 
         // Check if the withdrawal's batch has been finalized
         uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
         require(batchIndex > $.finalizedWithdrawalBatch, WithdrawalAlreadyFinalized());
 
-        uint256 pufETHAmount = withdrawal.pufETHAmount;
-        address recipient = withdrawal.recipient;
-
         WithdrawalBatch storage batch = $.withdrawalBatches[batchIndex];
 
         // Treat this canceled withdrawal as a claimed withdrawal to avoid issues in the `returnExcessETHToVault` function
         ++batch.withdrawalsClaimed;
+
+        uint256 pufETHAmount = withdrawal.pufETHAmount;
 
         uint256 expectedETHAmount = (pufETHAmount * withdrawal.pufETHToETHExchangeRate) / 1 ether;
         batch.toBurn -= uint88(pufETHAmount);
