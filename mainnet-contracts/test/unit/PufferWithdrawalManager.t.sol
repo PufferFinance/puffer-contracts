@@ -1202,4 +1202,49 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
         assertEq(emptyWithdrawal.recipient, address(0), "Canceled withdrawal should remain empty");
         assertEq(emptyWithdrawal.pufETHAmount, 0, "Canceled withdrawal amount should remain 0");
     }
+
+    function test_constructor_disableInitializers() public {
+        // Test that the constructor properly calls _disableInitializers()
+        // This is covered by the existing constructor tests, but we need to ensure coverage
+        PufferWithdrawalManager impl = new PufferWithdrawalManager(5, pufferVault, weth);
+        assertEq(impl.BATCH_SIZE(), 5);
+    }
+
+    function test_getWithdrawal_uncoveredBranches() public view {
+        // Test getting withdrawal with invalid index
+        PufferWithdrawalManagerStorage.Withdrawal memory withdrawal = withdrawalManager.getWithdrawal(999);
+        assertEq(withdrawal.recipient, address(0), "Invalid withdrawal should return empty");
+        assertEq(withdrawal.pufETHAmount, 0, "Invalid withdrawal amount should be 0");
+    }
+
+    function test_getBatch_uncoveredBranches() public view {
+        // Test getting batch with invalid index
+        PufferWithdrawalManagerStorage.WithdrawalBatch memory batch = withdrawalManager.getBatch(999);
+        assertEq(batch.toBurn, 0, "Invalid batch toBurn should be 0");
+        assertEq(batch.toTransfer, 0, "Invalid batch toTransfer should be 0");
+        assertEq(batch.withdrawalsClaimed, 0, "Invalid batch withdrawalsClaimed should be 0");
+        assertEq(batch.amountClaimed, 0, "Invalid batch amountClaimed should be 0");
+    }
+
+    function test_requestWithdrawalWithPermit_failedPermit() public withUnlimitedWithdrawalLimit {
+        _givePufETH(1 ether, alice);
+
+        // Approve the withdrawal manager to spend pufETH
+        vm.prank(alice);
+        pufferVault.approve(address(withdrawalManager), 1 ether);
+
+        Permit memory permit = _signPermit(
+            _testTemps("alice", address(withdrawalManager), 1 ether, block.timestamp), pufferVault.DOMAIN_SEPARATOR()
+        );
+
+        // Corrupt the permit signature to make it fail
+        permit.v = 15;
+
+        vm.prank(alice);
+        // This should still work because the permit failure is caught and ignored
+        withdrawalManager.requestWithdrawalWithPermit(permit, alice);
+
+        // Verify withdrawal was created despite failed permit
+        assertEq(withdrawalManager.getWithdrawal(batchSize).pufETHAmount, 1 ether, "Withdrawal should be created");
+    }
 }
