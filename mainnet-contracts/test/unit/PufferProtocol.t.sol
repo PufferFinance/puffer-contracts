@@ -1439,6 +1439,70 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(bobBalanceBefore, pufferVault.balanceOf(bob), "bob balance");
     }
 
+    function test_batchProvisionNode() public {
+        // Register multiple validators
+        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        _registerValidatorKey(bytes32("bob"), PUFFER_MODULE_0);
+        _registerValidatorKey(bytes32("charlie"), PUFFER_MODULE_0);
+        _registerValidatorKey(bytes32("david"), PUFFER_MODULE_0);
+        _registerValidatorKey(bytes32("emma"), PUFFER_MODULE_0);
+
+        // Get validator signatures
+        bytes[] memory validatorSignatures = new bytes[](5);
+        validatorSignatures[0] = _validatorSignature();
+        validatorSignatures[1] = _validatorSignature();
+        validatorSignatures[2] = _validatorSignature();
+        validatorSignatures[3] = _validatorSignature();
+        validatorSignatures[4] = _validatorSignature();
+
+        // Get guardian enclave signatures
+        bytes[][] memory guardianEnclaveSignatures = new bytes[][](5);
+        guardianEnclaveSignatures[0] =
+            _getGuardianSignaturesForValidator(_getPubKey(bytes32("alice")), PUFFER_MODULE_0, 0);
+        guardianEnclaveSignatures[1] =
+            _getGuardianSignaturesForValidator(_getPubKey(bytes32("bob")), PUFFER_MODULE_0, 1);
+        guardianEnclaveSignatures[2] =
+            _getGuardianSignaturesForValidator(_getPubKey(bytes32("charlie")), PUFFER_MODULE_0, 2);
+        guardianEnclaveSignatures[3] =
+            _getGuardianSignaturesForValidator(_getPubKey(bytes32("david")), PUFFER_MODULE_0, 3);
+        guardianEnclaveSignatures[4] =
+            _getGuardianSignaturesForValidator(_getPubKey(bytes32("emma")), PUFFER_MODULE_0, 4);
+
+        // Batch provision the validators
+        vm.expectEmit(true, true, true, true);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
+        vm.expectEmit(true, true, true, true);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0);
+        vm.expectEmit(true, true, true, true);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("charlie")), 2, PUFFER_MODULE_0);
+        vm.expectEmit(true, true, true, true);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("david")), 3, PUFFER_MODULE_0);
+        vm.expectEmit(true, true, true, true);
+        emit SuccessfullyProvisioned(_getPubKey(bytes32("emma")), 4, PUFFER_MODULE_0);
+        pufferProtocol.batchProvisionNode(guardianEnclaveSignatures, validatorSignatures, DEFAULT_DEPOSIT_ROOT);
+
+        // Check that the validators are marked as active
+        Validator memory aliceValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 0);
+        Validator memory bobValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 1);
+        Validator memory charlieValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 2);
+        Validator memory davidValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 3);
+        Validator memory emmaValidator = pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4);
+
+        assertTrue(aliceValidator.status == Status.ACTIVE, "Alice's validator should be active");
+        assertTrue(bobValidator.status == Status.ACTIVE, "Bob's validator should be active");
+        assertTrue(charlieValidator.status == Status.ACTIVE, "Charlie's validator should be active");
+        assertTrue(davidValidator.status == Status.ACTIVE, "David's validator should be active");
+        assertTrue(emmaValidator.status == Status.ACTIVE, "Emma's validator should be active");
+
+        // Check that the node operator info is updated correctly
+        assertEq(
+            pufferProtocol.getNodeInfo(address(this)).activeValidatorCount, 5, "Active validator count should be 5"
+        );
+        assertEq(
+            pufferProtocol.getNodeInfo(address(this)).pendingValidatorCount, 0, "Pending validator count should be 0"
+        );
+    }
+
     function _executeFullWithdrawal(StoppedValidatorInfo memory validatorInfo) internal {
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
         stopInfos[0] = validatorInfo;
@@ -1852,6 +1916,48 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.withdrawValidatorTickets(50 ether, bob);
 
         assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
+    }
+
+    function _getGuardianSignaturesForValidator(bytes memory pubKey, bytes32 moduleName, uint256 pendingIdx)
+        internal
+        view
+        returns (bytes[] memory)
+    {
+        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
+        // If there is no module return empty byte array
+        if (validator.module == address(0)) {
+            return new bytes[](0);
+        }
+        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
+
+        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            pendingIdx,
+            pubKey,
+            _validatorSignature(),
+            withdrawalCredentials,
+            pufferProtocol.getDepositDataRoot({
+                pubKey: pubKey,
+                signature: _validatorSignature(),
+                withdrawalCredentials: withdrawalCredentials
+            })
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
+        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        bytes[] memory guardianSignatures = new bytes[](3);
+        guardianSignatures[0] = signature1;
+        guardianSignatures[1] = signature2;
+        guardianSignatures[2] = signature3;
+
+        return guardianSignatures;
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
