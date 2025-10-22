@@ -290,6 +290,26 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
+     * @dev Restricted to Node Operators
+     */
+    function triggerValidatorsExit(
+        bytes32 moduleName,
+        uint256[] calldata indices
+    ) external restricted payable {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        bytes[] memory pubkeys = new bytes[](indices.length);
+
+        for (uint256 i = 0; i < indices.length; ++i) {
+            Validator memory validator = $.validators[moduleName][indices[i]];
+            require(validator.node == msg.sender, InvalidValidator());
+            pubkeys[i] = validator.pubKey;
+        }
+
+        PUFFER_MODULE_MANAGER.triggerValidatorsExit{value: msg.value}(moduleName, pubkeys);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
     function batchHandleWithdrawals(

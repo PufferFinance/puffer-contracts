@@ -15,6 +15,11 @@ interface IPufferModuleManager {
     error ForbiddenModuleName();
 
     /**
+     * @notice Thrown if the input array length is zero
+     */
+    error InputArrayLengthZero();
+
+    /**
      * @notice Emitted when the Custom Call from the restakingOperator is successful
      * @dev Signature "0x80b240e4b7a31d61bdee28b97592a7c0ad486cb27d11ee5c6b90530db4e949ff"
      */

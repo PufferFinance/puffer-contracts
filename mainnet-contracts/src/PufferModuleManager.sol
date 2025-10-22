@@ -243,11 +243,12 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @notice Triggers the validators exit for the given pubkeys
      * @param moduleName The name of the Puffer module
      * @param pubkeys The pubkeys of the validators to exit
-     * @dev Restricted to the DAO
+     * @dev Restricted to the VALIDATOR_EXITOR and PUFFER_PROTOCOL
      * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
     function triggerValidatorsExit(bytes32 moduleName, bytes[] calldata pubkeys) external virtual payable restricted {
+        require(pubkeys.length > 0, InputArrayLengthZero());
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
         PufferModule(payable(moduleAddress)).triggerValidatorsExit{value: msg.value}(pubkeys);
 

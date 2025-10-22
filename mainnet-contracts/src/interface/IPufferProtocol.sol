@@ -69,6 +69,12 @@ interface IPufferProtocol {
     error InvalidValidatorState(Status status);
 
     /**
+     * @notice Thrown when the validator is not owned by the sender
+     * @dev Signature "682a6e7c"
+     */
+    error InvalidValidator();
+
+    /**
      * @notice Thrown if the sender did not send enough ETH in the transaction
      * @dev Signature "0x242b035c"
      */
@@ -209,6 +215,19 @@ interface IPufferProtocol {
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
+
+    /**
+     * @notice Triggers the validators exit for the given indices
+     * @param moduleName The name of the Puffer module
+     * @param indices The indices of the validators to exit
+     * @dev Restricted to Node Operators
+     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function triggerValidatorsExit(
+        bytes32 moduleName,
+        uint256[] calldata indices
+    ) external payable;
 
     /**
      * @notice Batch settling of validator withdrawals
