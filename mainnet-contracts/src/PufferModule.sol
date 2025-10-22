@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IEigenPodManager } from "../src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
 import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
@@ -120,12 +121,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     /**
      * @notice Queues the withdrawal from EigenLayer for the Beacon Chain strategy
      */
-    function queueWithdrawals(uint256 shareAmount)
-        external
-        virtual
-        onlyPufferModuleManager
-        returns (bytes32[] memory)
-    {
+    function queueWithdrawals(uint256 shareAmount) external virtual onlyPufferModuleManager returns (bytes32[] memory) {
         IDelegationManagerTypes.QueuedWithdrawalParams[] memory withdrawals =
             new IDelegationManagerTypes.QueuedWithdrawalParams[](1);
 
@@ -136,9 +132,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
         strategies[0] = IStrategy(_BEACON_CHAIN_STRATEGY);
 
         withdrawals[0] = IDelegationManagerTypes.QueuedWithdrawalParams({
-            strategies: strategies,
-            depositShares: shares,
-            withdrawer: address(this)
+            strategies: strategies, depositShares: shares, withdrawer: address(this)
         });
 
         return EIGEN_DELEGATION_MANAGER.queueWithdrawals(withdrawals);
@@ -153,9 +147,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
         bool[] calldata receiveAsTokens
     ) external virtual whenNotPaused onlyPufferModuleManager {
         EIGEN_DELEGATION_MANAGER.completeQueuedWithdrawals({
-            withdrawals: withdrawals,
-            tokens: tokens,
-            receiveAsTokens: receiveAsTokens
+            withdrawals: withdrawals, tokens: tokens, receiveAsTokens: receiveAsTokens
         });
     }
 
@@ -202,7 +194,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
      * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
-    function triggerValidatorsExit(bytes[] calldata pubkeys) external virtual payable onlyPufferModuleManager {
+    function triggerValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
@@ -212,7 +204,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
                 amountGwei: 0 // This means full exit. Only value supported for 0x01 validators
             });
         }
-        $.eigenPod.requestWithdrawal{value: msg.value}(requests);
+        $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
     }
 
     /**

@@ -14,7 +14,6 @@ struct AssetValue {
 /// Copied and modified https://github.com/aera-finance/aera-contracts-public/blob/main/v2/interfaces/IVault.sol
 interface IAeraVault {
     /// ERRORS ///
-
     error Aera__AssetRegistryIsZeroAddress();
     error Aera__AssetRegistryIsNotValid(address assetRegistry);
     error Aera__AssetRegistryHasInvalidVault();

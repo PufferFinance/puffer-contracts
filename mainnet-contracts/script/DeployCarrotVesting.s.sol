@@ -25,7 +25,9 @@ contract DeployCarrotVesting is Script {
         address carrot, // CARROT token address, for impl constructor
         address puffer, // PUFFER token address, for impl constructor
         address owner // owner of the contract, for initialize
-    ) public {
+    )
+        public
+    {
         vm.startBroadcast();
 
         CarrotVesting impl = new CarrotVesting(carrot, puffer);

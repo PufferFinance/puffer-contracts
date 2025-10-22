@@ -27,14 +27,10 @@ contract DeployPufferWithdrawalManager is DeployerHelper {
             ((new PufferWithdrawalManager(BATCH_SIZE, PufferVaultV5(payable(_getPufferVault())), IWETH(_getWETH()))));
 
         withdrawalManager = PufferWithdrawalManager(
-            (
-                payable(
-                    new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
+            (payable(new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
                         address(withdrawalManagerImpl),
                         abi.encodeCall(PufferWithdrawalManager.initialize, address(_getAccessManager()))
-                    )
-                )
-            )
+                    )))
         );
 
         vm.label(address(withdrawalManager), "PufferWithdrawalManagerProxy");

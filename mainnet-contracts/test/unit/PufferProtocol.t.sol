@@ -251,7 +251,7 @@ contract PufferProtocolTest is UnitTestHelper {
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48),
             raveEvidence: new bytes(0) // No rave
-         });
+        });
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, false);
@@ -1445,8 +1445,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.stopPrank(); // this contract has the PAYMASTER role, so we need to stop the prank
         pufferProtocol.batchHandleWithdrawals({
-            validatorInfos: stopInfos,
-            guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos)
+            validatorInfos: stopInfos, guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos)
         });
     }
 
@@ -1869,9 +1868,7 @@ contract PufferProtocolTest is UnitTestHelper {
             _validatorSignature(),
             withdrawalCredentials,
             pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: _validatorSignature(),
-                withdrawalCredentials: withdrawalCredentials
+                pubKey: pubKey, signature: _validatorSignature(), withdrawalCredentials: withdrawalCredentials
             })
         );
 
@@ -1970,14 +1967,12 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: validatorSignature,
             depositDataRoot: pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: validatorSignature,
-                withdrawalCredentials: withdrawalCredentials
+                pubKey: pubKey, signature: validatorSignature, withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48),
             raveEvidence: bytes("mock rave") // Guardians are checking it off chain
-         });
+        });
 
         return validatorData;
     }
