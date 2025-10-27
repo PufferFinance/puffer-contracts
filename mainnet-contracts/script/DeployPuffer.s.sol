@@ -113,14 +113,13 @@ contract DeployPuffer is BaseScript {
             operationsMultisig: operationsMultisig
         });
 
-        NoImplementation(payable(address(validatorTicketProxy)))
-            .upgradeToAndCall(
-                address(validatorTicketImplementation),
-                abi.encodeCall(
-                    ValidatorTicket.initialize,
-                    (address(accessManager), 500, 50) //@todo recheck 5% treasury, 0.5% guardians
-                )
-            );
+        NoImplementation(payable(address(validatorTicketProxy))).upgradeToAndCall(
+            address(validatorTicketImplementation),
+            abi.encodeCall(
+                ValidatorTicket.initialize,
+                (address(accessManager), 500, 50) //@todo recheck 5% treasury, 0.5% guardians
+            )
+        );
 
         // UUPS proxy for PufferProtocol
         proxy = new ERC1967Proxy(address(new NoImplementation()), "");
@@ -176,10 +175,9 @@ contract DeployPuffer is BaseScript {
             pufferProtocol: address(proxy)
         });
 
-        NoImplementation(payable(address(moduleManagerProxy)))
-            .upgradeToAndCall(
-                address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
-            );
+        NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
+            address(moduleManager), abi.encodeCall(moduleManager.initialize, (address(accessManager)))
+        );
 
         // Initialize the Pool
         pufferProtocol.initialize({ accessManager: address(accessManager) });
@@ -217,7 +215,7 @@ contract DeployPuffer is BaseScript {
             pufferDepositor: address(0), // overwritten in DeployEverything
             weth: address(0), // overwritten in DeployEverything
             revenueDepositor: address(0) // overwritten in DeployEverything
-        });
+         });
     }
 
     function getStakingContract() internal returns (address) {

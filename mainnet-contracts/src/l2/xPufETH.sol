@@ -3,12 +3,10 @@ pragma solidity >=0.8.4 <0.9.0;
 
 import { IXERC20 } from "../interface/IXERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {
-    AccessManagedUpgradeable
-} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import {
-    ERC20PermitUpgradeable
-} from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { ERC20PermitUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { xPufETHStorage } from "./xPufETHStorage.sol";
 
 /**

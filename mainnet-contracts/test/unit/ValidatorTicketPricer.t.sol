@@ -118,9 +118,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         validatorTicketPricer.setDailyRewardsAndPostMintPrice(mevPayouts, consensusRewards);
         uint16 _BPS_DECIMALS = 1e4;
 
-        uint256 expectedPrice =
-            ((_BPS_DECIMALS - validatorTicketPricer.getDiscountRateBps()) * (mevPayouts + consensusRewards))
-                / _BPS_DECIMALS;
+        uint256 expectedPrice = (
+            (_BPS_DECIMALS - validatorTicketPricer.getDiscountRateBps()) * (mevPayouts + consensusRewards)
+        ) / _BPS_DECIMALS;
         assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
     }
 
@@ -131,8 +131,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
             validatorTicketPricer.setDailyMevPayoutsChangeToleranceBps(newValue);
             assertEq(validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps(), newValue);
         } else {
-            (bool success,) = address(validatorTicketPricer)
-                .call(abi.encodeWithSignature("setDailyMevPayoutsChangeToleranceBps(uint16)", newValue));
+            (bool success,) = address(validatorTicketPricer).call(
+                abi.encodeWithSignature("setDailyMevPayoutsChangeToleranceBps(uint16)", newValue)
+            );
             assertTrue(!success);
         }
     }
@@ -143,8 +144,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
             validatorTicketPricer.setDailyConsensusRewardsChangeToleranceBps(newValue);
             assertEq(validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps(), newValue);
         } else {
-            (bool success,) = address(validatorTicketPricer)
-                .call(abi.encodeWithSignature("setDailyConsensusRewardsChangeToleranceBps(uint16)", newValue));
+            (bool success,) = address(validatorTicketPricer).call(
+                abi.encodeWithSignature("setDailyConsensusRewardsChangeToleranceBps(uint16)", newValue)
+            );
             assertTrue(!success);
         }
     }
@@ -169,8 +171,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         uint104 oldValue = validatorTicketPricer.getDailyMevPayouts();
         uint16 tolerance = validatorTicketPricer.getDailyMevPayoutsChangeToleranceBps();
         if (
-            tolerance == 0 || newValue <= oldValue + (oldValue * tolerance / 1e4)
-                && newValue >= oldValue - (oldValue * tolerance / 1e4)
+            tolerance == 0
+                || newValue <= oldValue + (oldValue * tolerance / 1e4)
+                    && newValue >= oldValue - (oldValue * tolerance / 1e4)
         ) {
             validatorTicketPricer.setDailyMevPayouts(newValue);
             assertEq(validatorTicketPricer.getDailyMevPayouts(), newValue);
@@ -192,8 +195,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         uint104 oldValue = validatorTicketPricer.getDailyConsensusRewards();
         uint16 tolerance = validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps();
         if (
-            tolerance == 0 || newValue <= oldValue + (oldValue * tolerance / 1e4)
-                && newValue >= oldValue - (oldValue * tolerance / 1e4)
+            tolerance == 0
+                || newValue <= oldValue + (oldValue * tolerance / 1e4)
+                    && newValue >= oldValue - (oldValue * tolerance / 1e4)
         ) {
             validatorTicketPricer.setDailyConsensusRewards(newValue);
             assertEq(validatorTicketPricer.getDailyConsensusRewards(), newValue);
@@ -202,8 +206,9 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
                 * (validatorTicketPricer.getDailyMevPayouts() + newValue) / 1e4;
             assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
         } else {
-            (bool success,) = address(validatorTicketPricer)
-                .call(abi.encodeWithSignature("setDailyConsensusRewards(uint104)", newValue));
+            (bool success,) = address(validatorTicketPricer).call(
+                abi.encodeWithSignature("setDailyConsensusRewards(uint104)", newValue)
+            );
             assertTrue(!success);
         }
     }
@@ -219,11 +224,12 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
         uint104 oldConsensusRewards = validatorTicketPricer.getDailyConsensusRewards();
         uint16 consensusTolerance = validatorTicketPricer.getDailyConsensusRewardsChangeToleranceBps();
 
-        bool mevValid = mevTolerance == 0 || mevPayouts <= oldMevPayouts + (oldMevPayouts * mevTolerance / 1e4)
-            && mevPayouts >= oldMevPayouts - (oldMevPayouts * mevTolerance / 1e4);
+        bool mevValid = mevTolerance == 0
+            || mevPayouts <= oldMevPayouts + (oldMevPayouts * mevTolerance / 1e4)
+                && mevPayouts >= oldMevPayouts - (oldMevPayouts * mevTolerance / 1e4);
         bool consensusValid = consensusTolerance == 0
             || consensusRewards <= oldConsensusRewards + (oldConsensusRewards * consensusTolerance / 1e4)
-            && consensusRewards >= oldConsensusRewards - (oldConsensusRewards * consensusTolerance / 1e4);
+                && consensusRewards >= oldConsensusRewards - (oldConsensusRewards * consensusTolerance / 1e4);
 
         if (mevValid && consensusValid) {
             validatorTicketPricer.setDailyRewardsAndPostMintPrice(mevPayouts, consensusRewards);
@@ -233,12 +239,11 @@ contract ValidatorTicketPricerTest is UnitTestHelper {
                 (1e4 - validatorTicketPricer.getDiscountRateBps()) * (mevPayouts + consensusRewards) / 1e4;
             assertEq(pufferOracle.getValidatorTicketPrice(), expectedPrice);
         } else {
-            (bool success,) = address(validatorTicketPricer)
-                .call(
-                    abi.encodeWithSignature(
-                        "setDailyRewardsAndPostMintPrice(uint104,uint104)", mevPayouts, consensusRewards
-                    )
-                );
+            (bool success,) = address(validatorTicketPricer).call(
+                abi.encodeWithSignature(
+                    "setDailyRewardsAndPostMintPrice(uint104,uint104)", mevPayouts, consensusRewards
+                )
+            );
             assertTrue(!success);
         }
     }

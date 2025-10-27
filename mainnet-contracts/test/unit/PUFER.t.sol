@@ -5,9 +5,8 @@ import { PUFFER } from "../../src/PUFFER.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 
 contract MockLocker {
-    // do nothing
-
-    }
+// do nothing
+}
 
 contract PUFFERTest is UnitTestHelper {
     address owner = makeAddr("multisig");

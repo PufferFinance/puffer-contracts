@@ -50,11 +50,10 @@ contract UpgradeValidatorTicket is DeployerHelper {
         // If on testnet, upgrade and execute access control changes directly
         if (block.chainid == holesky) {
             // upgrade to implementation
-            AccessManager(_getAccessManager())
-                .execute(
-                    address(validatorTicket),
-                    abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(validatorTicketImpl), ""))
-                );
+            AccessManager(_getAccessManager()).execute(
+                address(validatorTicket),
+                abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(validatorTicketImpl), ""))
+            );
 
             // execute access control changes
             (bool success,) = address(_getAccessManager()).call(accessManagerCallData);

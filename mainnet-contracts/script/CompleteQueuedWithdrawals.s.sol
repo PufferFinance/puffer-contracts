@@ -65,12 +65,11 @@ contract CompleteQueuedWithdrawals is Script {
         tokens[0] = t;
 
         vm.startBroadcast();
-        PufferModuleManager(payable(params.pufferModuleManager))
-            .callCompleteQueuedWithdrawals({
-                moduleName: params.moduleName,
-                withdrawals: withdrawals,
-                tokens: tokens,
-                receiveAsTokens: params.receiveAsTokens
-            });
+        PufferModuleManager(payable(params.pufferModuleManager)).callCompleteQueuedWithdrawals({
+            moduleName: params.moduleName,
+            withdrawals: withdrawals,
+            tokens: tokens,
+            receiveAsTokens: params.receiveAsTokens
+        });
     }
 }

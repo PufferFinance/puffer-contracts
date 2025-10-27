@@ -9,6 +9,7 @@ import "./IAVSRegistrar.sol";
 
 interface IAllocationManagerErrors {
     /// Input Validation
+
     /// @dev Thrown when `wadToSlash` is zero or greater than 1e18
     error InvalidWadToSlash();
     /// @dev Thrown when two array parameters have mismatching lengths.
@@ -410,7 +411,10 @@ interface IAllocationManager is ISignatureUtils, IAllocationManagerErrors, IAllo
      * @param strategies the strategies to get the max magnitudes for
      * @return the max magnitudes for each strategy
      */
-    function getMaxMagnitudes(address operator, IStrategy[] calldata strategies) external view returns (uint64[] memory);
+    function getMaxMagnitudes(address operator, IStrategy[] calldata strategies)
+        external
+        view
+        returns (uint64[] memory);
 
     /**
      * @notice Returns the maximum magnitudes each operator can allocate for the given strategy
@@ -420,7 +424,10 @@ interface IAllocationManager is ISignatureUtils, IAllocationManagerErrors, IAllo
      * @param strategy the strategy to get the max magnitudes for
      * @return the max magnitudes for each operator
      */
-    function getMaxMagnitudes(address[] calldata operators, IStrategy strategy) external view returns (uint64[] memory);
+    function getMaxMagnitudes(address[] calldata operators, IStrategy strategy)
+        external
+        view
+        returns (uint64[] memory);
 
     /**
      * @notice Returns the maximum magnitude an operator can allocate for the given strategies

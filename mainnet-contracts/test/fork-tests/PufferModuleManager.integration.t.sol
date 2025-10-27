@@ -43,26 +43,28 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         // buy weth
         vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad);
         Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).deposit{ value: 500 ether }();
-        Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848)
-            .approve(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6, type(uint256).max);
+        Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).approve(
+            0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6, type(uint256).max
+        );
         // deposit into weth strategy
-        IStrategyManager(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6)
-            .depositIntoStrategy(
-                IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9),
-                IERC20(0x94373a4919B3240D86eA41593D5eBa789FEF3848),
-                500 ether
-            );
+        IStrategyManager(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6).depositIntoStrategy(
+            IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9),
+            IERC20(0x94373a4919B3240D86eA41593D5eBa789FEF3848),
+            500 ether
+        );
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7)
-            .delegateTo(restakingOperator, signatureWithExpiry, bytes32(0));
+        IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7).delegateTo(
+            restakingOperator, signatureWithExpiry, bytes32(0)
+        );
     }
 
     // Creates a new restaking operator and returns it
     // metadataURI is used as seed for create2 in EL
     function _createRestakingOperator() internal returns (RestakingOperator) {
         RestakingOperator operator = moduleManager.createNewRestakingOperator({
-            metadataURI: "https://puffer.fi/metadata.json", allocationDelay: 0
+            metadataURI: "https://puffer.fi/metadata.json",
+            allocationDelay: 0
         });
 
         assertTrue(address(operator).code.length > 0, "operator deployed");

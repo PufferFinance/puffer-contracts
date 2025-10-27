@@ -5,9 +5,8 @@ import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IPufferWithdrawalManager } from "./interface/IPufferWithdrawalManager.sol";
 import { PufferWithdrawalManagerStorage } from "./PufferWithdrawalManagerStorage.sol";
-import {
-    AccessManagedUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { Permit } from "./structs/Permit.sol";
@@ -95,12 +94,15 @@ contract PufferWithdrawalManager is
         for (uint256 i = 0; i < BATCH_SIZE; ++i) {
             $.withdrawals.push(Withdrawal({ pufETHAmount: 0, pufETHToETHExchangeRate: 0, recipient: address(0) }));
         }
-        $.withdrawalBatches
-            .push(
-                WithdrawalBatch({
-                    toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, withdrawalsClaimed: 0, amountClaimed: 0
-                })
-            );
+        $.withdrawalBatches.push(
+            WithdrawalBatch({
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
+            })
+        );
         $.finalizedWithdrawalBatch = 0; // do it explicitly
     }
 
@@ -117,17 +119,15 @@ contract PufferWithdrawalManager is
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
     function requestWithdrawalWithPermit(Permit calldata permitData, address recipient) external restricted {
-        try IERC20Permit(address(PUFFER_VAULT))
-            .permit({
-                owner: msg.sender,
-                spender: address(this),
-                value: permitData.amount,
-                deadline: permitData.deadline,
-                v: permitData.v,
-                s: permitData.s,
-                r: permitData.r
-            }) { }
-            catch { }
+        try IERC20Permit(address(PUFFER_VAULT)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
 
         _processWithdrawalRequest(uint128(permitData.amount), recipient);
     }
@@ -295,7 +295,11 @@ contract PufferWithdrawalManager is
         // We don't want panic when the caller passes an invalid batchIdx
         if (batchIdx >= $.withdrawalBatches.length) {
             return WithdrawalBatch({
-                toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, withdrawalsClaimed: 0, amountClaimed: 0
+                toBurn: 0,
+                toTransfer: 0,
+                pufETHToETHExchangeRate: 0,
+                withdrawalsClaimed: 0,
+                amountClaimed: 0
             });
         }
         return $.withdrawalBatches[batchIdx];
@@ -321,12 +325,15 @@ contract PufferWithdrawalManager is
 
         if (batchIndex == $.withdrawalBatches.length) {
             // Push empty batch when the previous batch is full
-            $.withdrawalBatches
-                .push(
-                    WithdrawalBatch({
-                        toBurn: 0, toTransfer: 0, pufETHToETHExchangeRate: 0, withdrawalsClaimed: 0, amountClaimed: 0
-                    })
-                );
+            $.withdrawalBatches.push(
+                WithdrawalBatch({
+                    toBurn: 0,
+                    toTransfer: 0,
+                    pufETHToETHExchangeRate: 0,
+                    withdrawalsClaimed: 0,
+                    amountClaimed: 0
+                })
+            );
         }
 
         uint256 pufETHToETHExchangeRate = PUFFER_VAULT.convertToAssets(1 ether);
@@ -336,17 +343,19 @@ contract PufferWithdrawalManager is
         batch.toBurn += uint88(pufETHAmount);
         batch.toTransfer += uint96(expectedETHAmount);
 
-        $.withdrawals
-            .push(
-                Withdrawal({
-                    pufETHAmount: pufETHAmount,
-                    recipient: recipient,
-                    pufETHToETHExchangeRate: pufETHToETHExchangeRate.toUint128()
-                })
-            );
+        $.withdrawals.push(
+            Withdrawal({
+                pufETHAmount: pufETHAmount,
+                recipient: recipient,
+                pufETHToETHExchangeRate: pufETHToETHExchangeRate.toUint128()
+            })
+        );
 
         emit WithdrawalRequested({
-            withdrawalIdx: withdrawalIndex, batchIdx: batchIndex, pufETHAmount: pufETHAmount, recipient: recipient
+            withdrawalIdx: withdrawalIndex,
+            batchIdx: batchIndex,
+            pufETHAmount: pufETHAmount,
+            recipient: recipient
         });
     }
 
@@ -386,8 +395,7 @@ contract PufferWithdrawalManager is
         uint256 batchFinalizationExchangeRate,
         uint256 expectedETHAmount
     ) internal pure returns (uint256) {
-        uint256 batchFinalizationAmount =
-            (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
+        uint256 batchFinalizationAmount = (pufETHBurnAmount * batchFinalizationExchangeRate) / 1 ether;
         return Math.min(expectedETHAmount, batchFinalizationAmount);
     }
 }

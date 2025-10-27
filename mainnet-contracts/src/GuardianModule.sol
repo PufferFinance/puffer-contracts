@@ -159,7 +159,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
-            enclaveSignatures: enclaveSignatures, signedMessageHash: signedMessageHash
+            enclaveSignatures: enclaveSignatures,
+            signedMessageHash: signedMessageHash
         });
 
         if (!validSignatures) {

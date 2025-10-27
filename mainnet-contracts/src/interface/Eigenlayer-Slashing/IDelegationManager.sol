@@ -331,12 +331,8 @@ interface IDelegationManager is ISignatureUtils, IDelegationManagerErrors, IDele
      * @dev If the operator was slashed 100% for the strategy (the operator's maxMagnitude = 0), then increasing delegated shares is blocked and will revert.
      * @dev Callable only by the StrategyManager or EigenPodManager.
      */
-    function increaseDelegatedShares(
-        address staker,
-        IStrategy strategy,
-        uint256 prevDepositShares,
-        uint256 addedShares
-    ) external;
+    function increaseDelegatedShares(address staker, IStrategy strategy, uint256 prevDepositShares, uint256 addedShares)
+        external;
 
     /**
      * @notice If the staker is delegated, decreases its operator's shares in response to
@@ -347,11 +343,8 @@ interface IDelegationManager is ISignatureUtils, IDelegationManagerErrors, IDele
      * @dev Note: `beaconChainSlashingFactorDecrease` are assumed to ALWAYS be < 1 WAD.
      * These invariants are maintained in the EigenPodManager.
      */
-    function decreaseDelegatedShares(
-        address staker,
-        uint256 curDepositShares,
-        uint64 beaconChainSlashingFactorDecrease
-    ) external;
+    function decreaseDelegatedShares(address staker, uint256 curDepositShares, uint64 beaconChainSlashingFactorDecrease)
+        external;
 
     /**
      * @notice Decreases the operators shares in storage after a slash and burns the corresponding Strategy shares
@@ -411,7 +404,10 @@ interface IDelegationManager is ISignatureUtils, IDelegationManagerErrors, IDele
      * @param operator the operator to get shares for
      * @param strategies the strategies to get shares for
      */
-    function getOperatorShares(address operator, IStrategy[] memory strategies) external view returns (uint256[] memory);
+    function getOperatorShares(address operator, IStrategy[] memory strategies)
+        external
+        view
+        returns (uint256[] memory);
 
     /**
      * @notice Returns the shares that a set of operators have delegated to them in a set of strategies

@@ -3,9 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    AccessManagedUpgradeable
-} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { IWstETH } from "./interface/Lido/IWstETH.sol";
@@ -59,17 +58,15 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
         restricted
         returns (uint256 pufETHAmount)
     {
-        try ERC20Permit(address(_WST_ETH))
-            .permit({
-                owner: msg.sender,
-                spender: address(this),
-                value: permitData.amount,
-                deadline: permitData.deadline,
-                v: permitData.v,
-                s: permitData.s,
-                r: permitData.r
-            }) { }
-            catch { }
+        try ERC20Permit(address(_WST_ETH)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
 
         SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
 
@@ -87,17 +84,15 @@ contract PufferDepositorV2 is IPufferDepositorV2, PufferDepositorStorage, Access
         restricted
         returns (uint256 pufETHAmount)
     {
-        try ERC20Permit(address(_ST_ETH))
-            .permit({
-                owner: msg.sender,
-                spender: address(this),
-                value: permitData.amount,
-                deadline: permitData.deadline,
-                v: permitData.v,
-                s: permitData.s,
-                r: permitData.r
-            }) { }
-            catch { }
+        try ERC20Permit(address(_ST_ETH)).permit({
+            owner: msg.sender,
+            spender: address(this),
+            value: permitData.amount,
+            deadline: permitData.deadline,
+            v: permitData.v,
+            s: permitData.s,
+            r: permitData.r
+        }) { } catch { }
 
         // Transfer stETH from user to this contract. The amount received here can be 1-2 wei lower than the actual permitData.amount
         SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);

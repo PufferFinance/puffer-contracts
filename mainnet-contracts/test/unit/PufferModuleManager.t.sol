@@ -62,8 +62,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.stopPrank();
 
         // No restaking is a custom default module (non beacon upgradeable)
-        (bool success,) = pufferProtocol.getModuleAddress(bytes32("DEGEN"))
-            .call(abi.encodeCall(PufferModuleUpgrade.getMagicValue, ()));
+        (bool success,) = pufferProtocol.getModuleAddress(bytes32("DEGEN")).call(
+            abi.encodeCall(PufferModuleUpgrade.getMagicValue, ())
+        );
 
         assertTrue(!success, "should not succeed");
 
@@ -73,8 +74,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
         accessManager.execute(moduleBeacon, abi.encodeCall(UpgradeableBeacon.upgradeTo, address(upgrade)));
         vm.stopPrank();
 
-        (bool s, bytes memory data) = pufferProtocol.getModuleAddress(bytes32("DEGEN"))
-            .call(abi.encodeCall(PufferModuleUpgrade.getMagicValue, ()));
+        (bool s, bytes memory data) = pufferProtocol.getModuleAddress(bytes32("DEGEN")).call(
+            abi.encodeCall(PufferModuleUpgrade.getMagicValue, ())
+        );
         assertTrue(s, "should succeed");
         assertEq(abi.decode(data, (uint256)), 1337, "got the number");
     }
@@ -118,7 +120,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
         address mockAvs = makeAddr("mockAvs");
 
         IAllocationManagerTypes.DeregisterParams memory deregisterParams = IAllocationManagerTypes.DeregisterParams({
-            operator: address(operator), avs: mockAvs, operatorSetIds: new uint32[](1)
+            operator: address(operator),
+            avs: mockAvs,
+            operatorSetIds: new uint32[](1)
         });
 
         vm.expectRevert(Unauthorized.selector);
@@ -359,7 +363,8 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     function _createRestakingOperator() internal returns (RestakingOperator) {
         RestakingOperator operator = pufferModuleManager.createNewRestakingOperator({
-            metadataURI: "https://puffer.fi/metadata.json", allocationDelay: 500
+            metadataURI: "https://puffer.fi/metadata.json",
+            allocationDelay: 500
         });
 
         return operator;

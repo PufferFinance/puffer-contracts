@@ -126,16 +126,13 @@ contract DeployPufETH is BaseScript {
         }
 
         // Initialize Depositor
-        NoImplementation(payable(address(depositorProxy)))
-            .upgradeToAndCall(
-                address(pufferDepositorImplementation),
-                abi.encodeCall(PufferDepositor.initialize, (address(accessManager)))
-            );
+        NoImplementation(payable(address(depositorProxy))).upgradeToAndCall(
+            address(pufferDepositorImplementation), abi.encodeCall(PufferDepositor.initialize, (address(accessManager)))
+        );
         // Initialize Vault
-        NoImplementation(payable(address(vaultProxy)))
-            .upgradeToAndCall(
-                address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
-            );
+        NoImplementation(payable(address(vaultProxy))).upgradeToAndCall(
+            address(pufferVaultImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
+        );
 
         vm.serializeAddress(obj, "PufferDepositor", address(depositorProxy));
         vm.serializeAddress(obj, "PufferDepositorImplementation", address(pufferDepositorImplementation));
@@ -213,9 +210,8 @@ contract DeployPufETH is BaseScript {
         bytes[] memory calldatas = new bytes[](4);
 
         // Setup role members (no delay)
-        calldatas[0] = abi.encodeWithSelector(
-            AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0
-        );
+        calldatas[0] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         // Grant admin role to timelock
         calldatas[1] =
             abi.encodeWithSelector(AccessManager.grantRole.selector, accessManager.ADMIN_ROLE(), address(timelock), 0);

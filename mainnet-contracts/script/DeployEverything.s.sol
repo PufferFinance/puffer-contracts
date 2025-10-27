@@ -13,9 +13,8 @@ import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {
-    GenerateRevenueDepositorCalldata
-} from "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
+import { GenerateRevenueDepositorCalldata } from
+    "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
 /**
@@ -48,8 +47,9 @@ contract DeployEverything is BaseScript {
         GuardiansDeployment memory guardiansDeployment =
             new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
 
-        address pufferOracle = new DeployPufferOracle()
-            .run(puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault);
+        address pufferOracle = new DeployPufferOracle().run(
+            puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
+        );
 
         PufferProtocolDeployment memory pufferDeployment =
             new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
@@ -114,10 +114,14 @@ contract DeployEverything is BaseScript {
         });
 
         PufferRevenueDepositor revenueDepositor = PufferRevenueDepositor(
-            (payable(new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
+            (
+                payable(
+                    new ERC1967Proxy{ salt: bytes32("revenueDepositor") }(
                         address(revenueDepositorImpl),
                         abi.encodeCall(PufferRevenueDepositor.initialize, (address(puffETHDeployment.accessManager)))
-                    )))
+                    )
+                )
+            )
         );
 
         bytes memory accessManagerCd =

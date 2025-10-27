@@ -10,9 +10,8 @@ import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
-import {
-    AccessManagedUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
@@ -72,8 +71,11 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        PufferModule(payable(moduleAddress))
-            .completeQueuedWithdrawals({ withdrawals: withdrawals, tokens: tokens, receiveAsTokens: receiveAsTokens });
+        PufferModule(payable(moduleAddress)).completeQueuedWithdrawals({
+            withdrawals: withdrawals,
+            tokens: tokens,
+            receiveAsTokens: receiveAsTokens
+        });
 
         uint256 sharesWithdrawn;
 
@@ -100,16 +102,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         }
         // This called from the PufferProtocol and the event is emitted there
         return PufferModule(
-            payable(Create2.deploy({
+            payable(
+                Create2.deploy({
                     amount: 0,
                     salt: moduleName,
                     bytecode: abi.encodePacked(
                         type(BeaconProxy).creationCode,
-                        abi.encode(
-                            PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority()))
-                        )
+                        abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
                     )
-                }))
+                })
+            )
         );
     }
 

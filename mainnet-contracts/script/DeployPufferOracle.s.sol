@@ -13,9 +13,8 @@ contract DeployPufferOracle is BaseScript {
         broadcast
         returns (address)
     {
-        PufferOracleV2 oracle = new PufferOracleV2(
-            GuardianModule(payable(guardianModule)), payable(pufferVault), accessManager
-        );
+        PufferOracleV2 oracle =
+            new PufferOracleV2(GuardianModule(payable(guardianModule)), payable(pufferVault), accessManager);
 
         return address(oracle);
     }

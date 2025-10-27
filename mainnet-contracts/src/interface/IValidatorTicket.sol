@@ -80,11 +80,9 @@ interface IValidatorTicket {
      * @param permitData The permit data for the pufETH transfer
      * @return pufEthUsed The amount of pufETH used for the purchase
      */
-    function purchaseValidatorTicketWithPufETHAndPermit(
-        address recipient,
-        uint256 vtAmount,
-        Permit calldata permitData
-    ) external returns (uint256 pufEthUsed);
+    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
+        external
+        returns (uint256 pufEthUsed);
 
     /**
      * @notice Retrieves the current guardians fee rate

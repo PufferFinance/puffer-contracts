@@ -4,14 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferVaultStorage } from "./PufferVaultStorage.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {
-    AccessManagedUpgradeable
-} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { ERC4626Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import { ERC20Upgradeable } from "@openzeppelin-contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {
-    ERC20PermitUpgradeable
-} from "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { ERC20PermitUpgradeable } from
+    "@openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { ILidoWithdrawalQueue } from "./interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "./interface/Other/IWETH.sol";

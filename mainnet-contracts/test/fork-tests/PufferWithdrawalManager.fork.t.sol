@@ -210,7 +210,7 @@ contract PufferWithdrawalManagerForkTest is MainnetForkTestHelper {
         //                                                                                                       |
         // Expected WETH amount before batch 1 is finalized (10x1000 ETH)                                        |
         uint256 expectedAttackerWETH = //                                                                        |
-                (attackerAmount + 0.01 ether * (batchSize - 1)) * pufferVault.convertToAssets(1 ether) / 1 ether; //    |
+         (attackerAmount + 0.01 ether * (batchSize - 1)) * pufferVault.convertToAssets(1 ether) / 1 ether; //    |
         //                                                                                                       |
         // Finalize the batch                                                                                    |
         vm.startPrank(_getPaymaster()); //                                                                       |
