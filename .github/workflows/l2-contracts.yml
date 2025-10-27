@@ -51,7 +51,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: 1.3.6
+          version: v1.3.6
 
       # - name: Run tests
       #   working-directory: l2-contracts
