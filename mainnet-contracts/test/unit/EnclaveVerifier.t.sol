@@ -8,7 +8,9 @@ import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { MockEvidence } from "rave-test/mocks/MockEvidence.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import {
-    Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence
+    Guardian1RaveEvidence,
+    Guardian2RaveEvidence,
+    Guardian3RaveEvidence
 } from "../helpers/GuardiansRaveEvidence.sol";
 
 contract EnclaveVerifierTest is UnitTestHelper {
@@ -75,11 +77,7 @@ contract EnclaveVerifierTest is UnitTestHelper {
 
         vm.expectRevert(IEnclaveVerifier.StaleEvidence.selector);
         verifier.verifyEvidence({
-            blockNumber: 0,
-            evidence: evidence,
-            raveCommitment: commitment,
-            mrenclave: mrenclave,
-            mrsigner: mrsigner
+            blockNumber: 0, evidence: evidence, raveCommitment: commitment, mrenclave: mrenclave, mrsigner: mrsigner
         });
     }
 

@@ -8,8 +8,9 @@ import { RestakingOperatorController } from "../../src/RestakingOperatorControll
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
-import { GenerateRestakingOperatorCalldata } from
-    "../../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
+import {
+    GenerateRestakingOperatorCalldata
+} from "../../script/AccessManagerMigrations/07_GenerateRestakingOperatorCalldata.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ROLE_ID_DAO } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "../../src/Errors.sol";
@@ -97,18 +98,18 @@ contract RestakingOperatorForkTest is MainnetForkTestHelper {
 
     modifier allowUpdateOperatorAVSSocket() {
         vm.startPrank(OPERATIONS_MULTISIG);
-        AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS).setAvsRegistryCoordinator(
-            EIGEN_DA_ADDRESS, UPDATE_SOCKET_SELECTOR, true
-        );
+        AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS)
+            .setAvsRegistryCoordinator(EIGEN_DA_ADDRESS, UPDATE_SOCKET_SELECTOR, true);
         vm.stopPrank();
         _;
     }
 
     modifier allowExpensiveRegister() {
         vm.startPrank(OPERATIONS_MULTISIG);
-        AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS).setAvsRegistryCoordinator(
-            address(avsRegistryCoordinatorMock), AvsRegistryCoordinatorMock.expensiveRegister.selector, true
-        );
+        AVSContractsRegistry(AVS_CONTRACTS_REGISTRY_ADDRESS)
+            .setAvsRegistryCoordinator(
+                address(avsRegistryCoordinatorMock), AvsRegistryCoordinatorMock.expensiveRegister.selector, true
+            );
         vm.stopPrank();
         _;
     }

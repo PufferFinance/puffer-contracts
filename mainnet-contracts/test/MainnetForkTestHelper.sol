@@ -171,15 +171,15 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             (address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager))))
         );
 
-        (bool success,) = address(timelock).call(
-            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(pufferVault), upgradeCd, 1)
-        );
+        (bool success,) = address(timelock)
+            .call(abi.encodeWithSelector(Timelock.executeTransaction.selector, address(pufferVault), upgradeCd, 1));
 
         vm.expectEmit(true, true, true, true);
         emit ERC1967Utils.Upgraded(address(newImplementation));
-        UUPSUpgradeable(pufferVault).upgradeToAndCall(
-            address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
-        );
+        UUPSUpgradeable(pufferVault)
+            .upgradeToAndCall(
+                address(newImplementation), abi.encodeCall(PufferVaultV5.initialize, (address(accessManager)))
+            );
 
         // Upgrade PufferDepositor
         PufferDepositorV2 newDepositorImplementation =
@@ -198,18 +198,20 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
 
         // Upgrade PufferDepositor - no initializer here
         emit ERC1967Utils.Upgraded(address(newDepositorImplementation));
-        (success,) = address(timelock).call(
-            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), upgradeCd, 1)
-        );
+        (success,) = address(timelock)
+            .call(abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), upgradeCd, 1));
 
         // Setup access
 
         bytes memory encodedMulticall =
             new GenerateAccessManagerCallData().run(address(pufferVault), address(pufferDepositor));
         // Timelock is the owner of the AccessManager
-        (success,) = address(timelock).call(
-            abi.encodeWithSelector(Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1)
-        );
+        (success,) = address(timelock)
+            .call(
+                abi.encodeWithSelector(
+                    Timelock.executeTransaction.selector, address(accessManager), encodedMulticall, 1
+                )
+            );
         require(success, "failed upgrade tx");
 
         vm.stopPrank();

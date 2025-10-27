@@ -169,9 +169,9 @@ contract ValidatorTicketPricer is AccessManaged, IValidatorTicketPricer {
      */
     function _postMintPrice() internal {
         // casting _dailyMevPayouts + _dailyConsensusRewards so that the whole expression is converted to uint256
-        uint256 newPrice = (
-            (_BPS_DECIMALS - _discountRateBps) * (uint256(_dailyMevPayouts) + uint256(_dailyConsensusRewards))
-        ) / _BPS_DECIMALS;
+        uint256 newPrice =
+            ((_BPS_DECIMALS - _discountRateBps) * (uint256(_dailyMevPayouts) + uint256(_dailyConsensusRewards)))
+                / _BPS_DECIMALS;
         if (newPrice == 0) {
             revert InvalidValue();
         }

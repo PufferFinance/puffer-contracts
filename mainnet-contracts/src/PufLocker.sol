@@ -3,8 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { PufLockerStorage } from "./PufLockerStorage.sol";
 import { IPufLocker } from "./interface/IPufLocker.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
@@ -62,15 +63,17 @@ contract PufLocker is IPufLocker, AccessManagedUpgradeable, UUPSUpgradeable, Puf
         // To avoid that, we don't want to call the permit function if it is not necessary.
         if (permitData.deadline >= block.timestamp) {
             // https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#security_considerations
-            try ERC20Permit(token).permit({
-                owner: msg.sender,
-                spender: address(this),
-                value: permitData.amount,
-                deadline: permitData.deadline,
-                v: permitData.v,
-                s: permitData.s,
-                r: permitData.r
-            }) { } catch { }
+            try ERC20Permit(token)
+                .permit({
+                    owner: msg.sender,
+                    spender: address(this),
+                    value: permitData.amount,
+                    deadline: permitData.deadline,
+                    v: permitData.v,
+                    s: permitData.s,
+                    r: permitData.r
+                }) { }
+                catch { }
         }
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), permitData.amount);

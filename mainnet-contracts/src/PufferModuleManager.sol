@@ -10,8 +10,9 @@ import { RestakingOperator } from "./RestakingOperator.sol";
 import { IPufferModuleManager } from "./interface/IPufferModuleManager.sol";
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
@@ -71,11 +72,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     ) external virtual restricted {
         address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
 
-        PufferModule(payable(moduleAddress)).completeQueuedWithdrawals({
-            withdrawals: withdrawals,
-            tokens: tokens,
-            receiveAsTokens: receiveAsTokens
-        });
+        PufferModule(payable(moduleAddress))
+            .completeQueuedWithdrawals({ withdrawals: withdrawals, tokens: tokens, receiveAsTokens: receiveAsTokens });
 
         uint256 sharesWithdrawn;
 
@@ -102,16 +100,16 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         }
         // This called from the PufferProtocol and the event is emitted there
         return PufferModule(
-            payable(
-                Create2.deploy({
+            payable(Create2.deploy({
                     amount: 0,
                     salt: moduleName,
                     bytecode: abi.encodePacked(
                         type(BeaconProxy).creationCode,
-                        abi.encode(PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority())))
+                        abi.encode(
+                            PUFFER_MODULE_BEACON, abi.encodeCall(PufferModule.initialize, (moduleName, authority()))
+                        )
                     )
-                })
-            )
+                }))
         );
     }
 
@@ -237,6 +235,22 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         withdrawalRoot = PufferModule(payable(moduleAddress)).callUndelegate();
 
         emit PufferModuleUndelegated(moduleName);
+    }
+
+    /**
+     * @notice Triggers the validators exit for the given pubkeys
+     * @param moduleName The name of the Puffer module
+     * @param pubkeys The pubkeys of the validators to exit
+     * @dev Restricted to the VALIDATOR_EXITOR and PUFFER_PROTOCOL
+     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function triggerValidatorsExit(bytes32 moduleName, bytes[] calldata pubkeys) external payable virtual restricted {
+        require(pubkeys.length > 0, InputArrayLengthZero());
+        address moduleAddress = IPufferProtocol(PUFFER_PROTOCOL).getModuleAddress(moduleName);
+        PufferModule(payable(moduleAddress)).triggerValidatorsExit{ value: msg.value }(pubkeys);
+
+        emit ValidatorsExitTriggered(moduleName, pubkeys);
     }
 
     /**

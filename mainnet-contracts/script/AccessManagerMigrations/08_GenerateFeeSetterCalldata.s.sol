@@ -16,8 +16,9 @@ contract GenerateFeeSetterCalldata is Script {
         daoSelectors[0] = PufferVaultV5.setExitFeeBasisPoints.selector;
         daoSelectors[1] = PufferVaultV5.setTreasuryExitFeeBasisPoints.selector;
 
-        calldatas[0] =
-            abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, pufferVault, daoSelectors, ROLE_ID_DAO);
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, pufferVault, daoSelectors, ROLE_ID_DAO
+        );
 
         bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
 

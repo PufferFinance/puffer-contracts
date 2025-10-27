@@ -3,8 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin-contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IStETH } from "./interface/Lido/IStETH.sol";
 import { IWstETH } from "./interface/Lido/IWstETH.sol";
@@ -90,15 +91,17 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         restricted
         returns (uint256 pufETHAmount)
     {
-        try ERC20Permit(address(tokenIn)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try ERC20Permit(address(tokenIn))
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
 
         return swapAndDeposit1Inch(tokenIn, permitData.amount, callData);
     }
@@ -143,15 +146,17 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
         Permit calldata permitData,
         bytes calldata routeCode
     ) public payable virtual restricted returns (uint256 pufETHAmount) {
-        try ERC20Permit(address(tokenIn)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try ERC20Permit(address(tokenIn))
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
 
         return swapAndDeposit(tokenIn, permitData.amount, amountOutMin, routeCode);
     }
@@ -160,15 +165,17 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      * @inheritdoc IPufferDepositor
      */
     function depositWstETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
-        try ERC20Permit(address(_WST_ETH)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try ERC20Permit(address(_WST_ETH))
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
 
         SafeERC20.safeTransferFrom(IERC20(address(_WST_ETH)), msg.sender, address(this), permitData.amount);
         uint256 stETHAmount = _WST_ETH.unwrap(permitData.amount);
@@ -180,15 +187,17 @@ contract PufferDepositor is IPufferDepositor, PufferDepositorStorage, AccessMana
      * @inheritdoc IPufferDepositor
      */
     function depositStETH(Permit calldata permitData) external restricted returns (uint256 pufETHAmount) {
-        try ERC20Permit(address(_ST_ETH)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try ERC20Permit(address(_ST_ETH))
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
 
         SafeERC20.safeTransferFrom(IERC20(address(_ST_ETH)), msg.sender, address(this), permitData.amount);
 

@@ -20,8 +20,9 @@ import {
     ROLE_ID_VAULT_WITHDRAWER
 } from "../../script/Roles.sol";
 import { InvalidAddress, Unauthorized } from "mainnet-contracts/src/Errors.sol";
-import { GenerateRewardManagerCalldata } from
-    "../../script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
+import {
+    GenerateRewardManagerCalldata
+} from "../../script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol";
 
 //LayerZero imports
 import { Packet } from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ISendLib.sol";
@@ -38,7 +39,8 @@ import { ERC20Mock } from "../mocks/ERC20Mock.sol";
 import { OFTAdapterMock } from "partners-layerzero/test/mocks/OFTAdapterMock.sol";
 import { OFTMock } from "partners-layerzero/test/mocks/OFTMock.sol";
 import {
-    IOAppOptionsType3, EnforcedOptionParam
+    IOAppOptionsType3,
+    EnforcedOptionParam
 } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 // import { IOFT } from "../../src/interface/LayerZero/IOFT.sol";
 
@@ -121,9 +123,10 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
 
         L2RewardManager l2RewardManagerImpl = new L2RewardManager(address(l1RewardManagerProxy), address(xpufETH));
 
-        UUPSUpgradeable(address(l2RewardManagerProxy)).upgradeToAndCall(
-            address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
-        );
+        UUPSUpgradeable(address(l2RewardManagerProxy))
+            .upgradeToAndCall(
+                address(l2RewardManagerImpl), abi.encodeCall(L2RewardManager.initialize, (address(accessManager)))
+            );
 
         l2RewardManager = L2RewardManager(address(l2RewardManagerProxy));
         l1RewardManager = L1RewardManager(address(l1RewardManagerProxy));
@@ -156,9 +159,8 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         accessManager.setTargetFunctionRole(address(pufferVault), pmmSelectors, ROLE_ID_VAULT_WITHDRAWER);
         accessManager.grantRole(ROLE_ID_VAULT_WITHDRAWER, address(pufferModuleManager), 0);
 
-        bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-            address(l1RewardManager), address(layerzeroL1Endpoint)
-        );
+        bytes memory cd = new GenerateRewardManagerCalldata()
+            .generateL1Calldata(address(l1RewardManager), address(layerzeroL1Endpoint));
         (bool s,) = address(accessManager).call(cd);
         require(s, "failed setupAccess GenerateRewardManagerCalldata");
 
@@ -404,13 +406,14 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         allowedDailyFrequency
         allowMintAmount(100 ether)
     {
-        IL1RewardManager.MintAndBridgeParams memory params = IL1RewardManager.MintAndBridgeParams({
-            rewardsAmount: 1 ether,
-            startEpoch: 1,
-            endEpoch: 2,
-            rewardsRoot: bytes32(hex"aabbccdd"),
-            rewardsURI: "uri"
-        });
+        IL1RewardManager.MintAndBridgeParams memory params =
+            IL1RewardManager.MintAndBridgeParams({
+                rewardsAmount: 1 ether,
+                startEpoch: 1,
+                endEpoch: 2,
+                rewardsRoot: bytes32(hex"aabbccdd"),
+                rewardsURI: "uri"
+            });
 
         // ✅ Use arbitrary value for LayerZero fees
         uint256 layerZeroFee = 0.01 ether;
@@ -486,9 +489,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         // Test that we can call setEnforcedOptions (this means the interface is working)
         EnforcedOptionParam[] memory testOptions = new EnforcedOptionParam[](1);
         testOptions[0] = EnforcedOptionParam({
-            eid: dstEid,
-            msgType: 1,
-            options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0)
+            eid: dstEid, msgType: 1, options: OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0)
         });
 
         // This should not revert, indicating the enforced options functionality is available
@@ -798,11 +799,7 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         assertEq(l1RewardManager.getCurrentIntervalEndEpoch(), 350, "currentIntervalEndEpoch should be updated to 350");
     }
 
-    function testRevert_MintAfterRevertWithInvalidStartEpoch()
-        public
-        allowedDailyFrequency
-        allowMintAmount(100 ether)
-    {
+    function testRevert_MintAfterRevertWithInvalidStartEpoch() public allowedDailyFrequency allowMintAmount(100 ether) {
         // First mint
         IL1RewardManager.MintAndBridgeParams memory params1 = IL1RewardManager.MintAndBridgeParams({
             rewardsAmount: 100 ether,
@@ -949,7 +946,11 @@ contract L1RewardManagerTest is UnitTestHelper, TestHelperOz5 {
         uint32 _srcEid,
         uint256 _amountLD,
         bytes memory _composeMsg // 0x[composeFrom][composeMsg]
-    ) internal pure returns (bytes memory _msg) {
+    )
+        internal
+        pure
+        returns (bytes memory _msg)
+    {
         _msg = abi.encodePacked(_nonce, _srcEid, _amountLD, _composeMsg);
     }
 }

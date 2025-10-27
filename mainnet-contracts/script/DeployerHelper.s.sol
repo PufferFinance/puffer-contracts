@@ -60,9 +60,8 @@ abstract contract DeployerHelper is Script {
         console.log("Deployed", contractName, "at", implementation);
 
         if (block.chainid == holesky) {
-            AccessManager(_getAccessManager()).execute(
-                proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
-            );
+            AccessManager(_getAccessManager())
+                .execute(proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data)));
         } else {
             bytes memory upgradeCallData =
                 abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));
@@ -98,9 +97,8 @@ abstract contract DeployerHelper is Script {
         console.log("Deployed", contractName, "at", implementation);
 
         if (block.chainid == holesky) {
-            AccessManager(_getAccessManager()).execute(
-                proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
-            );
+            AccessManager(_getAccessManager())
+                .execute(proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data)));
         } else {
             bytes memory upgradeCallData =
                 abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data));

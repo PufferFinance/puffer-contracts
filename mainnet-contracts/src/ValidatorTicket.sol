@@ -2,10 +2,12 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { ERC20PermitUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    ERC20PermitUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ValidatorTicketStorage } from "./ValidatorTicketStorage.sol";
@@ -90,10 +92,7 @@ contract ValidatorTicket is
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 guardiansFeeRate)
-        external
-        initializer
-    {
+    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 guardiansFeeRate) external initializer {
         __AccessManaged_init(accessManager);
         __ERC20_init("Puffer Validator Ticket", "VT");
         __ERC20Permit_init("Puffer Validator Ticket");
@@ -154,21 +153,22 @@ contract ValidatorTicket is
      * @inheritdoc IValidatorTicket
      * @dev Restricted in this context is like the `whenNotPaused` modifier from Pausable.sol
      */
-    function purchaseValidatorTicketWithPufETHAndPermit(address recipient, uint256 vtAmount, Permit calldata permitData)
-        external
-        virtual
-        restricted
-        returns (uint256)
-    {
-        try IERC20Permit(address(PUFFER_VAULT)).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            r: permitData.r,
-            s: permitData.s
-        }) { } catch { }
+    function purchaseValidatorTicketWithPufETHAndPermit(
+        address recipient,
+        uint256 vtAmount,
+        Permit calldata permitData
+    ) external virtual restricted returns (uint256) {
+        try IERC20Permit(address(PUFFER_VAULT))
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                r: permitData.r,
+                s: permitData.s
+            }) { }
+            catch { }
 
         return _processPurchaseValidatorTicketWithPufETH(recipient, vtAmount);
     }

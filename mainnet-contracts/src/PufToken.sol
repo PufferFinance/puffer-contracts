@@ -122,7 +122,9 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         onlyAllowedMigratorContract(migratorContract)
         whenNotPaused
     {
-        _migrate({ depositor: msg.sender, amount: amount, destination: destination, migratorContract: migratorContract });
+        _migrate({
+            depositor: msg.sender, amount: amount, destination: destination, migratorContract: migratorContract
+        });
     }
 
     /**
@@ -206,10 +208,7 @@ contract PufToken is IPufStakingPool, ERC20, ERC20Permit {
         _burn(depositor, amount);
 
         emit Migrated({
-            depositor: depositor,
-            destination: destination,
-            migratorContract: migratorContract,
-            amount: amount
+            depositor: depositor, destination: destination, migratorContract: migratorContract, amount: amount
         });
 
         TOKEN.safeIncreaseAllowance(migratorContract, amount);

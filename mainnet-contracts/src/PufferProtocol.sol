@@ -2,8 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
@@ -239,11 +240,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         _storeValidatorInformation({
-            $: $,
-            data: data,
-            pufETHAmount: bondAmount,
-            moduleName: moduleName,
-            vtAmount: receivedVtAmount
+            $: $, data: data, pufETHAmount: bondAmount, moduleName: moduleName, vtAmount: receivedVtAmount
         });
     }
 
@@ -286,6 +283,23 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted to Node Operators
+     */
+    function triggerValidatorsExit(bytes32 moduleName, uint256[] calldata indices) external payable restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        bytes[] memory pubkeys = new bytes[](indices.length);
+
+        for (uint256 i = 0; i < indices.length; ++i) {
+            Validator memory validator = $.validators[moduleName][indices[i]];
+            require(validator.node == msg.sender, InvalidValidator());
+            pubkeys[i] = validator.pubKey;
+        }
+
+        PUFFER_MODULE_MANAGER.triggerValidatorsExit{ value: msg.value }(moduleName, pubkeys);
     }
 
     /**
@@ -397,9 +411,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateSkipProvisioning({
-            moduleName: moduleName,
-            skippedIndex: skippedIndex,
-            guardianEOASignatures: guardianEOASignatures
+            moduleName: moduleName, skippedIndex: skippedIndex, guardianEOASignatures: guardianEOASignatures
         });
 
         uint256 vtPenalty = $.vtPenalty;
@@ -832,15 +844,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
-        try IERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try IERC20Permit(token)
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
     }
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {

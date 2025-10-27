@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";

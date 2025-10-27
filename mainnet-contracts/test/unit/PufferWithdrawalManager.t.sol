@@ -8,8 +8,9 @@ import { IPufferWithdrawalManager } from "src/interface/IPufferWithdrawalManager
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Permit } from "../../src/structs/Permit.sol";
-import { Generate2StepWithdrawalsCalldata } from
-    "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
+import {
+    Generate2StepWithdrawalsCalldata
+} from "../../script/AccessManagerMigrations/04_Generate2StepWithdrawalsCalldata.s.sol";
 import { PufferWithdrawalManagerTests } from "../mocks/PufferWithdrawalManagerTests.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
@@ -43,27 +44,24 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // deploy an ERC1967Proxy
         withdrawalManager = PufferWithdrawalManager(
-            (
-                payable(
-                    new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
+            (payable(new ERC1967Proxy{ salt: bytes32("PufferWithdrawalManager") }(
                         address(withdrawalManagerImpl),
                         abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager))
-                    )
-                )
-            )
+                    )))
         );
 
         vm.label(address(withdrawalManager), "PufferWithdrawalManager");
 
         vm.startPrank(_broadcaster);
 
-        bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
-            pufferVaultProxy: address(pufferVault),
-            withdrawalManagerProxy: address(withdrawalManager),
-            paymaster: PAYMASTER,
-            withdrawalFinalizer: DAO,
-            pufferProtocolProxy: address(pufferProtocol)
-        });
+        bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata()
+            .run({
+                pufferVaultProxy: address(pufferVault),
+                withdrawalManagerProxy: address(withdrawalManager),
+                paymaster: PAYMASTER,
+                withdrawalFinalizer: DAO,
+                pufferProtocolProxy: address(pufferProtocol)
+            });
         (bool success,) = address(accessManager).call(encodedCalldata);
         require(success, "AccessManager.call failed");
 
@@ -715,27 +713,24 @@ contract PufferWithdrawalManagerTest is UnitTestHelper {
 
         // deploy an ERC1967Proxy
         withdrawalManager = PufferWithdrawalManager(
-            (
-                payable(
-                    new ERC1967Proxy{ salt: bytes32("newManager") }(
+            (payable(new ERC1967Proxy{ salt: bytes32("newManager") }(
                         address(withdrawalManagerImpl),
                         abi.encodeCall(PufferWithdrawalManager.initialize, address(accessManager))
-                    )
-                )
-            )
+                    )))
         );
 
         vm.label(address(withdrawalManager), "PufferWithdrawalManager");
 
         vm.startPrank(_broadcaster);
 
-        bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata().run({
-            pufferVaultProxy: address(pufferVault),
-            withdrawalManagerProxy: address(withdrawalManager),
-            paymaster: PAYMASTER,
-            withdrawalFinalizer: DAO,
-            pufferProtocolProxy: address(pufferProtocol)
-        });
+        bytes memory encodedCalldata = new Generate2StepWithdrawalsCalldata()
+            .run({
+                pufferVaultProxy: address(pufferVault),
+                withdrawalManagerProxy: address(withdrawalManager),
+                paymaster: PAYMASTER,
+                withdrawalFinalizer: DAO,
+                pufferProtocolProxy: address(pufferProtocol)
+            });
         (bool success,) = address(accessManager).call(encodedCalldata);
         require(success, "AccessManager.call failed");
 
