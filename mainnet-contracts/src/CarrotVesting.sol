@@ -63,6 +63,8 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
      */
     event PufferRecovered(uint256 pufferAmountWithdrawn);
 
+    event VestingReinitialized(uint256 duration, uint256 steps);
+
     uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
     uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether; // This is the total amount of PUFFER rewards to be distributed (55M)
     uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
@@ -112,6 +114,24 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         $.steps = steps;
         PUFFER.safeTransferFrom(msg.sender, address(this), TOTAL_PUFFER_REWARDS);
         emit VestingInitialized({ startTimestamp: startTimestamp, duration: duration, steps: steps });
+    }
+
+    /**
+     * @notice Reinitializes the vesting. This is used to change the duration or steps of the vesting after it has been initialized once.
+     * @dev This function can only be called by the owner
+     * @param newDuration The new duration of the vesting (seconds since the user deposits)
+     * @param newSteps The new number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     */
+    function reinitializeVesting(uint32 newDuration, uint32 newSteps) external onlyOwner reinitializer(3) {
+        require(newDuration > 0, InvalidDuration());
+        require(newSteps > 0, InvalidSteps());
+        require(newDuration >= newSteps, InvalidDuration());
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        require(!$.isDismantled, AlreadyDismantled());
+
+        $.duration = newDuration;
+        $.steps = newSteps;
+        emit VestingReinitialized({ duration: newDuration, steps: newSteps });
     }
 
     /**
