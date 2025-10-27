@@ -24,22 +24,17 @@ contract DeployRevenueDepositor is DeployerHelper {
             new PufferRevenueDepositor({ vault: _getPufferVault(), weth: _getWETH(), aeraVault: _getAeraVault() });
 
         revenueDepositor = PufferRevenueDepositor(
-            (
-                payable(
-                    new ERC1967Proxy{ salt: bytes32("RevenueDepositor") }(
+            (payable(new ERC1967Proxy{ salt: bytes32("RevenueDepositor") }(
                         address(revenueDepositorImpl),
                         abi.encodeCall(PufferRevenueDepositor.initialize, (address(_getAccessManager())))
-                    )
-                )
-            )
+                    )))
         );
 
         vm.label(address(revenueDepositor), "PufferRevenueDepositorProxy");
         vm.label(address(revenueDepositorImpl), "PufferRevenueDepositorImplementation");
 
         encodedCalldata = calldataGenerator.run({
-            revenueDepositorProxy: address(revenueDepositor),
-            operationsMultisig: _getOPSMultisig()
+            revenueDepositorProxy: address(revenueDepositor), operationsMultisig: _getOPSMultisig()
         });
 
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());

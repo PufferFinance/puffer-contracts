@@ -59,8 +59,7 @@ interface IStrategyManager is IStrategyManagerErrors, IStrategyManagerEvents, IS
      * @param initialStrategyWhitelister The initial value of `strategyWhitelister` to set.
      * @param initialPausedStatus The initial value of `_paused` to set.
      */
-    function initialize(address initialOwner, address initialStrategyWhitelister, uint256 initialPausedStatus)
-        external;
+    function initialize(address initialOwner, address initialStrategyWhitelister, uint256 initialPausedStatus) external;
 
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `msg.sender`

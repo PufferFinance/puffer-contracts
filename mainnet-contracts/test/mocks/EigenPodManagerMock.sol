@@ -63,9 +63,11 @@ contract EigenPodManagerMock is IEigenPodManager, Test {
      * @dev Callable only by the podOwner's EigenPod contract.
      * @dev Reverts if `sharesDelta` is not a whole Gwei amount
      */
-    function recordBeaconChainETHBalanceUpdate(address podOwner, uint256 prevRestakedBalanceWei, int256 balanceDeltaWei)
-        external
-    { }
+    function recordBeaconChainETHBalanceUpdate(
+        address podOwner,
+        uint256 prevRestakedBalanceWei,
+        int256 balanceDeltaWei
+    ) external { }
 
     /// @notice Returns the address of the `podOwner`'s EigenPod if it has been deployed.
     function ownerToPod(address podOwner) external view returns (IEigenPod) { }

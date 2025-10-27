@@ -2,8 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
@@ -239,11 +240,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
 
         _storeValidatorInformation({
-            $: $,
-            data: data,
-            pufETHAmount: bondAmount,
-            moduleName: moduleName,
-            vtAmount: receivedVtAmount
+            $: $, data: data, pufETHAmount: bondAmount, moduleName: moduleName, vtAmount: receivedVtAmount
         });
     }
 
@@ -397,9 +394,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Check the signatures (reverts if invalid)
         GUARDIAN_MODULE.validateSkipProvisioning({
-            moduleName: moduleName,
-            skippedIndex: skippedIndex,
-            guardianEOASignatures: guardianEOASignatures
+            moduleName: moduleName, skippedIndex: skippedIndex, guardianEOASignatures: guardianEOASignatures
         });
 
         uint256 vtPenalty = $.vtPenalty;
@@ -832,15 +827,17 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     function _callPermit(address token, Permit calldata permitData) internal {
-        try IERC20Permit(token).permit({
-            owner: msg.sender,
-            spender: address(this),
-            value: permitData.amount,
-            deadline: permitData.deadline,
-            v: permitData.v,
-            s: permitData.s,
-            r: permitData.r
-        }) { } catch { }
+        try IERC20Permit(token)
+            .permit({
+                owner: msg.sender,
+                spender: address(this),
+                value: permitData.amount,
+                deadline: permitData.deadline,
+                v: permitData.v,
+                s: permitData.s,
+                r: permitData.r
+            }) { }
+            catch { }
     }
 
     function _decreaseNumberOfRegisteredValidators(ProtocolStorage storage $, bytes32 moduleName) internal {

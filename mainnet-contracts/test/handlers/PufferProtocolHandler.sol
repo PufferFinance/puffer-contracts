@@ -548,14 +548,12 @@ contract PufferProtocolHandler is Test {
             // mock signature copied from some random deposit transaction
             signature: mockValidatorSignature,
             depositDataRoot: pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: mockValidatorSignature,
-                withdrawalCredentials: withdrawalCredentials
+                pubKey: pubKey, signature: mockValidatorSignature, withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48),
             raveEvidence: new bytes(1) // Guardians are checking it off chain
-         });
+        });
 
         return validatorData;
     }
@@ -611,9 +609,7 @@ contract PufferProtocolHandler is Test {
             mockValidatorSignature,
             withdrawalCredentials,
             pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: mockValidatorSignature,
-                withdrawalCredentials: withdrawalCredentials
+                pubKey: pubKey, signature: mockValidatorSignature, withdrawalCredentials: withdrawalCredentials
             })
         );
 

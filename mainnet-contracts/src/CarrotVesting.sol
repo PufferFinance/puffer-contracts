@@ -147,9 +147,16 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
      * @param permitData The permit data
      */
     function startVestingWithPermit(Permit calldata permitData) external {
-        IERC20Permit(address(CARROT)).permit(
-            msg.sender, address(this), permitData.amount, permitData.deadline, permitData.v, permitData.r, permitData.s
-        );
+        IERC20Permit(address(CARROT))
+            .permit(
+                msg.sender,
+                address(this),
+                permitData.amount,
+                permitData.deadline,
+                permitData.v,
+                permitData.r,
+                permitData.s
+            );
         _startVesting(permitData.amount);
     }
 
@@ -311,7 +318,8 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         require(!$.isDismantled, AlreadyDismantled());
         require($.startTimestamp > 0 && block.timestamp >= $.startTimestamp, NotStarted());
         require(amount > 0, InvalidAmount());
-        $.vestings[msg.sender].push(
+        $.vestings[msg.sender]
+        .push(
             Vesting({
                 depositedAmount: uint128(amount),
                 claimedAmount: 0,
