@@ -147,8 +147,8 @@ contract CarrotVestingTest is Test {
         emit CarrotVesting.VestingReinitialized(NEW_DURATION, NEW_STEPS);
         carrotVesting.reinitializeVesting(NEW_DURATION, NEW_STEPS);
 
-        assertEq(carrotVesting.getDuration(), NEW_DURATION, "Duration was not updated");
-        assertEq(carrotVesting.getSteps(), NEW_STEPS, "Steps were not updated");
+        assertEq(carrotVesting.getNewDuration(), NEW_DURATION, "Duration was not updated");
+        assertEq(carrotVesting.getNewSteps(), NEW_STEPS, "Steps were not updated");
     }
 
     function test_reinitializeVesting_AffectsExistingUsers() public initialized {
@@ -169,11 +169,23 @@ contract CarrotVestingTest is Test {
 
         // Now reinitialize to 6 months with 6 steps
         carrotVesting.reinitializeVesting(NEW_DURATION, NEW_STEPS);
-        uint256 newStepDuration = NEW_DURATION / NEW_STEPS;
+
+        // Current vesting should be claimed even after reinitialization
+        vm.startPrank(alice);
+        uint256 totalClaimableBeforeReinit = carrotVesting.claim();
+        vm.stopPrank();
+        assertEq(totalClaimableBeforeReinit, expectedClaimableBeforeReinit);
+
+        uint256 depositAmount2 = 50 ether;
+        _startVesting(alice, depositAmount2);
+        uint256 secondVestingTimestamp = block.number;
+
         // The calculation should now use the NEW duration and steps
-        // Same time has passed, but now it's calculated against 6 months instead of 20 days
-        uint256 numNewStepsPassed = originalStepDuration / newStepDuration;
-        uint256 expectedClaimableAfterReinit = (numNewStepsPassed * depositAmount / NEW_STEPS) * EXCHANGE_RATE / 1e18;
+        uint256 newStepDuration = NEW_DURATION / NEW_STEPS;
+
+        skip(newStepDuration + 5);
+        uint256 numNewStepsPassed = (block.timestamp - secondVestingTimestamp) / newStepDuration;
+        uint256 expectedClaimableAfterReinit = (numNewStepsPassed * depositAmount2 / NEW_STEPS) * EXCHANGE_RATE / 1e18;
         uint256 claimableAfterReinit = carrotVesting.calculateClaimableAmount(alice);
 
         assertApproxEqAbs(claimableAfterReinit, expectedClaimableAfterReinit, 1, "Claimable after reinit not correct");
@@ -184,7 +196,7 @@ contract CarrotVestingTest is Test {
         uint256 totalClaimable = carrotVesting.claim();
         vm.stopPrank();
 
-        uint256 expectedTotalClaimable = EXCHANGE_RATE * depositAmount / 1e18;
+        uint256 expectedTotalClaimable = EXCHANGE_RATE * depositAmount2 / 1e18;
         assertApproxEqAbs(totalClaimable, expectedTotalClaimable, 1, "Total claimable not correct");
     }
 
@@ -437,6 +449,64 @@ contract CarrotVestingTest is Test {
         vm.expectRevert(CarrotVesting.NoClaimableAmount.selector);
         carrotVesting.claim();
         vm.stopPrank();
+    }
+
+    function test_claim_reinitialize_after() public initialized {
+        uint256 depositAmount = 100 ether;
+        _startVesting(alice, depositAmount);
+
+        skip(DURATION + 30);
+
+        uint256 balanceBefore = puffer.balanceOf(alice);
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, false);
+        emit CarrotVesting.Claimed(alice, EXCHANGE_RATE * depositAmount / 1e18);
+        carrotVesting.claim();
+        uint256 balanceAfter = puffer.balanceOf(alice);
+        uint256 claimedAmount = balanceAfter - balanceBefore;
+        assertEq(claimedAmount, EXCHANGE_RATE * depositAmount / 1e18);
+        vm.stopPrank();
+
+        carrotVesting.reinitializeVesting(NEW_DURATION, 1);
+
+        uint256 claimableAmount = carrotVesting.calculateClaimableAmount(alice);
+        assertEq(claimableAmount, 0);
+    }
+
+    function test_claim_reinitialize() public initialized {
+        uint256 depositAmount1 = 100 ether;
+        _startVesting(alice, depositAmount1);
+
+        skip(DURATION + 30);
+
+        uint256 balanceBefore = puffer.balanceOf(alice);
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, false);
+        emit CarrotVesting.Claimed(alice, EXCHANGE_RATE * depositAmount1 / 1e18);
+        carrotVesting.claim();
+        uint256 balanceAfter = puffer.balanceOf(alice);
+        uint256 claimedAmount1 = balanceAfter - balanceBefore;
+        assertEq(claimedAmount1, EXCHANGE_RATE * depositAmount1 / 1e18);
+
+        uint256 depositAmount2 = 50 ether;
+        _startVesting(alice, depositAmount2);
+
+        carrotVesting.reinitializeVesting(NEW_DURATION, 1);
+
+        assertEq(carrotVesting.getNewDuration(), NEW_DURATION);
+
+        skip(DURATION + 10);
+
+        vm.startPrank(alice);
+
+        vm.expectRevert(CarrotVesting.NoClaimableAmount.selector);
+        carrotVesting.claim();
+
+        skip(NEW_DURATION);
+
+        vm.expectEmit(true, true, true, false);
+        emit CarrotVesting.Claimed(alice, EXCHANGE_RATE * depositAmount2 / 1e18);
+        carrotVesting.claim();
     }
 
     function test_claimAllAtOnce() public initialized {

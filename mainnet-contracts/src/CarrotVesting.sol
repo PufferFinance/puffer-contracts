@@ -129,8 +129,9 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         VestingStorage storage $ = _getCarrotVestingStorage();
         require(!$.isDismantled, AlreadyDismantled());
 
-        $.duration = newDuration;
-        $.steps = newSteps;
+        $.newDuration = newDuration;
+        $.newSteps = newSteps;
+        $.upgradeTimestamp = uint48(block.timestamp);
         emit VestingReinitialized({ duration: newDuration, steps: newSteps });
     }
 
@@ -253,12 +254,30 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     }
 
     /**
+     * @notice Gets the timestamp when the vesting was upgraded
+     * @return The timestamp when the vesting was upgraded
+     */
+    function getUpgradeTimestamp() external view returns (uint48) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.upgradeTimestamp;
+    }
+    /**
      * @notice Gets the duration of the vesting
      * @return The duration of the vesting
      */
+
     function getDuration() external view returns (uint32) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.duration;
+    }
+
+    /**
+     * @notice Gets the new duration of the vesting
+     * @return The new duration of the vesting
+     */
+    function getNewDuration() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newDuration;
     }
 
     /**
@@ -268,6 +287,15 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     function getSteps() external view returns (uint32) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.steps;
+    }
+
+    /**
+     * @notice Gets the new steps of the vesting
+     * @return The new steps of the vesting
+     */
+    function getNewSteps() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newSteps;
     }
 
     /**
@@ -295,13 +323,24 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         if (vesting.depositedAmount == 0) {
             return 0;
         }
-        uint256 endOfVesting = vesting.depositedTimestamp + $.duration;
+        uint32 duration;
+        uint32 steps;
+        if ($.upgradeTimestamp == 0 || vesting.depositedTimestamp < $.upgradeTimestamp) {
+            // Vesting was created before the upgrade
+            duration = $.duration;
+            steps = $.steps;
+        } else {
+            // Vesting was created after the upgrade
+            duration = $.newDuration;
+            steps = $.newSteps;
+        }
+        uint256 endOfVesting = vesting.depositedTimestamp + duration;
         if (vesting.lastClaimedTimestamp >= endOfVesting) {
             return 0;
         }
         uint256 claimingTimestamp = endOfVesting > block.timestamp ? block.timestamp : endOfVesting;
-        uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / ($.duration / $.steps);
-        uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / $.steps;
+        uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / (duration / steps);
+        uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / steps;
         uint256 claimableAmount = (depositedAmountClaimable * EXCHANGE_RATE / 1e18);
         return uint128(claimableAmount) - vesting.claimedAmount;
     }
