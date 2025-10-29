@@ -63,6 +63,11 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
      */
     event PufferRecovered(uint256 pufferAmountWithdrawn);
 
+    /**
+     * @notice Emitted when the vesting is reinitialized, changing the duration or steps of the vesting process
+     * @param duration The new duration of the vesting (seconds since the user deposits)
+     * @param steps The new number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     */
     event VestingReinitialized(uint256 duration, uint256 steps);
 
     uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
@@ -261,11 +266,11 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.upgradeTimestamp;
     }
+
     /**
      * @notice Gets the duration of the vesting
      * @return The duration of the vesting
      */
-
     function getDuration() external view returns (uint32) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.duration;
