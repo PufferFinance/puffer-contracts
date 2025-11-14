@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import {
+    AccessManagedUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -186,7 +187,12 @@ contract L1RewardManager is
         bytes calldata message,
         address, /* _executor */
         bytes calldata /* _extraData */
-    ) external payable override restricted {
+    )
+        external
+        payable
+        override
+        restricted
+    {
         // Ensure that only the whitelisted pufETH OFT can call this function
         if (oft != address(PUFETH_OFT)) {
             revert Unauthorized();
