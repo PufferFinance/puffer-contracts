@@ -14,7 +14,9 @@ import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from 'hardhat/types'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 import '@nomicfoundation/hardhat-verify'
 import './tasks/send'
+import './tasks/manualWire'
 import './type-extensions'
+import { MONAD_V2_MAINNET } from './type-extensions'
 
 // Set your preferred authentication method
 //
@@ -81,14 +83,19 @@ const config: HardhatUserConfig = {
         // },
         // base: {
         //     eid: EndpointId.BASE_V2_MAINNET,
-        //     // url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
-        //     url: 'https://base.api.onfinality.io/public',
+        //     url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
         //     accounts,
         //     timeout: 120000,
         // },
-        linea: {
-            eid: EndpointId.ZKCONSENSYS_V2_MAINNET,
-            url: 'https://1rpc.io/linea',
+        // linea: {
+        //     eid: EndpointId.ZKCONSENSYS_V2_MAINNET,
+        //     url: 'https://1rpc.io/linea',
+        //     accounts,
+        //     timeout: 120000,
+        // },
+        monad: {
+            eid: MONAD_V2_MAINNET,
+            url: 'https://rpc-mainnet.monadinfra.com/rpc/tOPaqq0r2zJg6pPOZ5ew6d9CiMFrWamx',
             accounts,
             timeout: 120000,
         },
@@ -103,17 +110,39 @@ const config: HardhatUserConfig = {
             default: 0, // wallet address of index[0], of the mnemonic in .env
         },
     },
+    sourcify: {
+        enabled: true,
+        apiUrl: 'https://sourcify-api-monad.blockvision.org',
+        browserUrl: 'https://testnet.monadexplorer.com',
+    },
     etherscan: {
+        enabled: false,
         apiKey: 'J43TVJFZUHAVRBD2T6CDHDSA35EHCNTK96',
         customChains: [
-            {
-                network: 'linea',
-                chainId: 59144,
-                urls: {
-                    apiURL: 'https://api.etherscan.io/v2/api?chainid=59144',
-                    browserURL: 'https://lineascan.build',
-                },
-            },
+            // {
+            //     network: 'monad',
+            //     chainId: 143,
+            //     urls: {
+            //         apiURL: 'https://api.etherscan.io/v2/api?chainid=30390',
+            //         browserURL: 'https://monadscan.io',
+            //     },
+            // },
+            // {
+            //     network: 'linea',
+            //     chainId: 59144,
+            //     urls: {
+            //         apiURL: 'https://api.etherscan.io/v2/api?chainid=59144',
+            //         browserURL: 'https://lineascan.build',
+            //     },
+            // },
+            // {
+            //     network: 'base',
+            //     chainId: 8453,
+            //     urls: {
+            //         apiURL: 'https://api.etherscan.io/v2/api?chainid=8453',
+            //         browserURL: 'https://basescan.org',
+            //     },
+            // },
             // {
             //     network: 'hyperevm-mainnet',
             //     chainId: 999,
