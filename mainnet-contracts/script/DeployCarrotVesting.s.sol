@@ -17,6 +17,7 @@ import { CarrotVesting } from "../src/CarrotVesting.sol";
  * Or using account instead of private key:
  * forge script script/DeployCarrotVesting.s.sol:DeployCarrotVesting --rpc-url=$RPC_URL --account puffer_deployer --broadcast --sig "run(address,address,address)"  $CARROT $PUFFER $OWNER
  *
+ *
  * deploy along with verification:
  * forge script script/DeployCarrotVesting.s.sol:DeployCarrotVesting -vvvv --rpc-url=$RPC_URL --private-key $PK  --verify --etherscan-api-key $ETHERSCAN_API_KEY --broadcast --sig "run(address,address,address)"  $CARROT $PUFFER $OWNER
  */

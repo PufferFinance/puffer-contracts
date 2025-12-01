@@ -63,6 +63,13 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
      */
     event PufferRecovered(uint256 pufferAmountWithdrawn);
 
+    /**
+     * @notice Emitted when the vesting is reinitialized, changing the duration or steps of the vesting process
+     * @param duration The new duration of the vesting (seconds since the user deposits)
+     * @param steps The new number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     */
+    event VestingReinitialized(uint256 duration, uint256 steps);
+
     uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether; // This is the total supply of CARROT which is 100M
     uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether; // This is the total amount of PUFFER rewards to be distributed (55M)
     uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT; // This is the exchange rate of PUFFER to CARROT with 18 decimals (55M / 100M = 0.55) * 1e18
@@ -112,6 +119,25 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         $.steps = steps;
         PUFFER.safeTransferFrom(msg.sender, address(this), TOTAL_PUFFER_REWARDS);
         emit VestingInitialized({ startTimestamp: startTimestamp, duration: duration, steps: steps });
+    }
+
+    /**
+     * @notice Reinitializes the vesting. This is used to change the duration or steps of the vesting after it has been initialized once.
+     * @dev This function can only be called by the owner
+     * @param newDuration The new duration of the vesting (seconds since the user deposits)
+     * @param newSteps The new number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     */
+    function reinitializeVesting(uint32 newDuration, uint32 newSteps) external onlyOwner reinitializer(3) {
+        require(newDuration > 0, InvalidDuration());
+        require(newSteps > 0, InvalidSteps());
+        require(newDuration >= newSteps, InvalidDuration());
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        require(!$.isDismantled, AlreadyDismantled());
+
+        $.newDuration = newDuration;
+        $.newSteps = newSteps;
+        $.upgradeTimestamp = uint48(block.timestamp);
+        emit VestingReinitialized({ duration: newDuration, steps: newSteps });
     }
 
     /**
@@ -233,6 +259,15 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     }
 
     /**
+     * @notice Gets the timestamp when the vesting was upgraded
+     * @return The timestamp when the vesting was upgraded
+     */
+    function getUpgradeTimestamp() external view returns (uint48) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.upgradeTimestamp;
+    }
+
+    /**
      * @notice Gets the duration of the vesting
      * @return The duration of the vesting
      */
@@ -242,12 +277,30 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     }
 
     /**
+     * @notice Gets the new duration of the vesting
+     * @return The new duration of the vesting
+     */
+    function getNewDuration() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newDuration;
+    }
+
+    /**
      * @notice Gets the steps of the vesting
      * @return The steps of the vesting
      */
     function getSteps() external view returns (uint32) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.steps;
+    }
+
+    /**
+     * @notice Gets the new steps of the vesting
+     * @return The new steps of the vesting
+     */
+    function getNewSteps() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newSteps;
     }
 
     /**
@@ -275,13 +328,24 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         if (vesting.depositedAmount == 0) {
             return 0;
         }
-        uint256 endOfVesting = vesting.depositedTimestamp + $.duration;
+        uint32 duration;
+        uint32 steps;
+        if ($.upgradeTimestamp == 0 || vesting.depositedTimestamp < $.upgradeTimestamp) {
+            // Vesting was created before the upgrade
+            duration = $.duration;
+            steps = $.steps;
+        } else {
+            // Vesting was created after the upgrade
+            duration = $.newDuration;
+            steps = $.newSteps;
+        }
+        uint256 endOfVesting = vesting.depositedTimestamp + duration;
         if (vesting.lastClaimedTimestamp >= endOfVesting) {
             return 0;
         }
         uint256 claimingTimestamp = endOfVesting > block.timestamp ? block.timestamp : endOfVesting;
-        uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / ($.duration / $.steps);
-        uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / $.steps;
+        uint256 numStepsClaimable = (claimingTimestamp - vesting.depositedTimestamp) / (duration / steps);
+        uint256 depositedAmountClaimable = (vesting.depositedAmount * numStepsClaimable) / steps;
         uint256 claimableAmount = (depositedAmountClaimable * EXCHANGE_RATE / 1e18);
         return uint128(claimableAmount) - vesting.claimedAmount;
     }

@@ -19,6 +19,9 @@ abstract contract CarrotVestingStorage {
         bool isDismantled;
         uint128 totalDepositedAmount;
         mapping(address user => Vesting[] vestingInfo) vestings;
+        uint48 upgradeTimestamp;
+        uint32 newDuration;
+        uint32 newSteps;
     }
 
     // keccak256(abi.encode(uint256(keccak256("carrotvesting.storage")) - 1)) & ~bytes32(uint256(0xff))
