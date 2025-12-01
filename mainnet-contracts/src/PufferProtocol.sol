@@ -290,12 +290,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted to Node Operators
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Only the node operators that own the indicated validators can call this function
      */
-    function triggerValidatorsExit(
-        bytes32 moduleName,
-        uint256[] calldata indices
-    ) external restricted payable {
+    function triggerValidatorsExit(bytes32 moduleName, uint256[] calldata indices) external payable restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         bytes[] memory pubkeys = new bytes[](indices.length);
 
@@ -305,7 +303,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             pubkeys[i] = validator.pubKey;
         }
 
-        PUFFER_MODULE_MANAGER.triggerValidatorsExit{value: msg.value}(moduleName, pubkeys);
+        PUFFER_MODULE_MANAGER.triggerValidatorsExit{ value: msg.value }(moduleName, pubkeys);
     }
 
     /**

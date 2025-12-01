@@ -202,7 +202,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
      * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
      *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
      */
-    function triggerValidatorsExit(bytes[] calldata pubkeys) external virtual payable onlyPufferModuleManager {
+    function triggerValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
         ModuleStorage storage $ = _getPufferModuleStorage();
 
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
@@ -210,9 +210,9 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
             requests[i] = IEigenPodTypes.WithdrawalRequest({
                 pubkey: pubkeys[i],
                 amountGwei: 0 // This means full exit. Only value supported for 0x01 validators
-            });
+             });
         }
-        $.eigenPod.requestWithdrawal{value: msg.value}(requests);
+        $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
     }
 
     /**
