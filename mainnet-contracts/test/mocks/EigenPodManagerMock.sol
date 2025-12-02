@@ -6,9 +6,21 @@ import "src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
 import "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 
 contract EigenPodMock {
+
+    uint256 private constant WITHDRAWAL_FEE = 0.0001 ether;
+
+    struct WithdrawalRequest {
+        bytes pubkey;
+        uint64 amountGwei;
+    }
+
     function startCheckpoint(bool) external { }
 
     function setProofSubmitter(address) external { }
+
+    function requestWithdrawal(WithdrawalRequest[] calldata requests) external payable {
+        payable(msg.sender).transfer(msg.value - requests.length * WITHDRAWAL_FEE);
+    }
 }
 
 contract EigenPodManagerMock is IEigenPodManager, Test {

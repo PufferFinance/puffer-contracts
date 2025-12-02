@@ -5,6 +5,8 @@ import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { IPufferModuleManager } from "../../src/interface/IPufferModuleManager.sol";
+import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Merkle } from "murky/Merkle.sol";
@@ -37,6 +39,10 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     bytes32 CRAZY_GAINS = bytes32("CRAZY_GAINS");
 
+    bytes32 MOCK_MODULE = bytes32("MOCK_MODULE");
+
+    uint256 EXIT_FEE = 0.0001 ether;
+
     function setUp() public override {
         super.setUp();
 
@@ -48,6 +54,11 @@ contract PufferModuleManagerTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
         (bool success,) = address(accessManager).call(cd);
         assertTrue(success, "should succeed");
+
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+        accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_OPERATIONS_PAYMASTER);
+
 
         vm.stopPrank();
 
@@ -333,6 +344,109 @@ contract PufferModuleManagerTest is UnitTestHelper {
         );
 
         vm.stopPrank();
+    }
+
+    function test_requestWithdrawalExactFee1() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: EXIT_FEE }(MOCK_MODULE, pubkeys);
+    }
+
+    function test_requestWithdrawalExactFee2() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys);
+    }
+
+    function test_requestWithdrawalExcessFee() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        uint256 initialBalance = moduleAddress.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
+
+    }
+
+    function test_requestWithdrawalExcessFee2() public {
+        address moduleAddress = _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = bytes("0x1234");
+        pubkeys[1] = bytes("0x4321");
+
+        uint256 initialBalance = moduleAddress.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferModuleManager.ValidatorsExitTriggered(MOCK_MODULE, pubkeys);
+
+        pufferModuleManager.triggerValidatorsExit{ value: 1 ether }(MOCK_MODULE, pubkeys);
+
+        // Calculate expected balance: initial + amount sent - fee
+        uint256 expectedBalance = initialBalance + 1 ether - 2 * EXIT_FEE;
+
+        // Verify the balance change accounting for gas
+        assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
+
+    }
+
+    function test_requestWithdrawalNoFee() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.expectRevert(); // panic underflow when subtracting fee
+        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+    }
+
+    function test_requestWithdrawalUnauthorized() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](1);
+        pubkeys[0] = bytes("0x1234");
+
+        vm.startPrank(bob);
+
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, bob));
+        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+
+        vm.stopPrank();
+
+    }
+
+    function test_requestWithdrawalInputArrayLengthZero() public {
+        _createPufferModule(MOCK_MODULE);
+
+        bytes[] memory pubkeys = new bytes[](0);
+
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthZero.selector));
+        pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
+
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
