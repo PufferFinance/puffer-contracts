@@ -98,7 +98,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](30);
+        calldatas = new bytes[](31);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -124,19 +124,20 @@ contract SetupAccess is BaseScript {
 
         calldatas[18] = moduleManagerAccess[0];
         calldatas[19] = moduleManagerAccess[1];
+        calldatas[20] = moduleManagerAccess[2];
 
-        calldatas[20] = roleLabels[0];
-        calldatas[21] = roleLabels[1];
-        calldatas[22] = roleLabels[2];
-        calldatas[23] = roleLabels[3];
+        calldatas[21] = roleLabels[0];
+        calldatas[22] = roleLabels[1];
+        calldatas[23] = roleLabels[2];
+        calldatas[24] = roleLabels[3];
 
-        calldatas[24] = coordinatorAccess[0];
-        calldatas[25] = coordinatorAccess[1];
+        calldatas[25] = coordinatorAccess[0];
+        calldatas[26] = coordinatorAccess[1];
 
-        calldatas[26] = validatorTicketAccess[0];
-        calldatas[27] = validatorTicketAccess[1];
-        calldatas[28] = validatorTicketAccess[2];
-        calldatas[29] = validatorTicketAccess[3];
+        calldatas[27] = validatorTicketAccess[0];
+        calldatas[28] = validatorTicketAccess[1];
+        calldatas[29] = validatorTicketAccess[2];
+        calldatas[30] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -158,7 +159,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupPufferModuleManagerAccess() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
 
         // Dao selectors
         bytes4[] memory selectors = new bytes4[](7);
@@ -185,6 +186,17 @@ contract SetupAccess is BaseScript {
             pufferDeployment.moduleManager,
             botSelectors,
             ROLE_ID_OPERATIONS_PAYMASTER
+        );
+
+        // PufferProtocol selectors
+        bytes4[] memory pufferProtocolSelectors = new bytes4[](1);
+        pufferProtocolSelectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.moduleManager,
+            pufferProtocolSelectors,
+            ROLE_ID_PUFFER_PROTOCOL
         );
 
         return calldatas;

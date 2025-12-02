@@ -346,7 +346,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         vm.stopPrank();
     }
 
-    function test_requestWithdrawalExactFee1() public {
+    function test_triggerValidatorsExitExactFee1() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
@@ -358,7 +358,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit{ value: EXIT_FEE }(MOCK_MODULE, pubkeys);
     }
 
-    function test_requestWithdrawalExactFee2() public {
+    function test_triggerValidatorsExitExactFee2() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](2);
@@ -371,7 +371,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit{ value: 2 * EXIT_FEE }(MOCK_MODULE, pubkeys);
     }
 
-    function test_requestWithdrawalExcessFee() public {
+    function test_triggerValidatorsExitExcessFee() public {
         address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
@@ -392,7 +392,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     }
 
-    function test_requestWithdrawalExcessFee2() public {
+    function test_triggerValidatorsExitExcessFee2() public {
         address moduleAddress = _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](2);
@@ -414,7 +414,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     }
 
-    function test_requestWithdrawalNoFee() public {
+    function test_triggerValidatorsExitNoFee() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
@@ -424,7 +424,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
     }
 
-    function test_requestWithdrawalUnauthorized() public {
+    function test_triggerValidatorsExitUnauthorized() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](1);
@@ -439,7 +439,7 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
     }
 
-    function test_requestWithdrawalInputArrayLengthZero() public {
+    function test_triggerValidatorsExitInputArrayLengthZero() public {
         _createPufferModule(MOCK_MODULE);
 
         bytes[] memory pubkeys = new bytes[](0);
