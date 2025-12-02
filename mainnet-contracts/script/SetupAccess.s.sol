@@ -175,9 +175,10 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](2);
+        bytes4[] memory botSelectors = new bytes4[](3);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
         botSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
+        botSelectors[2] = PufferModuleManager.triggerValidatorsExit.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -319,11 +320,12 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](4);
+        bytes4[] memory publicSelectors = new bytes4[](5);
         publicSelectors[0] = PufferProtocol.registerValidatorKey.selector;
         publicSelectors[1] = PufferProtocol.depositValidatorTickets.selector;
         publicSelectors[2] = PufferProtocol.withdrawValidatorTickets.selector;
         publicSelectors[3] = PufferProtocol.revertIfPaused.selector;
+        publicSelectors[4] = PufferProtocol.triggerValidatorsExit.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
