@@ -6,7 +6,6 @@ import "src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
 import "src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 
 contract EigenPodMock {
-
     uint256 private constant WITHDRAWAL_FEE = 0.0001 ether;
 
     struct WithdrawalRequest {

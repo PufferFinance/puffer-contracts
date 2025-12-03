@@ -11,7 +11,12 @@ import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_PUFFER_PROTOCOL } from "../../script/Roles.sol";
+import {
+    ROLE_ID_DAO,
+    ROLE_ID_OPERATIONS_PAYMASTER,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_PUFFER_PROTOCOL
+} from "../../script/Roles.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
@@ -1877,7 +1882,6 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.InvalidValidator.selector));
         pufferProtocol.triggerValidatorsExit(PUFFER_MODULE_0, indices);
         vm.stopPrank();
-
     }
 
     function test_triggerValidatorsExit_1validator() public {
@@ -1893,17 +1897,89 @@ contract PufferProtocolTest is UnitTestHelper {
 
         (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
 
-        pufferProtocol.provisionNode(
-            _getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](1);
         indices[0] = index;
         vm.startPrank(alice);
         emit IPufferModuleManager.ValidatorsExitTriggered(PUFFER_MODULE_0, pubKeys);
-        pufferProtocol.triggerValidatorsExit{value: EXIT_FEE}(PUFFER_MODULE_0, indices);
+        pufferProtocol.triggerValidatorsExit{ value: EXIT_FEE }(PUFFER_MODULE_0, indices);
+        vm.stopPrank();
+    }
+
+    function test_triggerValidatorsExit_2validators() public {
+        bytes32 pubKeyPart1 = bytes32("alice");
+        bytes memory pubKey1 = _getPubKey(pubKeyPart1);
+        bytes32 pubKeyPart2 = bytes32("alice2");
+        bytes memory pubKey2 = _getPubKey(pubKeyPart2);
+        bytes[] memory pubKeys = new bytes[](2);
+        pubKeys[0] = pubKey1;
+        pubKeys[1] = pubKey2;
+
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(pubKeyPart1, PUFFER_MODULE_0);
+        (, uint256 index1) = pufferProtocol.getNextValidatorToProvision();
+        _registerValidatorKey(pubKeyPart2, PUFFER_MODULE_0);
+        (, uint256 index2) = pufferProtocol.getNextValidatorToProvision();
         vm.stopPrank();
 
+        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey1), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey2), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256[] memory indices = new uint256[](2);
+        indices[0] = index1;
+        indices[0] = index2;
+        vm.startPrank(alice);
+        emit IPufferModuleManager.ValidatorsExitTriggered(PUFFER_MODULE_0, pubKeys);
+        pufferProtocol.triggerValidatorsExit{ value: 2 * EXIT_FEE }(PUFFER_MODULE_0, indices);
+        vm.stopPrank();
+    }
+
+    function test_triggerValidatorsExit_InputArrayLengthZero() public {
+        bytes32 pubKeyPart = bytes32("alice");
+        bytes memory pubKey = _getPubKey(pubKeyPart);
+        bytes[] memory pubKeys = new bytes[](1);
+        pubKeys[0] = pubKey;
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(pubKeyPart, PUFFER_MODULE_0);
+        vm.stopPrank();
+
+        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256[] memory indices = new uint256[](0);
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthZero.selector));
+        pufferProtocol.triggerValidatorsExit{ value: EXIT_FEE }(PUFFER_MODULE_0, indices);
+        vm.stopPrank();
+    }
+
+    function test_triggerValidators_ExitNoFee() public {
+        bytes32 pubKeyPart = bytes32("alice");
+        bytes memory pubKey = _getPubKey(pubKeyPart);
+        bytes[] memory pubKeys = new bytes[](1);
+        pubKeys[0] = pubKey;
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(pubKeyPart, PUFFER_MODULE_0);
+        vm.stopPrank();
+
+        (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
+
+        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+
+        uint256[] memory indices = new uint256[](1);
+        indices[0] = index;
+        vm.startPrank(alice);
+
+        vm.expectRevert(); // panic underflow when subtracting fee
+        pufferProtocol.triggerValidatorsExit(PUFFER_MODULE_0, indices);
+        vm.stopPrank();
     }
 
     function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {

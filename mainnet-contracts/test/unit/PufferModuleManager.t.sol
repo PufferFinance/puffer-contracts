@@ -59,7 +59,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         selectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
         accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_OPERATIONS_PAYMASTER);
 
-
         vm.stopPrank();
 
         _skipDefaultFuzzAddresses();
@@ -389,7 +388,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         // Verify the balance change accounting for gas
         assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
-
     }
 
     function test_triggerValidatorsExitExcessFee2() public {
@@ -411,7 +409,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         // Verify the balance change accounting for gas
         assertEq(moduleAddress.balance, expectedBalance, "Module should get the fee back minus gas costs");
-
     }
 
     function test_triggerValidatorsExitNoFee() public {
@@ -436,7 +433,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
 
         vm.stopPrank();
-
     }
 
     function test_triggerValidatorsExitInputArrayLengthZero() public {
@@ -446,7 +442,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.expectRevert(abi.encodeWithSelector(IPufferModuleManager.InputArrayLengthZero.selector));
         pufferModuleManager.triggerValidatorsExit(MOCK_MODULE, pubkeys);
-
     }
 
     function _createPufferModule(bytes32 moduleName) internal returns (address module) {
