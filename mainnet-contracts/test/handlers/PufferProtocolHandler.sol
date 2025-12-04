@@ -545,7 +545,7 @@ contract PufferProtocolHandler is Test {
                 signature: mockValidatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             })
-         });
+        });
 
         return validatorData;
     }

@@ -223,7 +223,7 @@ contract PufferProtocolTest is UnitTestHelper {
             blsPubKey: pubKey, // key length must be 48 byte
             signature: new bytes(0),
             depositDataRoot: bytes32("")
-         });
+        });
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0, false);
@@ -793,9 +793,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // Alice got the pufETH
         assertEq(pufferVault.balanceOf(alice), validator.bond, "alice got the pufETH");
         // 1 wei diff
-        assertApproxEqAbs(
-            pufferVault.convertToAssets(pufferVault.balanceOf(alice)), bond, 1, "assets owned by alice"
-        );
+        assertApproxEqAbs(pufferVault.convertToAssets(pufferVault.balanceOf(alice)), bond, 1, "assets owned by alice");
 
         // Alice doesn't withdraw her VT's right away
         vm.warp(startTimestamp + 50 days);
@@ -1755,7 +1753,9 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.registerValidatorKey{ value: 9 ether }(data, PUFFER_MODULE_0, permit, emptyPermit);
 
         // Because alice purchased VT in the registration TX, it modified the exchange rate and we take less pufETH from her.
-        assertEq(pufferVault.balanceOf(alice), 16833167574628528, "alice has 16833167574628528 pufETH after registering");
+        assertEq(
+            pufferVault.balanceOf(alice), 16833167574628528, "alice has 16833167574628528 pufETH after registering"
+        );
     }
 
     // Alice uses Permit for VT and pays for the bond with ETH, but sends more ETH than needed
@@ -1923,7 +1923,7 @@ contract PufferProtocolTest is UnitTestHelper {
                 signature: validatorSignature,
                 withdrawalCredentials: withdrawalCredentials
             })
-         });
+        });
 
         return validatorData;
     }
