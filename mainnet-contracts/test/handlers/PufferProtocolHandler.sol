@@ -532,13 +532,6 @@ contract PufferProtocolHandler is Test {
         view
         returns (ValidatorKeyData memory)
     {
-        bytes[] memory newSetOfPubKeys = new bytes[](3);
-
-        // we have 3 guardians in TestHelper.sol
-        newSetOfPubKeys[0] = bytes("key1");
-        newSetOfPubKeys[0] = bytes("key2");
-        newSetOfPubKeys[0] = bytes("key3");
-
         address module = pufferProtocol.getModuleAddress(moduleName);
 
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(module);
@@ -551,10 +544,7 @@ contract PufferProtocolHandler is Test {
                 pubKey: pubKey,
                 signature: mockValidatorSignature,
                 withdrawalCredentials: withdrawalCredentials
-            }),
-            blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(1) // Guardians are checking it off chain
+            })
          });
 
         return validatorData;
