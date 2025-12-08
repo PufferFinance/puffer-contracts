@@ -10,7 +10,12 @@ import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
-import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_NODE_PROVISIONER } from "../../script/Roles.sol";
+import {
+    ROLE_ID_DAO,
+    ROLE_ID_OPERATIONS_PAYMASTER,
+    ROLE_ID_OPERATIONS_MULTISIG,
+    ROLE_ID_NODE_PROVISIONER
+} from "../../script/Roles.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
@@ -713,9 +718,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.warp(startTimestamp);
 
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Didn't claim the bond yet
         assertEq(pufferVault.balanceOf(alice), 0, "alice has zero pufETH");
@@ -1362,9 +1365,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Give funds to modules
         vm.deal(NoRestakingModule, 200 ether);
@@ -1416,9 +1417,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1465,9 +1464,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1525,9 +1522,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1577,9 +1572,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         uint256 startTimestamp = 1707411226;
         vm.warp(startTimestamp);
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.deal(NoRestakingModule, 200 ether);
 
@@ -1620,9 +1613,7 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         // Alice exited after 1 day
         _executeFullWithdrawal(
@@ -1650,9 +1641,7 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         vm.startPrank(DAO);
         pufferProtocol.changeMinimumVTAmount(35 ether);
@@ -1903,9 +1892,7 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerValidatorKey(pubKeyPart, moduleName);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
     }
 
     /**

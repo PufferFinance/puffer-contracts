@@ -280,10 +280,7 @@ interface IPufferProtocol {
      * @notice Provisions the next node that is in line for provisioning
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external;
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external;
 
     /**
      * @notice Returns the deposit_data_root

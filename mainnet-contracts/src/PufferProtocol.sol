@@ -246,10 +246,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
-    function provisionNode(
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external restricted {
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external restricted {
         if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
             revert InvalidDepositRootHash();
         }
@@ -282,10 +279,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Deposit into the Beacon Chain Deposit Contract directly
         BEACON_DEPOSIT_CONTRACT.deposit{ value: 32 ether }(
-            validatorPubKey,
-            withdrawalCredentials,
-            validatorSignature,
-            depositDataRoot
+            validatorPubKey, withdrawalCredentials, validatorSignature, depositDataRoot
         );
 
         // Update Node Operator info
@@ -744,8 +738,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         bytes32 moduleName,
         uint256 index,
         bytes calldata validatorSignature
-    ) internal {
-    }
+    ) internal { }
 
     function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
         internal
