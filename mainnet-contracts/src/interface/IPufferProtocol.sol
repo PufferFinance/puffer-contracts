@@ -282,7 +282,6 @@ interface IPufferProtocol {
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
     function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external;

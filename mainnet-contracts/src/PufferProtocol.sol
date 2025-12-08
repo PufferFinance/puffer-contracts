@@ -112,6 +112,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         _disableInitializers();
     }
 
+    receive() external payable { }
+
     /**
      * @notice Initializes the contract
      */
@@ -245,7 +247,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted to Puffer Paymaster
      */
     function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external restricted {
@@ -264,13 +265,28 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             ++$.moduleSelectIndex;
         }
 
-        _validateSignaturesAndProvisionValidator({
-            $: $,
-            moduleName: moduleName,
-            index: index,
-            guardianEnclaveSignatures: guardianEnclaveSignatures,
-            validatorSignature: validatorSignature
-        });
+        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
+
+        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
+
+        bytes32 depositDataRoot =
+            LibBeaconchainContract.getDepositDataRoot(validatorPubKey, validatorSignature, withdrawalCredentials);
+
+        // Transfer 32 ETH to this contract from the Puffer Vault
+        PUFFER_VAULT.transferETH(address(this), 32 ether);
+
+        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
+
+        // Increase lockedETH on Puffer Oracle
+        PUFFER_ORACLE.provisionNode();
+
+        // Deposit into the Beacon Chain Deposit Contract directly
+        BEACON_DEPOSIT_CONTRACT.deposit{ value: 32 ether }(
+            validatorPubKey,
+            withdrawalCredentials,
+            validatorSignature,
+            depositDataRoot
+        );
 
         // Update Node Operator info
         address node = $.validators[moduleName][index].node;
@@ -734,37 +750,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $,
         bytes32 moduleName,
         uint256 index,
-        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature
     ) internal {
-        bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
-
-        bytes memory withdrawalCredentials = getWithdrawalCredentials($.validators[moduleName][index].module);
-
-        bytes32 depositDataRoot =
-            LibBeaconchainContract.getDepositDataRoot(validatorPubKey, validatorSignature, withdrawalCredentials);
-
-        // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateProvisionNode({
-            pufferModuleIndex: index,
-            pubKey: validatorPubKey,
-            signature: validatorSignature,
-            depositDataRoot: depositDataRoot,
-            withdrawalCredentials: withdrawalCredentials,
-            guardianEnclaveSignatures: guardianEnclaveSignatures
-        });
-
-        PufferModule module = $.modules[moduleName];
-
-        // Transfer 32 ETH to the module
-        PUFFER_VAULT.transferETH(address(module), 32 ether);
-
-        emit SuccessfullyProvisioned(validatorPubKey, index, moduleName);
-
-        // Increase lockedETH on Puffer Oracle
-        PUFFER_ORACLE.provisionNode();
-
-        module.callStake({ pubKey: validatorPubKey, signature: validatorSignature, depositDataRoot: depositDataRoot });
     }
 
     function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
