@@ -26,7 +26,7 @@ contract DeployPufferModuleImplementation is DeployerHelper {
         vm.startBroadcast();
 
         PufferModule newImpl = new PufferModule({
-            protocol: PufferProtocol(_getPufferProtocol()),
+            protocol: PufferProtocol(payable(_getPufferProtocol())),
             eigenPodManager: _getEigenPodManager(),
             delegationManager: IDelegationManager(_getDelegationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
@@ -51,7 +51,7 @@ contract DeployPufferModuleImplementation is DeployerHelper {
         vm.startPrank(_getPaymaster());
 
         PufferModule newImpl = new PufferModule({
-            protocol: PufferProtocol(_getPufferProtocol()),
+            protocol: PufferProtocol(payable(_getPufferProtocol())),
             eigenPodManager: _getEigenPodManager(),
             delegationManager: IDelegationManager(_getDelegationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),

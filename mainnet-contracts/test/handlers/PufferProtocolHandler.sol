@@ -501,8 +501,7 @@ contract PufferProtocolHandler is Test {
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
 
-            bytes[] memory signatures = _getGuardianSignatures(sig);
-            pufferProtocol.provisionNode(signatures, mockValidatorSignature, bytes32(0));
+            pufferProtocol.provisionNode(mockValidatorSignature, bytes32(0));
 
             ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 

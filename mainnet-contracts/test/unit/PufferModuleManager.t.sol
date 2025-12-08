@@ -90,9 +90,6 @@ contract PufferModuleManagerTest is UnitTestHelper {
         address module = _createPufferModule(moduleName);
 
         vm.expectRevert(Unauthorized.selector);
-        PufferModule(payable(module)).callStake("", "", "");
-
-        vm.expectRevert(Unauthorized.selector);
         PufferModule(payable(module)).call(address(0), 0, "");
     }
 

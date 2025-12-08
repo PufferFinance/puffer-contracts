@@ -23,7 +23,7 @@ import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 contract GenerateBLSKeysAndRegisterValidators is Script {
     PufferVaultV5 internal pufETH;
     ValidatorTicket internal validatorTicket;
-    address internal protocolAddress;
+    address payable internal protocolAddress;
     PufferProtocol internal pufferProtocol;
     string internal registrationJson;
 
@@ -40,12 +40,12 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     function setUp() public {
         if (block.chainid == 17000) {
             // Holesky
-            protocolAddress = 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
+            protocolAddress = payable(0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD);
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x01017000";
         } else if (block.chainid == 1) {
             // Mainnet
-            protocolAddress = 0xf7b6B32492c2e13799D921E84202450131bd238B;
+            protocolAddress = payable(0xf7b6B32492c2e13799D921E84202450131bd238B);
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x00000000";
         }
