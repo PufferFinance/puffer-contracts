@@ -397,19 +397,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
-    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external restricted {
+    function skipProvisioning(bytes32 moduleName) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         uint256 skippedIndex = $.nextToBeProvisioned[moduleName];
 
         address node = $.validators[moduleName][skippedIndex].node;
-
-        // Check the signatures (reverts if invalid)
-        GUARDIAN_MODULE.validateSkipProvisioning({
-            moduleName: moduleName,
-            skippedIndex: skippedIndex,
-            guardianEOASignatures: guardianEOASignatures
-        });
 
         uint256 vtPenalty = $.vtPenalty;
         // Burn VT penalty amount from the Node Operator

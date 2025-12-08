@@ -115,7 +115,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorSkipped(_getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0);
-        pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+        pufferProtocol.skipProvisioning(PUFFER_MODULE_0);
 
         moduleLimit = pufferProtocol.getModuleLimitInformation(PUFFER_MODULE_0);
 
@@ -307,7 +307,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         assertTrue(bobValidator.status == Status.ACTIVE, "bob should be active");
 
-        pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+        pufferProtocol.skipProvisioning(PUFFER_MODULE_0);
 
         emit SuccessfullyProvisioned(zeroPubKey, 3, PUFFER_MODULE_0);
         pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
@@ -917,7 +917,7 @@ contract PufferProtocolTest is UnitTestHelper {
         vm.stopPrank();
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.NumberOfRegisteredValidatorsChanged(PUFFER_MODULE_0, 0);
-        pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+        pufferProtocol.skipProvisioning(PUFFER_MODULE_0);
 
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice),
@@ -969,7 +969,7 @@ contract PufferProtocolTest is UnitTestHelper {
             pufferProtocol.getValidatorTicketsBalance(alice), 30 ether, pointZeroZeroOne, "alice should have ~30 VTS"
         );
 
-        pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+        pufferProtocol.skipProvisioning(PUFFER_MODULE_0);
 
         // Alice loses 20 VT's
         assertApproxEqRel(
@@ -1002,7 +1002,7 @@ contract PufferProtocolTest is UnitTestHelper {
             "alice should have ~70 VTS register"
         );
 
-        pufferProtocol.skipProvisioning(PUFFER_MODULE_0, _getGuardianSignaturesForSkipping());
+        pufferProtocol.skipProvisioning(PUFFER_MODULE_0);
 
         assertApproxEqRel(
             pufferProtocol.getValidatorTicketsBalance(alice),
@@ -1777,28 +1777,6 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
-    }
-
-    function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
-        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-
-        bytes32 digest = LibGuardianMessages._getSkipProvisioningMessage(moduleName, pendingIdx);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian2SK, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian3SK, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         bytes[] memory guardianSignatures = new bytes[](3);
