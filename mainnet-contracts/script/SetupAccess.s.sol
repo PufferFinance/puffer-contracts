@@ -29,7 +29,8 @@ import {
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_COORDINATOR,
-    ROLE_ID_VT_PRICER
+    ROLE_ID_VT_PRICER,
+    ROLE_ID_VALIDATOR_EJECTOR
 } from "../script/Roles.sol";
 
 contract SetupAccess is BaseScript {
@@ -176,10 +177,9 @@ contract SetupAccess is BaseScript {
         );
 
         // Bot selectors
-        bytes4[] memory botSelectors = new bytes4[](3);
+        bytes4[] memory botSelectors = new bytes4[](2);
         botSelectors[0] = PufferModuleManager.callQueueWithdrawals.selector;
         botSelectors[1] = PufferModuleManager.callCompleteQueuedWithdrawals.selector;
-        botSelectors[2] = PufferModuleManager.triggerValidatorsExit.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -188,15 +188,15 @@ contract SetupAccess is BaseScript {
             ROLE_ID_OPERATIONS_PAYMASTER
         );
 
-        // PufferProtocol selectors
-        bytes4[] memory pufferProtocolSelectors = new bytes4[](1);
-        pufferProtocolSelectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
+        // Validator Ejector selectors
+        bytes4[] memory validatorEjectorSelectors = new bytes4[](1);
+        validatorEjectorSelectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             pufferDeployment.moduleManager,
-            pufferProtocolSelectors,
-            ROLE_ID_PUFFER_PROTOCOL
+            validatorEjectorSelectors,
+            ROLE_ID_VALIDATOR_EJECTOR
         );
 
         return calldatas;

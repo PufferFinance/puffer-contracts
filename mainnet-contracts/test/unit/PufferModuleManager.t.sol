@@ -12,7 +12,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { Merkle } from "murky/Merkle.sol";
 import { ISignatureUtils } from "src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { Unauthorized } from "../../src/Errors.sol";
-import { ROLE_ID_OPERATIONS_PAYMASTER } from "../../script/Roles.sol";
+import { ROLE_ID_OPERATIONS_PAYMASTER, ROLE_ID_VALIDATOR_EJECTOR } from "../../script/Roles.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IDelegationManager } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IDelegationManagerTypes } from "src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
@@ -52,12 +52,9 @@ contract PufferModuleManagerTest is UnitTestHelper {
 
         vm.startPrank(timelock);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_VALIDATOR_EJECTOR, address(this), 0);
         (bool success,) = address(accessManager).call(cd);
         assertTrue(success, "should succeed");
-
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = PufferModuleManager.triggerValidatorsExit.selector;
-        accessManager.setTargetFunctionRole(address(pufferModuleManager), selectors, ROLE_ID_OPERATIONS_PAYMASTER);
 
         vm.stopPrank();
 
