@@ -733,13 +733,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return pufETHBurnAmount;
     }
 
-    function _validateSignaturesAndProvisionValidator(
-        ProtocolStorage storage $,
-        bytes32 moduleName,
-        uint256 index,
-        bytes calldata validatorSignature
-    ) internal { }
-
     function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
         internal
         view
