@@ -1752,9 +1752,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
 
-        pufferProtocol.provisionNode(
-            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
-        );
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](1);
         indices[0] = index;
