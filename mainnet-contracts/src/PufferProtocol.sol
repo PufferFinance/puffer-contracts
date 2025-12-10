@@ -2,13 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
-import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
@@ -16,6 +16,7 @@ import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
 import { LibBeaconchainContract } from "./LibBeaconchainContract.sol";
+import { LibSignatureVerifier } from "./LibSignatureVerifier.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
@@ -32,6 +33,8 @@ import { PufferModule } from "./PufferModule.sol";
  * Storage variables are located in PufferProtocolStorage.sol
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
+    using MessageHashUtils for bytes32;
+
     /**
      * @dev Helper struct for the full withdrawals accounting
      * The amounts of VT and pufETH to burn at the end of the withdrawal
@@ -51,11 +54,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
-     * @dev BLS public keys are 48 bytes long
-     */
-    uint256 internal constant _BLS_PUB_KEY_LENGTH = 48;
-
-    /**
      * @dev ETH Amount required to be deposited as a bond
      */
     uint256 internal constant _VALIDATOR_BOND = 2 ether;
@@ -64,11 +62,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Default "PUFFER_MODULE_0" module
      */
     bytes32 internal constant _PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-
-    /**
-     * @inheritdoc IPufferProtocol
-     */
-    IGuardianModule public immutable override GUARDIAN_MODULE;
 
     /**
      * @inheritdoc IPufferProtocol
@@ -97,13 +90,11 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     constructor(
         PufferVaultV5 pufferVault,
-        IGuardianModule guardianModule,
         address moduleManager,
         ValidatorTicket validatorTicket,
         IPufferOracleV2 oracle,
         address beaconDepositContract
     ) {
-        GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
         PUFFER_MODULE_MANAGER = PufferModuleManager(payable(moduleManager));
         VALIDATOR_TICKET = validatorTicket;
@@ -193,7 +184,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidETHAmount();
         }
 
-        _checkValidatorRegistrationInputs({ $: $, data: data, moduleName: moduleName });
+        // This acts as a validation if the module is existent
+        // +1 is to validate the current transaction registration
+        if (($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
+            revert ValidatorLimitForModuleReached();
+        }
+
+        LibSignatureVerifier._checkBLSPubKey(data.blsPubKey);
 
         // If the node operator is paying for the bond in ETH and wants to transfer VT from their wallet, the ETH amount they send must be equal the bond amount
         if (vtPermit.amount != 0 && pufETHPermit.amount == 0 && msg.value != _VALIDATOR_BOND) {
@@ -295,11 +292,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
-    function batchHandleWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
-    ) external restricted {
-        GUARDIAN_MODULE.validateBatchWithdrawals(validatorInfos, guardianEOASignatures);
+    function batchHandleWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes calldata paymasterSignature)
+        external
+        restricted
+    {
+        // Since only paymaster can call this function, we can use msg.sender to validate the paymaster signature
+        LibSignatureVerifier._validateBatchWithdrawals(validatorInfos, paymasterSignature, msg.sender);
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
@@ -687,22 +685,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         return address(module);
     }
 
-    function _checkValidatorRegistrationInputs(
-        ProtocolStorage storage $,
-        ValidatorKeyData calldata data,
-        bytes32 moduleName
-    ) internal view {
-        // This acts as a validation if the module is existent
-        // +1 is to validate the current transaction registration
-        if (($.moduleLimits[moduleName].numberOfRegisteredValidators + 1) > $.moduleLimits[moduleName].allowedLimit) {
-            revert ValidatorLimitForModuleReached();
-        }
-
-        if (data.blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
-            revert InvalidBLSPubKey();
-        }
-    }
-
     function _changeMinimumVTAmount(uint256 newMinimumVtAmount) internal {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         if (newMinimumVtAmount < $.vtPenalty) {
@@ -732,13 +714,6 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Withdrawal amount was >= 32 ether, we don't burn anything
         return pufETHBurnAmount;
     }
-
-    function _validateSignaturesAndProvisionValidator(
-        ProtocolStorage storage $,
-        bytes32 moduleName,
-        uint256 index,
-        bytes calldata validatorSignature
-    ) internal { }
 
     function _getVTBurnAmount(ProtocolStorage storage $, address node, StoppedValidatorInfo calldata validatorInfo)
         internal

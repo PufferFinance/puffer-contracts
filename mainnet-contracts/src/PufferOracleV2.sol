@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 //solhint-disable-next-line no-unused-import
 import { IPufferOracle } from "./interface/IPufferOracle.sol";
@@ -17,11 +16,6 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      * @dev Burst threshold
      */
     uint256 internal constant _BURST_THRESHOLD = 22;
-
-    /**
-     * @notice Guardian Module
-     */
-    IGuardianModule public immutable GUARDIAN_MODULE;
 
     /**
      * @notice Puffer Vault
@@ -51,10 +45,7 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     uint256 internal _validatorTicketPrice;
 
-    constructor(IGuardianModule guardianModule, address payable vault, address accessManager)
-        AccessManaged(accessManager)
-    {
-        GUARDIAN_MODULE = guardianModule;
+    constructor(address payable vault, address accessManager) AccessManaged(accessManager) {
         PUFFER_VAULT = vault;
         _totalNumberOfValidators = 927122; // Oracle will be updated with the correct value
         _epochNumber = 268828; // Oracle will be updated with the correct value
@@ -91,24 +82,6 @@ contract PufferOracleV2 is IPufferOracleV2, AccessManaged {
      */
     function setMintPrice(uint256 newPrice) external restricted {
         _setMintPrice(newPrice);
-    }
-
-    /**
-     * @notice Updates the total number of validators
-     * @param newTotalNumberOfValidators The new number of validators
-     */
-    function setTotalNumberOfValidators(
-        uint256 newTotalNumberOfValidators,
-        uint256 epochNumber,
-        bytes[] calldata guardianEOASignatures
-    ) external restricted {
-        if (epochNumber <= _epochNumber) {
-            revert InvalidUpdate();
-        }
-        GUARDIAN_MODULE.validateTotalNumberOfValidators(newTotalNumberOfValidators, epochNumber, guardianEOASignatures);
-        emit TotalNumberOfValidatorsUpdated(_totalNumberOfValidators, newTotalNumberOfValidators, epochNumber);
-        _totalNumberOfValidators = newTotalNumberOfValidators;
-        _epochNumber = epochNumber;
     }
 
     /**
