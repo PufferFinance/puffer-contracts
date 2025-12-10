@@ -1753,7 +1753,7 @@ contract PufferProtocolTest is UnitTestHelper {
         (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
 
         pufferProtocol.provisionNode(
-            _getGuardianSignatures(_getPubKey(pubKeyPart)), _validatorSignature(), DEFAULT_DEPOSIT_ROOT
+            _validatorSignature(), DEFAULT_DEPOSIT_ROOT
         );
 
         uint256[] memory indices = new uint256[](1);
@@ -1777,7 +1777,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](1);
         indices[0] = index;
@@ -1805,9 +1805,9 @@ contract PufferProtocolTest is UnitTestHelper {
         (, uint256 index2) = pufferProtocol.getNextValidatorToProvision();
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey1), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey2), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](2);
         indices[0] = index1;
@@ -1829,7 +1829,7 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerValidatorKey(pubKeyPart, PUFFER_MODULE_0);
         vm.stopPrank();
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](0);
         vm.startPrank(alice);
@@ -1851,7 +1851,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         (, uint256 index) = pufferProtocol.getNextValidatorToProvision();
 
-        pufferProtocol.provisionNode(_getGuardianSignatures(pubKey), _validatorSignature(), DEFAULT_DEPOSIT_ROOT);
+        pufferProtocol.provisionNode(_validatorSignature(), DEFAULT_DEPOSIT_ROOT);
 
         uint256[] memory indices = new uint256[](1);
         indices[0] = index;
