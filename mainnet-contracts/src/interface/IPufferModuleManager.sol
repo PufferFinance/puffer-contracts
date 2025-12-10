@@ -15,6 +15,11 @@ interface IPufferModuleManager {
     error ForbiddenModuleName();
 
     /**
+     * @notice Thrown if the input array length is zero
+     */
+    error InputArrayLengthZero();
+
+    /**
      * @notice Emitted when the Custom Call from the restakingOperator is successful
      * @dev Signature "0x80b240e4b7a31d61bdee28b97592a7c0ad486cb27d11ee5c6b90530db4e949ff"
      */
@@ -72,6 +77,14 @@ interface IPufferModuleManager {
      * @dev Signature "0x4651591b511cac27601595cefbb19b2f0a04ec7b9348230f44a1309b9d70a8c9"
      */
     event PufferModuleUndelegated(bytes32 indexed moduleName);
+
+    /**
+     * @notice Emitted when the validators exit is triggered
+     * @param moduleName the module name to be exited
+     * @param pubkeys the pubkeys of the validators to exit
+     * @dev Signature "0x456e0aba5f7f36ec541f2f550d3f5895eb7d1ae057f45e8683952ac182254e5d"
+     */
+    event ValidatorsExitTriggered(bytes32 indexed moduleName, bytes[] pubkeys);
 
     /**
      * @notice Emitted when the restaking operator avs signature proof is updated
