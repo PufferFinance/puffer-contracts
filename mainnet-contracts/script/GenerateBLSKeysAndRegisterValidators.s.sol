@@ -101,10 +101,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
             ValidatorKeyData memory validatorData = ValidatorKeyData({
                 blsPubKey: stdJson.readBytes(registrationJson, ".bls_pub_key"),
                 signature: stdJson.readBytes(registrationJson, ".signature"),
-                depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root"),
-                blsEncryptedPrivKeyShares: blsEncryptedPrivKeyShares,
-                blsPubKeySet: stdJson.readBytes(registrationJson, ".bls_pub_key_set"),
-                raveEvidence: ""
+                depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root")
             });
 
             Permit memory pufETHPermit = _signPermit({
