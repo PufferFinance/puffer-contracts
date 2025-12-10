@@ -42,7 +42,7 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    address payable public immutable override GUARDIAN_MODULE;
+    address payable public immutable override PAYMASTER;
 
     /**
      * @inheritdoc IValidatorTicket
@@ -70,27 +70,27 @@ contract ValidatorTicket is
     uint256 private constant _FEE_RATE_THRESHOLD_BPS = 1000;
 
     constructor(
-        address payable guardianModule,
+        address payable paymaster,
         address payable treasury,
         address payable pufferVault,
         IPufferOracle pufferOracle,
         address operationsMultisig
     ) {
         if (
-            guardianModule == address(0) || treasury == address(0) || pufferVault == address(0)
+            paymaster == address(0) || treasury == address(0) || pufferVault == address(0)
                 || address(pufferOracle) == address(0) || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
         PUFFER_ORACLE = pufferOracle;
-        GUARDIAN_MODULE = guardianModule;
+        PAYMASTER = paymaster;
         PUFFER_VAULT = pufferVault;
         TREASURY = treasury;
         OPERATIONS_MULTISIG = operationsMultisig;
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 guardiansFeeRate)
+    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 paymasterFeeRate)
         external
         initializer
     {
@@ -98,7 +98,7 @@ contract ValidatorTicket is
         __ERC20_init("Puffer Validator Ticket", "VT");
         __ERC20Permit_init("Puffer Validator Ticket");
         _setProtocolFeeRate(treasuryFeeRate);
-        _setGuardiansFeeRate(guardiansFeeRate);
+        _setPaymasterFeeRate(paymasterFeeRate);
     }
 
     /**
@@ -123,18 +123,18 @@ contract ValidatorTicket is
         if (PUFFER_ORACLE.isOverBurstThreshold()) {
             // Everything goes to the treasury
             TREASURY.sendValue(msg.value);
-            emit DispersedETH({ treasury: msg.value, guardians: 0, vault: 0 });
+            emit DispersedETH({ treasury: msg.value, paymaster: 0, vault: 0 });
             return mintedAmount;
         }
 
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
-        uint256 guardiansAmount = _sendETH(GUARDIAN_MODULE, msg.value, $.guardiansFeeRate);
-        uint256 vaultAmount = msg.value - (treasuryAmount + guardiansAmount);
+        uint256 paymasterAmount = _sendETH(PAYMASTER, msg.value, $.paymasterFeeRate);
+        uint256 vaultAmount = msg.value - (treasuryAmount + paymasterAmount);
         // The remainder belongs to PufferVault
         PUFFER_VAULT.sendValue(vaultAmount);
-        emit DispersedETH({ treasury: treasuryAmount, guardians: guardiansAmount, vault: vaultAmount });
+        emit DispersedETH({ treasury: treasuryAmount, paymaster: paymasterAmount, vault: vaultAmount });
     }
 
     /**
@@ -195,10 +195,10 @@ contract ValidatorTicket is
      * @notice Updates the guardians fee rate
      * @dev Restricted to the DAO
      * (10,000 = 100%, 100 = 1%) 10% is the maximum value defined in the _setProtocolFeeRate function
-     * @param newGuardiansFeeRate The new guardians fee rate
+     * @param newPaymasterFeeRate The new paymaster fee rate
      */
-    function setGuardiansFeeRate(uint256 newGuardiansFeeRate) external virtual restricted {
-        _setGuardiansFeeRate(newGuardiansFeeRate);
+    function setPaymasterFeeRate(uint256 newPaymasterFeeRate) external virtual restricted {
+        _setPaymasterFeeRate(newPaymasterFeeRate);
     }
 
     /**
@@ -212,9 +212,9 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    function getGuardiansFeeRate() external view virtual returns (uint256) {
+    function getPaymasterFeeRate() external view virtual returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
-        return $.guardiansFeeRate;
+        return $.paymasterFeeRate;
     }
 
     /**
@@ -242,14 +242,14 @@ contract ValidatorTicket is
         $.protocolFeeRate = SafeCast.toUint128(newProtocolFeeRate);
     }
 
-    function _setGuardiansFeeRate(uint256 newGuardiansFeeRate) internal virtual {
+    function _setPaymasterFeeRate(uint256 newPaymasterFeeRate) internal virtual {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         // Treasury fee can not be bigger than 10%
-        if (newGuardiansFeeRate > (_FEE_RATE_THRESHOLD_BPS)) {
+        if (newPaymasterFeeRate > (_FEE_RATE_THRESHOLD_BPS)) {
             revert InvalidData();
         }
-        emit GuardiansFeeChanged($.guardiansFeeRate, newGuardiansFeeRate);
-        $.guardiansFeeRate = SafeCast.toUint128(newGuardiansFeeRate);
+        emit PaymasterFeeChanged($.paymasterFeeRate, newPaymasterFeeRate);
+        $.paymasterFeeRate = SafeCast.toUint128(newPaymasterFeeRate);
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
@@ -282,19 +282,19 @@ contract ValidatorTicket is
         // If we are over the burst threshold, send everything to the treasury
         if (PUFFER_ORACLE.isOverBurstThreshold()) {
             IERC20(PUFFER_VAULT).transfer(TREASURY, pufEthUsed);
-            emit DispersedPufETH({ treasury: pufEthUsed, guardians: 0, burned: 0 });
+            emit DispersedPufETH({ treasury: pufEthUsed, paymaster: 0, burned: 0 });
             return pufEthUsed;
         }
 
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendPufETH(TREASURY, pufEthUsed, $.protocolFeeRate);
-        uint256 guardiansAmount = _sendPufETH(OPERATIONS_MULTISIG, pufEthUsed, $.guardiansFeeRate);
-        uint256 burnAmount = pufEthUsed - (treasuryAmount + guardiansAmount);
+        uint256 paymasterAmount = _sendPufETH(OPERATIONS_MULTISIG, pufEthUsed, $.paymasterFeeRate);
+        uint256 burnAmount = pufEthUsed - (treasuryAmount + paymasterAmount);
 
         PufferVaultV5(PUFFER_VAULT).burn(burnAmount);
 
-        emit DispersedPufETH({ treasury: treasuryAmount, guardians: guardiansAmount, burned: burnAmount });
+        emit DispersedPufETH({ treasury: treasuryAmount, paymaster: paymasterAmount, burned: burnAmount });
 
         return pufEthUsed;
     }
