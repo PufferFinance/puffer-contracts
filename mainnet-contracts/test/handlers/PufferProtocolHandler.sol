@@ -14,7 +14,6 @@ import { Validator } from "../../src/struct/Validator.sol";
 import { Status } from "../../src/struct/Status.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { Merkle } from "murky/Merkle.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -39,19 +38,12 @@ contract PufferProtocolHandler is Test {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // Guardians are preset for the test environment, and these are the enclave secret keys
-    uint256 guardian1SKEnclave = 81165043675487275545095207072241430673874640255053335052777448899322561824201;
-    address guardian1Enclave = vm.addr(guardian1SKEnclave);
-    uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
-    address guardian2Enclave = vm.addr(guardian2SKEnclave);
-    uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
     UnitTestHelper testhelper;
 
     address[] public actors;
 
     address DAO = makeAddr("DAO");
 
-    uint256[] guardiansEnclavePks;
     PufferProtocol pufferProtocol;
     IWETH weth;
     stETHMock stETH;
@@ -117,7 +109,6 @@ contract PufferProtocolHandler is Test {
         PufferVaultV5 vault,
         address steth,
         PufferProtocol protocol,
-        uint256[] memory _guardiansEnclavePks,
         address accessManagerAdmin
     ) {
         pufferVault = vault;
@@ -140,9 +131,6 @@ contract PufferProtocolHandler is Test {
         // This is after the upgrade to PufferVaultV5, when the WETH is the underlying asset
         weth = IWETH(vault.asset());
         stETH = stETHMock(steth);
-        guardiansEnclavePks.push(_guardiansEnclavePks[0]);
-        guardiansEnclavePks.push(_guardiansEnclavePks[1]);
-        guardiansEnclavePks.push(_guardiansEnclavePks[2]);
         _accessManagerAdmin = accessManagerAdmin;
         _enableCall(pufferProtocol.getModuleAddress(bytes32("PUFFER_MODULE_0")));
 
@@ -206,13 +194,13 @@ contract PufferProtocolHandler is Test {
         uint256 amount = pufferOracle.getValidatorTicketPrice() * numberOfDays;
 
         // Do the math here as well to double check the amounts
-        uint256 guardiansAmount = amount * validatorTicket.getGuardiansFeeRate() / (50 * 1 ether); // 0.5%
+        uint256 paymasterAmount = amount * validatorTicket.getPaymasterFeeRate() / (50 * 1 ether); // 0.5%
         uint256 treasuryAmount = amount * validatorTicket.getProtocolFeeRate() / (500 * 1 ether); // 5%
-        uint256 vaultAmount = amount - (guardiansAmount + treasuryAmount);
+        uint256 vaultAmount = amount - (paymasterAmount + treasuryAmount);
 
         vm.deal(currentActor, amount);
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.DispersedETH({ treasury: treasuryAmount, guardians: guardiansAmount, vault: vaultAmount });
+        emit IValidatorTicket.DispersedETH({ treasury: treasuryAmount, paymaster: paymasterAmount, vault: vaultAmount });
         validatorTicket.purchaseValidatorTicket{ value: amount }(currentActor);
     }
 
@@ -582,49 +570,6 @@ contract PufferProtocolHandler is Test {
         );
 
         return (smoothingCommitment + bond);
-    }
-
-    // Copied from PufferProtocol.t.sol
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
-        // If there is no module return empty byte array
-        if (validator.module == address(0)) {
-            return new bytes[](0);
-        }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
-
-        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pendingIdx,
-            pubKey,
-            mockValidatorSignature,
-            withdrawalCredentials,
-            pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: mockValidatorSignature,
-                withdrawalCredentials: withdrawalCredentials
-            })
-        );
-
-        return _getGuardianEnclaveSignatures(digest);
-    }
-
-    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
     }
 
     function _getGuardianEOASignatures(bytes32 digest) internal returns (bytes[] memory) {

@@ -65,19 +65,19 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), 500, "protocol fee rate"); // 5%
         assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0), "oracle");
-        assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0), "guardians");
+        assertTrue(validatorTicket.PAYMASTER() != address(0), "paymaster");
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0), "vault");
     }
 
-    function test_set_guardians_fee_rate() public {
-        assertEq(validatorTicket.getGuardiansFeeRate(), 50, "initial guardians fee rate");
+    function test_set_paymaster_fee_rate() public {
+        assertEq(validatorTicket.getPaymasterFeeRate(), 50, "initial paymaster fee rate");
 
         vm.startPrank(DAO);
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.GuardiansFeeChanged(50, 1000);
-        validatorTicket.setGuardiansFeeRate(1000); // 10%
+        emit IValidatorTicket.PaymasterFeeChanged(50, 1000);
+        validatorTicket.setPaymasterFeeRate(1000); // 10%
 
-        assertEq(validatorTicket.getGuardiansFeeRate(), 1000, "new guardians fee rate");
+        assertEq(validatorTicket.getPaymasterFeeRate(), 1000, "new paymaster fee rate");
     }
 
     function test_funds_splitting() public {
@@ -90,12 +90,12 @@ contract ValidatorTicketTest is UnitTestHelper {
 
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
         assertEq(treasury.balance, 0, "treasury balance should start with 0");
-        assertEq(address(guardianModule).balance, 0, "guardian balance should start with 0");
+        assertEq(address(validatorTicket.PAYMASTER()).balance, 0, "paymaster balance should start with 0");
 
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
+        assertEq(address(validatorTicket.PAYMASTER()).balance, 0.1 ether, "paymaster balance");
         // 5% from 20 ETH is 1 ETH
         assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
@@ -133,7 +133,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(address(guardianModule).balance, 0.1 ether, "guardians balance");
+        assertEq(address(validatorTicket.PAYMASTER()).balance, 0.1 ether, "paymaster balance");
         assertEq(address(validatorTicket).balance, 0, "treasury should get 0 ETH");
     }
 
@@ -267,8 +267,8 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(recipient), vtAmount, "Should mint requested VTs");
 
         uint256 expectedTreasuryAmount = pufEthAmount.mulDiv(500, 10000, Math.Rounding.Ceil); // 5% to treasury
-        uint256 expectedGuardianAmount = pufEthAmount.mulDiv(50, 10000, Math.Rounding.Ceil); // 0.5% to guardians
-        uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedGuardianAmount;
+        uint256 expectedPaymasterAmount = pufEthAmount.mulDiv(50, 10000, Math.Rounding.Ceil); // 0.5% to paymaster
+        uint256 expectedBurnAmount = pufEthAmount - expectedTreasuryAmount - expectedPaymasterAmount;
 
         assertEq(
             pufferVault.balanceOf(treasury) - initialTreasuryBalance,
@@ -277,7 +277,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         );
         assertEq(
             pufferVault.balanceOf(operationsMultisig) - initialOpsMultisigBalance,
-            expectedGuardianAmount,
+            expectedPaymasterAmount,
             "Operations Multisig should receive 0.5% of pufETH"
         );
         assertEq(

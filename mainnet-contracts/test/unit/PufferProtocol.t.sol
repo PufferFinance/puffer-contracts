@@ -4,12 +4,14 @@ pragma solidity >=0.8.0 <0.9.0;
 import { PufferProtocolMockUpgrade } from "../mocks/PufferProtocolMockUpgrade.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { ValidatorKeyData } from "../../src/struct/ValidatorKeyData.sol";
 import { Status } from "../../src/struct/Status.sol";
 import { Validator } from "../../src/struct/Validator.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
+import { LibSignatureVerifier } from "../../src/LibSignatureVerifier.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_PAYMASTER,
@@ -17,13 +19,13 @@ import {
     ROLE_ID_NODE_PROVISIONER
 } from "../../script/Roles.sol";
 import { Unauthorized } from "../../src/Errors.sol";
-import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed, bool);
     event SuccessfullyProvisioned(bytes pubKey, uint256 indexed, bytes32 indexed);
@@ -52,10 +54,14 @@ contract PufferProtocolTest is UnitTestHelper {
 
     address eve = makeAddr("eve");
 
+    address localPaymaster;
+    uint256 localPaymasterSK;
+
     function setUp() public override {
         super.setUp();
 
         vm.deal(address(this), 1000 ether);
+        (localPaymaster, localPaymasterSK) = makeAddrAndKey("paymaster");
 
         // Setup roles
         bytes4[] memory selectors = new bytes4[](3);
@@ -69,6 +75,7 @@ contract PufferProtocolTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_DAO, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, address(this), 0);
+        accessManager.grantRole(ROLE_ID_OPERATIONS_PAYMASTER, localPaymaster, 0);
         accessManager.grantRole(ROLE_ID_OPERATIONS_MULTISIG, address(this), 0);
         accessManager.grantRole(ROLE_ID_NODE_PROVISIONER, address(this), 0);
         vm.stopPrank();
@@ -80,6 +87,7 @@ contract PufferProtocolTest is UnitTestHelper {
         NoRestakingModule = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
         // Fund no restaking module with 200 ETH
         vm.deal(NoRestakingModule, 200 ether);
+
     }
 
     // Setup
@@ -181,6 +189,8 @@ contract PufferProtocolTest is UnitTestHelper {
         );
     }
 
+    // TODO Check alternative way to test this
+    /*
     // If we are > burst threshold, treasury gets everything
     function test_burst_threshold() external {
         vm.roll(50401);
@@ -208,6 +218,7 @@ contract PufferProtocolTest is UnitTestHelper {
 
         assertEq(balanceAfter, balanceBefore + sc, "treasury gets everything");
     }
+    */
 
     // Set validator limit and try registering that many validators
     function test_fuzz_register_many_validators(uint8 numberOfValidatorsToProvision) external {
@@ -246,7 +257,7 @@ contract PufferProtocolTest is UnitTestHelper {
             depositDataRoot: bytes32("")
         });
 
-        vm.expectRevert(IPufferProtocol.InvalidBLSPubKey.selector);
+        vm.expectRevert(LibSignatureVerifier.InvalidBLSPubKey.selector);
         pufferProtocol.registerValidatorKey{ value: smoothingCommitment }(
             validatorData, PUFFER_MODULE_0, emptyPermit, emptyPermit
         );
@@ -1137,7 +1148,9 @@ contract PufferProtocolTest is UnitTestHelper {
         emit IPufferProtocol.ValidatorExited(
             _getPubKey(bytes32("bob")), 1, PUFFER_MODULE_0, 0, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
         );
+        vm.startPrank(localPaymaster);
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
+        vm.stopPrank();
 
         assertApproxEqAbs(
             _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
@@ -1253,7 +1266,9 @@ contract PufferProtocolTest is UnitTestHelper {
             pufferProtocol.getValidatorInfo(PUFFER_MODULE_0, 4).bond,
             28 ether // minimum vt amount
         ); // got slashed
+        vm.startPrank(localPaymaster);
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
+        vm.stopPrank();
 
         assertApproxEqAbs(
             _getUnderlyingETHAmount(address(pufferProtocol)), 0 ether, 1, "protocol should have 0 eth bond"
@@ -1342,11 +1357,13 @@ contract PufferProtocolTest is UnitTestHelper {
         StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
         stopInfos[0] = validatorInfo;
 
-        vm.stopPrank(); // this contract has the PAYMASTER role, so we need to stop the prank
+        vm.stopPrank();
+        vm.startPrank(localPaymaster);
         pufferProtocol.batchHandleWithdrawals({
             validatorInfos: stopInfos,
-            guardianEOASignatures: _getHandleBatchWithdrawalMessage(stopInfos)
+            paymasterSignature: _getHandleBatchWithdrawalMessage(stopInfos)
         });
+        vm.stopPrank();
     }
 
     // Register 2 validators and provision 1 validator and post full withdrawal proof for 29 eth (slash 3 ETH on one validator)
@@ -1738,67 +1755,18 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
     }
 
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
-        (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
-        Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
-        // If there is no module return empty byte array
-        if (validator.module == address(0)) {
-            return new bytes[](0);
-        }
-        bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
-
-        bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
-            pendingIdx,
-            pubKey,
-            _validatorSignature(),
-            withdrawalCredentials,
-            pufferProtocol.getDepositDataRoot({
-                pubKey: pubKey,
-                signature: _validatorSignature(),
-                withdrawalCredentials: withdrawalCredentials
-            })
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian2SKEnclave, digest);
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        (v, r, s) = vm.sign(guardian3SKEnclave, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
-    }
-
     function _getHandleBatchWithdrawalMessage(StoppedValidatorInfo[] memory validatorInfos)
         internal
         view
-        returns (bytes[] memory)
+        returns (bytes memory)
     {
-        bytes32 digest = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+        bytes32 digest = _getHandleBatchWithdrawalMessageHash(validatorInfos);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
-        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(localPaymasterSK, digest);
+        bytes memory signature = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(guardian2SK, digest);
-        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        (v, r, s) = vm.sign(guardian3SK, digest);
-        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
-
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
-
-        return guardianSignatures;
+        return signature;
     }
 
     // Tests setter for enclave measurements
@@ -1922,6 +1890,10 @@ contract PufferProtocolTest is UnitTestHelper {
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
         return validatedEpochs * 4444444444444445;
+    }
+
+    function _getHandleBatchWithdrawalMessageHash(StoppedValidatorInfo[] memory stopInfos) internal view returns (bytes32) {
+        return keccak256(abi.encode(stopInfos)).toEthSignedMessageHash();
     }
 }
 

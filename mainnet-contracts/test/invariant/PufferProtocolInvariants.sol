@@ -11,7 +11,7 @@ contract PufferProtocolInvariants is UnitTestHelper {
         super.setUp();
 
         handler = new PufferProtocolHandler(
-            this, pufferVault, address(stETH), pufferProtocol, guardiansEnclavePks, _broadcaster
+            this, pufferVault, address(stETH), pufferProtocol, _broadcaster
         );
 
         // Set handler as a target contract for invariant test

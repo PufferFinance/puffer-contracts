@@ -57,8 +57,6 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     function run() public {
         vm.startBroadcast();
 
-        uint256 guardiansLength = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
-
         uint256 specificModule = vm.promptUint("Do you want to register to a specific module? (0: No, 1: Yes)");
         if (specificModule == 1) {
             uint256 pufferModuleIdx = vm.promptUint(
@@ -94,9 +92,6 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
 
             // Read the registration JSON file
             registrationJson = vm.readFile(string.concat("./registration-data/", vm.toString(i), ".json"));
-
-            bytes[] memory blsEncryptedPrivKeyShares = new bytes[](guardiansLength);
-            blsEncryptedPrivKeyShares[0] = stdJson.readBytes(registrationJson, ".bls_enc_priv_key_shares[0]");
 
             ValidatorKeyData memory validatorData = ValidatorKeyData({
                 blsPubKey: stdJson.readBytes(registrationJson, ".bls_pub_key"),
@@ -165,29 +160,23 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
 
     // Generates a new validator key using coral https://github.com/PufferFinance/coral/tree/main
     function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
-        uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
-        bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
         address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
         bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
 
-        string[] memory inputs = new string[](17);
+        string[] memory inputs = new string[](13);
         inputs[0] = "coral-cli";
         inputs[1] = "validator";
         inputs[2] = "keygen";
-        inputs[3] = "--guardian-threshold";
-        inputs[4] = vm.toString(numberOfGuardians);
-        inputs[5] = "--module-name";
-        inputs[6] = vm.toString(moduleName);
-        inputs[7] = "--withdrawal-credentials";
-        inputs[8] = vm.toString(withdrawalCredentials);
-        inputs[9] = "--guardian-pubkeys";
-        inputs[10] = vm.toString(guardianPubKeys[0]); //@todo: Add support for multiple guardians
-        inputs[11] = "--fork-version";
-        inputs[12] = forkVersion;
-        inputs[13] = "--password-file";
-        inputs[14] = "validator-keystore-password.txt";
-        inputs[15] = "--output-file";
-        inputs[16] = string.concat("./registration-data/", vm.toString(idx), ".json");
+        inputs[3] = "--module-name";
+        inputs[4] = vm.toString(moduleName);
+        inputs[5] = "--withdrawal-credentials";
+        inputs[6] = vm.toString(withdrawalCredentials);
+        inputs[7] = "--fork-version";
+        inputs[8] = forkVersion;
+        inputs[9] = "--password-file";
+        inputs[10] = "validator-keystore-password.txt";
+        inputs[11] = "--output-file";
+        inputs[12] = string.concat("./registration-data/", vm.toString(idx), ".json");
 
         vm.ffi(inputs);
     }

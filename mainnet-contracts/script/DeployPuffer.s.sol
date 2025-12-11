@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { GuardianModule } from "../src/GuardianModule.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferModule } from "../src/PufferModule.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
@@ -18,7 +17,6 @@ import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAlloca
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { GuardiansDeployment, PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
@@ -30,6 +28,8 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
+
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -67,13 +67,14 @@ contract DeployPuffer is BaseScript {
     address eigenSlasher;
     address treasury;
     address operationsMultisig;
+    address paymaster;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
+    function run(address accessManagerAddress, address pufferVault, address oracle)
         public
         broadcast
         returns (PufferProtocolDeployment memory)
     {
-        accessManager = AccessManager(guardiansDeployment.accessManager);
+        accessManager = AccessManager(accessManagerAddress);
 
         if (isMainnet()) {
             // Mainnet / Mainnet fork
@@ -83,6 +84,7 @@ contract DeployPuffer is BaseScript {
             rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
             operationsMultisig = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+            paymaster = 0x65d2dd7A66a2733a36559fE900A236280A05FBD6;
         } else if (isAnvil()) {
             // Local chain / tests
             eigenPodManager = address(new EigenPodManagerMock());
@@ -91,6 +93,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = address(new EigenAllocationManagerMock());
             treasury = address(1);
             operationsMultisig = address(2);
+            paymaster = address(3);
         } else {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
@@ -99,6 +102,7 @@ contract DeployPuffer is BaseScript {
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
             rewardsCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
             operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+            paymaster = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         }
 
         operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
@@ -106,7 +110,7 @@ contract DeployPuffer is BaseScript {
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
-            guardianModule: payable(guardiansDeployment.guardianModule),
+            paymaster: payable(paymaster),
             treasury: payable(treasury),
             pufferVault: payable(pufferVault),
             pufferOracle: IPufferOracleV2(oracle),
@@ -158,7 +162,6 @@ contract DeployPuffer is BaseScript {
             pufferProtocolImpl = new PufferProtocol({
                 pufferVault: PufferVaultV5(payable(pufferVault)),
                 validatorTicket: ValidatorTicket(address(validatorTicketProxy)),
-                guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
                 oracle: IPufferOracleV2(oracle),
                 beaconDepositContract: getStakingContract()
@@ -190,8 +193,6 @@ contract DeployPuffer is BaseScript {
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
         vm.label(address(moduleManagerProxy), "PufferModuleManager");
         vm.label(address(pufferModuleBeacon), "PufferModuleBeacon");
-        vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
-        vm.label(address(guardiansDeployment.enclaveVerifier), "EnclaveVerifier");
 
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
@@ -199,9 +200,7 @@ contract DeployPuffer is BaseScript {
             validatorTicketPricer: address(validatorTicketPricer),
             pufferProtocolImplementation: address(pufferProtocolImpl),
             pufferProtocol: address(proxy),
-            guardianModule: guardiansDeployment.guardianModule,
-            accessManager: guardiansDeployment.accessManager,
-            enclaveVerifier: guardiansDeployment.enclaveVerifier,
+            accessManager: accessManagerAddress,
             beacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
             moduleManager: address(moduleManagerProxy),

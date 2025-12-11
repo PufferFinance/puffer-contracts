@@ -33,7 +33,7 @@ contract GenerateValidatorTicketCalldata is Script {
         // DAO-restricted functions
         bytes4[] memory vtDaoSelectors = new bytes4[](2);
         vtDaoSelectors[0] = ValidatorTicket.setProtocolFeeRate.selector;
-        vtDaoSelectors[1] = ValidatorTicket.setGuardiansFeeRate.selector;
+        vtDaoSelectors[1] = ValidatorTicket.setPaymasterFeeRate.selector;
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, validatorTicketProxy, vtDaoSelectors, ROLE_ID_DAO
         );
