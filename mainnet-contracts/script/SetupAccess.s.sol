@@ -96,8 +96,8 @@ contract SetupAccess is BaseScript {
         bytes[] memory roleLabels,
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
-    ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](29);
+    ) internal pure returns (bytes[] memory calldatas) {
+        calldatas = new bytes[](28);
         calldatas[0] = rolesCalldatas[0];
         calldatas[1] = rolesCalldatas[1];
         calldatas[2] = rolesCalldatas[2];
@@ -123,17 +123,17 @@ contract SetupAccess is BaseScript {
         calldatas[17] = moduleManagerAccess[1];
 
         calldatas[18] = roleLabels[0];
-        calldatas[20] = roleLabels[1];
-        calldatas[19] = roleLabels[2];
-        calldatas[20] = roleLabels[3];
+        calldatas[19] = roleLabels[1];
+        calldatas[20] = roleLabels[2];
+        calldatas[21] = roleLabels[3];
 
-        calldatas[21] = coordinatorAccess[0];
-        calldatas[22] = coordinatorAccess[1];
+        calldatas[22] = coordinatorAccess[0];
+        calldatas[23] = coordinatorAccess[1];
 
-        calldatas[23] = validatorTicketAccess[0];
-        calldatas[24] = validatorTicketAccess[1];
-        calldatas[25] = validatorTicketAccess[2];
-        calldatas[26] = validatorTicketAccess[3];
+        calldatas[24] = validatorTicketAccess[0];
+        calldatas[25] = validatorTicketAccess[1];
+        calldatas[26] = validatorTicketAccess[2];
+        calldatas[27] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
