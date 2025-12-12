@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -33,7 +32,6 @@ import { PufferModule } from "./PufferModule.sol";
  * Storage variables are located in PufferProtocolStorage.sol
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
-    using MessageHashUtils for bytes32;
 
     /**
      * @dev Helper struct for the full withdrawals accounting
