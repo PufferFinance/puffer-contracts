@@ -193,9 +193,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 vaultAmount = amount - treasuryAmount - paymasterAmount;
 
         assertEq(treasury.balance - initialTreasuryBalance, treasuryAmount, "Treasury should receive correct fee");
-        assertEq(
-            paymaster.balance - initialPaymasterBalance, paymasterAmount, "Paymaster should receive correct fee"
-        );
+        assertEq(paymaster.balance - initialPaymasterBalance, paymasterAmount, "Paymaster should receive correct fee");
         assertEq(vault.balance - initialVaultBalance, vaultAmount, "Vault should receive remaining amount");
     }
 

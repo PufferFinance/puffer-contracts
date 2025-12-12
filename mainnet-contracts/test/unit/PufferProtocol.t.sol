@@ -87,7 +87,6 @@ contract PufferProtocolTest is UnitTestHelper {
         NoRestakingModule = pufferProtocol.getModuleAddress(PUFFER_MODULE_0);
         // Fund no restaking module with 200 ETH
         vm.deal(NoRestakingModule, 200 ether);
-
     }
 
     // Setup
@@ -1765,7 +1764,6 @@ contract PufferProtocolTest is UnitTestHelper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(localPaymasterSK, digest);
         bytes memory signature = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-
         return signature;
     }
 
@@ -1892,7 +1890,11 @@ contract PufferProtocolTest is UnitTestHelper {
         return validatedEpochs * 4444444444444445;
     }
 
-    function _getHandleBatchWithdrawalMessageHash(StoppedValidatorInfo[] memory stopInfos) internal view returns (bytes32) {
+    function _getHandleBatchWithdrawalMessageHash(StoppedValidatorInfo[] memory stopInfos)
+        internal
+        view
+        returns (bytes32)
+    {
         return keccak256(abi.encode(stopInfos)).toEthSignedMessageHash();
     }
 }

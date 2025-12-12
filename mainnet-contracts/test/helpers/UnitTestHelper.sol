@@ -193,8 +193,6 @@ contract UnitTestHelper is Test, BaseScript {
             hex"0000000000000000000000000000000000000000000000000000000000000000",
             "bad blockhash"
         );
-
-
     }
 
     function _upgradePufferVaultToMainnet() internal {

@@ -10,9 +10,7 @@ contract PufferProtocolInvariants is UnitTestHelper {
     function setUp() public override {
         super.setUp();
 
-        handler = new PufferProtocolHandler(
-            this, pufferVault, address(stETH), pufferProtocol, _broadcaster
-        );
+        handler = new PufferProtocolHandler(this, pufferVault, address(stETH), pufferProtocol, _broadcaster);
 
         // Set handler as a target contract for invariant test
         targetContract(address(handler));

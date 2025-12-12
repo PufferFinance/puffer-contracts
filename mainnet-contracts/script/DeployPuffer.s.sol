@@ -45,7 +45,6 @@ import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
  *
  *         forge script script/DeployPuffer.s.sol:DeployPuffer -vvvv --rpc-url=$EPHEMERY_RPC_URL --broadcast
  */
-
 contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocolImpl;
     AccessManager accessManager;

@@ -40,8 +40,7 @@ contract IntegrationTestHelper is Test {
 
     function _deployAndLabel() internal {
         // Deploy everything with one script
-        (PufferProtocolDeployment memory pufferDeployment,) =
-            new DeployEverything().run(PAYMASTER);
+        (PufferProtocolDeployment memory pufferDeployment,) = new DeployEverything().run(PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");

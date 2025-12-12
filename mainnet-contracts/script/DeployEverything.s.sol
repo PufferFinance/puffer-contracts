@@ -26,10 +26,7 @@ import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address paymaster)
-        public
-        returns (PufferProtocolDeployment memory, BridgingDeployment memory)
-    {
+    function run(address paymaster) public returns (PufferProtocolDeployment memory, BridgingDeployment memory) {
         PufferProtocolDeployment memory deployment;
 
         // 1. Deploy pufETH
@@ -43,9 +40,8 @@ contract DeployEverything is BaseScript {
         deployment.weth = puffETHDeployment.weth;
         deployment.accessManager = puffETHDeployment.accessManager;
 
-        address pufferOracle = new DeployPufferOracle().run(
-            puffETHDeployment.accessManager, puffETHDeployment.pufferVault
-        );
+        address pufferOracle =
+            new DeployPufferOracle().run(puffETHDeployment.accessManager, puffETHDeployment.pufferVault);
 
         PufferProtocolDeployment memory pufferDeployment =
             new DeployPuffer().run(puffETHDeployment.accessManager, puffETHDeployment.pufferVault, pufferOracle);

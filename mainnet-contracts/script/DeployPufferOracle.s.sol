@@ -7,13 +7,8 @@ import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 
 // forge script script/DeployPufferOracle.s.sol:DeployPufferOracle --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address[] calldata, uint256)' "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1
 contract DeployPufferOracle is BaseScript {
-    function run(address accessManager, address pufferVault)
-        public
-        broadcast
-        returns (address)
-    {
-        PufferOracleV2 oracle =
-            new PufferOracleV2(payable(pufferVault), accessManager);
+    function run(address accessManager, address pufferVault) public broadcast returns (address) {
+        PufferOracleV2 oracle = new PufferOracleV2(payable(pufferVault), accessManager);
 
         return address(oracle);
     }
