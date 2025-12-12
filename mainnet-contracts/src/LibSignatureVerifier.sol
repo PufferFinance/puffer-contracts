@@ -40,6 +40,6 @@ library LibSignatureVerifier {
     }
 
     function _checkBLSPubKey(bytes calldata pubKey) internal pure {
-        require(pubKey.length != _BLS_PUB_KEY_LENGTH, InvalidBLSPubKey());
+        require(pubKey.length == _BLS_PUB_KEY_LENGTH, InvalidBLSPubKey());
     }
 }
