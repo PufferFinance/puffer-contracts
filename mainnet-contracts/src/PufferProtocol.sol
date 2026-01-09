@@ -32,7 +32,6 @@ import { PufferModule } from "./PufferModule.sol";
  * Storage variables are located in PufferProtocolStorage.sol
  */
 contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgradeable, PufferProtocolStorage {
-
     /**
      * @dev Helper struct for the full withdrawals accounting
      * The amounts of VT and pufETH to burn at the end of the withdrawal
