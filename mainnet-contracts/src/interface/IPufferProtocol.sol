@@ -244,9 +244,8 @@ interface IPufferProtocol {
 
     /**
      * @notice Skips the next validator for `moduleName`
-     * @dev Restricted to Guardians
      */
-    function skipProvisioning(bytes32 moduleName, bytes[] calldata guardianEOASignatures) external;
+    function skipProvisioning(bytes32 moduleName) external;
 
     /**
      * @notice Returns the guardian module
@@ -294,14 +293,10 @@ interface IPufferProtocol {
     function getModuleAddress(bytes32 moduleName) external view returns (address);
 
     /**
-     * @notice Provisions the next node that is in line for provisioning if the `guardianEnclaveSignatures` are valid
+     * @notice Provisions the next node that is in line for provisioning
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
-    function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
-        bytes calldata validatorSignature,
-        bytes32 depositRootHash
-    ) external;
+    function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external;
 
     /**
      * @notice Returns the deposit_data_root
