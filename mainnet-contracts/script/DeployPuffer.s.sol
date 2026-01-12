@@ -109,7 +109,6 @@ contract DeployPuffer is BaseScript {
 
         validatorTicketProxy = new ERC1967Proxy(address(new NoImplementation()), "");
         ValidatorTicket validatorTicketImplementation = new ValidatorTicket({
-            paymaster: payable(paymaster),
             treasury: payable(treasury),
             pufferVault: payable(pufferVault),
             pufferOracle: IPufferOracleV2(oracle),
@@ -120,7 +119,7 @@ contract DeployPuffer is BaseScript {
             address(validatorTicketImplementation),
             abi.encodeCall(
                 ValidatorTicket.initialize,
-                (address(accessManager), 500, 50) //@todo recheck 5% treasury, 0.5% guardians
+                (address(accessManager), 500, 50, payable(paymaster)) //@todo recheck 5% treasury, 0.5% guardians
             )
         );
 

@@ -54,7 +54,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertEq(validatorTicket.getProtocolFeeRate(), INITIAL_PROTOCOL_FEE);
         assertEq(validatorTicket.getPaymasterFeeRate(), INITIAL_GUARDIANS_FEE);
         assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0));
-        assertTrue(validatorTicket.PAYMASTER() != address(0));
+        assertTrue(validatorTicket.getPaymaster() != address(0));
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0));
         assertTrue(validatorTicket.TREASURY() != address(0));
         assertTrue(validatorTicket.OPERATIONS_MULTISIG() != address(0));
@@ -168,7 +168,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     function _getBalances() internal view returns (uint256, uint256, uint256) {
         return (
             validatorTicket.TREASURY().balance,
-            validatorTicket.PAYMASTER().balance,
+            validatorTicket.getPaymaster().balance,
             validatorTicket.PUFFER_VAULT().balance
         );
     }
@@ -185,7 +185,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         uint256 initialVaultBalance
     ) internal view {
         address treasury = validatorTicket.TREASURY();
-        address paymaster = validatorTicket.PAYMASTER();
+        address paymaster = validatorTicket.getPaymaster();
         address vault = validatorTicket.PUFFER_VAULT();
 
         uint256 treasuryAmount = amount.mulDiv(INITIAL_PROTOCOL_FEE, 10000, Math.Rounding.Ceil);

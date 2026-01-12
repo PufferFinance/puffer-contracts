@@ -247,9 +247,10 @@ contract SetupAccess is BaseScript {
     function _setupValidatorTicketsAccess() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory selectors = new bytes4[](2);
+        bytes4[] memory selectors = new bytes4[](3);
         selectors[0] = ValidatorTicket.setProtocolFeeRate.selector;
         selectors[1] = ValidatorTicket.setPaymasterFeeRate.selector;
+        selectors[2] = ValidatorTicket.setPaymaster.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.validatorTicket, selectors, ROLE_ID_DAO

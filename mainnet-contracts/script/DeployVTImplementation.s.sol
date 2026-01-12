@@ -27,7 +27,6 @@ contract DeployVTImplementation is DeployerHelper {
         // Implementation of ValidatorTicket
         ValidatorTicket validatorTicketImplementation;
         validatorTicketImplementation = new ValidatorTicket({
-            paymaster: payable(address(_getPaymaster())),
             treasury: payable(_getTreasury()),
             pufferVault: payable(_getPufferVault()),
             pufferOracle: IPufferOracle(address(_getPufferOracle())),

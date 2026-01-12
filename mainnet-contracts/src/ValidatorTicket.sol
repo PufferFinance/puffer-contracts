@@ -42,11 +42,6 @@ contract ValidatorTicket is
     /**
      * @inheritdoc IValidatorTicket
      */
-    address payable public immutable override PAYMASTER;
-
-    /**
-     * @inheritdoc IValidatorTicket
-     */
     address payable public immutable override PUFFER_VAULT;
 
     /**
@@ -70,27 +65,25 @@ contract ValidatorTicket is
     uint256 private constant _FEE_RATE_THRESHOLD_BPS = 1000;
 
     constructor(
-        address payable paymaster,
         address payable treasury,
         address payable pufferVault,
         IPufferOracle pufferOracle,
         address operationsMultisig
     ) {
         if (
-            paymaster == address(0) || treasury == address(0) || pufferVault == address(0)
+            treasury == address(0) || pufferVault == address(0)
                 || address(pufferOracle) == address(0) || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
         PUFFER_ORACLE = pufferOracle;
-        PAYMASTER = paymaster;
         PUFFER_VAULT = pufferVault;
         TREASURY = treasury;
         OPERATIONS_MULTISIG = operationsMultisig;
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 paymasterFeeRate)
+    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 paymasterFeeRate, address payable paymaster)
         external
         initializer
     {
@@ -99,6 +92,7 @@ contract ValidatorTicket is
         __ERC20Permit_init("Puffer Validator Ticket");
         _setProtocolFeeRate(treasuryFeeRate);
         _setPaymasterFeeRate(paymasterFeeRate);
+        _setPaymaster(paymaster);
     }
 
     /**
@@ -130,7 +124,7 @@ contract ValidatorTicket is
         ValidatorTicket storage $ = _getValidatorTicketStorage();
 
         uint256 treasuryAmount = _sendETH(TREASURY, msg.value, $.protocolFeeRate);
-        uint256 paymasterAmount = _sendETH(PAYMASTER, msg.value, $.paymasterFeeRate);
+        uint256 paymasterAmount = _sendETH($.paymaster, msg.value, $.paymasterFeeRate);
         uint256 vaultAmount = msg.value - (treasuryAmount + paymasterAmount);
         // The remainder belongs to PufferVault
         PUFFER_VAULT.sendValue(vaultAmount);
@@ -202,6 +196,15 @@ contract ValidatorTicket is
     }
 
     /**
+     * @notice Updates the paymaster address
+     * @dev Restricted to the DAO
+     * @param newPaymaster The new paymaster address
+     */
+    function setPaymaster(address payable newPaymaster) external virtual restricted {
+        _setPaymaster(newPaymaster);
+    }
+
+    /**
      * @inheritdoc IValidatorTicket
      */
     function getProtocolFeeRate() external view virtual returns (uint256) {
@@ -215,6 +218,14 @@ contract ValidatorTicket is
     function getPaymasterFeeRate() external view virtual returns (uint256) {
         ValidatorTicket storage $ = _getValidatorTicketStorage();
         return $.paymasterFeeRate;
+    }
+
+    /**
+     * @inheritdoc IValidatorTicket
+     */
+    function getPaymaster() external view virtual returns (address payable) {
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        return $.paymaster;
     }
 
     /**
@@ -250,6 +261,13 @@ contract ValidatorTicket is
         }
         emit PaymasterFeeChanged($.paymasterFeeRate, newPaymasterFeeRate);
         $.paymasterFeeRate = SafeCast.toUint128(newPaymasterFeeRate);
+    }
+
+    function _setPaymaster(address payable newPaymaster) internal virtual {
+        require(newPaymaster != address(0), InvalidData());
+        ValidatorTicket storage $ = _getValidatorTicketStorage();
+        emit PaymasterChanged( $.paymaster, newPaymaster);
+        $.paymaster = newPaymaster;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }

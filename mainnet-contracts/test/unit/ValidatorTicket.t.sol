@@ -65,7 +65,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), 500, "protocol fee rate"); // 5%
         assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0), "oracle");
-        assertTrue(validatorTicket.PAYMASTER() != address(0), "paymaster");
+        assertTrue(validatorTicket.getPaymaster() != address(0), "paymaster");
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0), "vault");
     }
 
@@ -80,6 +80,17 @@ contract ValidatorTicketTest is UnitTestHelper {
         assertEq(validatorTicket.getPaymasterFeeRate(), 1000, "new paymaster fee rate");
     }
 
+    function test_set_paymaster() public {
+        address payable newPaymaster = payable(actors[1]);
+
+        vm.startPrank(DAO);
+        vm.expectEmit(true, true, true, true);
+        emit IValidatorTicket.PaymasterChanged(address(validatorTicket.getPaymaster()), address(newPaymaster));
+        validatorTicket.setPaymaster(newPaymaster);
+
+        assertEq(address(validatorTicket.getPaymaster()), address(newPaymaster), "new paymaster");
+    }
+
     function test_funds_splitting() public {
         uint256 vtPrice = pufferOracle.getValidatorTicketPrice();
 
@@ -90,12 +101,12 @@ contract ValidatorTicketTest is UnitTestHelper {
 
         assertEq(validatorTicket.balanceOf(address(this)), 0, "should start with 0");
         assertEq(treasury.balance, 0, "treasury balance should start with 0");
-        assertEq(address(validatorTicket.PAYMASTER()).balance, 0, "paymaster balance should start with 0");
+        assertEq(address(validatorTicket.getPaymaster()).balance, 0, "paymaster balance should start with 0");
 
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(address(validatorTicket.PAYMASTER()).balance, 0.1 ether, "paymaster balance");
+        assertEq(address(validatorTicket.getPaymaster()).balance, 0.1 ether, "paymaster balance");
         // 5% from 20 ETH is 1 ETH
         assertEq(treasury.balance, 1 ether, "treasury should get 1 ETH for 100 VTs");
     }
@@ -133,7 +144,7 @@ contract ValidatorTicketTest is UnitTestHelper {
         validatorTicket.purchaseValidatorTicket{ value: amount }(address(this));
 
         // 0.5% from 20 ETH is 0.1 ETH
-        assertEq(address(validatorTicket.PAYMASTER()).balance, 0.1 ether, "paymaster balance");
+        assertEq(address(validatorTicket.getPaymaster()).balance, 0.1 ether, "paymaster balance");
         assertEq(address(validatorTicket).balance, 0, "treasury should get 0 ETH");
     }
 

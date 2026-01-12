@@ -56,6 +56,12 @@ interface IValidatorTicket {
     event PaymasterFeeChanged(uint256 oldPaymasterFee, uint256 newPaymasterFee);
 
     /**
+     * @notice Emitted when the paymaster address is changed
+     * @dev Signature "0xd45bf891e206e35d5a4aa835adaabaf67518307c30d328fd23cd9dd0669128b3"
+     */
+    event PaymasterChanged(address indexed oldPaymaster, address indexed newPaymaster);
+
+    /**
      * @notice Mints VT to `recipient` corresponding to sent ETH and distributes funds between the Treasury, Paymaster and PufferVault
      * @param recipient The address to mint VT to
      * @dev restricted modifier is also used as `whenNotPaused`
@@ -101,11 +107,6 @@ interface IValidatorTicket {
     function TREASURY() external view returns (address payable);
 
     /**
-     * @notice Returns the Paymaster
-     */
-    function PAYMASTER() external view returns (address payable);
-
-    /**
      * @notice Returns the Puffer Oracle
      */
     function PUFFER_ORACLE() external view returns (IPufferOracle);
@@ -120,4 +121,10 @@ interface IValidatorTicket {
      * @return The current protocol fee rate
      */
     function getProtocolFeeRate() external view returns (uint256);
+
+    /**
+     * @notice Retrieves the paymaster address
+     * @return The paymaster address
+     */
+    function getPaymaster() external view returns (address payable);
 }

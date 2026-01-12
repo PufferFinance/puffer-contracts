@@ -26,6 +26,11 @@ abstract contract ValidatorTicketStorage {
          * Slot 0
          */
         uint128 paymasterFeeRate;
+        /**
+         * @dev Paymaster address
+         * Slot 1
+         */
+        address payable paymaster;
     }
 
     /**
