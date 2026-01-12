@@ -71,8 +71,8 @@ contract ValidatorTicket is
         address operationsMultisig
     ) {
         if (
-            treasury == address(0) || pufferVault == address(0)
-                || address(pufferOracle) == address(0) || operationsMultisig == address(0)
+            treasury == address(0) || pufferVault == address(0) || address(pufferOracle) == address(0)
+                || operationsMultisig == address(0)
         ) {
             revert InvalidData();
         }
@@ -83,10 +83,12 @@ contract ValidatorTicket is
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint256 treasuryFeeRate, uint256 paymasterFeeRate, address payable paymaster)
-        external
-        initializer
-    {
+    function initialize(
+        address accessManager,
+        uint256 treasuryFeeRate,
+        uint256 paymasterFeeRate,
+        address payable paymaster
+    ) external initializer {
         __AccessManaged_init(accessManager);
         __ERC20_init("Puffer Validator Ticket", "VT");
         __ERC20Permit_init("Puffer Validator Ticket");
@@ -266,7 +268,7 @@ contract ValidatorTicket is
     function _setPaymaster(address payable newPaymaster) internal virtual {
         require(newPaymaster != address(0), InvalidData());
         ValidatorTicket storage $ = _getValidatorTicketStorage();
-        emit PaymasterChanged( $.paymaster, newPaymaster);
+        emit PaymasterChanged($.paymaster, newPaymaster);
         $.paymaster = newPaymaster;
     }
 
