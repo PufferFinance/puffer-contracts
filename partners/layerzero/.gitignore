@@ -12,6 +12,7 @@ artifacts
 
 # LayerZero specific files
 .layerzero
+.wiring-state
 
 # foundry test compilation files
 out

@@ -3,6 +3,7 @@ import { EndpointId } from '@layerzerolabs/lz-definitions'
 
 // Define custom endpoint IDs for networks not yet in LayerZero's official definitions
 export const MONAD_V2_MAINNET = 30390 as EndpointId
+export const MEGAETH_V2_MAINNET = 30398 as EndpointId
 
 interface OftAdapterConfig {
     tokenAddress: string
