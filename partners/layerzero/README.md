@@ -121,7 +121,7 @@ npx hardhat custom:wire --token pufETH --dest megaeth
 | `--dry-run` | Show what would be done without executing | false |
 | `--source-only` | Only wire source chain | false |
 | `--dest-only` | Only wire destination chain | false |
-| `--skip-endpoint-config` | Skip EndpointV2 config (for multisig flows) | false |
+| `--execute-endpoint-config` | Execute EndpointV2 config only (after Safe executes) | false |
 
 ### Execution Modes
 
@@ -176,10 +176,10 @@ The wiring process involves 4 transactions on each chain:
 
 ### Step 1: Generate Safe Calldata (OFT-level transactions only)
 
-Use `--skip-endpoint-config` to generate calldata for only the multisig-required transactions:
+By default, the script generates calldata for only the multisig-required transactions (steps 1-2):
 
 ```bash
-npx hardhat custom:wire --token pufETH --dest megaeth --skip-endpoint-config --source-only
+npx hardhat custom:wire --token pufETH --dest megaeth --source-only
 ```
 
 This generates calldata for only 2 transactions:
@@ -196,17 +196,15 @@ Calldata is saved to `.wiring-state/safe-batch-ethereum-mainnet-pufETH.json`
 
 ### Step 3: Execute Endpoint Config via CLI (after Safe transactions confirm)
 
-Once the peer is set via Safe, come back to the CLI and execute the EndpointV2 config. This is executed as a regular transaction from your deployer wallet (which has delegate permission):
+Once the peer is set via Safe, come back to the CLI and execute the EndpointV2 config using `--execute-endpoint-config`. This executes the transactions directly from your deployer wallet (which has delegate permission):
 
 ```bash
-npx hardhat custom:wire --token pufETH --dest megaeth --source-only
+npx hardhat custom:wire --token pufETH --dest megaeth --source-only --execute-endpoint-config
 ```
 
 This will execute as direct transactions (not calldata):
 - `setSendConfig` - on EndpointV2 (configures which DVNs verify outgoing messages)
 - `setReceiveConfig` - on EndpointV2 (configures which DVNs verify incoming messages)
-
-**Note:** The script will skip steps 1-2 if they're already completed (saved in `.wiring-state/`).
 
 ### Step 4: Wire the Destination Chain
 

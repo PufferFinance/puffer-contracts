@@ -99,7 +99,7 @@ interface WiringContext {
     mode: 'execute' | 'calldata' | 'auto'
     state: WiringState
     dryRun: boolean
-    skipEndpointConfig: boolean
+    executeEndpointConfig: boolean // When true, skip OFT config and only execute endpoint config
 }
 
 // Execute or generate calldata for a step
@@ -260,6 +260,8 @@ async function executeEndpointConfig(
 }
 
 // Wire source chain (e.g., Ethereum with OFTAdapter)
+// Default: Generate calldata for OFT-level calls only (setPeer, setEnforcedOptions) - for Safe multisig
+// With --execute-endpoint-config: Execute EndpointV2 config directly (after Safe transactions confirm)
 async function wireSourceChain(
     ctx: WiringContext,
     sourceContract: any,
@@ -273,54 +275,10 @@ async function wireSourceChain(
     console.log(`\n  Source Chain Wiring (${sourceConfig.name})`)
     console.log(`  ─────────────────────────────────────`)
 
-    // Step 1: Set Peer
-    const peerBytes32 = addressToBytes32(destAddress)
-    const peerResult = await executeStep(
-        ctx,
-        'source_setPeer',
-        `Set peer to ${destConfig.name} (EID: ${destConfig.eid})`,
-        sourceContract,
-        'setPeer',
-        [destConfig.eid, peerBytes32],
-        sourceAddress
-    )
-    if (peerResult.txHash) txHashes.push(peerResult.txHash)
-    if (peerResult.calldata) calldatas.push({ to: sourceAddress, data: peerResult.calldata, description: 'setPeer' })
+    if (ctx.executeEndpointConfig) {
+        // --execute-endpoint-config flag: Skip OFT config (assume Safe already executed), execute endpoint config directly
+        console.log('   [MODE] Executing EndpointV2 config only (assuming Safe already executed setPeer/setEnforcedOptions)\n')
 
-    // Step 2: Set Enforced Options
-    const lzReceiveGas = destConfig.wiring.lzReceiveGas || 80000
-
-    // msgType 1 (SEND): only needs lzReceive gas
-    const optionsSend = Options.newOptions()
-        .addExecutorLzReceiveOption(lzReceiveGas, 0)
-        .toHex()
-
-    // msgType 2 (SEND_AND_CALL): needs lzReceive + lzCompose gas
-    const optionsSendAndCall = Options.newOptions()
-        .addExecutorLzReceiveOption(lzReceiveGas, 0)
-        .addExecutorComposeOption(0, lzReceiveGas, 0)
-        .toHex()
-
-    const enforcedOptions = [
-        { eid: destConfig.eid, msgType: 1, options: optionsSend }, // SEND
-        { eid: destConfig.eid, msgType: 2, options: optionsSendAndCall }, // SEND_AND_CALL
-    ]
-    const optionsResult = await executeStep(
-        ctx,
-        'source_setEnforcedOptions',
-        'Set enforced options',
-        sourceContract,
-        'setEnforcedOptions',
-        [enforcedOptions],
-        sourceAddress
-    )
-    if (optionsResult.txHash) txHashes.push(optionsResult.txHash)
-    if (optionsResult.calldata)
-        calldatas.push({ to: sourceAddress, data: optionsResult.calldata, description: 'setEnforcedOptions' })
-
-    // Step 3 & 4: Set Send/Receive Config (on EndpointV2)
-    // These can be skipped for multisig flows - execute separately after peer is set
-    if (!ctx.skipEndpointConfig) {
         const endpointContract = await hre.ethers.getContractAt(
             'ILayerZeroEndpointV2',
             sourceConfig.layerzero.endpointV2,
@@ -340,48 +298,119 @@ async function wireSourceChain(
                 ],
             ]
         )
+
+        // Step 3: Set Send Config (on EndpointV2) - execute directly
         const sendConfigParams = [{ eid: destConfig.eid, configType: 2, config: ulnConfig }]
 
-        const sendConfigResult = await executeEndpointConfig(
-            ctx,
-            'source_setSendConfig',
-            'Set send config (DVN)',
-            endpointContract,
-            sourceAddress,
-            sourceConfig.layerzero.sendUln302,
-            sendConfigParams,
-            sourceConfig
-        )
-        if (sendConfigResult.txHash) txHashes.push(sendConfigResult.txHash)
-        if (sendConfigResult.calldata)
-            calldatas.push({
-                to: sourceConfig.layerzero.endpointV2,
-                data: sendConfigResult.calldata,
-                description: 'setSendConfig',
-            })
+        console.log('   [EXEC] Set send config (DVN)...')
+        if (!ctx.dryRun) {
+            try {
+                console.log('      Estimating gas...')
+                const gasEstimate = await endpointContract.estimateGas.setConfig(
+                    sourceAddress,
+                    sourceConfig.layerzero.sendUln302,
+                    sendConfigParams
+                )
+                console.log(`      Gas estimate: ${gasEstimate.toString()}`)
 
-        // Step 4: Set Receive Config (on EndpointV2)
+                console.log('      Sending transaction...')
+                const tx = await endpointContract.setConfig(
+                    sourceAddress,
+                    sourceConfig.layerzero.sendUln302,
+                    sendConfigParams,
+                    { gasLimit: gasEstimate.mul(120).div(100) } // 20% buffer
+                )
+                console.log(`      Transaction: ${tx.hash}`)
+                console.log(`      Explorer: https://etherscan.io/tx/${tx.hash}`)
+                console.log('      Waiting for confirmation...')
+                const receipt = await tx.wait(1)
+                console.log(`      Confirmed in block ${receipt.blockNumber}`)
+                txHashes.push(tx.hash)
+            } catch (error: any) {
+                console.log(`      FAILED: ${error.reason || error.message}`)
+                if (error.code === 'TIMEOUT') {
+                    console.log('      Transaction may still be pending. Check explorer.')
+                }
+                throw error
+            }
+        } else {
+            console.log('      [DRY-RUN] Would execute setSendConfig')
+        }
+
+        // Step 4: Set Receive Config (on EndpointV2) - execute directly
         const receiveConfigParams = [{ eid: destConfig.eid, configType: 2, config: ulnConfig }]
 
-        const receiveConfigResult = await executeEndpointConfig(
-            ctx,
-            'source_setReceiveConfig',
-            'Set receive config (DVN)',
-            endpointContract,
-            sourceAddress,
-            sourceConfig.layerzero.receiveUln302,
-            receiveConfigParams,
-            sourceConfig
-        )
-        if (receiveConfigResult.txHash) txHashes.push(receiveConfigResult.txHash)
-        if (receiveConfigResult.calldata)
-            calldatas.push({
-                to: sourceConfig.layerzero.endpointV2,
-                data: receiveConfigResult.calldata,
-                description: 'setReceiveConfig',
-            })
+        console.log('   [EXEC] Set receive config (DVN)...')
+        if (!ctx.dryRun) {
+            try {
+                console.log('      Estimating gas...')
+                const gasEstimate = await endpointContract.estimateGas.setConfig(
+                    sourceAddress,
+                    sourceConfig.layerzero.receiveUln302,
+                    receiveConfigParams
+                )
+                console.log(`      Gas estimate: ${gasEstimate.toString()}`)
+
+                console.log('      Sending transaction...')
+                const tx = await endpointContract.setConfig(
+                    sourceAddress,
+                    sourceConfig.layerzero.receiveUln302,
+                    receiveConfigParams,
+                    { gasLimit: gasEstimate.mul(120).div(100) } // 20% buffer
+                )
+                console.log(`      Transaction: ${tx.hash}`)
+                console.log(`      Explorer: https://etherscan.io/tx/${tx.hash}`)
+                console.log('      Waiting for confirmation...')
+                const receipt = await tx.wait(1)
+                console.log(`      Confirmed in block ${receipt.blockNumber}`)
+                txHashes.push(tx.hash)
+            } catch (error: any) {
+                console.log(`      FAILED: ${error.reason || error.message}`)
+                if (error.code === 'TIMEOUT') {
+                    console.log('      Transaction may still be pending. Check explorer.')
+                }
+                throw error
+            }
+        } else {
+            console.log('      [DRY-RUN] Would execute setReceiveConfig')
+        }
     } else {
-        console.log('   [SKIP] Endpoint config skipped (--skip-endpoint-config flag set)')
+        // Default: Generate calldata for OFT-level calls only (for Safe multisig)
+        console.log('   [MODE] Generating calldata for Safe multisig (OFT-level calls only)\n')
+
+        // Step 1: Set Peer
+        const peerBytes32 = addressToBytes32(destAddress)
+        const peerCalldata = encodeTransaction(sourceContract, 'setPeer', [destConfig.eid, peerBytes32])
+        console.log(`   [CALLDATA] Set peer to ${destConfig.name} (EID: ${destConfig.eid})`)
+        console.log(`      To: ${sourceAddress}`)
+        console.log(`      Data: ${peerCalldata}`)
+        calldatas.push({ to: sourceAddress, data: peerCalldata, description: 'setPeer' })
+
+        // Step 2: Set Enforced Options
+        const lzReceiveGas = destConfig.wiring.lzReceiveGas || 80000
+
+        // msgType 1 (SEND): only needs lzReceive gas
+        const optionsSend = Options.newOptions()
+            .addExecutorLzReceiveOption(lzReceiveGas, 0)
+            .toHex()
+
+        // msgType 2 (SEND_AND_CALL): needs lzReceive + lzCompose gas
+        const optionsSendAndCall = Options.newOptions()
+            .addExecutorLzReceiveOption(lzReceiveGas, 0)
+            .addExecutorComposeOption(0, lzReceiveGas, 0)
+            .toHex()
+
+        const enforcedOptions = [
+            { eid: destConfig.eid, msgType: 1, options: optionsSend }, // SEND
+            { eid: destConfig.eid, msgType: 2, options: optionsSendAndCall }, // SEND_AND_CALL
+        ]
+        const optionsCalldata = encodeTransaction(sourceContract, 'setEnforcedOptions', [enforcedOptions])
+        console.log(`   [CALLDATA] Set enforced options`)
+        console.log(`      To: ${sourceAddress}`)
+        console.log(`      Data: ${optionsCalldata}`)
+        calldatas.push({ to: sourceAddress, data: optionsCalldata, description: 'setEnforcedOptions' })
+
+        console.log('\n   [INFO] After Safe executes these transactions, run with --execute-endpoint-config to complete wiring')
     }
 
     return { txHashes, calldatas }
@@ -447,70 +476,65 @@ async function wireDestChain(
         calldatas.push({ to: destAddress, data: optionsResult.calldata, description: 'setEnforcedOptions' })
 
     // Step 3 & 4: Set Send/Receive Config (on EndpointV2)
-    // These can be skipped for multisig flows - execute separately after peer is set
-    if (!ctx.skipEndpointConfig) {
-        const endpointContract = await hre.ethers.getContractAt(
-            'ILayerZeroEndpointV2',
-            destConfig.layerzero.endpointV2,
-            ctx.signer
-        )
+    const endpointContract = await hre.ethers.getContractAt(
+        'ILayerZeroEndpointV2',
+        destConfig.layerzero.endpointV2,
+        ctx.signer
+    )
 
-        const ulnConfig = hre.ethers.utils.defaultAbiCoder.encode(
-            ['(uint64,uint8,uint8,uint8,address[],address[])'],
+    const ulnConfig = hre.ethers.utils.defaultAbiCoder.encode(
+        ['(uint64,uint8,uint8,uint8,address[],address[])'],
+        [
             [
-                [
-                    destConfig.wiring.confirmations,
-                    destConfig.layerzero.dvns.required.length,
-                    destConfig.layerzero.dvns.optional?.length || 0,
-                    0,
-                    destConfig.layerzero.dvns.required,
-                    destConfig.layerzero.dvns.optional || [],
-                ],
-            ]
-        )
-        const sendConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
+                destConfig.wiring.confirmations,
+                destConfig.layerzero.dvns.required.length,
+                destConfig.layerzero.dvns.optional?.length || 0,
+                0,
+                destConfig.layerzero.dvns.required,
+                destConfig.layerzero.dvns.optional || [],
+            ],
+        ]
+    )
+    const sendConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
 
-        const sendConfigResult = await executeEndpointConfig(
-            ctx,
-            'dest_setSendConfig',
-            'Set send config (DVN)',
-            endpointContract,
-            destAddress,
-            destConfig.layerzero.sendUln302,
-            sendConfigParams,
-            destConfig
-        )
-        if (sendConfigResult.txHash) txHashes.push(sendConfigResult.txHash)
-        if (sendConfigResult.calldata)
-            calldatas.push({
-                to: destConfig.layerzero.endpointV2,
-                data: sendConfigResult.calldata,
-                description: 'setSendConfig',
-            })
+    const sendConfigResult = await executeEndpointConfig(
+        ctx,
+        'dest_setSendConfig',
+        'Set send config (DVN)',
+        endpointContract,
+        destAddress,
+        destConfig.layerzero.sendUln302,
+        sendConfigParams,
+        destConfig
+    )
+    if (sendConfigResult.txHash) txHashes.push(sendConfigResult.txHash)
+    if (sendConfigResult.calldata)
+        calldatas.push({
+            to: destConfig.layerzero.endpointV2,
+            data: sendConfigResult.calldata,
+            description: 'setSendConfig',
+        })
 
-        // Step 4: Set Receive Config (on EndpointV2)
-        const receiveConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
+    // Step 4: Set Receive Config (on EndpointV2)
+    const receiveConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
 
-        const receiveConfigResult = await executeEndpointConfig(
-            ctx,
-            'dest_setReceiveConfig',
-            'Set receive config (DVN)',
-            endpointContract,
-            destAddress,
-            destConfig.layerzero.receiveUln302,
-            receiveConfigParams,
-            destConfig
-        )
-        if (receiveConfigResult.txHash) txHashes.push(receiveConfigResult.txHash)
-        if (receiveConfigResult.calldata)
-            calldatas.push({
-                to: destConfig.layerzero.endpointV2,
-                data: receiveConfigResult.calldata,
-                description: 'setReceiveConfig',
-            })
-    } else {
-        console.log('   [SKIP] Endpoint config skipped (--skip-endpoint-config flag set)')
-    }
+    const receiveConfigResult = await executeEndpointConfig(
+        ctx,
+        'dest_setReceiveConfig',
+        'Set receive config (DVN)',
+        endpointContract,
+        destAddress,
+        destConfig.layerzero.receiveUln302,
+        receiveConfigParams,
+        destConfig
+    )
+    if (receiveConfigResult.txHash) txHashes.push(receiveConfigResult.txHash)
+    if (receiveConfigResult.calldata)
+        calldatas.push({
+            to: destConfig.layerzero.endpointV2,
+            data: receiveConfigResult.calldata,
+            description: 'setReceiveConfig',
+        })
 
     return { txHashes, calldatas }
 }
@@ -525,9 +549,9 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
     .addFlag('dryRun', 'Show what would be done without executing')
     .addFlag('sourceOnly', 'Only wire source chain')
     .addFlag('destOnly', 'Only wire destination chain')
-    .addFlag('skipEndpointConfig', 'Skip EndpointV2 config (setSendConfig/setReceiveConfig) - useful for multisig flows')
+    .addFlag('executeEndpointConfig', 'Execute EndpointV2 config only (after Safe executes setPeer/setEnforcedOptions)')
     .setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
-        const { token, source, dest, mode, restart, dryRun, sourceOnly, destOnly, skipEndpointConfig } = taskArgs
+        const { token, source, dest, mode, restart, dryRun, sourceOnly, destOnly, executeEndpointConfig } = taskArgs
 
         console.log('\n╔═══════════════════════════════════════════════════════════╗')
         console.log('║           LayerZero Custom Chain Wiring                   ║')
@@ -573,7 +597,7 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
         console.log(`  Dest: ${dest} (${destAddress})`)
         console.log(`  Mode: ${mode}`)
         console.log(`  Dry Run: ${dryRun}`)
-        console.log(`  Skip Endpoint Config: ${skipEndpointConfig}`)
+        console.log(`  Execute Endpoint Config Only: ${executeEndpointConfig}`)
         console.log('')
 
         // Load or initialize state
@@ -616,7 +640,7 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
                 mode: mode as 'auto' | 'execute' | 'calldata',
                 state,
                 dryRun,
-                skipEndpointConfig,
+                executeEndpointConfig,
             }
 
             const sourceResult = await wireSourceChain(sourceCtx, sourceContract, sourceAddress, destAddress)
@@ -643,7 +667,7 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
                 mode: mode as 'auto' | 'execute' | 'calldata',
                 state,
                 dryRun,
-                skipEndpointConfig,
+                executeEndpointConfig: false, // Dest chain always does all steps (we're the owner)
             }
 
             const destResult = await wireDestChain(destCtx, destContract, destAddress, sourceAddress)

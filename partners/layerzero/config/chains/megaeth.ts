@@ -38,7 +38,7 @@ export const megaeth: CustomChainConfig = {
     wiring: {
         confirmations: 5,
         executorMaxMessageSize: 10000,
-        lzReceiveGas: 80000,
+        lzReceiveGas: 250000, // MegaETH has non-typical gas consumption
     },
 
     contracts: {

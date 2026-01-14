@@ -27,15 +27,15 @@ export const ethereum: CustomChainConfig = {
         dvns: {
             required: [
                 '0x380275805876ff19055ea900cdb2b46a94ecf20d', // Horizen
+                '0xa59ba433ac34d2927232918ef5b2eaafcf130ba5', // Nethermind
             ],
             optional: [
-                '0xa59ba433ac34d2927232918ef5b2eaafcf130ba5', // Nethermind
             ],
         },
     },
 
     wiring: {
-        confirmations: 15, // Ethereum needs more confirmations
+        confirmations: 5, // Ethereum needs more confirmations
         executorMaxMessageSize: 10000,
         lzReceiveGas: 80000,
     },
