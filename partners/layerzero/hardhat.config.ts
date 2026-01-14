@@ -11,12 +11,10 @@ import '@nomiclabs/hardhat-ethers'
 import '@layerzerolabs/toolbox-hardhat'
 import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from 'hardhat/types'
 
-import { EndpointId } from '@layerzerolabs/lz-definitions'
 import '@nomicfoundation/hardhat-verify'
 import './tasks/send'
 import './tasks/customWire'
 import './type-extensions'
-import { MEGAETH_V2_MAINNET, MONAD_V2_MAINNET } from './type-extensions'
 
 // Import chain configs for dynamic network setup
 import { chainConfigs } from './config'

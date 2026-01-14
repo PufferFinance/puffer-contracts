@@ -3,15 +3,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { Options } from '@layerzerolabs/lz-v2-utilities'
 import * as fs from 'fs'
 import * as path from 'path'
-import {
-    CustomChainConfig,
-    WiringState,
-    WiringStep,
-    SafeBatch,
-    SafeTransaction,
-    getChainConfig,
-    listChains,
-} from '../config'
+import { CustomChainConfig, WiringState, SafeBatch, getChainConfig, listChains } from '../config'
 
 const STATE_DIR = path.join(__dirname, '../.wiring-state')
 
@@ -675,6 +667,12 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
         }
 
         // Output Safe batch JSONs if there are calldatas
+        if (outputCalldatas.source.length > 0 || outputCalldatas.dest.length > 0) {
+            if (!fs.existsSync(STATE_DIR)) {
+                fs.mkdirSync(STATE_DIR, { recursive: true })
+            }
+        }
+
         if (outputCalldatas.source.length > 0) {
             const safeBatch = createSafeBatch(
                 sourceConfig.chainId,
