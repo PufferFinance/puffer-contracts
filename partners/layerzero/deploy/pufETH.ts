@@ -1,6 +1,7 @@
 import assert from 'assert'
 
 import { type DeployFunction } from 'hardhat-deploy/types'
+import { getChainConfig } from '../config'
 
 const contractName = 'pufETH'
 
@@ -15,36 +16,20 @@ const deploy: DeployFunction = async (hre) => {
     console.log(`Network: ${hre.network.name}`)
     console.log(`Deployer: ${deployer}`)
 
-    // This is an external deployment pulled in from @layerzerolabs/lz-evm-sdk-v2
-    //
-    // @layerzerolabs/toolbox-hardhat takes care of plugging in the external deployments
-    // from @layerzerolabs packages based on the configuration in your hardhat config
-    //
-    // For this to work correctly, your network config must define an eid property
-    // set to `EndpointId` as defined in @layerzerolabs/lz-definitions
-    //
-    // For example:
-    //
-    // networks: {
-    //   fuji: {
-    //     ...
-    //     eid: EndpointId.AVALANCHE_V2_TESTNET
-    //   }
-    // }
-    const endpointV2Deployment = await hre.deployments.get('EndpointV2')
+    // Get EndpointV2 address from chain config
+    const chainConfig = getChainConfig(hre.network.name)
+    if (!chainConfig) {
+        throw new Error(`No chain config found for network: ${hre.network.name}. Add it to config/chains/`)
+    }
 
-    // If the oftAdapter configuration is defined on a network that is deploying an OFT,
-    // the deployment will log a warning and skip the deployment
-    // if (hre.network.config.oftAdapter != null) {
-    //     console.warn(`oftAdapter configuration found on OFT deployment, skipping OFT deployment`)
-    //     return
-    // }
+    const endpointV2Address = chainConfig.layerzero.endpointV2
+    console.log(`EndpointV2: ${endpointV2Address}`)
 
     const { address, newlyDeployed } = await deploy(contractName, {
         from: deployer,
         contract: 'contracts/pufETH.sol:pufETH',
         args: [
-            endpointV2Deployment.address, // LayerZero's EndpointV2 address
+            endpointV2Address, // LayerZero's EndpointV2 address from config
             deployer, // owner
         ],
         log: true,
@@ -54,15 +39,15 @@ const deploy: DeployFunction = async (hre) => {
     console.log(`Deployed contract: ${contractName}, network: ${hre.network.name}, address: ${address}`)
 
     // Verify the contract if it was newly deployed
-    if (!newlyDeployed) {
+    if (newlyDeployed) {
         console.log(`Verifying contract ${contractName} on ${hre.network.name}...`)
         try {
             await hre.run('verify:verify', {
                 contract: 'contracts/pufETH.sol:pufETH',
                 address,
                 constructorArguments: [
-                    endpointV2Deployment.address, // LayerZero's EndpointV2 address
-                    deployer, // owner
+                    endpointV2Address,
+                    deployer,
                 ],
                 force: true,
             })
