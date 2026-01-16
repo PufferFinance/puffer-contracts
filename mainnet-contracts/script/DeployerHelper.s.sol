@@ -161,9 +161,8 @@ abstract contract DeployerHelper is Script {
             // https://holesky.etherscan.io/address/0x99c3E46E575df251149866285DdA7DAEba875B71
             return 0x99c3E46E575df251149866285DdA7DAEba875B71;
         } else if (block.chainid == hoodi) {
-            // https://hoodi.etherscan.io/address/???
-            // return ???;
-            // @todo Add address once deployed
+            // https://hoodi.etherscan.io/address/0x9f9aa46c3b98aDDc1eEef87De25f986024f7C6Bb
+            return 0x9f9aa46c3b98aDDc1eEef87De25f986024f7C6Bb;
         }
 
         revert("RestakingOperatorBeacon not available for this chain");
