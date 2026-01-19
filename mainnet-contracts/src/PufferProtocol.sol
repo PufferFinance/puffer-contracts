@@ -238,7 +238,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted to Puffer Paymaster
+     * @dev Restricted to ROLE_ID_NODE_PROVISIONER
      */
     function provisionNode(bytes calldata validatorSignature, bytes32 depositRootHash) external restricted {
         if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
@@ -402,7 +402,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
     /**
      * @inheritdoc IPufferProtocol
-     * @dev Restricted to Puffer Paymaster
+     * @dev Restricted to ROLE_ID_NODE_PROVISIONER
      */
     function skipProvisioning(bytes32 moduleName) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
