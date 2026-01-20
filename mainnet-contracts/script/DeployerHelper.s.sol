@@ -31,7 +31,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76
             return 0xb7d83623906AC3fa577F45B7D2b9D4BD26BC5d76;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         } else if (block.chainid == hoodi) {
@@ -80,7 +81,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6
             return 0x282A69142bac47855C3fbE1693FcC4bA3B4d5Ed6;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x82a44a6489936FFF841eecAF650Aa4D9708E4312
             return 0x82a44a6489936FFF841eecAF650Aa4D9708E4312;
         }
@@ -101,7 +103,8 @@ abstract contract DeployerHelper is Script {
         vm.label(implementation, contractName);
         console.log("Deployed", contractName, "at", implementation);
 
-        if (block.chainid == holesky) { // @DEPRECATED
+        if (block.chainid == holesky) {
+            // @DEPRECATED
             AccessManager(_getAccessManager()).execute(
                 proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
             );
@@ -126,7 +129,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x946Ae7b21de3B0793Bb469e263517481B74A6950
             return 0x946Ae7b21de3B0793Bb469e263517481B74A6950;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x61A44645326846F9b5d9c6f91AD27C3aD28EA390
             return 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
         } else if (block.chainid == hoodi) {
@@ -141,7 +145,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd
             return 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xcAe751b75833ef09627549868A04E32679386e7C
             return 0xcAe751b75833ef09627549868A04E32679386e7C;
         } else if (block.chainid == hoodi) {
@@ -157,7 +162,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x6756B856Dd3843C84249a6A31850cB56dB824c4B
             return 0x6756B856Dd3843C84249a6A31850cB56dB824c4B;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x99c3E46E575df251149866285DdA7DAEba875B71
             return 0x99c3E46E575df251149866285DdA7DAEba875B71;
         } else if (block.chainid == hoodi) {
@@ -172,7 +178,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x00000000219ab540356cBB839Cbe05303d7705Fa
             return 0x00000000219ab540356cBB839Cbe05303d7705Fa;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x4242424242424242424242424242424242424242
             return 0x4242424242424242424242424242424242424242;
         } else if (block.chainid == hoodi) {
@@ -187,7 +194,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x628b183F248a142A598AA2dcCCD6f7E480a7CcF2
             return 0x628b183F248a142A598AA2dcCCD6f7E480a7CcF2;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x0910310130d1c062DEF8B807528bdac80203BC66
             return 0x0910310130d1c062DEF8B807528bdac80203BC66;
         } else if (block.chainid == hoodi) {
@@ -202,7 +210,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xdd38A5a7789C74fc7F64556fc772343658EEBb04
             return 0xdd38A5a7789C74fc7F64556fc772343658EEBb04;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x4B0542470935ed4b085C3AD1983E85f5623ABf89
             return 0x4B0542470935ed4b085C3AD1983E85f5623ABf89;
         } else if (block.chainid == hoodi) {
@@ -217,7 +226,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338
             return 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x30770d7E3e71112d7A6b7259542D1f680a70e315
             return 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
         } else if (block.chainid == hoodi) {
@@ -232,7 +242,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A
             return 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xA44151489861Fe9e3055d95adC98FbD462B948e7
             return 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
         } else if (block.chainid == hoodi) {
@@ -247,7 +258,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x1565E55B63675c703fcC3778BD33eA97F7bE882F
             return 0x1565E55B63675c703fcC3778BD33eA97F7bE882F;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x09BE86B01c1e32dCa2ebdEDb01cD5A3F798b80C5
             return 0x09BE86B01c1e32dCa2ebdEDb01cD5A3F798b80C5;
         } else if (block.chainid == hoodi) {
@@ -262,7 +274,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // Mainnet Timelock: https://etherscan.io/address/0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA
             return 0x3C28B7c7Ba1A1f55c9Ce66b263B33B204f2126eA;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // Holesky Timelock: https://explorer.pops.one/address/0x829aF0B3d099a12F0aE1b806f466EF771E2C07F8
             return 0x829aF0B3d099a12F0aE1b806f466EF771E2C07F8;
         } else if (block.chainid == hoodi) {
@@ -277,7 +290,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x7750d328b314EfFa365A0402CcfD489B80B0adda
             return 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xAcc1fb458a1317E886dB376Fc8141540537E68fE
             return 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
         } else if (block.chainid == hoodi) {
@@ -292,7 +306,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84
             return 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034
             return 0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034;
         } else if (block.chainid == hoodi) {
@@ -307,8 +322,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             return 0x8d09a4502Cc8Cf1547aD300E066060D043f6982D;
         }
-        if(block.chainid == hoodi) {
-            return  0x7E99eE3C66636DE415D2d7C880938F2f40f94De4;
+        if (block.chainid == hoodi) {
+            return 0x7E99eE3C66636DE415D2d7C880938F2f40f94De4;
         }
 
         revert("WstETH not available for this chain");
@@ -318,7 +333,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x93c4b944D05dfe6df7645A86cd2206016c51564D
             return 0x93c4b944D05dfe6df7645A86cd2206016c51564D;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3
             return 0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3;
         } else if (block.chainid == hoodi) {
@@ -333,7 +349,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x858646372CC42E1A627fcE94aa7A7033e7CF075A
             return 0x858646372CC42E1A627fcE94aa7A7033e7CF075A;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6
             return 0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6;
         } else if (block.chainid == hoodi) {
@@ -348,7 +365,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x0BE2aE0edbeBb517541DF217EF0074FC9a9e994f
             return 0x0BE2aE0edbeBb517541DF217EF0074FC9a9e994f;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x8e043ed3F06720615685D4978770Cd5C8fe90fe3
             return 0x8e043ed3F06720615685D4978770Cd5C8fe90fe3;
         } else if (block.chainid == hoodi) {
@@ -363,7 +381,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A
             return 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xA44151489861Fe9e3055d95adC98FbD462B948e7
             return 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
         } else if (block.chainid == hoodi) {
@@ -378,7 +397,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
             return 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x1d181cBd1825e9eBC6AD966878D555A7215FF4F0
             return 0x1d181cBd1825e9eBC6AD966878D555A7215FF4F0;
         } else if (block.chainid == hoodi) {
@@ -393,7 +413,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1
             return 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50
             return 0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50;
         } else if (block.chainid == hoodi) {
@@ -411,7 +432,8 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x8c1686069474410E6243425f4a10177a94EBEE11
             return 0x8c1686069474410E6243425f4a10177a94EBEE11;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e
             return 0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e;
         } else if (block.chainid == hoodi) {
@@ -435,7 +457,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xD9A442856C234a39a81a089C06451EBAa4306a72
             return 0xD9A442856C234a39a81a089C06451EBAa4306a72;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9
             return 0x9196830bB4c05504E0A8475A0aD566AceEB6BeC9;
         } else if (block.chainid == sepolia) {
@@ -454,7 +477,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x9E1E4fCb49931df5743e659ad910d331735C3860
             return 0x9E1E4fCb49931df5743e659ad910d331735C3860;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x20377c306451140119C9967Ba6D0158a05b4eD07
             return 0x20377c306451140119C9967Ba6D0158a05b4eD07;
         } else if (block.chainid == hoodi) {
@@ -469,7 +493,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x7D26AD6F6BA9D6bA1de0218Ae5e20CD3a273a55A
             return 0x7D26AD6F6BA9D6bA1de0218Ae5e20CD3a273a55A;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xB028194785178a94Fe608994A4d5AD84c285A640
             return 0xB028194785178a94Fe608994A4d5AD84c285A640;
         } else if (block.chainid == hoodi) {
@@ -484,7 +509,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xf7b6B32492c2e13799D921E84202450131bd238B
             return 0xf7b6B32492c2e13799D921E84202450131bd238B;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD
             return 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
         } else if (block.chainid == hoodi) {
@@ -499,7 +525,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x953b4113716CE71596F7Ba6B0E75050c25c493c1
             return 0x953b4113716CE71596F7Ba6B0E75050c25c493c1;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/-
             return address(0);
         } else if (block.chainid == hoodi) {
@@ -571,7 +598,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xa4931a9F9Aaf79057334371D6f62164743f97b18
             return 0xa4931a9F9Aaf79057334371D6f62164743f97b18;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xfe235A03d87FCBf94E91536955c8a6b1FF50A5C0
             return 0xfe235A03d87FCBf94E91536955c8a6b1FF50A5C0;
         } else if (block.chainid == hoodi) {
@@ -603,7 +631,8 @@ abstract contract DeployerHelper is Script {
         } else if (block.chainid == base) {
             // https://basescan.org/address/0x1a44076050125825900e736c501f859c50fE728c
             return 0x1a44076050125825900e736c501f859c50fE728c;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0x6EDCE65403992e310A62460808c4b910D972f10f
             return 0x6EDCE65403992e310A62460808c4b910D972f10f;
         } else if (block.chainid == sepolia) {
@@ -615,7 +644,8 @@ abstract contract DeployerHelper is Script {
     }
 
     function _getLayerZeroDestinationEID() internal view returns (uint32) {
-        if (block.chainid == holesky) { // @DEPRECATED
+        if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://docs.layerzero.network/v2/deployments/deployed-contracts
             return 40217;
         } else if (block.chainid == sepolia) {
@@ -629,7 +659,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x65d2dd7A66a2733a36559fE900A236280A05FBD6
             return 0x65d2dd7A66a2733a36559fE900A236280A05FBD6;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         } else if (block.chainid == hoodi) {
@@ -668,7 +699,8 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d
             return 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
-        } else if (block.chainid == holesky) { // @DEPRECATED
+        } else if (block.chainid == holesky) {
+            // @DEPRECATED
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
         } else if (block.chainid == hoodi) {

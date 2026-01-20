@@ -45,9 +45,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         // buy weth
         vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad); // TODO Change
         Weth(HOODI_WETH_ADDRESS).deposit{ value: 500 ether }();
-        Weth(HOODI_WETH_ADDRESS).approve(
-            0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41, type(uint256).max
-        );
+        Weth(HOODI_WETH_ADDRESS).approve(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41, type(uint256).max);
         // deposit into weth strategy
         IStrategyManager(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41).depositIntoStrategy(
             IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9), // TODO Change
@@ -57,8 +55,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
         IDelegationManager(0x867837a9722C512e0862d8c2E15b8bE220E8b87d).delegateTo( // TODO Change
-            restakingOperator, signatureWithExpiry, bytes32(0)
-        );
+        restakingOperator, signatureWithExpiry, bytes32(0));
     }
 
     // Creates a new restaking operator and returns it
