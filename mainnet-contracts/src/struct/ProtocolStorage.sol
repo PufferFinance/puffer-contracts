@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { Validator } from "../struct/Validator.sol";
+import { Validator, PermissionedValidator } from "../struct/Validator.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { PufferModule } from "../PufferModule.sol";
 /**
@@ -67,6 +67,13 @@ struct ProtocolStorage {
      * Slot 9
      */
     uint256 vtPenalty;
+
+    mapping(bytes32 moduleName => mapping(uint256 index => PermissionedValidator validator)) permissionedValidators;
+
+    mapping(bytes32 moduleName => uint256 pendingPermissionedValidatorIndex) pendingPermissionedValidatorIndices;
+    mapping(bytes32 moduleName => uint256 nextPermissionedValidatorToBeProvisionedIndex) nextPermissionedValidatorToBeProvisionedIndices;
+
+
 }
 
 struct ModuleLimit {

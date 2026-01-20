@@ -11,7 +11,7 @@ import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
-import { Validator } from "./struct/Validator.sol";
+import { Validator, PermissionedValidator } from "./struct/Validator.sol";
 import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
@@ -248,6 +248,32 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+    * @notice restricted to new role for permissioned validator registration
+    **/
+    function registerPermissionedValidatorKey(
+                ValidatorKeyData calldata data,
+        bytes32 moduleName,
+        bool isNonRestaked
+    ) external restricted returns (uint256 index) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        index = $.pendingPermissionedValidatorIndices[moduleName];
+
+        $.permissionedValidators[moduleName][index] = PermissionedValidator({
+            pubKey: data.blsPubKey,
+            status: Status.PENDING,
+            module: address($.modules[moduleName]), //@todo: check if this is correct
+            node: msg.sender,
+            isNonRestaked: isNonRestaked
+        });
+        unchecked {
+            ++$.pendingPermissionedValidatorIndices[moduleName];
+        }
+        
+        // emit PermissionedValidatorRegistered(data.blsPubKey, index, moduleName, isNonRestaked);
+    }
+
+    /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
@@ -286,6 +312,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
+    }
+
+    function provisionPermissionedValidator(
+              bytes[] calldata guardianEnclaveSignatures,
+        bytes calldata validatorSignature,
+        bytes32 depositRootHash
+    )external restricted{
+   if (depositRootHash != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+            revert InvalidDepositRootHash();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+
+     
     }
 
     /**

@@ -13,3 +13,11 @@ struct Validator {
     Status status; // Validator status
     bytes pubKey; // Validator public key
 }
+
+struct PermissionedValidator {
+    address node; // Address of the Node operator
+    address module; // In which module is the Validator participating
+    Status status; // Validator status
+    bytes pubKey; // Validator public key
+    bool isNonRestaked;
+}
