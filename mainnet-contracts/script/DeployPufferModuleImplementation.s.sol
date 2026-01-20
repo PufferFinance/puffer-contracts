@@ -3,13 +3,11 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
-import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
-import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { PufferModule } from "../src/PufferModule.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";

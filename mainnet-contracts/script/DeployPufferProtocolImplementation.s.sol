@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import "forge-std/Script.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
-import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -12,7 +11,6 @@ import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
-import { GuardianModule } from "../src/GuardianModule.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 
 /**
@@ -26,7 +24,6 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
             new PufferProtocol({
                 pufferVault: PufferVaultV5(payable(_getPufferVault())),
                 validatorTicket: ValidatorTicket(address(_getValidatorTicket())),
-                guardianModule: GuardianModule(payable(_getGuardianModule())),
                 moduleManager: _getPufferModuleManager(),
                 oracle: IPufferOracleV2(_getPufferOracle()),
                 beaconDepositContract: _getBeaconDepositContract()

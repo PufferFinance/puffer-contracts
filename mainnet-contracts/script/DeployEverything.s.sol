@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "script/BaseScript.s.sol";
-import { DeployGuardians } from "script/DeployGuardians.s.sol";
 import { DeployPuffer } from "script/DeployPuffer.s.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
@@ -10,7 +9,7 @@ import { DeployPufETH, PufferDeployment } from "../script/DeployPufETH.s.sol";
 import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
 import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
-import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
+import { PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { GenerateRevenueDepositorCalldata } from
@@ -20,17 +19,14 @@ import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 /**
  * @title Deploy all protocol contracts
  * @author Puffer Finance
- * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
+ * @notice Deploys pufETH (upgrade it in test environment), Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
  *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold, address paymaster)
-        public
-        returns (PufferProtocolDeployment memory, BridgingDeployment memory)
-    {
+    function run(address paymaster) public returns (PufferProtocolDeployment memory, BridgingDeployment memory) {
         PufferProtocolDeployment memory deployment;
 
         // 1. Deploy pufETH
@@ -44,15 +40,11 @@ contract DeployEverything is BaseScript {
         deployment.weth = puffETHDeployment.weth;
         deployment.accessManager = puffETHDeployment.accessManager;
 
-        GuardiansDeployment memory guardiansDeployment =
-            new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
-
-        address pufferOracle = new DeployPufferOracle().run(
-            puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
-        );
+        address pufferOracle =
+            new DeployPufferOracle().run(puffETHDeployment.accessManager, puffETHDeployment.pufferVault);
 
         PufferProtocolDeployment memory pufferDeployment =
-            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
+            new DeployPuffer().run(puffETHDeployment.accessManager, puffETHDeployment.pufferVault, pufferOracle);
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
@@ -89,10 +81,7 @@ contract DeployEverything is BaseScript {
 
         vm.serializeAddress(obj, "protocol", deployment.pufferProtocol);
         vm.serializeAddress(obj, "dao", DAO);
-        vm.serializeAddress(obj, "guardianModule", deployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
-
-        vm.serializeAddress(obj, "enclaveVerifier", deployment.enclaveVerifier);
         vm.serializeAddress(obj, "moduleBeacon", deployment.beacon);
         vm.serializeAddress(obj, "moduleManager", deployment.moduleManager);
         vm.serializeAddress(obj, "validatorTicket", deployment.validatorTicket);

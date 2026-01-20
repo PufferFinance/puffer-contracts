@@ -52,9 +52,9 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertEq(validatorTicket.name(), "Puffer Validator Ticket");
         assertEq(validatorTicket.symbol(), "VT");
         assertEq(validatorTicket.getProtocolFeeRate(), INITIAL_PROTOCOL_FEE);
-        assertEq(validatorTicket.getGuardiansFeeRate(), INITIAL_GUARDIANS_FEE);
+        assertEq(validatorTicket.getPaymasterFeeRate(), INITIAL_GUARDIANS_FEE);
         assertTrue(address(validatorTicket.PUFFER_ORACLE()) != address(0));
-        assertTrue(validatorTicket.GUARDIAN_MODULE() != address(0));
+        assertTrue(validatorTicket.getPaymaster() != address(0));
         assertTrue(validatorTicket.PUFFER_VAULT() != address(0));
         assertTrue(validatorTicket.TREASURY() != address(0));
         assertTrue(validatorTicket.OPERATIONS_MULTISIG() != address(0));
@@ -137,9 +137,9 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
 
         // Test guardians fee rate change
         vm.expectEmit(true, true, true, true);
-        emit IValidatorTicket.GuardiansFeeChanged(INITIAL_GUARDIANS_FEE, 100);
-        validatorTicket.setGuardiansFeeRate(100); // 1%
-        assertEq(validatorTicket.getGuardiansFeeRate(), 100, "Guardians fee should be updated");
+        emit IValidatorTicket.PaymasterFeeChanged(INITIAL_GUARDIANS_FEE, 100);
+        validatorTicket.setPaymasterFeeRate(100); // 1%
+        assertEq(validatorTicket.getPaymasterFeeRate(), 100, "Paymaster fee should be updated");
 
         vm.stopPrank();
     }
@@ -149,7 +149,7 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         address recipient = alice;
 
         // Get initial balances
-        (uint256 initialTreasuryBalance, uint256 initialGuardianBalance, uint256 initialVaultBalance) = _getBalances();
+        (uint256 initialTreasuryBalance, uint256 initialPaymasterBalance, uint256 initialVaultBalance) = _getBalances();
 
         // Purchase VTs
         vm.deal(recipient, amount);
@@ -162,13 +162,13 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
         assertEq(validatorTicket.balanceOf(recipient), expectedVTAmount, "VT balance should match expected");
 
         // Verify fee distributions
-        _verifyFeeDistribution(amount, initialTreasuryBalance, initialGuardianBalance, initialVaultBalance);
+        _verifyFeeDistribution(amount, initialTreasuryBalance, initialPaymasterBalance, initialVaultBalance);
     }
 
     function _getBalances() internal view returns (uint256, uint256, uint256) {
         return (
             validatorTicket.TREASURY().balance,
-            validatorTicket.GUARDIAN_MODULE().balance,
+            validatorTicket.getPaymaster().balance,
             validatorTicket.PUFFER_VAULT().balance
         );
     }
@@ -181,21 +181,19 @@ contract ValidatorTicketMainnetTest is MainnetForkTestHelper {
     function _verifyFeeDistribution(
         uint256 amount,
         uint256 initialTreasuryBalance,
-        uint256 initialGuardianBalance,
+        uint256 initialPaymasterBalance,
         uint256 initialVaultBalance
     ) internal view {
         address treasury = validatorTicket.TREASURY();
-        address guardianModule = validatorTicket.GUARDIAN_MODULE();
+        address paymaster = validatorTicket.getPaymaster();
         address vault = validatorTicket.PUFFER_VAULT();
 
         uint256 treasuryAmount = amount.mulDiv(INITIAL_PROTOCOL_FEE, 10000, Math.Rounding.Ceil);
-        uint256 guardianAmount = amount.mulDiv(INITIAL_GUARDIANS_FEE, 10000, Math.Rounding.Ceil);
-        uint256 vaultAmount = amount - treasuryAmount - guardianAmount;
+        uint256 paymasterAmount = amount.mulDiv(INITIAL_GUARDIANS_FEE, 10000, Math.Rounding.Ceil);
+        uint256 vaultAmount = amount - treasuryAmount - paymasterAmount;
 
         assertEq(treasury.balance - initialTreasuryBalance, treasuryAmount, "Treasury should receive correct fee");
-        assertEq(
-            guardianModule.balance - initialGuardianBalance, guardianAmount, "Guardians should receive correct fee"
-        );
+        assertEq(paymaster.balance - initialPaymasterBalance, paymasterAmount, "Paymaster should receive correct fee");
         assertEq(vault.balance - initialVaultBalance, vaultAmount, "Vault should receive remaining amount");
     }
 

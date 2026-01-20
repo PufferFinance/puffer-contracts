@@ -33,15 +33,15 @@ interface IValidatorTicket {
     event TransferredETH(address indexed to, uint256 amount);
 
     /**
-     * @notice Emitted when the ETH is split between treasury, guardians and vault
+     * @notice Emitted when the ETH is split between treasury, paymaster and vault
      * @dev Signature "0x8476c087a9e2adf34e598e2ef90747a2824cf1bd88e16bdb0ef56d5d6bddff27"
      */
-    event DispersedETH(uint256 treasury, uint256 guardians, uint256 vault);
+    event DispersedETH(uint256 treasury, uint256 paymaster, uint256 vault);
 
     /**
-     * @notice Emitted when the pufETH is split between treasury, guardians and the amount burned
+     * @notice Emitted when the pufETH is split between treasury, paymaster and the amount burned
      */
-    event DispersedPufETH(uint256 treasury, uint256 guardians, uint256 burned);
+    event DispersedPufETH(uint256 treasury, uint256 paymaster, uint256 burned);
 
     /**
      * @notice Emitted when the protocol fee rate is changed
@@ -53,10 +53,16 @@ interface IValidatorTicket {
      * @notice Emitted when the protocol fee rate is changed
      * @dev Signature "0x0a3e0a163d4dfba5f018c5c1e2214007151b3abb0907e3ae402ae447c7e1bc47"
      */
-    event GuardiansFeeChanged(uint256 oldGuardiansFee, uint256 newGuardiansFee);
+    event PaymasterFeeChanged(uint256 oldPaymasterFee, uint256 newPaymasterFee);
 
     /**
-     * @notice Mints VT to `recipient` corresponding to sent ETH and distributes funds between the Treasury, Guardians and PufferVault
+     * @notice Emitted when the paymaster address is changed
+     * @dev Signature "0xd45bf891e206e35d5a4aa835adaabaf67518307c30d328fd23cd9dd0669128b3"
+     */
+    event PaymasterChanged(address indexed oldPaymaster, address indexed newPaymaster);
+
+    /**
+     * @notice Mints VT to `recipient` corresponding to sent ETH and distributes funds between the Treasury, Paymaster and PufferVault
      * @param recipient The address to mint VT to
      * @dev restricted modifier is also used as `whenNotPaused`
      * @return Amount of VT minted
@@ -85,10 +91,10 @@ interface IValidatorTicket {
         returns (uint256 pufEthUsed);
 
     /**
-     * @notice Retrieves the current guardians fee rate
-     * @return The current guardians fee rate
+     * @notice Retrieves the current paymaster fee rate
+     * @return The current paymaster fee rate
      */
-    function getGuardiansFeeRate() external view returns (uint256);
+    function getPaymasterFeeRate() external view returns (uint256);
 
     /**
      * @notice Returns the Puffer Vault (pufETH)
@@ -99,11 +105,6 @@ interface IValidatorTicket {
      * @notice Returns the Treasury
      */
     function TREASURY() external view returns (address payable);
-
-    /**
-     * @notice Returns the GuardianModule
-     */
-    function GUARDIAN_MODULE() external view returns (address payable);
 
     /**
      * @notice Returns the Puffer Oracle
@@ -120,4 +121,10 @@ interface IValidatorTicket {
      * @return The current protocol fee rate
      */
     function getProtocolFeeRate() external view returns (uint256);
+
+    /**
+     * @notice Retrieves the paymaster address
+     * @return The paymaster address
+     */
+    function getPaymaster() external view returns (address payable);
 }

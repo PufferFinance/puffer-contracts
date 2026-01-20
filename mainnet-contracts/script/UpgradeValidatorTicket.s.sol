@@ -25,7 +25,6 @@ contract UpgradeValidatorTicket is DeployerHelper {
         vm.startBroadcast();
 
         ValidatorTicket validatorTicketImpl = new ValidatorTicket({
-            guardianModule: payable(address(_getGuardianModule())),
             treasury: payable(_getTreasury()),
             pufferVault: payable(_getPufferVault()),
             pufferOracle: IPufferOracle(address(_getPufferOracle())),

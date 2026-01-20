@@ -22,10 +22,15 @@ abstract contract ValidatorTicketStorage {
          */
         uint128 protocolFeeRate;
         /**
-         * @dev Guardians fee rate, can be updated by governance (10,000 = 100%, 100 = 1%)
+         * @dev Paymaster fee rate, can be updated by governance (10,000 = 100%, 100 = 1%)
          * Slot 0
          */
-        uint128 guardiansFeeRate;
+        uint128 paymasterFeeRate;
+        /**
+         * @dev Paymaster address
+         * Slot 1
+         */
+        address payable paymaster;
     }
 
     /**

@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "../struct/Validator.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
-import { IGuardianModule } from "../interface/IGuardianModule.sol";
 import { PufferModuleManager } from "../PufferModuleManager.sol";
 import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
@@ -27,12 +26,6 @@ interface IPufferProtocol {
     error InvalidDepositRootHash();
 
     /**
-     * @notice Thrown when the number of BLS public key shares doesn't match guardians threshold number
-     * @dev Signature "0x8cdea6a6"
-     */
-    error InvalidBLSPublicKeySet();
-
-    /**
      * @notice Thrown when the node operator tries to withdraw VTs from the PufferProtocol but has active/pending validators
      * @dev Signature "0x22242546"
      */
@@ -49,18 +42,6 @@ interface IPufferProtocol {
      * @dev Signature "0xb75c5781"
      */
     error ValidatorLimitForModuleReached();
-
-    /**
-     * @notice Thrown when the number of BLS private key shares doesn't match guardians number
-     * @dev Signature "0x2c8f9aa3"
-     */
-    error InvalidBLSPrivateKeyShares();
-
-    /**
-     * @notice Thrown when the BLS public key is not valid
-     * @dev Signature "0x7eef7967"
-     */
-    error InvalidBLSPubKey();
 
     /**
      * @notice Thrown when validator is not in a valid state
@@ -135,7 +116,7 @@ interface IPufferProtocol {
     event ValidatorTicketsWithdrawn(address indexed node, address indexed recipient, uint256 amount);
 
     /**
-     * @notice Emitted when the guardians decide to skip validator provisioning for `moduleName`
+     * @notice Emitted when skipping the provisioning of a validator for `moduleName`
      * @dev Signature "0x088dc5dc64f3e8df8da5140a284d3018a717d6b009e605513bb28a2b466d38ee"
      */
     event ValidatorSkipped(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
@@ -151,7 +132,7 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @param usingEnclave is indicating if the validator is using secure enclave
+     * @param usingEnclave This will always be false as we are not using enclaves
      * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
      */
     event ValidatorKeyRegistered(
@@ -193,7 +174,7 @@ interface IPufferProtocol {
 
     /**
      * @notice Returns Penalty for submitting a bad validator registration
-     * @dev If the guardians skip a validator, the node operator will be penalized
+     * @dev If the validator is skipped, the node operator will be penalized
      * /// todo write any possible reasons for skipping a validator, here and in skipValidator method
      */
     function getVTPenalty() external view returns (uint256);
@@ -237,20 +218,13 @@ interface IPufferProtocol {
      * 3. Transfer withdrawal ETH from the PufferModule of the Validator to the PufferVault
      * 4. Decrement the `lockedETHAmount` on the PufferOracle to reflect the new amount of locked ETH
      */
-    function batchHandleWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata guardianEOASignatures
-    ) external;
+    function batchHandleWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes calldata paymasterSignature)
+        external;
 
     /**
      * @notice Skips the next validator for `moduleName`
      */
     function skipProvisioning(bytes32 moduleName) external;
-
-    /**
-     * @notice Returns the guardian module
-     */
-    function GUARDIAN_MODULE() external view returns (IGuardianModule);
 
     /**
      * @notice Returns the Validator ticket ERC20 token

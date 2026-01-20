@@ -97,6 +97,19 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     receive() external payable { }
 
     /**
+     * @notice Starts the validator
+     * @dev [DEPRECATED] This function is no longer used as we stake in the beacon deposit contract directly from the PufferProtocol
+     */
+    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
+        external
+        payable
+        onlyPufferProtocol
+    {
+        // EigenPod is deployed in this call
+        EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
+    }
+
+    /**
      * @notice Sets the proof submitter on the EigenPod
      */
     function setProofSubmitter(address proofSubmitter) external onlyPufferModuleManager {
