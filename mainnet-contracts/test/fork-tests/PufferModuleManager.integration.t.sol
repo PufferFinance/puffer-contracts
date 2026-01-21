@@ -3,10 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/console.sol";
 import { IntegrationTestHelper } from "../helpers/IntegrationTestHelper.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { RestakingOperator } from "../../src/RestakingOperator.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { ISignatureUtils } from "../../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IStrategyManager } from "../../src/interface/Eigenlayer-Slashing/IStrategyManager.sol";
 import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";

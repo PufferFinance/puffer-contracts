@@ -3,8 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Test } from "forge-std/Test.sol";
 import { DeployerHelper } from "../../script/DeployerHelper.s.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IDelegationManagerTypes } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";

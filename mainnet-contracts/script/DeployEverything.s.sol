@@ -16,12 +16,15 @@ import { GenerateRevenueDepositorCalldata } from
     "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
 
+import "forge-std/console.sol";
+
 /**
  * @title Deploy all protocol contracts
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address)' $DEV_WALLET --broadcast
+ * @dev Use REAL_DEPLOYMENT env to true if deploying to an actual chain (not test environment)
  */
 contract DeployEverything is BaseScript {
     address DAO;
@@ -56,7 +59,12 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
+        // This env variable is to avoid running using the PufferVaultV5Tests in real deployments
+        bool realDeployment = vm.envOr("REAL_DEPLOYMENT", false);
+
+        if(!realDeployment) {
+            new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
+        }
 
         // `anvil` in the terminal
         if (_localAnvil) {

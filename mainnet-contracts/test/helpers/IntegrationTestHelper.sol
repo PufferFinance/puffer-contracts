@@ -7,7 +7,6 @@ import { PufferProtocolDeployment } from "script/DeploymentStructs.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { DeployEverything } from "script/DeployEverything.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
