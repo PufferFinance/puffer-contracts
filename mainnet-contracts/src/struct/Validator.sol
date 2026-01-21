@@ -19,5 +19,6 @@ struct PermissionedValidator {
     address module; // In which module is the Validator participating
     Status status; // Validator status
     bytes pubKey; // Validator public key
-    bool isNonRestaked;
+    bool isNonRestaked; // true = non-restaked (Beacon Chain), false = restaked (EigenLayer)
+    uint64 stakeAmountGwei; // Stake amount in Gwei (32-2048 ETH for non-restaked, always 32 ETH for restaked)
 }

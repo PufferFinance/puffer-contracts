@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Validator, PermissionedValidator } from "../struct/Validator.sol";
 import { NodeInfo } from "../struct/NodeInfo.sol";
 import { PufferModule } from "../PufferModule.sol";
+import { PermissionedModule } from "../PermissionedModule.sol";
 /**
  * @custom:storage-location erc7201:PufferProtocol.storage
  * @dev +-----------------------------------------------------------+
@@ -68,12 +69,26 @@ struct ProtocolStorage {
      */
     uint256 vtPenalty;
 
+    /**
+     * @dev Mapping of Module name => idx => PermissionedValidator
+     * Slot 10
+     */
     mapping(bytes32 moduleName => mapping(uint256 index => PermissionedValidator validator)) permissionedValidators;
-
+    /**
+     * @dev Mapping of module name to pending permissioned validator index
+     * Slot 11
+     */
     mapping(bytes32 moduleName => uint256 pendingPermissionedValidatorIndex) pendingPermissionedValidatorIndices;
+    /**
+     * @dev Mapping of module name to next permissioned validator to be provisioned index
+     * Slot 12
+     */
     mapping(bytes32 moduleName => uint256 nextPermissionedValidatorToBeProvisionedIndex) nextPermissionedValidatorToBeProvisionedIndices;
-
-
+    /**
+     * @dev Mapping between module name and a permissioned module
+     * Slot 13
+     */
+    mapping(bytes32 moduleName => PermissionedModule moduleAddress) permissionedModules;
 }
 
 struct ModuleLimit {

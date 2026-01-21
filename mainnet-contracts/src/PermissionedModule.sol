@@ -137,12 +137,13 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
     /**
      * @inheritdoc IPermissionedModule
      */
-    function callStakeNonRestaked(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        external
-        payable
-        onlyPufferProtocol
-    {
-        BEACON_DEPOSIT_CONTRACT.deposit{ value: 32 ether }(
+    function callStakeNonRestaked(
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        uint256 amount
+    ) external payable onlyPufferProtocol {
+        BEACON_DEPOSIT_CONTRACT.deposit{ value: amount }(
             pubKey, getNonRestakingWithdrawalCredentials(), signature, depositDataRoot
         );
     }
