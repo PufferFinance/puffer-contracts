@@ -48,14 +48,13 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         Weth(HOODI_WETH_ADDRESS).approve(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41, type(uint256).max);
         // deposit into weth strategy
         IStrategyManager(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41).depositIntoStrategy(
-            IStrategy(0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d),
-            IERC20(HOODI_WETH_ADDRESS),
-            500 ether
+            IStrategy(0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d), IERC20(HOODI_WETH_ADDRESS), 500 ether
         );
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
         IDelegationManager(0x867837a9722C512e0862d8c2E15b8bE220E8b87d).delegateTo(
-        restakingOperator, signatureWithExpiry, bytes32(0));
+            restakingOperator, signatureWithExpiry, bytes32(0)
+        );
     }
 
     // Creates a new restaking operator and returns it
