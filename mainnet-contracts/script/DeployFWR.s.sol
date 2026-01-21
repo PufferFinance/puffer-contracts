@@ -27,7 +27,7 @@ contract DeployFWR is DeployerHelper {
     function run() public {
         GenerateRewardManagerCalldata generator = new GenerateRewardManagerCalldata();
 
-        mainnetForkNumber = vm.createSelectFork(vm.rpcUrl("holesky"));
+        mainnetForkNumber = vm.createSelectFork(vm.rpcUrl("hoodi"));
 
         // vm.startBroadcast();
 

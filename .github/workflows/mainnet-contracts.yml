@@ -11,33 +11,33 @@ on:
 
 jobs:
   codespell:
-      name: Check for spelling errors
-      runs-on: ubuntu-latest
+    name: Check for spelling errors
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-        - name: Codespell
-          uses: codespell-project/actions-codespell@v2.0
-          with:
-            path: mainnet-contracts
-            check_hidden: true
-            check_filenames: true
-            skip: "pnpm-lock.yaml"
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v2.0
+        with:
+          path: mainnet-contracts
+          check_hidden: true
+          check_filenames: true
+          skip: "pnpm-lock.yaml"
 
   tests:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
-      
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: yarn.lock
           node-version: 20
 
@@ -69,7 +69,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "forge fmt"
-          file_pattern: '*.sol'
+          file_pattern: "*.sol"
 
       - name: List selectors
         working-directory: mainnet-contracts
@@ -81,11 +81,11 @@ jobs:
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
-      
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: yarn.lock
           node-version: 20
 
@@ -106,6 +106,7 @@ jobs:
         env:
           ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
           HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
+          HOODI_RPC_URL: ${{ secrets.HOODI_RPC_URL }}
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v4"

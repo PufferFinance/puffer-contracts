@@ -24,12 +24,14 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     uint256[] privKeys;
 
-    address EIGEN_DA_REGISTRY_COORDINATOR_HOLESKY = 0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490;
-    address EIGEN_DA_SERVICE_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b;
+    address EIGEN_DA_REGISTRY_COORDINATOR_HOODI = 0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490; // TODO Change
+    address EIGEN_DA_SERVICE_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b; // TODO Change
     // IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
+    address private constant HOODI_WETH_ADDRESS = 0x5085c41eD4D7277d5aC50C6f30e00856A1916a39;
+
     function setUp() public {
-        deployContractsHolesky(0); // on latest block
+        deployContractsHoodi(0); // on latest block
     }
 
     function test_create_puffer_module() public {
@@ -39,20 +41,20 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     function _depositToWETHEigenLayerStrategyAndDelegateTo(address restakingOperator) internal {
         // buy weth
-        vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad);
-        Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).deposit{ value: 500 ether }();
-        Weth(0x94373a4919B3240D86eA41593D5eBa789FEF3848).approve(
-            0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6, type(uint256).max
+        vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad); // TODO Change
+        Weth(HOODI_WETH_ADDRESS).deposit{ value: 500 ether }();
+        Weth(HOODI_WETH_ADDRESS).approve(
+            0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41, type(uint256).max
         );
         // deposit into weth strategy
-        IStrategyManager(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6).depositIntoStrategy(
-            IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9),
-            IERC20(0x94373a4919B3240D86eA41593D5eBa789FEF3848),
+        IStrategyManager(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41).depositIntoStrategy(
+            IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9), // TODO Change
+            IERC20(HOODI_WETH_ADDRESS),
             500 ether
         );
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        IDelegationManager(0xA44151489861Fe9e3055d95adC98FbD462B948e7).delegateTo(
+        IDelegationManager(0x867837a9722C512e0862d8c2E15b8bE220E8b87d).delegateTo(
             restakingOperator, signatureWithExpiry, bytes32(0)
         );
     }
