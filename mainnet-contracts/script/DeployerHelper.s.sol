@@ -141,21 +141,20 @@ abstract contract DeployerHelper is Script {
         revert("Treasury not available for this chain");
     }
 
-    function _getEigenSlasher() internal view returns (address) {
+    function _getAllocationManager() internal view returns (address) {
         if (block.chainid == mainnet) {
-            // https://etherscan.io/address/0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd
-            return 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
+            // https://etherscan.io/address/0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39
+            return 0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39;
         } else if (block.chainid == holesky) {
             // @DEPRECATED
             // https://holesky.etherscan.io/address/0xcAe751b75833ef09627549868A04E32679386e7C
             return 0xcAe751b75833ef09627549868A04E32679386e7C;
         } else if (block.chainid == hoodi) {
-            // https://hoodi.etherscan.io/address/???
-            //return ???;
-            // TODO Find the address
+            // https://hoodi.etherscan.io/address/0x95a7431400F362F3647a69535C5666cA0133CAA0
+            return 0x95a7431400F362F3647a69535C5666cA0133CAA0;
         }
 
-        revert("EigenSlasher not available for this chain");
+        revert("AllocationManager not available for this chain");
     }
 
     function _getRestakingOperatorBeacon() internal view returns (address) {
