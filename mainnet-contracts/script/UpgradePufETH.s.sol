@@ -53,13 +53,29 @@ contract UpgradePufETH is BaseScript {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
-        PufferVaultV5 newImplementation = new PufferVaultV5Tests(
-            IStETH(deployment.stETH),
-            IWETH(deployment.weth),
-            ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
-            IPufferOracleV2(pufferOracle),
-            IPufferRevenueDepositor(revenueDepositor)
-        );
+
+        // This env variable is to avoid running using the PufferVaultV5Tests in real deployments
+        bool realDeployment = vm.envOr("REAL_DEPLOYMENT", false);
+        PufferVaultV5 newImplementation;
+
+        if(!realDeployment) {
+            newImplementation = new PufferVaultV5Tests(
+                IStETH(deployment.stETH),
+                IWETH(deployment.weth),
+                ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
+                IPufferOracleV2(pufferOracle),
+                IPufferRevenueDepositor(revenueDepositor)
+            );
+        }
+        else {
+            newImplementation = new PufferVaultV5(
+                IStETH(deployment.stETH),
+                ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
+                IWETH(deployment.weth),
+                IPufferOracleV2(pufferOracle),
+                IPufferRevenueDepositor(revenueDepositor)
+            );
+        }
 
         vm.label(address(newImplementation), "PufferVaultV5Implementation");
 

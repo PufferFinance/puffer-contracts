@@ -59,12 +59,7 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        // This env variable is to avoid running using the PufferVaultV5Tests in real deployments
-        bool realDeployment = vm.envOr("REAL_DEPLOYMENT", false);
-
-        if(!realDeployment) {
-            new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
-        }
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
 
         // `anvil` in the terminal
         if (_localAnvil) {
