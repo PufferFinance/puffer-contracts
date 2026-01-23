@@ -24,8 +24,8 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
     uint256[] privKeys;
 
-    address EIGEN_DA_REGISTRY_COORDINATOR_HOODI = 0x53012C69A189cfA2D9d29eb6F19B32e0A2EA3490; // TODO Change
-    address EIGEN_DA_SERVICE_MANAGER = 0xD4A7E1Bd8015057293f0D0A557088c286942e84b; // TODO Change
+    address EIGEN_DA_REGISTRY_COORDINATOR_HOODI = 0xB5b76D561eeF36CD772890C94C6Bde8b895455e2;
+    address EIGEN_DA_SERVICE_MANAGER = 0x3FF2204A567C15dC3731140B95362ABb4b17d8ED;
     // IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
     address private constant HOODI_WETH_ADDRESS = 0x5085c41eD4D7277d5aC50C6f30e00856A1916a39;
@@ -48,7 +48,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         );
         // deposit into weth strategy
         IStrategyManager(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41).depositIntoStrategy(
-            IStrategy(0x80528D6e9A2BAbFc766965E0E26d5aB08D9CFaF9), // TODO Change
+            IStrategy(0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d),
             IERC20(HOODI_WETH_ADDRESS),
             500 ether
         );

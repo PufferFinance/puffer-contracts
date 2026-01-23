@@ -26,7 +26,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
     DeployPufferModuleImplementation deployPufferModule;
     DeployRestakingOperator deployRestakingOperator;
 
-    uint32 START_BLOCK = 2994229; // Dec-23-2024 09:43:00 AM +UTC // TODO Change
+    uint32 START_BLOCK = 2_089_642; // Jan-23-2026 01:09:12 PM +UTC
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("hoodi"), START_BLOCK);
@@ -87,7 +87,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
         bool[] memory receiveAsTokens = new bool[](1);
         receiveAsTokens[0] = true;
 
-        vm.roll(START_BLOCK + 50 + 1); // on Holesky its 50 blocks wait time, in Production it will be 14 days in blocks.. // TODO Change
+        vm.roll(START_BLOCK + 50 + 1); // on Hoodi its 50 blocks wait time, in Production it will be 14 days in blocks..
 
         pufferModuleManager.callCompleteQueuedWithdrawals(PUFFER_MODULE_0_NAME, withdrawals, tokens, receiveAsTokens);
     }
