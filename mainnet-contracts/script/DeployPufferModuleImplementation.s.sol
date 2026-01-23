@@ -63,5 +63,6 @@ contract DeployPufferModuleImplementation is DeployerHelper {
         if (block.chainid == holesky) {
             AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
         }
+        vm.stopPrank();
     }
 }

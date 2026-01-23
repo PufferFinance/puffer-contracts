@@ -112,6 +112,7 @@ abstract contract DeployerHelper is Script {
             console.logBytes(upgradeCallData);
             console.log("================================================");
         }
+        vm.stopPrank();
     }
 
     function _getBeaconChainStrategy() internal view returns (address) {
