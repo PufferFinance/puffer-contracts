@@ -53,7 +53,7 @@
     "lint": "yarn run lint:sol",
     "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
     "slither": "slither .",
-    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoodiTestnetFFI\"",
-    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoodiTestnetFFI\" --report lcov"
+    "coverage": "forge coverage --ir-minimum --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoodiTestnetFFI\"",
+    "coverage-lcov": "forge coverage --ir-minimum --force --no-match-coverage \"(script|test|mock|interface|node_modules|echidna)\"  --no-match-contract \"PufferModuleManagerHoodiTestnetFFI\" --report lcov"
   }
 }
