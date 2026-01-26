@@ -16,24 +16,11 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
     using Address for address payable;
 
     /**
-     * @notice Event emitted when a validator is requested to be switched to compounding withdrawal credentials
-     * @param pubkey The public key of the validator
-     */
-    event SwitchToCompoundingWithdrawalCredentials(bytes pubkey);
-
-    /**
      * @notice Event emitted when a withdrawal request is made
      * @param pubkey The public key of the validator
      * @param amountGwei The amount of ETH to withdraw (in Gwei)
      */
     event WithdrawalRequested(bytes pubkey, uint256 indexed amountGwei);
-
-    /**
-     * @notice Event emitted when a consolidation request is made
-     * @param srcPubkey The public key of the source validator
-     * @param targetPubkey The public key of the target validator
-     */
-    event ConsolidationRequested(bytes srcPubkey, bytes targetPubkey);
 
     /**
      * @notice Thrown if the sender did not send enough ETH to cover the fee
@@ -46,19 +33,12 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
     error WithdrawalRequestFailed();
 
     /**
-     * @notice Thrown if the consolidation request fails
-     */
-    error ConsolidationRequestFailed();
-
-    /**
      * @notice Thrown if the fee query fails
      */
     error FeeQueryFailed();
 
     // https://eips.ethereum.org/EIPS/eip-7002
     address internal constant WITHDRAWAL_REQUEST_ADDRESS = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
-    // https://eips.ethereum.org/EIPS/eip-7251
-    address internal constant CONSOLIDATION_REQUEST_ADDRESS = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
 
     /**
      * @notice The address of the PermissionedModule that owns this contract
@@ -109,66 +89,11 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
     }
 
     /**
-     * @notice Request consolidation of validators via EIP-7251
-     * It is possible to consolidate a validator to itself, which will switch the withdrawal credentials to compounding withdrawal credentials (0x01 -> 0x02)
-     * It is also possible to consolidate a validator from this withdrawal credentials to another withdrawal credentials
-     * @dev We do not validate if the source validator belongs to this contract
-     * @param requests The requests to consolidate
-     */
-    function requestConsolidation(IEigenPodTypes.ConsolidationRequest[] calldata requests)
-        external
-        payable
-        restricted
-    {
-        uint256 fee = getConsolidationRequestFee();
-        // The remainder is donated and not refunded to the caller
-        if (msg.value < fee * requests.length) {
-            revert NotEnoughETH();
-        }
-
-        for (uint256 i = 0; i < requests.length; ++i) {
-            IEigenPodTypes.ConsolidationRequest calldata request = requests[i];
-            // We don't need to validate the length of the pubkeys as the precompile will revert if the pubkeys are invalid
-            // The precompile just checks for the keys length, it doesn't check if it is an active validator
-
-            bytes memory callData = bytes.concat(request.srcPubkey, request.targetPubkey);
-            (bool ok,) = CONSOLIDATION_REQUEST_ADDRESS.call{ value: fee }(callData);
-            if (!ok) {
-                revert ConsolidationRequestFailed();
-            }
-
-            // Emit event depending on whether this is a switch to 0x02, or a regular consolidation
-            if (keccak256(request.srcPubkey) == keccak256(request.targetPubkey)) {
-                emit SwitchToCompoundingWithdrawalCredentials(request.srcPubkey);
-            } else {
-                emit ConsolidationRequested(request.srcPubkey, request.targetPubkey);
-            }
-        }
-    }
-
-    /**
-     * @notice Get the fee for a consolidation request
-     * @return The fee for a consolidation request
-     */
-    function getConsolidationRequestFee() public view returns (uint256) {
-        return _getFee(CONSOLIDATION_REQUEST_ADDRESS);
-    }
-
-    /**
      * @notice Get the fee for a withdrawal request
      * @return The fee for a withdrawal request
      */
     function getWithdrawalRequestFee() public view returns (uint256) {
-        return _getFee(WITHDRAWAL_REQUEST_ADDRESS);
-    }
-
-    /**
-     * @notice Get the fee for a request
-     * @param predeploy The address of the predeploy
-     * @return The fee for a request
-     */
-    function _getFee(address predeploy) internal view returns (uint256) {
-        (bool success, bytes memory result) = predeploy.staticcall("");
+        (bool success, bytes memory result) = WITHDRAWAL_REQUEST_ADDRESS.staticcall("");
         if (!success || result.length != 32) {
             revert FeeQueryFailed();
         }

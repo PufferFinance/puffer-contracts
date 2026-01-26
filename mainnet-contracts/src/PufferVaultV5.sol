@@ -19,6 +19,7 @@ import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableM
 import { IPufferVaultV5 } from "./interface/IPufferVaultV5.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
+import { IPermissionedOracle } from "./interface/IPermissionedOracle.sol";
 import { InvalidAddress } from "./Errors.sol";
 
 /**
@@ -46,19 +47,22 @@ contract PufferVaultV5 is
     IWETH internal immutable _WETH;
     IPufferOracleV2 public immutable PUFFER_ORACLE;
     IPufferRevenueDepositor public immutable RESTAKING_REWARDS_DEPOSITOR;
+    IPermissionedOracle public immutable PUFFER_PERMISSIONED_ORACLE;
 
     constructor(
         IStETH stETH,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IWETH weth,
         IPufferOracleV2 pufferOracle,
-        IPufferRevenueDepositor revenueDepositor
+        IPufferRevenueDepositor revenueDepositor,
+        IPermissionedOracle permissionedOracle
     ) {
         _ST_ETH = stETH;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _WETH = weth;
         PUFFER_ORACLE = pufferOracle;
         RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
+        PUFFER_PERMISSIONED_ORACLE = permissionedOracle;
         _disableInitializers();
     }
 
@@ -127,7 +131,7 @@ contract PufferVaultV5 is
             callValue := callvalue()
         }
         return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + _WETH.balanceOf(address(this))
-            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount()
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount() + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount()
             - getTotalRewardDepositAmount() - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount();
     }
 
