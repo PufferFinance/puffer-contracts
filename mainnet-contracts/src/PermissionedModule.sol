@@ -256,6 +256,19 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
     /**
      * @inheritdoc IPermissionedModule
      */
+    function triggerNonRestakedValidatorWithdrawals(IEigenPodTypes.WithdrawalRequest[] calldata requests)
+        external
+        payable
+        virtual
+        onlyPufferModuleManager
+    {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
+        $.nonRestakingWithdrawalCredentials.requestWithdrawal{ value: msg.value }(requests);
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
+     */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }

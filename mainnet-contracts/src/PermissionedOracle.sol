@@ -50,8 +50,25 @@ contract PermissionedOracle is IPermissionedOracle, AccessManaged {
      * @inheritdoc IPermissionedOracle
      */
     function exitValidator(bytes32 moduleName, uint256 amount) external restricted {
-        moduleLockedEth[moduleName] -= amount;
+        uint256 moduleAmount = moduleLockedEth[moduleName];
+        if (amount > moduleAmount) {
+            revert InsufficientLockedEth(moduleName, moduleAmount, amount);
+        }
+        moduleLockedEth[moduleName] = moduleAmount - amount;
         totalLockedEth -= amount;
         emit PermissionedValidatorExited(moduleName, amount);
+    }
+
+    /**
+     * @inheritdoc IPermissionedOracle
+     */
+    function adjustLockedEth(bytes32 moduleName, uint256 reductionAmount) external restricted {
+        uint256 moduleAmount = moduleLockedEth[moduleName];
+        if (reductionAmount > moduleAmount) {
+            revert InsufficientLockedEth(moduleName, moduleAmount, reductionAmount);
+        }
+        moduleLockedEth[moduleName] = moduleAmount - reductionAmount;
+        totalLockedEth -= reductionAmount;
+        emit LockedEthAdjusted(moduleName, reductionAmount);
     }
 }
