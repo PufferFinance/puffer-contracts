@@ -7,6 +7,7 @@ import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.so
 import { IWETH } from "src/interface/Other/IWETH.sol";
 import { IPufferOracleV2 } from "src/interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "src/interface/IPufferRevenueDepositor.sol";
+import { IPermissionedOracle } from "src/interface/IPermissionedOracle.sol";
 
 contract PufferVaultV5Liq is PufferVaultV5 {
     uint256 private _lockedLiquidity;
@@ -16,8 +17,9 @@ contract PufferVaultV5Liq is PufferVaultV5 {
         IWETH weth,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IPufferOracleV2 oracle,
-        IPufferRevenueDepositor revenueDepositor
-    ) PufferVaultV5(stETH, lidoWithdrawalQueue, weth, oracle, revenueDepositor) {
+        IPufferRevenueDepositor revenueDepositor,
+        IPermissionedOracle permissionedOracle
+    ) PufferVaultV5(stETH, lidoWithdrawalQueue, weth, oracle, revenueDepositor, permissionedOracle) {
         _disableInitializers();
     }
 

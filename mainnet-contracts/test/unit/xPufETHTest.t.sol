@@ -20,6 +20,7 @@ import { MockPufferOracle } from "test/mocks/MockPufferOracle.sol";
 import { PufferVaultV5Tests } from "test/mocks/PufferVaultV5Tests.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
+import { IPermissionedOracle } from "src/interface/IPermissionedOracle.sol";
 
 contract xPufETHTest is Test {
     PufferDepositor public pufferDepositor;
@@ -154,7 +155,8 @@ contract xPufETHTest is Test {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
-            revenueDepositor: revenueDepositor
+            revenueDepositor: revenueDepositor,
+            permissionedOracle: IPermissionedOracle(address(0))
         });
 
         vm.startPrank(communityMultisig);

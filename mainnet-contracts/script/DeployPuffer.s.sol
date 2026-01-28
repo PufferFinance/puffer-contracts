@@ -30,6 +30,7 @@ import { RewardsCoordinatorMock } from "../test/mocks/RewardsCoordinatorMock.sol
 import { EigenAllocationManagerMock } from "../test/mocks/EigenAllocationManagerMock.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
 import { RestakingOperatorController } from "../src/RestakingOperatorController.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -161,7 +162,8 @@ contract DeployPuffer is BaseScript {
                 guardianModule: GuardianModule(payable(guardiansDeployment.guardianModule)),
                 moduleManager: address(moduleManagerProxy),
                 oracle: IPufferOracleV2(oracle),
-                beaconDepositContract: getStakingContract()
+                beaconDepositContract: getStakingContract(),
+                permissionedOracle: IPermissionedOracle(address(0)) // Will be set in upgrade
             });
         }
 

@@ -19,6 +19,7 @@ import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 
 /**
  * @title UpgradePufETH
@@ -58,7 +59,8 @@ contract UpgradePufETH is BaseScript {
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IPufferOracleV2(pufferOracle),
-            IPufferRevenueDepositor(revenueDepositor)
+            IPufferRevenueDepositor(revenueDepositor),
+            IPermissionedOracle(address(0))
         );
 
         vm.label(address(newImplementation), "PufferVaultV5Implementation");

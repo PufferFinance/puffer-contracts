@@ -20,6 +20,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { PufferRevenueDepositorMock } from "../mocks/PufferRevenueDepositorMock.sol";
 import { Timelock } from "../../src/Timelock.sol";
 import { ROLE_ID_DAO } from "script/Roles.sol";
+import { IPermissionedOracle } from "../../src/interface/IPermissionedOracle.sol";
 
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
@@ -120,7 +121,8 @@ contract PufETHTest is ERC4626Test {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
-            revenueDepositor: revenueDepositor
+            revenueDepositor: revenueDepositor,
+            permissionedOracle: IPermissionedOracle(address(0))
         });
 
         vm.startPrank(communityMultisig);

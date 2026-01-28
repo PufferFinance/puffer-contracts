@@ -8,6 +8,7 @@ import { InvalidAddress } from "src/Errors.sol";
 import { PufferVaultV5Liq } from "../mocks/PufferVaultV5Liq.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { LidoWithdrawalQueueMock } from "../mocks/LidoWithdrawalQueueMock.sol";
+import { IPermissionedOracle } from "src/interface/IPermissionedOracle.sol";
 
 contract PufferVaultTest is UnitTestHelper {
     uint256 pointZeroZeroOne = 0.0001e18;
@@ -1040,8 +1041,9 @@ contract PufferVaultTest is UnitTestHelper {
         accessManager.setTargetFunctionRole(address(pufferVault), selectors, tempRole);
         accessManager.grantRole(tempRole, address(timelock), 0);
 
-        PufferVaultV5Liq newImplementation =
-            new PufferVaultV5Liq(stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor);
+        PufferVaultV5Liq newImplementation = new PufferVaultV5Liq(
+            stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor, IPermissionedOracle(address(0))
+        );
 
         UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
         vm.stopPrank();

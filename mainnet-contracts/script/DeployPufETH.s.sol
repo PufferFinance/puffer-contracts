@@ -25,6 +25,7 @@ import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
 import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -117,7 +118,8 @@ contract DeployPufETH is BaseScript {
                 lidoWithdrawalQueue,
                 weth,
                 IPufferOracleV2(address(0)), // Will be set in the upgrade
-                IPufferRevenueDepositor(address(0)) // Will be set in the upgrade
+                IPufferRevenueDepositor(address(0)), // Will be set in the upgrade
+                IPermissionedOracle(address(0)) // Will be set in the upgrade
             );
             vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =

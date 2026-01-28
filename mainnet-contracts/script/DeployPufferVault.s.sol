@@ -13,6 +13,7 @@ import { IEigenLayer } from "../src/interface/Eigenlayer-Slashing/IEigenLayer.so
 import { IPufferOracleV2 } from "../src/interface/IPufferOracleV2.sol";
 import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 
 /**
  * @title DeployPufferVault
@@ -35,7 +36,8 @@ contract DeployPufferVault is DeployerHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             pufferOracle: IPufferOracleV2(_getPufferOracle()),
-            revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor())
+            revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor()),
+            permissionedOracle: IPermissionedOracle(address(0)) // TODO: set actual address
         });
 
         //@todo Double check reinitialization

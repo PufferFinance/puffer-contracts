@@ -15,6 +15,9 @@ uint64 constant ROLE_ID_WITHDRAWAL_FINALIZER = 25;
 uint64 constant ROLE_ID_REVENUE_DEPOSITOR = 26;
 uint64 constant ROLE_ID_VALIDATOR_EJECTOR = 28;
 
+// Role assigned to permissioned validator operators (no bond, no VT)
+uint64 constant ROLE_ID_PERMISSIONED_OPERATOR = 29;
+
 // Role assigned to validator ticket price setter
 uint64 constant ROLE_ID_VT_PRICER = 25;
 

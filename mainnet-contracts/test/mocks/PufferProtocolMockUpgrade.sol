@@ -6,6 +6,7 @@ import { GuardianModule } from "../../src/GuardianModule.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
+import { IPermissionedOracle } from "../../src/interface/IPermissionedOracle.sol";
 
 contract PufferProtocolMockUpgrade is PufferProtocol {
     function returnSomething() external pure returns (uint256) {
@@ -19,7 +20,8 @@ contract PufferProtocolMockUpgrade is PufferProtocol {
             address(0),
             ValidatorTicket(address(0)),
             IPufferOracleV2(address(0)),
-            address(0)
+            address(0),
+            IPermissionedOracle(address(0))
         )
     { }
 }
