@@ -48,7 +48,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
      * keccak256(abi.encode(uint256(keccak256("PermissionedModule.storage")) - 1)) & ~bytes32(uint256(0xff))
      */
     bytes32 private constant _PERMISSIONED_MODULE_STORAGE =
-        0x2784f76ce9c1e210747909ec29cc0ceef82df4aa8f3bfcd656a8d65758b79900;
+        0x7410446085c160ccc4c2b0e41801f8ac5004a5bf87d0402533c18d1e95927d00;
 
     IEigenPodManager public immutable EIGEN_POD_MANAGER;
     IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
