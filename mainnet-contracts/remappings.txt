@@ -19,3 +19,4 @@ solidity-stringutils/=node_modules/solidity-stringutils
 @layerzerolabs/lz-evm-v1-0.7/=node_modules/@layerzerolabs/lz-evm-v1-0.7/
 @layerzerolabs/test-devtools-evm-foundry/=node_modules/@layerzerolabs/test-devtools-evm-foundry/
 solidity-bytes-utils/=node_modules/solidity-bytes-utils/
+@automata-network/automata-tee-workload-measurement=lib/automata-tee-workload-measurement/src/

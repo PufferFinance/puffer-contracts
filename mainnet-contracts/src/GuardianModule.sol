@@ -12,6 +12,8 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
+import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+import { TdxRegistrationData, GoldenMeasurementInfo, GuardianData } from "./struct/GuardianModuleStructs.sol";
 
 /**
  * @title Guardian module
@@ -37,9 +39,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal constant _EJECTION_THRESHOLD_BALANCE = 31.75 ether;
 
     /**
-     * @notice Enclave Verifier smart contract
+     * @notice Workload Verifier smart contract
      */
-    IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
+    IWorkloadVerifier public immutable WORKLOAD_VERIFIER;
 
     /**
      * @dev Guardians set
@@ -52,35 +54,22 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal _threshold;
 
     /**
-     * @dev MRSIGNER value for SGX
-     */
-    bytes32 internal _mrsigner;
-
-    /**
-     * @dev MRENCLAVE value for SGX
-     */
-    bytes32 internal _mrenclave;
-
-    /**
      * @dev This variable is for the Guardian's to coordinate on when to eject Puffer validators
      */
     uint256 internal _ejectionThreshold;
-
-    /**
-     * @dev Enclave data
-     * The guardian doesn't know the Secret Key of an enclave wallet
-     */
-    struct GuardianData {
-        bytes enclavePubKey;
-        address enclaveAddress;
-    }
 
     /**
      * @dev Mapping of a Guardian's EOA to enclave data
      */
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
-    constructor(IEnclaveVerifier verifier, address[] memory guardians, uint256 threshold, address pufferAuthority)
+    /**
+     * @dev Mapping of Golden Measurement registry hash to GoldenMeasurementInfo
+     */
+    mapping(bytes32 hash => GoldenMeasurementInfo info) internal _goldenMeasurements;
+
+
+    constructor(IWorkloadVerifier verifier, address[] memory guardians, uint256 threshold, address pufferAuthority)
         payable
         AccessManaged(pufferAuthority)
     {
@@ -90,7 +79,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         if (address(pufferAuthority) == address(0)) {
             revert InvalidAddress();
         }
-        ENCLAVE_VERIFIER = verifier;
+        WORKLOAD_VERIFIER = verifier;
         for (uint256 i = 0; i < guardians.length; ++i) {
             _addGuardian(guardians[i]);
         }
@@ -241,11 +230,20 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrEnclave, bytes32 newMrSigner) external restricted {
-        emit MrEnclaveChanged(_mrenclave, newMrEnclave);
-        emit MrSignerChanged(_mrsigner, newMrSigner);
-        _mrenclave = newMrEnclave;
-        _mrsigner = newMrSigner;
+    function registerGoldenMeasurement(bytes32 hash, GoldenMeasurementInfo calldata info) external restricted {
+        require(hash != bytes32(0), InvalidData());
+        _goldenMeasurements[hash] = info;
+        emit GoldenMeasurementRegistered(hash, info);
+    }
+
+
+    /**
+     * @inheritdoc IGuardianModule
+     * @dev Restricted to the DAO
+     */
+    function deregisterGoldenMeasurement(bytes32 hash) external restricted {
+        delete _goldenMeasurements[hash];
+        emit GoldenMeasurementDeregistered(hash);
     }
 
     /**
@@ -296,33 +294,28 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         return _guardians.values();
     }
 
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
+    function rotateGuardianKey(
+        uint256 blockNumber,
+        bytes calldata pubKey,
+        TdxRegistrationData calldata data  // TDX DCAP
+    ) external payable {
+        (, bytes32 measurementHash, bytes memory tpmExtraData) =
+            WORKLOAD_VERIFIER.verifyAttestationAndGetMeasurementHash{value: msg.value}(
+                data.teeType,
+                data.teeReportType,
+                data.cloudType,
+                data.teeAttestationReport,
+                data.workloadCollaterals
+            );
+
+        require(_goldenMeasurements[measurementHash].valid, InvalidMeasurement());
+
+        bytes32 expectedCommitment = keccak256(abi.encodePacked(pubKey, blockhash(blockNumber)));
+        require(bytes32(tpmExtraData) == expectedCommitment, CommitmentMismatch());
+
+        // Register guardian
+
         address guardian = msg.sender;
-
-        if (!_guardians.contains(guardian)) {
-            revert Unauthorized();
-        }
-
-        if (pubKey.length != _ECDSA_KEY_LENGTH) {
-            revert InvalidECDSAPubKey();
-        }
-
-        // slither-disable-next-line uninitialized-state-variables
-        bool isValid = ENCLAVE_VERIFIER.verifyEvidence({
-            blockNumber: blockNumber,
-            raveCommitment: keccak256(pubKey),
-            mrenclave: _mrenclave,
-            mrsigner: _mrsigner,
-            evidence: evidence
-        });
-
-        if (!isValid) {
-            revert InvalidRAVE();
-        }
-
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
         address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
 
@@ -382,22 +375,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getMrenclave() external view returns (bytes32) {
-        return _mrenclave;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function getMrsigner() external view returns (bytes32) {
-        return _mrsigner;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
     function isGuardian(address account) external view returns (bool) {
         return _guardians.contains(account);
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function getGoldenMeasurement(bytes32 hash) external view returns (GoldenMeasurementInfo memory) {
+        return _goldenMeasurements[hash];
     }
 
     function _addGuardian(address newGuardian) internal {

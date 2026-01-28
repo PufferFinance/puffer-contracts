@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { RaveEvidence } from "../struct/RaveEvidence.sol";
 import { IEnclaveVerifier } from "../EnclaveVerifier.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
+import { TdxRegistrationData, GoldenMeasurementInfo } from "../struct/GuardianModuleStructs.sol";
 
 /**
  * @title IGuardianModule interface
@@ -17,16 +18,28 @@ interface IGuardianModule {
     error InvalidECDSAPubKey();
 
     /**
-     * @notice Thrown when the RAVE evidence is not valid
-     * @dev Signature "0x2b3c629b"
-     */
-    error InvalidRAVE();
-
-    /**
      * @notice Thrown if the threshold value is not valid
      * @dev Signature "0x651a749b"
      */
     error InvalidThreshold(uint256 threshold);
+
+    /**
+     * @notice Thrown if the data is not valid
+     * @dev Signature "0x5cb045db"
+     */
+    error InvalidData();
+
+    /**
+     * @notice Thrown if the GoldenMeasurement is not valid
+     * @dev Signature "0x69e9d3ba"
+     */
+    error InvalidMeasurement();
+
+    /**
+     * @notice Thrown if the Commitment does not match the workload verifier
+     * @dev Signature "0x5054097b"
+     */
+    error CommitmentMismatch();
 
     /**
      * @notice Emitted when the ejection threshold is changed
@@ -68,16 +81,19 @@ interface IGuardianModule {
     event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
 
     /**
-     * @notice Emitted when the mrenclave value is changed
-     * @dev Signature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
+     * @notice Emitted when a new GoldenMeasurement is registered
+     * @dev 0xe5cf28b6abd2dfc43e26d77ce57814cc723f1ee29925cd92112ea764eb1e6775
+     * @param hash id of the GoldenMeasurement
+     * @param info data of the GoldenMeasurement
      */
-    event MrEnclaveChanged(bytes32 oldMrEnclave, bytes32 newMrEnclave);
+    event GoldenMeasurementRegistered(bytes32 hash, GoldenMeasurementInfo info);
 
     /**
-     * @notice Emitted when the mrsigner value is changed
-     * @dev Signature "0x1a1fe271c5533136fccd1c6df515ca1f227d95822bfe78b9dd93debf3d709ae6"
+     * @notice Emitted when a GoldenMeasurement is deregistered
+     * @dev 0x3b86a29684cb98125d16491ad1dd1d2c52f8446ba9ba6ef696cef58743d8fa84
+     * @param hash id of the GoldenMeasurement
      */
-    event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
+    event GoldenMeasurementDeregistered(bytes32 hash);
 
     /**
      * @notice Returns the enclave address registered to `guardian`
@@ -94,9 +110,17 @@ interface IGuardianModule {
     function getEjectionThreshold() external view returns (uint256);
 
     /**
-     * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
+     * @notice Registers Golden Measurement
+     * @param hash id of the Golden Measurement
+     * @param info Info of the Golden Measurement
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
+    function registerGoldenMeasurement(bytes32 hash, GoldenMeasurementInfo calldata info) external;
+
+    /**
+     * @notice Deregisters Golden Measurement
+     * @param hash id of the Golden Measurement
+     */
+    function deregisterGoldenMeasurement(bytes32 hash) external;
 
     /**
      * @notice Validates the update of the number of validators
@@ -106,11 +130,6 @@ interface IGuardianModule {
         uint256 epochNumber,
         bytes[] calldata guardianEOASignatures
     ) external view;
-
-    /**
-     * @notice Returns the enclave verifier
-     */
-    function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Validates the batch withdrawals calldata
@@ -220,12 +239,14 @@ interface IGuardianModule {
 
     /**
      * @notice Rotates guardian's key
-     * @dev If he caller is not a valid guardian or if the RAVE evidence is not valid the tx will revert
+     * @dev If he caller is not a valid guardian or if the TdxRegistrationData is not valid the tx will revert
      * @param blockNumber is the block number
      * @param pubKey is the public key of the new signature
-     * @param evidence is the RAVE evidence
+     * @param data TdxRegistrationData to verify
      */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external;
+    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, TdxRegistrationData calldata data)
+        external
+        payable;
 
     /**
      * @notice Returns the guardians enclave addresses
@@ -245,12 +266,10 @@ interface IGuardianModule {
     function isGuardian(address account) external view returns (bool);
 
     /**
-     * @notice Returns the mrenclave value
+     * @notice Returns the info of a GoldenMeasurement
+     * @param hash id of the GoldenMeasurement
+     * @return Info of the GoldenMeasurement
      */
-    function getMrenclave() external view returns (bytes32);
+    function getGoldenMeasurement(bytes32 hash) external view returns (GoldenMeasurementInfo memory);
 
-    /**
-     * @notice Returns the mrsigner value
-     */
-    function getMrsigner() external view returns (bytes32);
 }

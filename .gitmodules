@@ -4,6 +4,6 @@
 [submodule "partners/layerzero/lib/forge-std"]
 	path = partners/layerzero/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "mainnet-contracts/lib/automata-dcap-attestation"]
-	path = mainnet-contracts/lib/automata-dcap-attestation
-	url = https://github.com/automata-network/automata-dcap-attestation
+[submodule "mainnet-contracts/lib/automata-tee-workload-measurement"]
+	path = mainnet-contracts/lib/automata-tee-workload-measurement
+	url = https://github.com/automata-network/automata-tee-workload-measurement
