@@ -93,6 +93,11 @@ interface IPufferProtocol {
     error Failed();
 
     /**
+     * @notice Thrown when an invalid validator index is provided
+     */
+    error InvalidValidatorIndex();
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
@@ -182,6 +187,64 @@ interface IPufferProtocol {
      * @dev Signature "0x96cbbd073e24b0a7d0cab7dc347c239e52be23c1b44ce240b3b929821fed19a4"
      */
     event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+
+    /**
+     * @notice Emitted when a new permissioned module is created
+     * @param module is the address of the new permissioned module
+     * @param moduleName is the name of the module
+     */
+    event NewPermissionedModuleCreated(address indexed module, bytes32 indexed moduleName);
+
+    /**
+     * @notice Emitted when a permissioned validator key is registered
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param isNonRestaked indicates if the validator is non-restaked (direct Beacon Chain)
+     * @param stakeAmount is the stake amount in wei (32-2048 ETH for non-restaked, always 32 ETH for restaked)
+     */
+    event PermissionedValidatorKeyRegistered(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        bool isNonRestaked,
+        uint256 stakeAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator is provisioned
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param isNonRestaked indicates if the validator is non-restaked (direct Beacon Chain)
+     * @param stakeAmount is the stake amount in wei
+     */
+    event PermissionedValidatorProvisioned(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        bool isNonRestaked,
+        uint256 stakeAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator exits
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param withdrawalAmount is the amount withdrawn
+     */
+    event PermissionedValidatorExited(
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 withdrawalAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator provisioning is skipped
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     */
+    event PermissionedValidatorSkipped(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Returns validator information

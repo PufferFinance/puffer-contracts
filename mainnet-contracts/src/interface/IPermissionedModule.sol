@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { ISignatureUtils } from "./Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IDelegationManagerTypes } from "./Eigenlayer-Slashing/IDelegationManager.sol";
+import { IEigenPodTypes } from "./Eigenlayer-Slashing/IEigenPod.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -32,10 +33,14 @@ interface IPermissionedModule {
      * @param pubKey The validator's public key
      * @param signature The validator's signature
      * @param depositDataRoot The deposit data root
+     * @param amount The stake amount in wei (32-2048 ETH for Pectra support)
      */
-    function callStakeNonRestaked(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
-        external
-        payable;
+    function callStakeNonRestaked(
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        uint256 amount
+    ) external payable;
 
     /**
      * @notice Returns the withdrawal credentials for restaked validators (EigenPod)
@@ -109,6 +114,17 @@ interface IPermissionedModule {
      * @param pubkeys The pubkeys of the validators to exit
      */
     function triggerRestakedValidatorsExit(bytes[] calldata pubkeys) external payable;
+
+    /**
+     * @notice Triggers withdrawal requests for non-restaked validators via EIP-7002
+     * @param requests The withdrawal requests with pubkey and amountGwei
+     * @dev Uses NonRestakingWithdrawalCredentials contract.
+     *      - amountGwei == 0: Full validator exit
+     *      - amountGwei > 0: Partial withdrawal (Pectra feature, requires 0x02 credentials)
+     */
+    function triggerNonRestakedValidatorWithdrawals(IEigenPodTypes.WithdrawalRequest[] calldata requests)
+        external
+        payable;
 
     /**
      * @notice Withdraws accumulated ETH from non-restaking withdrawal credentials to this module
