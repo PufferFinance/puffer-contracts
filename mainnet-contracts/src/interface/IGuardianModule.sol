@@ -271,5 +271,4 @@ interface IGuardianModule {
      * @return Info of the GoldenMeasurement
      */
     function getGoldenMeasurement(bytes32 hash) external view returns (GoldenMeasurementInfo memory);
-
 }

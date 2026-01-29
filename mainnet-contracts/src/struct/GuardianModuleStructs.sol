@@ -2,7 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { TEEType, TeeReportType, CloudType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
-import { WorkloadCollaterals } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+import { WorkloadCollaterals } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
 
 /**
  * @dev Tdx Registration Data
@@ -22,7 +23,7 @@ struct GoldenMeasurementInfo {
     bool valid;
     TEEType teeType;
     CloudType cloudType;
-    string tag;  // e.g., "guardian-v1.0.0"
+    string tag; // e.g., "guardian-v1.0.0"
 }
 
 /**

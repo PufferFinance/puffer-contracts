@@ -66,7 +66,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     mapping(bytes32 hash => GoldenMeasurementInfo info) internal _goldenMeasurements;
 
-
     constructor(IWorkloadVerifier verifier, address[] memory guardians, uint256 threshold, address pufferAuthority)
         payable
         AccessManaged(pufferAuthority)
@@ -234,7 +233,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         emit GoldenMeasurementRegistered(hash, info);
     }
 
-
     /**
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
@@ -295,16 +293,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function rotateGuardianKey(
         uint256 blockNumber,
         bytes calldata pubKey,
-        TdxRegistrationData calldata data  // TDX DCAP
+        TdxRegistrationData calldata data // TDX DCAP
     ) external payable {
-        (, bytes32 measurementHash, bytes memory tpmExtraData) =
-            WORKLOAD_VERIFIER.verifyAttestationAndGetMeasurementHash{value: msg.value}(
-                data.teeType,
-                data.teeReportType,
-                data.cloudType,
-                data.teeAttestationReport,
-                data.workloadCollaterals
-            );
+        (, bytes32 measurementHash, bytes memory tpmExtraData) = WORKLOAD_VERIFIER
+            .verifyAttestationAndGetMeasurementHash{ value: msg.value }(
+            data.teeType, data.teeReportType, data.cloudType, data.teeAttestationReport, data.workloadCollaterals
+        );
 
         require(_goldenMeasurements[measurementHash].valid, InvalidMeasurement());
 
