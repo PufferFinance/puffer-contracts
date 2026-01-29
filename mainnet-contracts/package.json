@@ -16,7 +16,6 @@
         "@openzeppelin/contracts-upgradeable": "5.0.1",
         "l2-contracts": "*",
         "murky": "https://github.com/dmfxyz/murky.git",
-        "rave": "https://github.com/PufferFinance/rave.git#57ce268",
         "solidity-bytes-utils": "^0.8.4",
         "solidity-stringutils": "https://github.com/Arachnid/solidity-stringutils"
     },

@@ -3,8 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
-import { IEnclaveVerifier } from "./EnclaveVerifier.sol";
-import { RaveEvidence } from "./struct/RaveEvidence.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
