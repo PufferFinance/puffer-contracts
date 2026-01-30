@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { RaveEvidence } from "../struct/RaveEvidence.sol";
-import { IEnclaveVerifier } from "../EnclaveVerifier.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 import { TdxRegistrationData, GoldenMeasurementInfo } from "../struct/GuardianModuleStructs.sol";
 

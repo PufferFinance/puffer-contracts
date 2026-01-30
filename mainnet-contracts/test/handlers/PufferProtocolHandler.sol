@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";

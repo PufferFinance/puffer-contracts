@@ -22,12 +22,12 @@ import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256, address)' "[$DEV_WALLET]" 1 $DEV_WALLET --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address, address[] calldata, uint256, address)' <workload_verifier> "[$DEV_WALLET]" 1 $DEV_WALLET --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold, address paymaster)
+    function run(address workloadVerifier, address[] calldata guardians, uint256 threshold, address paymaster)
         public
         returns (PufferProtocolDeployment memory, BridgingDeployment memory)
     {
@@ -45,7 +45,7 @@ contract DeployEverything is BaseScript {
         deployment.accessManager = puffETHDeployment.accessManager;
 
         GuardiansDeployment memory guardiansDeployment =
-            new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
+            new DeployGuardians().run(workloadVerifier, AccessManager(puffETHDeployment.accessManager), guardians, threshold);
 
         address pufferOracle = new DeployPufferOracle().run(
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
@@ -92,7 +92,7 @@ contract DeployEverything is BaseScript {
         vm.serializeAddress(obj, "guardianModule", deployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
 
-        vm.serializeAddress(obj, "enclaveVerifier", deployment.enclaveVerifier);
+        vm.serializeAddress(obj, "workloadVerifier", deployment.workloadVerifier);
         vm.serializeAddress(obj, "moduleBeacon", deployment.beacon);
         vm.serializeAddress(obj, "moduleManager", deployment.moduleManager);
         vm.serializeAddress(obj, "validatorTicket", deployment.validatorTicket);

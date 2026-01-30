@@ -9,13 +9,11 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
-import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
-import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
+import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -25,12 +23,9 @@ import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
-// import { xPufETH } from "src/l2/xPufETH.sol";
-// import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
-// import { ConnextMock } from "../mocks/ConnextMock.sol";
 import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
 import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
 import {
@@ -101,7 +96,7 @@ contract UnitTestHelper is Test, BaseScript {
     GuardianModule public guardianModule;
 
     AccessManager public accessManager;
-    IEnclaveVerifier public verifier;
+    IWorkloadVerifier public verifier;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
     RestakingOperatorController public restakingOperatorController;
@@ -210,7 +205,7 @@ contract UnitTestHelper is Test, BaseScript {
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         timelock = pufferDeployment.timelock;
-        verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
+        verifier = IWorkloadVerifier(pufferDeployment.workloadVerifier);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
@@ -258,9 +253,6 @@ contract UnitTestHelper is Test, BaseScript {
         assertEq(guardianModule.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
         assertEq(guardianModule.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
 
-        // Add a valid certificate to verifier
-        verifier = guardianModule.ENCLAVE_VERIFIER();
-        verifier.addLeafX509(guardian1Rave.signingCert());
 
         require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys don't match");
 

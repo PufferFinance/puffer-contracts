@@ -2,10 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
-import { Guardian2RaveEvidence } from "../helpers/GuardiansRaveEvidence.sol";
 import { Unauthorized } from "../../src/Errors.sol";
 
 contract GuardianModuleTest is UnitTestHelper {

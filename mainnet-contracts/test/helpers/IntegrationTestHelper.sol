@@ -9,8 +9,8 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
 
 contract IntegrationTestHelper is Test {
     address DAO = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
@@ -21,7 +21,8 @@ contract IntegrationTestHelper is Test {
     GuardianModule public guardianModule;
 
     AccessManager public accessManager;
-    IEnclaveVerifier public verifier;
+
+    IWorkloadVerifier public verifier;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
     address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
@@ -55,8 +56,8 @@ contract IntegrationTestHelper is Test {
         vm.label(address(pufferProtocol), "PufferProtocol");
         accessManager = AccessManager(pufferDeployment.accessManager);
         vm.label(address(accessManager), "AccessManager");
-        verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
-        vm.label(address(verifier), "EnclaveVerifier");
+        verifier = IWorkloadVerifier(pufferDeployment.workloadVerifier);
+        vm.label(address(verifier), "WorkloadVerifier");
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         vm.label(address(guardianModule), "GuardianModule");
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
