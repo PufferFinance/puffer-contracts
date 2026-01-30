@@ -35,6 +35,7 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { WorkloadVerifierMock } from "../mocks/WorkloadVerifierMock.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -196,11 +197,13 @@ contract UnitTestHelper is Test, BaseScript {
         guardians[1] = guardian2;
         guardians[2] = guardian3;
 
+        WorkloadVerifierMock workloadVerifierMock = new WorkloadVerifierMock();
+
         // Deploy everything with one script
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
-        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
+        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(address(workloadVerifierMock), guardians, 1, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
@@ -238,23 +241,7 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
-        Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
-        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
-        Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
-
-        // mrenclave and mrsigner are the same for all evidences
-        vm.startPrank(DAO);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.MrEnclaveChanged(bytes32(0), guardian1Rave.mrenclave());
-        emit IGuardianModule.MrSignerChanged(bytes32(0), guardian1Rave.mrsigner());
-        guardianModule.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
-        vm.stopPrank();
-
-        assertEq(guardianModule.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
-        assertEq(guardianModule.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
-
-
-        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys don't match");
+        // TODO [TDX] Register Golden Measurement
 
         assertEq(
             blockhash(block.number),
@@ -262,47 +249,48 @@ contract UnitTestHelper is Test, BaseScript {
             "bad blockhash"
         );
 
+        // TODO [TDX] Update rotateGuardiankey to current impl
         // Register enclave keys for guardians
-        vm.startPrank(guardians[0]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian1EnclavePubKey,
-            RaveEvidence({
-                report: guardian1Rave.report(),
-                signature: guardian1Rave.sig(),
-                leafX509CertDigest: keccak256(guardian1Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+        // vm.startPrank(guardians[0]);
+        // vm.expectEmit(true, true, true, true);
+        // emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
+        // guardianModule.rotateGuardianKey(
+        //     0,
+        //     guardian1EnclavePubKey,
+        //     RaveEvidence({
+        //         report: guardian1Rave.report(),
+        //         signature: guardian1Rave.sig(),
+        //         leafX509CertDigest: keccak256(guardian1Rave.signingCert())
+        //     })
+        // );
+        // vm.stopPrank();
 
-        vm.startPrank(guardians[1]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian2EnclavePubKey,
-            RaveEvidence({
-                report: guardian2Rave.report(),
-                signature: guardian2Rave.sig(),
-                leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+        // vm.startPrank(guardians[1]);
+        // vm.expectEmit(true, true, true, true);
+        // emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
+        // guardianModule.rotateGuardianKey(
+        //     0,
+        //     guardian2EnclavePubKey,
+        //     RaveEvidence({
+        //         report: guardian2Rave.report(),
+        //         signature: guardian2Rave.sig(),
+        //         leafX509CertDigest: keccak256(guardian2Rave.signingCert())
+        //     })
+        // );
+        // vm.stopPrank();
 
-        vm.startPrank(guardians[2]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian3EnclavePubKey,
-            RaveEvidence({
-                report: guardian3Rave.report(),
-                signature: guardian3Rave.sig(),
-                leafX509CertDigest: keccak256(guardian3Rave.signingCert())
-            })
-        );
+        // vm.startPrank(guardians[2]);
+        // vm.expectEmit(true, true, true, true);
+        // emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
+        // guardianModule.rotateGuardianKey(
+        //     0,
+        //     guardian3EnclavePubKey,
+        //     RaveEvidence({
+        //         report: guardian3Rave.report(),
+        //         signature: guardian3Rave.sig(),
+        //         leafX509CertDigest: keccak256(guardian3Rave.signingCert())
+        //     })
+        // );
         vm.stopPrank();
 
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");

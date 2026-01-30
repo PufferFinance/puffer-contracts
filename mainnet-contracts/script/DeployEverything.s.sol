@@ -16,6 +16,7 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { GenerateRevenueDepositorCalldata } from
     "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
+import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -45,7 +46,7 @@ contract DeployEverything is BaseScript {
         deployment.accessManager = puffETHDeployment.accessManager;
 
         GuardiansDeployment memory guardiansDeployment =
-            new DeployGuardians().run(workloadVerifier, AccessManager(puffETHDeployment.accessManager), guardians, threshold);
+            new DeployGuardians().run(IWorkloadVerifier(workloadVerifier), AccessManager(puffETHDeployment.accessManager), guardians, threshold);
 
         address pufferOracle = new DeployPufferOracle().run(
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault

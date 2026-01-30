@@ -26,6 +26,7 @@ contract IntegrationTestHelper is Test {
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
     address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+    address WORKLOAD_VERIFIER = address(0); //TODO [TDX] Set the address of the workload verifier
 
     // custom block number
     function deployContractsHoodi(uint256 blockNumber) public virtual {
@@ -50,7 +51,7 @@ contract IntegrationTestHelper is Test {
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
         (PufferProtocolDeployment memory pufferDeployment,) =
-            new DeployEverything().run(guardians, threshold, PAYMASTER);
+            new DeployEverything().run(WORKLOAD_VERIFIER, guardians, threshold, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");

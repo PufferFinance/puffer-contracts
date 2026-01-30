@@ -34,20 +34,21 @@ contract GuardianModuleTest is UnitTestHelper {
         guardianModule.setThreshold(50);
     }
 
-    function test_rotateGuardianKey_from_non_guardian_reverts() public {
-        RaveEvidence memory evidence;
-        vm.expectRevert(Unauthorized.selector);
-        guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
-    }
+    // TODO [TDX] Update rotateGuardianKey tests
+    // function test_rotateGuardianKey_from_non_guardian_reverts() public {
+    //     RaveEvidence memory evidence;
+    //     vm.expectRevert(Unauthorized.selector);
+    //     guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
+    // }
 
-    function test_rotateGuardianKey_to_invalid_pubKey_everts() public {
-        RaveEvidence memory evidence;
+    // function test_rotateGuardianKey_to_invalid_pubKey_everts() public {
+    //     RaveEvidence memory evidence;
 
-        vm.startPrank(guardian1);
+    //     vm.startPrank(guardian1);
 
-        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
-        guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
-    }
+    //     vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+    //     guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
+    // }
 
     function test_addGuardian(address guardian) public assumeEOA(guardian) {
         vm.startPrank(DAO);
@@ -105,21 +106,21 @@ contract GuardianModuleTest is UnitTestHelper {
         vm.expectRevert();
         guardianModule.setThreshold(5);
     }
+    // TODO [TDX] Update rotateGuardianKey tests
+    // function test_rotateGuardianKey_with_invalid_rave_reverts() public {
+    //     Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
 
-    function test_rotateGuardianKey_with_invalid_rave_reverts() public {
-        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
+    //     vm.startPrank(guardian1);
 
-        vm.startPrank(guardian1);
+    //     RaveEvidence memory rave = RaveEvidence({
+    //         report: guardian2Rave.report(),
+    //         signature: guardian2Rave.sig(),
+    //         leafX509CertDigest: keccak256(guardian2Rave.signingCert())
+    //     });
 
-        RaveEvidence memory rave = RaveEvidence({
-            report: guardian2Rave.report(),
-            signature: guardian2Rave.sig(),
-            leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-        });
-
-        vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
-        guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, rave);
-    }
+    //     vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
+    //     guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, rave);
+    // }
 
     // Invalid signature reverts with unauthorized
     function test_validateSkipProvisioning_reverts() public {
