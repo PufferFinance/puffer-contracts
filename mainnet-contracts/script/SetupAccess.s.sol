@@ -97,7 +97,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](30);
+        calldatas = new bytes[](29);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = rolesCalldatas[0];
         calldatas[2] = rolesCalldatas[1];
@@ -267,7 +267,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupGuardianModuleRoles() internal view returns (bytes memory) {
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = GuardianModule.registerGoldenMeasurement.selector;
         selectors[1] = GuardianModule.deregisterGoldenMeasurement.selector;
         selectors[2] = GuardianModule.addGuardian.selector;

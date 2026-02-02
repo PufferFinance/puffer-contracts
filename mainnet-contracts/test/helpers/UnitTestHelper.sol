@@ -13,7 +13,15 @@ import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
-import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+import {
+    IWorkloadVerifier,
+    TEEType,
+    CloudType,
+    WorkloadCollaterals
+} from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+import { TeeReportType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
+import { MeasureablePcr } from "@automata-network/automata-tpm-attestation/interfaces/ITpmAttestation.sol";
+import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -82,6 +90,9 @@ contract UnitTestHelper is Test, BaseScript {
     uint256 public guardian3SKEnclave;
     bytes public guardian3EnclavePubKey =
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
+
+    // TDX attestation test data
+    bytes public guardian1TdxAttestationReport = hex"";
 
     PufferDepositor public pufferDepositor;
     PufferVaultV5 public pufferVault;
@@ -203,7 +214,8 @@ contract UnitTestHelper is Test, BaseScript {
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
-        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(address(workloadVerifierMock), guardians, 1, PAYMASTER);
+        (pufferDeployment, bridgingDeployment) =
+            new DeployEverything().run(address(workloadVerifierMock), guardians, 1, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
@@ -241,7 +253,31 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
-        // TODO [TDX] Register Golden Measurement
+        // Register Golden Measurement for TDX
+        vm.startPrank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+        // Grant DAO role to DAO address
+        accessManager.grantRole(ROLE_ID_DAO, DAO, 0);
+        // Set up registerGoldenMeasurement function to require DAO role
+        bytes4[] memory guardianModuleSelectors = new bytes4[](1);
+        guardianModuleSelectors[0] = GuardianModule.registerGoldenMeasurement.selector;
+        accessManager.setTargetFunctionRole(address(guardianModule), guardianModuleSelectors, ROLE_ID_DAO);
+        vm.stopPrank();
+
+        // Register a test golden measurement
+        bytes32 testMeasurementHash = keccak256("test-golden-measurement");
+        vm.startPrank(DAO);
+        guardianModule.registerGoldenMeasurement(
+            testMeasurementHash,
+            GoldenMeasurementInfo({
+                valid: true,
+                teeType: TEEType.IntelTDX,
+                cloudType: CloudType.GCP,
+                tag: "test-v1.0.0"
+            })
+        );
+
+        workloadVerifierMock.setMeasurementHash(testMeasurementHash);
+        vm.stopPrank();
 
         assertEq(
             blockhash(block.number),
@@ -249,49 +285,55 @@ contract UnitTestHelper is Test, BaseScript {
             "bad blockhash"
         );
 
-        // TODO [TDX] Update rotateGuardiankey to current impl
         // Register enclave keys for guardians
-        // vm.startPrank(guardians[0]);
-        // vm.expectEmit(true, true, true, true);
-        // emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
-        // guardianModule.rotateGuardianKey(
-        //     0,
-        //     guardian1EnclavePubKey,
-        //     RaveEvidence({
-        //         report: guardian1Rave.report(),
-        //         signature: guardian1Rave.sig(),
-        //         leafX509CertDigest: keccak256(guardian1Rave.signingCert())
-        //     })
-        // );
-        // vm.stopPrank();
-
-        // vm.startPrank(guardians[1]);
-        // vm.expectEmit(true, true, true, true);
-        // emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
-        // guardianModule.rotateGuardianKey(
-        //     0,
-        //     guardian2EnclavePubKey,
-        //     RaveEvidence({
-        //         report: guardian2Rave.report(),
-        //         signature: guardian2Rave.sig(),
-        //         leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-        //     })
-        // );
-        // vm.stopPrank();
-
-        // vm.startPrank(guardians[2]);
-        // vm.expectEmit(true, true, true, true);
-        // emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
-        // guardianModule.rotateGuardianKey(
-        //     0,
-        //     guardian3EnclavePubKey,
-        //     RaveEvidence({
-        //         report: guardian3Rave.report(),
-        //         signature: guardian3Rave.sig(),
-        //         leafX509CertDigest: keccak256(guardian3Rave.signingCert())
-        //     })
-        // );
+        vm.startPrank(guardians[0]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
+        guardianModule.rotateGuardianKey(
+            0,
+            guardian1EnclavePubKey,
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian1EnclavePubKey, blockhash(block.number)))),
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
         vm.stopPrank();
+
+        vm.startPrank(guardians[1]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
+        guardianModule.rotateGuardianKey(
+            1,
+            guardian2EnclavePubKey,
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian2EnclavePubKey, blockhash(block.number)))),
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+        vm.stopPrank();
+
+        vm.startPrank(guardians[2]);
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
+        guardianModule.rotateGuardianKey(
+            2,
+            guardian3EnclavePubKey,
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian3EnclavePubKey, blockhash(block.number)))),
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+        vm.stopPrank();
+
 
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
@@ -384,5 +426,16 @@ contract UnitTestHelper is Test, BaseScript {
         t.to = to;
         t.amount = amount;
         t.deadline = deadline;
+    }
+
+    function _createEmptyWorkloadCollaterals() internal pure returns (WorkloadCollaterals memory) {
+        return WorkloadCollaterals({
+            tpmQuote: hex"",
+            tpmSignature: hex"",
+            pcrs: new MeasureablePcr[](0),
+            reportId: hex"",
+            akPub: hex"",
+            certs: new bytes[](0)
+        });
     }
 }

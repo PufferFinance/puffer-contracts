@@ -45,8 +45,9 @@ contract DeployEverything is BaseScript {
         deployment.weth = puffETHDeployment.weth;
         deployment.accessManager = puffETHDeployment.accessManager;
 
-        GuardiansDeployment memory guardiansDeployment =
-            new DeployGuardians().run(IWorkloadVerifier(workloadVerifier), AccessManager(puffETHDeployment.accessManager), guardians, threshold);
+        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(
+            IWorkloadVerifier(workloadVerifier), AccessManager(puffETHDeployment.accessManager), guardians, threshold
+        );
 
         address pufferOracle = new DeployPufferOracle().run(
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault

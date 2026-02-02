@@ -9,11 +9,12 @@ import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measu
 
 // forge script script/1_DeployGuardians.s.sol:DeployGuardians --rpc-url=$EPHEMERY_RPC_URL --sig 'run(address, address, address[] calldata, uint256)' <workloadVerifier> <accessManager> "[0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0]" 1
 contract DeployGuardians is BaseScript {
-    function run(IWorkloadVerifier workloadVerifier, AccessManager accessManager, address[] calldata guardians, uint256 threshold)
-        public
-        broadcast
-        returns (GuardiansDeployment memory)
-    {
+    function run(
+        IWorkloadVerifier workloadVerifier,
+        AccessManager accessManager,
+        address[] calldata guardians,
+        uint256 threshold
+    ) public broadcast returns (GuardiansDeployment memory) {
         vm.label(address(accessManager), "AccessManager");
 
         GuardianModule module = new GuardianModule(workloadVerifier, guardians, threshold, address(accessManager));
