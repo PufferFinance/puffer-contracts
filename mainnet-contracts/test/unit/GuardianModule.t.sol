@@ -4,6 +4,9 @@ pragma solidity >=0.8.0 <0.9.0;
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { Unauthorized } from "../../src/Errors.sol";
+import { TEEType, TeeReportType, CloudType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
+import { TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
+import { WorkloadVerifierMock } from "../mocks/WorkloadVerifierMock.sol";
 
 contract GuardianModuleTest is UnitTestHelper {
     function setUp() public override {
@@ -34,21 +37,77 @@ contract GuardianModuleTest is UnitTestHelper {
         guardianModule.setThreshold(50);
     }
 
-    // TODO [TDX] Update rotateGuardianKey tests
-    // function test_rotateGuardianKey_from_non_guardian_reverts() public {
-    //     RaveEvidence memory evidence;
-    //     vm.expectRevert(Unauthorized.selector);
-    //     guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
-    // }
+    function test_rotateGuardianKey_from_non_guardian_reverts() public {
+        vm.expectRevert(Unauthorized.selector);
+        guardianModule.rotateGuardianKey(
+            0,
+            new bytes(55),
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: hex"",
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+    }
 
-    // function test_rotateGuardianKey_to_invalid_pubKey_everts() public {
-    //     RaveEvidence memory evidence;
+    function test_rotateGuardianKey_to_invalid_pubKey_reverts() public {
+        vm.startPrank(guardian1);
 
-    //     vm.startPrank(guardian1);
+        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+        guardianModule.rotateGuardianKey(
+            0,
+            new bytes(55),
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: hex"",
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+    }
 
-    //     vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
-    //     guardianModule.rotateGuardianKey(0, new bytes(55), evidence);
-    // }
+    function test_rotateGuardianKey_with_invalid_measurement_reverts() public {
+        vm.startPrank(guardian1);
+
+        WorkloadVerifierMock(address(verifier)).setMeasurementHash(bytes32("some invalid measurement hash"));
+
+        vm.expectRevert(IGuardianModule.InvalidMeasurement.selector);
+        guardianModule.rotateGuardianKey(
+            0,
+            guardian3EnclavePubKey,
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: hex"",
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+        vm.stopPrank();
+    }
+
+    function test_rotateGuardianKey_with_invalid_commitment_mismatch() public {
+        vm.startPrank(guardian1);
+
+        vm.expectRevert(IGuardianModule.CommitmentMismatch.selector);
+        guardianModule.rotateGuardianKey(
+            0,
+            guardian3EnclavePubKey,
+            TdxRegistrationData({
+                teeType: TEEType.IntelTDX,
+                teeReportType: TeeReportType.Solidity,
+                cloudType: CloudType.GCP,
+                teeAttestationReport: abi.encodePacked(
+                    keccak256(abi.encodePacked(guardian2EnclavePubKey, blockhash(block.number)))
+                ),
+                workloadCollaterals: _createEmptyWorkloadCollaterals()
+            })
+        );
+        vm.stopPrank();
+    }
 
     function test_addGuardian(address guardian) public assumeEOA(guardian) {
         vm.startPrank(DAO);
@@ -106,21 +165,6 @@ contract GuardianModuleTest is UnitTestHelper {
         vm.expectRevert();
         guardianModule.setThreshold(5);
     }
-    // TODO [TDX] Update rotateGuardianKey tests
-    // function test_rotateGuardianKey_with_invalid_rave_reverts() public {
-    //     Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
-
-    //     vm.startPrank(guardian1);
-
-    //     RaveEvidence memory rave = RaveEvidence({
-    //         report: guardian2Rave.report(),
-    //         signature: guardian2Rave.sig(),
-    //         leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-    //     });
-
-    //     vm.expectRevert(IGuardianModule.InvalidRAVE.selector);
-    //     guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, rave);
-    // }
 
     // Invalid signature reverts with unauthorized
     function test_validateSkipProvisioning_reverts() public {

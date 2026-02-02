@@ -295,6 +295,16 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes calldata pubKey,
         TdxRegistrationData calldata data // TDX DCAP
     ) external payable {
+        address guardian = msg.sender;
+
+        if (!_guardians.contains(guardian)) {
+            revert Unauthorized();
+        }
+
+        if (pubKey.length != _ECDSA_KEY_LENGTH) {
+            revert InvalidECDSAPubKey();
+        }
+
         (, bytes32 measurementHash, bytes memory tpmExtraData) = WORKLOAD_VERIFIER
             .verifyAttestationAndGetMeasurementHash{ value: msg.value }(
             data.teeType, data.teeReportType, data.cloudType, data.teeAttestationReport, data.workloadCollaterals
@@ -306,8 +316,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         require(bytes32(tpmExtraData) == expectedCommitment, CommitmentMismatch());
 
         // Register guardian
-
-        address guardian = msg.sender;
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
         address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
 
