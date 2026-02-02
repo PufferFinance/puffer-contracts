@@ -9,7 +9,6 @@ import {
 } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
 
 contract WorkloadVerifierMock {
-
     bytes32 public mockMeasurementHash;
 
     function verifyAttestationAndGetMeasurementHash(

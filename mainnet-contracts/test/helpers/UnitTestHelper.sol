@@ -296,7 +296,9 @@ contract UnitTestHelper is Test, BaseScript {
                 teeType: TEEType.IntelTDX,
                 teeReportType: TeeReportType.Solidity,
                 cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian1EnclavePubKey, blockhash(block.number)))),
+                teeAttestationReport: abi.encodePacked(
+                    keccak256(abi.encodePacked(guardian1EnclavePubKey, blockhash(block.number)))
+                ),
                 workloadCollaterals: _createEmptyWorkloadCollaterals()
             })
         );
@@ -312,7 +314,9 @@ contract UnitTestHelper is Test, BaseScript {
                 teeType: TEEType.IntelTDX,
                 teeReportType: TeeReportType.Solidity,
                 cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian2EnclavePubKey, blockhash(block.number)))),
+                teeAttestationReport: abi.encodePacked(
+                    keccak256(abi.encodePacked(guardian2EnclavePubKey, blockhash(block.number)))
+                ),
                 workloadCollaterals: _createEmptyWorkloadCollaterals()
             })
         );
@@ -328,12 +332,13 @@ contract UnitTestHelper is Test, BaseScript {
                 teeType: TEEType.IntelTDX,
                 teeReportType: TeeReportType.Solidity,
                 cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(keccak256(abi.encodePacked(guardian3EnclavePubKey, blockhash(block.number)))),
+                teeAttestationReport: abi.encodePacked(
+                    keccak256(abi.encodePacked(guardian3EnclavePubKey, blockhash(block.number)))
+                ),
                 workloadCollaterals: _createEmptyWorkloadCollaterals()
             })
         );
         vm.stopPrank();
-
 
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
