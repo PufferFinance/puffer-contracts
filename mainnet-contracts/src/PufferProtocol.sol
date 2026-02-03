@@ -477,6 +477,9 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @param validatorIndex The index of the validator
      * @param withdrawalAmount The amount of ETH withdrawn from the validator
      * @dev Restricted to authorized roles. Updates oracle and marks validator as exited.
+     *      Oracle is updated based on actual withdrawal amount to ensure accurate totalAssets() accounting.
+     *      If withdrawalAmount < stakeAmount, a slashing event is emitted for transparency.
+     *      If withdrawalAmount > stakeAmount, extra is considered rewards (oracle only deducts stake).
      */
     function handlePermissionedValidatorExit(
         bytes32 moduleName,
@@ -499,8 +502,25 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         uint256 stakeAmount = uint256(validator.stakeAmountGwei) * 1 gwei;
         bytes memory pubKey = validator.pubKey;
 
-        // Update oracle
-        PUFFER_PERMISSIONED_ORACLE.exitValidator(moduleName, stakeAmount);
+        // Proper oracle accounting based on actual withdrawal amount
+        // If slashing occurred (withdrawalAmount < stakeAmount):
+        //   - First adjust for slashing loss, then exit with remaining amount
+        // If rewards accrued (withdrawalAmount >= stakeAmount):
+        //   - Exit with original stake amount only (rewards are extra)
+        if (withdrawalAmount < stakeAmount) {
+            // Slashing detected - emit event for transparency and tracking
+            uint256 slashingLoss = stakeAmount - withdrawalAmount;
+            emit PermissionedValidatorSlashingDetected(
+                moduleName, validatorIndex, stakeAmount, withdrawalAmount, slashingLoss
+            );
+            // Adjust for slashing loss first, then exit with actual withdrawal
+            PUFFER_PERMISSIONED_ORACLE.adjustLockedEth(moduleName, slashingLoss);
+            PUFFER_PERMISSIONED_ORACLE.exitValidator(moduleName, withdrawalAmount);
+        } else {
+            // No slashing (withdrawalAmount >= stakeAmount) - exit with original stake
+            // Any extra is rewards and will be reflected in module/vault balance
+            PUFFER_PERMISSIONED_ORACLE.exitValidator(moduleName, stakeAmount);
+        }
 
         // Delete validator data (same as batchHandleWithdrawals for external validators)
         delete $.permissionedValidators[moduleName][validatorIndex];
@@ -514,6 +534,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @param validatorIndex The index of the validator to skip
      * @dev Restricted to authorized roles. Only PENDING validators can be skipped.
      *      Unlike external validators, no VT penalty since permissioned validators don't pay VT.
+     *      Only the next validator in line can be skipped (FIFO ordering enforced).
+     *      This ensures consistent index tracking and prevents skipped validator tracking issues.
      */
     function skipPermissionedProvisioning(bytes32 moduleName, uint256 validatorIndex) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
@@ -521,6 +543,13 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Bounds check
         if (validatorIndex >= $.pendingPermissionedValidatorIndices[moduleName]) {
             revert InvalidValidatorIndex();
+        }
+
+        // Enforce FIFO ordering - only allow skipping the next validator in line
+        // This ensures nextPermissionedValidatorToBeProvisionedIndices stays consistent
+        uint256 nextToProvision = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
+        if (validatorIndex != nextToProvision) {
+            revert MustSkipNextValidator(nextToProvision, validatorIndex);
         }
 
         PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
@@ -534,10 +563,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Delete validator data
         delete $.permissionedValidators[moduleName][validatorIndex];
 
-        // Update next to be provisioned index if this was the next in line
-        if ($.nextPermissionedValidatorToBeProvisionedIndices[moduleName] == validatorIndex) {
-            $.nextPermissionedValidatorToBeProvisionedIndices[moduleName] = validatorIndex + 1;
-        }
+        // Always update next to be provisioned index (guaranteed to be the skipped one due to FIFO check)
+        $.nextPermissionedValidatorToBeProvisionedIndices[moduleName] = validatorIndex + 1;
 
         emit PermissionedValidatorSkipped(pubKey, validatorIndex, moduleName);
     }

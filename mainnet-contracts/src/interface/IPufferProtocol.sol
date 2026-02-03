@@ -98,6 +98,29 @@ interface IPufferProtocol {
     error InvalidValidatorIndex();
 
     /**
+     * @notice Thrown when trying to skip a validator that is not next in line for provisioning
+     * @param expected The expected validator index (next in line)
+     * @param actual The actual validator index that was provided
+     */
+    error MustSkipNextValidator(uint256 expected, uint256 actual);
+
+    /**
+     * @notice Emitted when a permissioned validator experiences slashing loss
+     * @param moduleName The module name
+     * @param validatorIndex The validator index
+     * @param stakeAmount The original stake amount
+     * @param withdrawalAmount The actual withdrawal amount
+     * @param slashingLoss The slashing loss (stakeAmount - withdrawalAmount)
+     */
+    event PermissionedValidatorSlashingDetected(
+        bytes32 indexed moduleName,
+        uint256 indexed validatorIndex,
+        uint256 stakeAmount,
+        uint256 withdrawalAmount,
+        uint256 slashingLoss
+    );
+
+    /**
      * @notice Emitted when the number of active validators changes
      * @dev Signature "0xc06afc2b3c88873a9be580de9bbbcc7fea3027ef0c25fd75d5411ed3195abcec"
      */
