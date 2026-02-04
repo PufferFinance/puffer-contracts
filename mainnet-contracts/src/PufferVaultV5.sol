@@ -131,8 +131,9 @@ contract PufferVaultV5 is
             callValue := callvalue()
         }
         return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + _WETH.balanceOf(address(this))
-            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount() + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount()
-            - getTotalRewardDepositAmount() - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount();
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount()
+            + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount() - getTotalRewardDepositAmount()
+            - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount();
     }
 
     /**

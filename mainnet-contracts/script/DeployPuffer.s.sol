@@ -164,7 +164,7 @@ contract DeployPuffer is BaseScript {
                 oracle: IPufferOracleV2(oracle),
                 beaconDepositContract: getStakingContract(),
                 permissionedOracle: IPermissionedOracle(address(0)) // Will be set in upgrade
-            });
+             });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));

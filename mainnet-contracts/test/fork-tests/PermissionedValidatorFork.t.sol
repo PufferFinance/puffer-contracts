@@ -131,9 +131,8 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         vm.label(address(newProtocolImpl), "PufferProtocolNewImpl");
 
         // Deploy new PufferModuleManager implementation
-        PufferModuleManager newModuleManagerImpl = new PufferModuleManager(
-            _getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol()
-        );
+        PufferModuleManager newModuleManagerImpl =
+            new PufferModuleManager(_getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol());
         vm.label(address(newModuleManagerImpl), "PufferModuleManagerNewImpl");
 
         // Execute upgrades through Timelock as COMMUNITY_MULTISIG (instant execution, no delay)
@@ -142,36 +141,29 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         bool success;
 
         // 1. Upgrade PufferProtocol via Timelock
-        bytes memory protocolUpgradeCalldata = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall,
-            (address(newProtocolImpl), "")
-        );
+        bytes memory protocolUpgradeCalldata =
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newProtocolImpl), ""));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (_getPufferProtocol(), protocolUpgradeCalldata, 1))
         );
         require(success, "PufferProtocol upgrade failed");
 
         // 2. Upgrade PufferModuleManager via Timelock
-        bytes memory moduleManagerUpgradeCalldata = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall,
-            (address(newModuleManagerImpl), "")
-        );
+        bytes memory moduleManagerUpgradeCalldata =
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newModuleManagerImpl), ""));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (_getPufferModuleManager(), moduleManagerUpgradeCalldata, 2))
         );
         require(success, "PufferModuleManager upgrade failed");
 
         // 3. Set permissioned module beacon via Timelock -> AccessManager -> PufferModuleManager
-        bytes memory setBeaconCalldata = abi.encodeCall(
-            PufferModuleManager.setPermissionedModuleBeacon,
-            (address(permissionedModuleBeacon))
-        );
+        bytes memory setBeaconCalldata =
+            abi.encodeCall(PufferModuleManager.setPermissionedModuleBeacon, (address(permissionedModuleBeacon)));
         // First, grant the DAO role permission to call setPermissionedModuleBeacon
         bytes4[] memory beaconSelectors = new bytes4[](1);
         beaconSelectors[0] = PufferModuleManager.setPermissionedModuleBeacon.selector;
         bytes memory grantBeaconRoleCalldata = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
+            accessManager.setTargetFunctionRole, (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), grantBeaconRoleCalldata, 3))
@@ -198,10 +190,8 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         // Grant ROLE_ID_DAO to dao address for createPermissionedModule
         selectors = new bytes4[](1);
         selectors[0] = PufferProtocol.createPermissionedModule.selector;
-        bytes memory callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_DAO)
-        );
+        bytes memory callData =
+            abi.encodeCall(accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_DAO));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
         );
@@ -218,8 +208,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         selectors = new bytes4[](1);
         selectors[0] = PufferProtocol.registerPermissionedValidatorKey.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_PERMISSIONED_OPERATOR)
+            accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_PERMISSIONED_OPERATOR)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
@@ -238,8 +227,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         selectors[1] = PufferProtocol.handlePermissionedValidatorExit.selector;
         selectors[2] = PufferProtocol.skipPermissionedProvisioning.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_OPERATIONS_PAYMASTER)
+            accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_OPERATIONS_PAYMASTER)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
@@ -273,8 +261,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         selectors[1] = PermissionedOracle.exitValidator.selector;
         selectors[2] = PermissionedOracle.adjustLockedEth.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (address(permissionedOracle), selectors, ROLE_ID_PUFFER_PROTOCOL)
+            accessManager.setTargetFunctionRole, (address(permissionedOracle), selectors, ROLE_ID_PUFFER_PROTOCOL)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
@@ -532,7 +519,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         requests[0] = IEigenPodTypes.WithdrawalRequest({
             pubkey: TEST_PUBKEY,
             amountGwei: 0 // Full exit
-        });
+         });
 
         uint256 fee = _getWithdrawalRequestFee() * requests.length;
         vm.deal(paymaster, fee);
@@ -557,7 +544,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         requests[0] = IEigenPodTypes.WithdrawalRequest({
             pubkey: TEST_PUBKEY,
             amountGwei: uint64(5 ether / 1 gwei) // 5 ETH partial withdrawal
-        });
+         });
 
         uint256 fee = _getWithdrawalRequestFee() * requests.length;
         vm.deal(paymaster, fee);
@@ -791,10 +778,8 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = NonRestakingWithdrawalCredentials.requestWithdrawal.selector;
-        bytes memory callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (nrwc, selectors, ROLE_ID_OPERATIONS_PAYMASTER)
-        );
+        bytes memory callData =
+            abi.encodeCall(accessManager.setTargetFunctionRole, (nrwc, selectors, ROLE_ID_OPERATIONS_PAYMASTER));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
         );

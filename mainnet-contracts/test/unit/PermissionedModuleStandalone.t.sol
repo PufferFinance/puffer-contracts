@@ -126,7 +126,9 @@ contract PermissionedModuleStandaloneTest is Test {
     function test_immutableAddresses() public view {
         assertEq(address(permissionedModule.PUFFER_PROTOCOL()), pufferProtocolAddr, "PUFFER_PROTOCOL mismatch");
         assertEq(
-            address(permissionedModule.PUFFER_MODULE_MANAGER()), pufferModuleManagerAddr, "PUFFER_MODULE_MANAGER mismatch"
+            address(permissionedModule.PUFFER_MODULE_MANAGER()),
+            pufferModuleManagerAddr,
+            "PUFFER_MODULE_MANAGER mismatch"
         );
         assertEq(address(permissionedModule.EIGEN_POD_MANAGER()), eigenPodManagerMock, "EIGEN_POD_MANAGER mismatch");
         assertEq(

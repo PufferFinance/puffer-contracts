@@ -86,8 +86,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
         // Create EigenPod for restaked validators
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
         // Deploy NonRestakingWithdrawalCredentials for non-restaked validators
-        $.nonRestakingWithdrawalCredentials =
-            new NonRestakingWithdrawalCredentials(address(this), initialAuthority);
+        $.nonRestakingWithdrawalCredentials = new NonRestakingWithdrawalCredentials(address(this), initialAuthority);
 
         emit NonRestakingWithdrawalCredentialsSet(address($.nonRestakingWithdrawalCredentials));
     }
@@ -240,7 +239,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
             requests[i] = IEigenPodTypes.WithdrawalRequest({
                 pubkey: pubkeys[i],
                 amountGwei: 0 // Full exit
-            });
+             });
         }
         $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
     }

@@ -439,7 +439,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         virtual
         restricted
     {
-        bytes32[] memory withdrawalRoots = PermissionedModule(payable(permissionedModule)).queueWithdrawals(sharesAmount);
+        bytes32[] memory withdrawalRoots =
+            PermissionedModule(payable(permissionedModule)).queueWithdrawals(sharesAmount);
         emit PermissionedModuleWithdrawalsQueued(permissionedModule, sharesAmount, withdrawalRoots[0]);
     }
 
@@ -457,7 +458,9 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         ISignatureUtils.SignatureWithExpiry calldata approverSignatureAndExpiry,
         bytes32 approverSalt
     ) external virtual restricted {
-        PermissionedModule(payable(permissionedModule)).callDelegateTo(operator, approverSignatureAndExpiry, approverSalt);
+        PermissionedModule(payable(permissionedModule)).callDelegateTo(
+            operator, approverSignatureAndExpiry, approverSalt
+        );
         emit PermissionedModuleDelegated(permissionedModule, operator);
     }
 

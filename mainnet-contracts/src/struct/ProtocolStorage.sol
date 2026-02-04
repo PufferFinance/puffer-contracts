@@ -68,7 +68,6 @@ struct ProtocolStorage {
      * Slot 9
      */
     uint256 vtPenalty;
-
     /**
      * @dev Mapping of Module name => idx => PermissionedValidator
      * Slot 10
@@ -83,7 +82,8 @@ struct ProtocolStorage {
      * @dev Mapping of module name to next permissioned validator to be provisioned index
      * Slot 12
      */
-    mapping(bytes32 moduleName => uint256 nextPermissionedValidatorToBeProvisionedIndex) nextPermissionedValidatorToBeProvisionedIndices;
+    mapping(bytes32 moduleName => uint256 nextPermissionedValidatorToBeProvisionedIndex)
+        nextPermissionedValidatorToBeProvisionedIndices;
     /**
      * @dev Mapping between module name and a permissioned module
      * Slot 13

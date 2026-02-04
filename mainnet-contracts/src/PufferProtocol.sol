@@ -481,11 +481,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      *      If withdrawalAmount < stakeAmount, a slashing event is emitted for transparency.
      *      If withdrawalAmount > stakeAmount, extra is considered rewards (oracle only deducts stake).
      */
-    function handlePermissionedValidatorExit(
-        bytes32 moduleName,
-        uint256 validatorIndex,
-        uint256 withdrawalAmount
-    ) external restricted {
+    function handlePermissionedValidatorExit(bytes32 moduleName, uint256 validatorIndex, uint256 withdrawalAmount)
+        external
+        restricted
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         // Bounds check: validatorIndex must be less than the number of registered validators

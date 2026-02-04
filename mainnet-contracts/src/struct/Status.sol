@@ -9,5 +9,5 @@ enum Status {
     PENDING,
     SKIPPED,
     ACTIVE,
-    FROZEN    
+    FROZEN
 }
