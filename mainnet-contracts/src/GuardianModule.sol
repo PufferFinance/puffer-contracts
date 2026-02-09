@@ -10,8 +10,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
-import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
-import { TdxRegistrationData, GoldenMeasurementInfo, GuardianData } from "./struct/GuardianModuleStructs.sol";
+import { ISessionRegistry, PublicIdentity, CVMSession } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 /**
  * @title Guardian module
@@ -37,9 +36,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal constant _EJECTION_THRESHOLD_BALANCE = 31.75 ether;
 
     /**
-     * @notice Workload Verifier smart contract
+     * @notice Session Registry smart contract
      */
-    IWorkloadVerifier public immutable WORKLOAD_VERIFIER;
+    ISessionRegistry public immutable SESSION_REGISTRY;
 
     /**
      * @dev Guardians set
@@ -57,26 +56,39 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal _ejectionThreshold;
 
     /**
-     * @dev Mapping of a Guardian's EOA to enclave data
+     * @dev Enclave data
+     * The guardian doesn't know the Secret Key of an enclave wallet
      */
-    mapping(address guardian => GuardianData data) internal _guardianEnclaves;
+    struct GuardianData {
+        uint256 nonce;
+        bytes enclavePubKey;
+        address enclaveAddress;
+    }
 
     /**
-     * @dev Mapping of Golden Measurement registry hash to GoldenMeasurementInfo
+     * @dev Mapping of a Guardian's fingerprint to enclave data
      */
-    mapping(bytes32 hash => GoldenMeasurementInfo info) internal _goldenMeasurements;
+    mapping(bytes32 ownerFingerprint => GuardianData data)
+        internal _guardianEnclaves;
 
-    constructor(IWorkloadVerifier verifier, address[] memory guardians, uint256 threshold, address pufferAuthority)
-        payable
-        AccessManaged(pufferAuthority)
-    {
-        if (address(verifier) == address(0)) {
+    /**
+     * @dev Mapping of allowed workload IDs (can be added/removed)
+     */
+    mapping(bytes32 workloadId => bool allowed) internal _allowedWorkloads;
+
+    constructor(
+        ISessionRegistry sessionRegistry,
+        address[] memory guardians,
+        uint256 threshold,
+        address pufferAuthority
+    ) payable AccessManaged(pufferAuthority) {
+        if (address(sessionRegistry) == address(0)) {
             revert InvalidAddress();
         }
         if (address(pufferAuthority) == address(0)) {
             revert InvalidAddress();
         }
-        WORKLOAD_VERIFIER = verifier;
+        SESSION_REGISTRY = sessionRegistry;
         for (uint256 i = 0; i < guardians.length; ++i) {
             _addGuardian(guardians[i]);
         }
@@ -84,7 +96,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         _setThreshold(threshold);
     }
 
-    receive() external payable { }
+    receive() external payable {}
 
     /*
      * @notice Splits the funds among the guardians
@@ -108,15 +120,19 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata eoaSignatures)
-        external
-        view
-    {
-        bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
+    function validateSkipProvisioning(
+        bytes32 moduleName,
+        uint256 skippedIndex,
+        bytes[] calldata eoaSignatures
+    ) external view {
+        bytes32 signedMessageHash = LibGuardianMessages
+            ._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+        bool validSignatures = validateGuardiansEOASignatures({
+            eoaSignatures: eoaSignatures,
+            signedMessageHash: signedMessageHash
+        });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -135,13 +151,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata enclaveSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
-            pufferModuleIndex: pufferModuleIndex,
-            pubKey: pubKey,
-            signature: signature,
-            withdrawalCredentials: withdrawalCredentials,
-            depositDataRoot: depositDataRoot
-        });
+        bytes32 signedMessageHash = LibGuardianMessages
+            ._getBeaconDepositMessageToBeSigned({
+                pufferModuleIndex: pufferModuleIndex,
+                pubKey: pubKey,
+                signature: signature,
+                withdrawalCredentials: withdrawalCredentials,
+                depositDataRoot: depositDataRoot
+            });
 
         // Check the signatures
         bool validSignatures = validateGuardiansEnclaveSignatures({
@@ -157,15 +174,18 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateBatchWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes[] calldata eoaSignatures)
-        external
-        view
-    {
-        bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+    function validateBatchWithdrawals(
+        StoppedValidatorInfo[] calldata validatorInfos,
+        bytes[] calldata eoaSignatures
+    ) external view {
+        bytes32 signedMessageHash = LibGuardianMessages
+            ._getHandleBatchWithdrawalMessage(validatorInfos);
 
         // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+        bool validSignatures = validateGuardiansEOASignatures({
+            eoaSignatures: eoaSignatures,
+            signedMessageHash: signedMessageHash
+        });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -181,12 +201,17 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata eoaSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash =
-            LibGuardianMessages._getSetNumberOfValidatorsMessage(newNumberOfValidators, epochNumber);
+        bytes32 signedMessageHash = LibGuardianMessages
+            ._getSetNumberOfValidatorsMessage(
+                newNumberOfValidators,
+                epochNumber
+            );
 
         // Check the signatures
-        bool validSignatures =
-            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
+        bool validSignatures = validateGuardiansEOASignatures({
+            eoaSignatures: eoaSignatures,
+            signedMessageHash: signedMessageHash
+        });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -196,23 +221,31 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateGuardiansEOASignatures(bytes[] calldata eoaSignatures, bytes32 signedMessageHash)
-        public
-        view
-        returns (bool)
-    {
-        return _validateSignatures(_guardians.values(), eoaSignatures, signedMessageHash);
+    function validateGuardiansEOASignatures(
+        bytes[] calldata eoaSignatures,
+        bytes32 signedMessageHash
+    ) public view returns (bool) {
+        return
+            _validateSignatures(
+                _guardians.values(),
+                eoaSignatures,
+                signedMessageHash
+            );
     }
 
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
-        public
-        view
-        returns (bool)
-    {
-        return _validateSignatures(getGuardiansEnclaveAddresses(), enclaveSignatures, signedMessageHash);
+    function validateGuardiansEnclaveSignatures(
+        bytes[] calldata enclaveSignatures,
+        bytes32 signedMessageHash
+    ) public view returns (bool) {
+        return
+            _validateSignatures(
+                getGuardiansEnclaveAddresses(),
+                enclaveSignatures,
+                signedMessageHash
+            );
     }
 
     /**
@@ -227,19 +260,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function registerGoldenMeasurement(bytes32 hash, GoldenMeasurementInfo calldata info) external restricted {
-        require(hash != bytes32(0), InvalidData());
-        _goldenMeasurements[hash] = info;
-        emit GoldenMeasurementRegistered(hash, info);
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     * @dev Restricted to the DAO
-     */
-    function deregisterGoldenMeasurement(bytes32 hash) external restricted {
-        delete _goldenMeasurements[hash];
-        emit GoldenMeasurementDeregistered(hash);
+    function setAllowedWorkload(bytes32 workloadId, bool allowed) external restricted {
+        _allowedWorkloads[workloadId] = allowed;
+        emit WorkloadAllowanceChanged(workloadId, allowed);
     }
 
     /**
@@ -258,7 +281,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function removeGuardian(address guardian) external restricted {
         splitGuardianFunds();
 
-        (bool success) = _guardians.remove(guardian);
+        bool success = _guardians.remove(guardian);
         if (success) {
             emit GuardianRemoved(guardian);
         }
@@ -290,39 +313,61 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         return _guardians.values();
     }
 
+    /**
+     * @inheritdoc IGuardianModule
+     */
     function rotateGuardianKey(
-        uint256 blockNumber,
+        bytes32 sessionId,
+        PublicIdentity calldata sessionKey,
+        uint256 nonce,
         bytes calldata pubKey,
-        TdxRegistrationData calldata data // TDX DCAP
-    ) external payable {
-        address guardian = msg.sender;
+        bytes calldata signature
+    ) external {
+        // Build rotation message (replay protection)
+        bytes32 rotationMessage = keccak256(
+            abi.encode(
+                "ROTATE_GUARDIAN_KEY",
+                nonce,
+                pubKey,
+                block.chainid,
+                address(this)
+            )
+        );
+        bool valid = SESSION_REGISTRY.verifySessionSignature(
+            sessionId,
+            sessionKey,
+            rotationMessage,
+            signature
+        );
+        require(valid, InvalidSignature());
+        // Signature verified: session is active and signature is valid
 
-        if (!_guardians.contains(guardian)) {
-            revert Unauthorized();
-        }
+        bytes32 ownerFingerprint = SESSION_REGISTRY.getSessionOwner(sessionId);
 
-        if (pubKey.length != _ECDSA_KEY_LENGTH) {
-            revert InvalidECDSAPubKey();
-        }
+        // Optional: Get more context via SESSION_REGISTRY.getSession(sessionId)
+        // Returns CVMSession with:
+        //   - workloadId: registered workload identifier
+        //   - baseImageId: trusted base image identifier
+        //   - platformProfileId: TEE platform (e.g., "gcp-tdx", "azure-snp")
+        //   - variantId: machineType variant
+        // Compare session.workloadId with allowedWorkloads mapping
+        CVMSession memory session = SESSION_REGISTRY.getSession(sessionId);
+        require(_allowedWorkloads[session.workloadId], WorkloadNotAllowed());
 
-        (, bytes32 measurementHash, bytes memory tpmExtraData) = WORKLOAD_VERIFIER
-            .verifyAttestationAndGetMeasurementHash{ value: msg.value }(
-            data.teeType, data.teeReportType, data.cloudType, data.teeAttestationReport, data.workloadCollaterals
+        // Verify nonce for replay protection (starts at 0 for new guardians)
+        GuardianData storage stored = _guardianEnclaves[ownerFingerprint];
+        require(stored.nonce == nonce, InvalidNonce());
+
+        address computedAddress = address(
+            uint160(uint256(keccak256(pubKey[1:])))
         );
 
-        require(_goldenMeasurements[measurementHash].valid, InvalidMeasurement());
+        // Update guardian's enclave data
+        stored.enclavePubKey = pubKey;
+        stored.nonce += 1;
+        stored.enclaveAddress = computedAddress;
 
-        bytes32 expectedCommitment = keccak256(abi.encodePacked(pubKey, blockhash(blockNumber)));
-        require(bytes32(tpmExtraData) == expectedCommitment, CommitmentMismatch());
-
-        // Register guardian
-        // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
-        address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
-
-        _guardianEnclaves[guardian].enclaveAddress = computedAddress;
-        _guardianEnclaves[guardian].enclavePubKey = pubKey;
-
-        emit RotatedGuardianKey(guardian, computedAddress, pubKey);
+        emit RotatedGuardianKey(ownerFingerprint, computedAddress);
     }
 
     /**
@@ -335,21 +380,28 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getGuardiansEnclaveAddress(address guardian) external view returns (address) {
+    function getGuardiansEnclaveAddress(
+        address guardian
+    ) external view returns (address) {
         return _guardianEnclaves[guardian].enclaveAddress;
     }
 
     /**
      * @inheritdoc IGuardianModule
      */
-    function getGuardiansEnclaveAddresses() public view returns (address[] memory) {
+    function getGuardiansEnclaveAddresses()
+        public
+        view
+        returns (address[] memory)
+    {
         uint256 guardiansLength = _guardians.length();
         address[] memory enclaveAddresses = new address[](guardiansLength);
 
         for (uint256 i; i < guardiansLength; ++i) {
             // If the guardian doesn't have an enclave address, we use `0xdead` address
             // The reason for this is that we use .tryRecover in signature verification, and a valid signature can be crafted to recover to address(0)
-            address enclaveAddress = _guardianEnclaves[_guardians.at(i)].enclaveAddress == address(0)
+            address enclaveAddress = _guardianEnclaves[_guardians.at(i)]
+                .enclaveAddress == address(0)
                 ? address(0x000000000000000000000000000000000000dEaD)
                 : _guardianEnclaves[_guardians.at(i)].enclaveAddress;
             enclaveAddresses[i] = enclaveAddress;
@@ -361,12 +413,17 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getGuardiansEnclavePubkeys() external view returns (bytes[] memory) {
+    function getGuardiansEnclavePubkeys()
+        external
+        view
+        returns (bytes[] memory)
+    {
         uint256 guardiansLength = _guardians.length();
         bytes[] memory enclavePubkeys = new bytes[](guardiansLength);
 
         for (uint256 i; i < guardiansLength; ++i) {
-            enclavePubkeys[i] = _guardianEnclaves[_guardians.at(i)].enclavePubKey;
+            enclavePubkeys[i] = _guardianEnclaves[_guardians.at(i)]
+                .enclavePubKey;
         }
 
         return enclavePubkeys;
@@ -382,8 +439,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getGoldenMeasurement(bytes32 hash) external view returns (GoldenMeasurementInfo memory) {
-        return _goldenMeasurements[hash];
+    function isWorkloadAllowed(
+        bytes32 workloadId
+    ) external view returns (bool) {
+        return _allowedWorkloads[workloadId];
     }
 
     function _addGuardian(address newGuardian) internal {
@@ -425,17 +484,17 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @param signedMessageHash The hash of the signed message
      * @return A boolean indicating whether the signatures are valid
      */
-    function _validateSignatures(address[] memory signers, bytes[] calldata signatures, bytes32 signedMessageHash)
-        internal
-        view
-        returns (bool)
-    {
+    function _validateSignatures(
+        address[] memory signers,
+        bytes[] calldata signatures,
+        bytes32 signedMessageHash
+    ) internal view returns (bool) {
         uint256 validSignatures;
 
         // We only count signature as valid if it's from the correct signer
         for (uint256 i; i < signers.length; ++i) {
-            (address currentSigner, ECDSA.RecoverError recoverError,) =
-                ECDSA.tryRecover(signedMessageHash, signatures[i]);
+            (address currentSigner, ECDSA.RecoverError recoverError, ) = ECDSA
+                .tryRecover(signedMessageHash, signatures[i]);
             if (recoverError == ECDSA.RecoverError.NoError) {
                 if (currentSigner == signers[i]) {
                     ++validSignatures;

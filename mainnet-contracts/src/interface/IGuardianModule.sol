@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
-import { TdxRegistrationData, GoldenMeasurementInfo } from "../struct/GuardianModuleStructs.sol";
+import { PublicIdentity } from "@automata-network/automata-tee-workload-measurement/types/Common.sol";
 
 /**
  * @title IGuardianModule interface
@@ -40,6 +40,24 @@ interface IGuardianModule {
     error CommitmentMismatch();
 
     /**
+     * @notice Thrown if the signature is not valid
+     * @dev Signature "0x8baa579f"
+     */
+    error InvalidSignature();
+
+    /**
+     * @notice Thrown if the workload is not allowed
+     * @dev Signature "0x37c9b5f1"
+     */
+    error WorkloadNotAllowed();
+
+    /**
+     * @notice Thrown if the nonce is not valid
+     * @dev Signature "0x756688fe"
+     */
+    error InvalidNonce();
+
+    /**
      * @notice Emitted when the ejection threshold is changed
      * @param oldThreshold is the old threshold value
      * @param newThreshold is the new threshold value
@@ -71,27 +89,20 @@ interface IGuardianModule {
 
     /**
      * @notice Emitted when the guardian changes guardian enclave address
-     * @param guardian is the address outside of the enclave
-     * @param guardianEnclave is the enclave address
-     * @param pubKey is the public key
-     * @dev Signature "0x14720919b20fceff2a396c4973d37c6087e4619d40c8f4003d8e44ee127461a2"
+     * @param ownerFingerprint The fingerprint of the guardian's public key
+     * @param computedAddress The computed address from the new public key
+     * @dev Signature "0x6e41f97e85009a93fbd7a9e9c885b782819739d41a903d21bb4ad7a40d1af83a"
      */
-    event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
+    event RotatedGuardianKey(bytes32 ownerFingerprint, address computedAddress);
 
     /**
-     * @notice Emitted when a new GoldenMeasurement is registered
-     * @dev 0xe5cf28b6abd2dfc43e26d77ce57814cc723f1ee29925cd92112ea764eb1e6775
-     * @param hash id of the GoldenMeasurement
-     * @param info data of the GoldenMeasurement
+     * @notice Emitted when a workload allowance is changed
+     * @param workloadId id of the workload
+     * @param allowed bool indicating whether the workload is allowed or not
+     * @dev Signature "0x73013b875c0fba87c394f60e5697094d91b6bdce94ca3c53133a34bd980e114d"
      */
-    event GoldenMeasurementRegistered(bytes32 hash, GoldenMeasurementInfo info);
+    event WorkloadAllowanceChanged(bytes32 workloadId, bool allowed);
 
-    /**
-     * @notice Emitted when a GoldenMeasurement is deregistered
-     * @dev 0x3b86a29684cb98125d16491ad1dd1d2c52f8446ba9ba6ef696cef58743d8fa84
-     * @param hash id of the GoldenMeasurement
-     */
-    event GoldenMeasurementDeregistered(bytes32 hash);
 
     /**
      * @notice Returns the enclave address registered to `guardian`
@@ -108,17 +119,12 @@ interface IGuardianModule {
     function getEjectionThreshold() external view returns (uint256);
 
     /**
-     * @notice Registers Golden Measurement
-     * @param hash id of the Golden Measurement
-     * @param info Info of the Golden Measurement
+     * @notice Set allowed workloads for guardians
+     * @dev Workload policies are managed in WorkloadRegistry
+     * @param workloadId Id of the workload
+     * @param allowed Bool indicating whether the workload is allowed or not
      */
-    function registerGoldenMeasurement(bytes32 hash, GoldenMeasurementInfo calldata info) external;
-
-    /**
-     * @notice Deregisters Golden Measurement
-     * @param hash id of the Golden Measurement
-     */
-    function deregisterGoldenMeasurement(bytes32 hash) external;
+    function setAllowedWorkload(bytes32 workloadId, bool allowed) external;
 
     /**
      * @notice Validates the update of the number of validators
@@ -237,14 +243,21 @@ interface IGuardianModule {
 
     /**
      * @notice Rotates guardian's key
-     * @dev If he caller is not a valid guardian or if the TdxRegistrationData is not valid the tx will revert
-     * @param blockNumber is the block number
+     * @dev Guardian = session owner (NOT msg.sender)
+     * Uses nonce for replay protection (starts at 0 for new guardians)
+     * @param sessionId is the session id of the guardian
+     * @param sessionKey is the session key of the guardian
+     * @param nonce is the nonce for replay protection
      * @param pubKey is the public key of the new signature
-     * @param data TdxRegistrationData to verify
+     * @param signature is the signature to verify
      */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, TdxRegistrationData calldata data)
-        external
-        payable;
+    function rotateGuardianKey(
+        bytes32 sessionId,
+        PublicIdentity calldata sessionKey,
+        uint256 nonce,
+        bytes calldata pubKey,
+        bytes calldata signature
+    ) external;
 
     /**
      * @notice Returns the guardians enclave addresses
@@ -264,9 +277,9 @@ interface IGuardianModule {
     function isGuardian(address account) external view returns (bool);
 
     /**
-     * @notice Returns the info of a GoldenMeasurement
-     * @param hash id of the GoldenMeasurement
-     * @return Info of the GoldenMeasurement
+     * @notice Returns the workload allowed status
+     * @param workloadId The workload id to check
+     * @return A boolean indicating whether the workload is allowed
      */
-    function getGoldenMeasurement(bytes32 hash) external view returns (GoldenMeasurementInfo memory);
+    function isWorkloadAllowed(bytes32 workloadId) external view returns (bool);
 }
