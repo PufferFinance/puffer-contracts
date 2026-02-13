@@ -43,12 +43,15 @@ contract PufferProtocolHandler is Test {
     // Guardians are preset for the test environment, and these are the enclave secret keys
     uint256 guardian1SKEnclave = 81165043675487275545095207072241430673874640255053335052777448899322561824201;
     address guardian1Enclave = vm.addr(guardian1SKEnclave);
-    bytes guardian1EnclavePubkey = hex"04caf1f9cd82a1284626d405d285250fd6c4f58c469fda05d7fd4f29318aae38e7ccc6f4eaced74d3e2aa3fc0576093860d3045263c4183d694a39911ee9031c73";
+    bytes guardian1EnclavePubkey =
+        hex"04caf1f9cd82a1284626d405d285250fd6c4f58c469fda05d7fd4f29318aae38e7ccc6f4eaced74d3e2aa3fc0576093860d3045263c4183d694a39911ee9031c73";
     uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
     address guardian2Enclave = vm.addr(guardian2SKEnclave);
-    bytes guardian2EnclavePubkey = hex"04f050c3ce5d575600af388f41876e2962499a97bc8fcfa4a12adf7e4a486a3be9a1db0efd899c09723f83fe490e8215fd596a5f03c819e28a8b95f3cce6238613";
+    bytes guardian2EnclavePubkey =
+        hex"04f050c3ce5d575600af388f41876e2962499a97bc8fcfa4a12adf7e4a486a3be9a1db0efd899c09723f83fe490e8215fd596a5f03c819e28a8b95f3cce6238613";
     uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
-    bytes guardian3EnclavePubkey = hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
+    bytes guardian3EnclavePubkey =
+        hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
     UnitTestHelper testhelper;
 
     address[] public actors;
@@ -634,11 +637,13 @@ contract PufferProtocolHandler is Test {
         (v, r, s) = vm.sign(guardian3SKEnclave, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-
         // Pre-computed public keys from makeAddrAndKey()
-        bytes memory guardian1OwnerPubkey = hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
-        bytes memory guardian2OwnerPubkey = hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
-        bytes memory guardian3OwnerPubkey = hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
+        bytes memory guardian1OwnerPubkey =
+            hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
+        bytes memory guardian2OwnerPubkey =
+            hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
+        bytes memory guardian3OwnerPubkey =
+            hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
 
         GuardianSessionProof[] memory guardianProofs = new GuardianSessionProof[](3);
         guardianProofs[0] = GuardianSessionProof({
@@ -723,5 +728,4 @@ contract PufferProtocolHandler is Test {
         AccessManager(pufferProtocol.authority()).setTargetFunctionRole(module, selectors, ROLE_ID_PUFFER_PROTOCOL);
         vm.stopPrank();
     }
-
 }

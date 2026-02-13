@@ -16,7 +16,8 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { GenerateRevenueDepositorCalldata } from
     "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
-import { ISessionRegistry } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 /**
  * @title Deploy all protocol contracts

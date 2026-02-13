@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import {CVMSession, PublicIdentity} from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {
+    CVMSession,
+    PublicIdentity
+} from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract SessionRegistryMock {
+    function getSession(bytes32 sessionId) external view returns (CVMSession memory session) { }
 
-    function getSession(bytes32 sessionId) external view returns (CVMSession memory session) {
-
-    }
-
-    function getSessionOwner(bytes32 sessionId) external view returns (bytes32 ownerFingerprint) {
-
-    }
+    function getSessionOwner(bytes32 sessionId) external view returns (bytes32 ownerFingerprint) { }
 
     function verifySessionSignature(
         bytes32 sessionId,

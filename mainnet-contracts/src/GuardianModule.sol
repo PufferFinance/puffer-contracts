@@ -10,7 +10,11 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
-import { ISessionRegistry, PublicIdentity, CVMSession } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import {
+    ISessionRegistry,
+    PublicIdentity,
+    CVMSession
+} from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
 import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
 
@@ -82,7 +86,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         _setThreshold(threshold);
     }
 
-    receive() external payable {}
+    receive() external payable { }
 
     /*
      * @notice Splits the funds among the guardians
@@ -106,19 +110,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateSkipProvisioning(
-        bytes32 moduleName,
-        uint256 skippedIndex,
-        bytes[] calldata eoaSignatures
-    ) external view {
-        bytes32 signedMessageHash = LibGuardianMessages
-            ._getSkipProvisioningMessage(moduleName, skippedIndex);
+    function validateSkipProvisioning(bytes32 moduleName, uint256 skippedIndex, bytes[] calldata eoaSignatures)
+        external
+        view
+    {
+        bytes32 signedMessageHash = LibGuardianMessages._getSkipProvisioningMessage(moduleName, skippedIndex);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: eoaSignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -137,19 +137,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         GuardianSessionProof[] calldata guardianProofs
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages
-            ._getBeaconDepositMessageToBeSigned({
-                pufferModuleIndex: pufferModuleIndex,
-                pubKey: pubKey,
-                signature: signature,
-                withdrawalCredentials: withdrawalCredentials,
-                depositDataRoot: depositDataRoot
-            });
+        bytes32 signedMessageHash = LibGuardianMessages._getBeaconDepositMessageToBeSigned({
+            pufferModuleIndex: pufferModuleIndex,
+            pubKey: pubKey,
+            signature: signature,
+            withdrawalCredentials: withdrawalCredentials,
+            depositDataRoot: depositDataRoot
+        });
 
-        bool validSessionProofs = validateSessionProofs(
-            guardianProofs,
-            signedMessageHash
-        );
+        bool validSessionProofs = validateSessionProofs(guardianProofs, signedMessageHash);
         if (!validSessionProofs) {
             revert Unauthorized();
         }
@@ -158,18 +154,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateBatchWithdrawals(
-        StoppedValidatorInfo[] calldata validatorInfos,
-        bytes[] calldata eoaSignatures
-    ) external view {
-        bytes32 signedMessageHash = LibGuardianMessages
-            ._getHandleBatchWithdrawalMessage(validatorInfos);
+    function validateBatchWithdrawals(StoppedValidatorInfo[] calldata validatorInfos, bytes[] calldata eoaSignatures)
+        external
+        view
+    {
+        bytes32 signedMessageHash = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: eoaSignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -185,17 +178,12 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes[] calldata eoaSignatures
     ) external view {
         // Recreate the message hash
-        bytes32 signedMessageHash = LibGuardianMessages
-            ._getSetNumberOfValidatorsMessage(
-                newNumberOfValidators,
-                epochNumber
-            );
+        bytes32 signedMessageHash =
+            LibGuardianMessages._getSetNumberOfValidatorsMessage(newNumberOfValidators, epochNumber);
 
         // Check the signatures
-        bool validSignatures = validateGuardiansEOASignatures({
-            eoaSignatures: eoaSignatures,
-            signedMessageHash: signedMessageHash
-        });
+        bool validSignatures =
+            validateGuardiansEOASignatures({ eoaSignatures: eoaSignatures, signedMessageHash: signedMessageHash });
 
         if (!validSignatures) {
             revert Unauthorized();
@@ -205,25 +193,22 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateGuardiansEOASignatures(
-        bytes[] calldata eoaSignatures,
-        bytes32 signedMessageHash
-    ) public view returns (bool) {
-        return
-            _validateSignatures(
-                _guardians.values(),
-                eoaSignatures,
-                signedMessageHash
-            );
+    function validateGuardiansEOASignatures(bytes[] calldata eoaSignatures, bytes32 signedMessageHash)
+        public
+        view
+        returns (bool)
+    {
+        return _validateSignatures(_guardians.values(), eoaSignatures, signedMessageHash);
     }
 
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateSessionProofs(
-        GuardianSessionProof[] calldata guardianProofs,
-        bytes32 signedMessageHash
-    ) public view returns (bool) {
+    function validateSessionProofs(GuardianSessionProof[] calldata guardianProofs, bytes32 signedMessageHash)
+        public
+        view
+        returns (bool)
+    {
         uint256 threshold = _threshold;
         uint256 proofsLen = guardianProofs.length;
         require(proofsLen >= threshold, Unauthorized());
@@ -278,19 +263,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         guardian = address(uint160(uint256(keccak256(ownerKey.key[1:]))));
         require(_guardians.contains(guardian), Unauthorized());
 
-        bool valid = SESSION_REGISTRY.verifySessionSignature(
-            sessionId,
-            sessionKey,
-            signedMessageHash,
-            signature
-        );
+        bool valid = SESSION_REGISTRY.verifySessionSignature(sessionId, sessionKey, signedMessageHash, signature);
         require(valid, InvalidSignature());
 
         bytes32 ownerFingerprint = SESSION_REGISTRY.getSessionOwner(sessionId);
-        require(
-            ownerFingerprint == LibKey.computeKeyFingerprint(ownerKey),
-            InvalidECDSAPubKey()
-        );
+        require(ownerFingerprint == LibKey.computeKeyFingerprint(ownerKey), InvalidECDSAPubKey());
 
         CVMSession memory session = SESSION_REGISTRY.getSession(sessionId);
         require(_allowedWorkloads[session.workloadId], WorkloadNotAllowed());
@@ -308,10 +285,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function setAllowedWorkload(
-        bytes32 workloadId,
-        bool allowed
-    ) external restricted {
+    function setAllowedWorkload(bytes32 workloadId, bool allowed) external restricted {
         _allowedWorkloads[workloadId] = allowed;
         emit WorkloadAllowanceChanged(workloadId, allowed);
     }
@@ -381,9 +355,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function isWorkloadAllowed(
-        bytes32 workloadId
-    ) external view returns (bool) {
+    function isWorkloadAllowed(bytes32 workloadId) external view returns (bool) {
         return _allowedWorkloads[workloadId];
     }
 
@@ -426,17 +398,17 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @param signedMessageHash The hash of the signed message
      * @return A boolean indicating whether the signatures are valid
      */
-    function _validateSignatures(
-        address[] memory signers,
-        bytes[] calldata signatures,
-        bytes32 signedMessageHash
-    ) internal view returns (bool) {
+    function _validateSignatures(address[] memory signers, bytes[] calldata signatures, bytes32 signedMessageHash)
+        internal
+        view
+        returns (bool)
+    {
         uint256 validSignatures;
 
         // We only count signature as valid if it's from the correct signer
         for (uint256 i; i < signers.length; ++i) {
-            (address currentSigner, ECDSA.RecoverError recoverError, ) = ECDSA
-                .tryRecover(signedMessageHash, signatures[i]);
+            (address currentSigner, ECDSA.RecoverError recoverError,) =
+                ECDSA.tryRecover(signedMessageHash, signatures[i]);
             if (recoverError == ECDSA.RecoverError.NoError) {
                 if (currentSigner == signers[i]) {
                     ++validSignatures;
@@ -446,5 +418,4 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         return validSignatures < _threshold ? false : true;
     }
-
 }

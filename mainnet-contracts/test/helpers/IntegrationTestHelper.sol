@@ -10,7 +10,8 @@ import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { ISessionRegistry } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 contract IntegrationTestHelper is Test {
     address DAO = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;

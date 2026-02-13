@@ -612,11 +612,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave)
-        external
-        view
-        returns (bytes memory, uint256, uint256)
-    {
+    function getPayload(bytes32 moduleName, bool usingEnclave) external view returns (bytes memory, uint256, uint256) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));

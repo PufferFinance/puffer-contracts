@@ -239,10 +239,10 @@ interface IGuardianModule {
      * @param signedMessageHash The message hash that was signed
      * @return A boolean indicating whether the session proofs are valid and meet the threshold requirement
      */
-    function validateSessionProofs(
-        GuardianSessionProof[] calldata guardianProofs,
-        bytes32 signedMessageHash
-    )external view returns (bool);
+    function validateSessionProofs(GuardianSessionProof[] calldata guardianProofs, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Checks if an account is a guardian

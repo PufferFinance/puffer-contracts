@@ -22,7 +22,8 @@ import { PufferProtocolDeployment, BridgingDeployment } from "../../script/Deplo
 // import { TeeReportType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
 // import { MeasureablePcr } from "@automata-network/automata-tpm-attestation/interfaces/ITpmAttestation.sol";
 // import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
-import { ISessionRegistry } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -340,5 +341,4 @@ contract UnitTestHelper is Test, BaseScript {
         t.amount = amount;
         t.deadline = deadline;
     }
-
 }

@@ -1877,9 +1877,12 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
         // Pre-computed public keys from makeAddrAndKey()
-        bytes memory guardian1OwnerPubkey = hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
-        bytes memory guardian2OwnerPubkey = hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
-        bytes memory guardian3OwnerPubkey = hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
+        bytes memory guardian1OwnerPubkey =
+            hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
+        bytes memory guardian2OwnerPubkey =
+            hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
+        bytes memory guardian3OwnerPubkey =
+            hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
 
         GuardianSessionProof[] memory guardianProofs = new GuardianSessionProof[](3);
         guardianProofs[0] = GuardianSessionProof({
