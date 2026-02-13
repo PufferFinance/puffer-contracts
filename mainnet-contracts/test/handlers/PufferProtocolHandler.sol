@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
+import { GuardianSessionProof, PublicIdentity } from "../../src/interface/IGuardianModule.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { console } from "forge-std/console.sol";
@@ -26,6 +27,7 @@ import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { PufferModule } from "../../src/PufferModule.sol";
+import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
 
 struct ProvisionedValidator {
     bytes32 moduleName;
@@ -41,9 +43,12 @@ contract PufferProtocolHandler is Test {
     // Guardians are preset for the test environment, and these are the enclave secret keys
     uint256 guardian1SKEnclave = 81165043675487275545095207072241430673874640255053335052777448899322561824201;
     address guardian1Enclave = vm.addr(guardian1SKEnclave);
+    bytes guardian1EnclavePubkey = hex"04caf1f9cd82a1284626d405d285250fd6c4f58c469fda05d7fd4f29318aae38e7ccc6f4eaced74d3e2aa3fc0576093860d3045263c4183d694a39911ee9031c73";
     uint256 guardian2SKEnclave = 90480947395980135991870782913815514305328820213706480966227475230529794843518;
     address guardian2Enclave = vm.addr(guardian2SKEnclave);
+    bytes guardian2EnclavePubkey = hex"04f050c3ce5d575600af388f41876e2962499a97bc8fcfa4a12adf7e4a486a3be9a1db0efd899c09723f83fe490e8215fd596a5f03c819e28a8b95f3cce6238613";
     uint256 guardian3SKEnclave = 56094429399408807348734910221877888701411489680816282162734349635927251229227;
+    bytes guardian3EnclavePubkey = hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
     UnitTestHelper testhelper;
 
     address[] public actors;
@@ -500,8 +505,8 @@ contract PufferProtocolHandler is Test {
         if (validatorData.status == Status.PENDING) {
             bytes memory sig = _getPubKey(validatorData.pubKeypart);
 
-            bytes[] memory signatures = _getGuardianSignatures(sig);
-            pufferProtocol.provisionNode(signatures, mockValidatorSignature, bytes32(0));
+            GuardianSessionProof[] memory guardianProofs = _getGuardianProofs(sig);
+            pufferProtocol.provisionNode(guardianProofs, mockValidatorSignature, bytes32(0));
 
             ghost_validators_validating.push(ProvisionedValidator({ moduleName: moduleName, idx: nextIdx }));
 
@@ -595,12 +600,12 @@ contract PufferProtocolHandler is Test {
     }
 
     // Copied from PufferProtocol.t.sol
-    function _getGuardianSignatures(bytes memory pubKey) internal view returns (bytes[] memory) {
+    function _getGuardianProofs(bytes memory pubKey) internal view returns (GuardianSessionProof[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);
         // If there is no module return empty byte array
         if (validator.module == address(0)) {
-            return new bytes[](0);
+            return new GuardianSessionProof[](0);
         }
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
@@ -616,10 +621,10 @@ contract PufferProtocolHandler is Test {
             })
         );
 
-        return _getGuardianEnclaveSignatures(digest);
+        return _getGuardianEnclaveProofs(digest);
     }
 
-    function _getGuardianEnclaveSignatures(bytes32 digest) internal view returns (bytes[] memory) {
+    function _getGuardianEnclaveProofs(bytes32 digest) internal view returns (GuardianSessionProof[] memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
@@ -629,12 +634,33 @@ contract PufferProtocolHandler is Test {
         (v, r, s) = vm.sign(guardian3SKEnclave, digest);
         bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
 
-        bytes[] memory guardianSignatures = new bytes[](3);
-        guardianSignatures[0] = signature1;
-        guardianSignatures[1] = signature2;
-        guardianSignatures[2] = signature3;
 
-        return guardianSignatures;
+        // Pre-computed public keys from makeAddrAndKey()
+        bytes memory guardian1OwnerPubkey = hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
+        bytes memory guardian2OwnerPubkey = hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
+        bytes memory guardian3OwnerPubkey = hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
+
+        GuardianSessionProof[] memory guardianProofs = new GuardianSessionProof[](3);
+        guardianProofs[0] = GuardianSessionProof({
+            sessionId: keccak256("guardian1"),
+            sessionKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1EnclavePubkey }),
+            ownerKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1OwnerPubkey }),
+            signature: signature1
+        });
+        guardianProofs[1] = GuardianSessionProof({
+            sessionId: keccak256("guardian2"),
+            sessionKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2EnclavePubkey }),
+            ownerKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2OwnerPubkey }),
+            signature: signature2
+        });
+        guardianProofs[2] = GuardianSessionProof({
+            sessionId: keccak256("guardian3"),
+            sessionKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3EnclavePubkey }),
+            ownerKey: PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3OwnerPubkey }),
+            signature: signature3
+        });
+
+        return guardianProofs;
     }
 
     function _getGuardianEOASignatures(bytes32 digest) internal returns (bytes[] memory) {
@@ -697,4 +723,5 @@ contract PufferProtocolHandler is Test {
         AccessManager(pufferProtocol.authority()).setTargetFunctionRole(module, selectors, ROLE_ID_PUFFER_PROTOCOL);
         vm.stopPrank();
     }
+
 }
