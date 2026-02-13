@@ -200,7 +200,7 @@ contract DeployPuffer is BaseScript {
         vm.label(address(pufferProtocolImpl), "PufferProtocolImplementation");
         vm.label(address(moduleManagerProxy), "PufferModuleManager");
         vm.label(address(pufferModuleBeacon), "PufferModuleBeacon");
-        vm.label(address(guardiansDeployment.workloadVerifier), "WorkloadVerifier");
+        vm.label(address(guardiansDeployment.sessionRegistry), "SessionRegistry");
 
         // return (pufferProtocol, pool, accessManager);
         return PufferProtocolDeployment({
@@ -210,7 +210,7 @@ contract DeployPuffer is BaseScript {
             pufferProtocol: address(proxy),
             guardianModule: guardiansDeployment.guardianModule,
             accessManager: guardiansDeployment.accessManager,
-            workloadVerifier: guardiansDeployment.workloadVerifier,
+            sessionRegistry: guardiansDeployment.sessionRegistry,
             beacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
             moduleManager: address(moduleManagerProxy),

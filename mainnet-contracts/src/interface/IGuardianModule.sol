@@ -4,6 +4,13 @@ pragma solidity >=0.8.0 <0.9.0;
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 import { PublicIdentity } from "@automata-network/automata-tee-workload-measurement/types/Common.sol";
 
+struct GuardianSessionProof {
+    bytes32 sessionId;
+    PublicIdentity sessionKey;
+    PublicIdentity ownerKey;
+    bytes signature;
+}
+
 /**
  * @title IGuardianModule interface
  * @author Puffer Finance
@@ -103,12 +110,6 @@ interface IGuardianModule {
      */
     event WorkloadAllowanceChanged(bytes32 workloadId, bool allowed);
 
-
-    /**
-     * @notice Returns the enclave address registered to `guardian`
-     */
-    function getGuardiansEnclaveAddress(address guardian) external view returns (address);
-
     /**
      * @notice Returns the ejection threshold ETH value
      * @dev The ejection threshold is the minimum amount of ETH on the beacon chain required do the validation duties
@@ -156,7 +157,7 @@ interface IGuardianModule {
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
      * @param depositDataRoot The deposit data root
-     * @param guardianEnclaveSignatures The guardian enclave signatures
+     * @param guardianProofs The guardian session proofs
      */
     function validateProvisionNode(
         uint256 pufferModuleIndex,
@@ -164,7 +165,7 @@ interface IGuardianModule {
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,
-        bytes[] calldata guardianEnclaveSignatures
+        GuardianSessionProof[] calldata guardianProofs
     ) external view;
 
     /**
@@ -220,17 +221,6 @@ interface IGuardianModule {
     function setEjectionThreshold(uint256 newThreshold) external;
 
     /**
-     * @dev Validates the signatures of the guardians' enclave signatures
-     * @param enclaveSignatures The array of enclave signatures
-     * @param signedMessageHash The hash of the signed message
-     * @return A boolean indicating whether the signatures are valid
-     */
-    function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
-        external
-        view
-        returns (bool);
-
-    /**
      * @dev Validates the signatures of the guardians' EOAs.
      * @param eoaSignatures The array of EOAs' signatures.
      * @param signedMessageHash The hash of the signed message.
@@ -242,32 +232,17 @@ interface IGuardianModule {
         returns (bool);
 
     /**
-     * @notice Rotates guardian's key
-     * @dev Guardian = session owner (NOT msg.sender)
-     * Uses nonce for replay protection (starts at 0 for new guardians)
-     * @param sessionId is the session id of the guardian
-     * @param sessionKey is the session key of the guardian
-     * @param nonce is the nonce for replay protection
-     * @param pubKey is the public key of the new signature
-     * @param signature is the signature to verify
+     * @dev Validates an array of guardian session proofs against a message hash.
+     * Verifies each proof via SessionRegistry (including workload), prevents duplicate
+     * guardian counting, and requires at least `_threshold` unique valid guardian proofs.
+     * @param guardianProofs The array of guardian session proofs
+     * @param signedMessageHash The message hash that was signed
+     * @return A boolean indicating whether the session proofs are valid and meet the threshold requirement
      */
-    function rotateGuardianKey(
-        bytes32 sessionId,
-        PublicIdentity calldata sessionKey,
-        uint256 nonce,
-        bytes calldata pubKey,
-        bytes calldata signature
-    ) external;
-
-    /**
-     * @notice Returns the guardians enclave addresses
-     */
-    function getGuardiansEnclaveAddresses() external view returns (address[] memory);
-
-    /**
-     * @notice Returns the guardians enclave public keys
-     */
-    function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
+    function validateSessionProofs(
+        GuardianSessionProof[] calldata guardianProofs,
+        bytes32 signedMessageHash
+    )external view returns (bool);
 
     /**
      * @notice Checks if an account is a guardian

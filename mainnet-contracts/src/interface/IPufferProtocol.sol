@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { Validator } from "../struct/Validator.sol";
 import { ValidatorKeyData } from "../struct/ValidatorKeyData.sol";
-import { IGuardianModule } from "../interface/IGuardianModule.sol";
+import { IGuardianModule, GuardianSessionProof } from "../interface/IGuardianModule.sol";
 import { PufferModuleManager } from "../PufferModuleManager.sol";
 import { PufferVaultV5 } from "../PufferVaultV5.sol";
 import { IPufferOracleV2 } from "../interface/IPufferOracleV2.sol";
@@ -282,7 +282,7 @@ interface IPufferProtocol {
      * @dev You can check who is next for provisioning by calling `getNextValidatorToProvision` method
      */
     function provisionNode(
-        bytes[] calldata guardianEnclaveSignatures,
+        GuardianSessionProof[] calldata guardianPro,
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external;

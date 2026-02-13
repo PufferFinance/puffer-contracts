@@ -267,13 +267,12 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupGuardianModuleRoles() internal view returns (bytes memory) {
-        bytes4[] memory selectors = new bytes4[](6);
-        selectors[0] = GuardianModule.registerGoldenMeasurement.selector;
-        selectors[1] = GuardianModule.deregisterGoldenMeasurement.selector;
-        selectors[2] = GuardianModule.addGuardian.selector;
-        selectors[3] = GuardianModule.removeGuardian.selector;
-        selectors[4] = GuardianModule.setEjectionThreshold.selector;
-        selectors[5] = GuardianModule.setThreshold.selector;
+        bytes4[] memory selectors = new bytes4[](5);
+        selectors[0] = GuardianModule.setAllowedWorkload.selector;
+        selectors[1] = GuardianModule.addGuardian.selector;
+        selectors[2] = GuardianModule.removeGuardian.selector;
+        selectors[3] = GuardianModule.setEjectionThreshold.selector;
+        selectors[4] = GuardianModule.setThreshold.selector;
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.guardianModule, selectors, ROLE_ID_DAO

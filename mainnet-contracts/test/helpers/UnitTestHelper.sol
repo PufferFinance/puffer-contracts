@@ -13,15 +13,16 @@ import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
-import {
-    IWorkloadVerifier,
-    TEEType,
-    CloudType,
-    WorkloadCollaterals
-} from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
-import { TeeReportType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
-import { MeasureablePcr } from "@automata-network/automata-tpm-attestation/interfaces/ITpmAttestation.sol";
-import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
+// import {
+//     IWorkloadVerifier,
+//     TEEType,
+//     CloudType,
+//     WorkloadCollaterals
+// } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+// import { TeeReportType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
+// import { MeasureablePcr } from "@automata-network/automata-tpm-attestation/interfaces/ITpmAttestation.sol";
+// import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
+import { ISessionRegistry } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -43,7 +44,7 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
-import { WorkloadVerifierMock } from "../mocks/WorkloadVerifierMock.sol";
+import { SessionRegistryMock } from "../mocks/SessionRegistryMock.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -108,7 +109,7 @@ contract UnitTestHelper is Test, BaseScript {
     GuardianModule public guardianModule;
 
     AccessManager public accessManager;
-    IWorkloadVerifier public verifier;
+    ISessionRegistry public sessionRegistry;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
     RestakingOperatorController public restakingOperatorController;
@@ -179,7 +180,7 @@ contract UnitTestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
         fuzzedAddressMapping[address(guardianModule)] = true;
-        fuzzedAddressMapping[address(verifier)] = true;
+        fuzzedAddressMapping[address(sessionRegistry)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
@@ -208,19 +209,19 @@ contract UnitTestHelper is Test, BaseScript {
         guardians[1] = guardian2;
         guardians[2] = guardian3;
 
-        WorkloadVerifierMock workloadVerifierMock = new WorkloadVerifierMock();
+        SessionRegistryMock sessionRegistryMock = new SessionRegistryMock();
 
         // Deploy everything with one script
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
         (pufferDeployment, bridgingDeployment) =
-            new DeployEverything().run(address(workloadVerifierMock), guardians, 1, PAYMASTER);
+            new DeployEverything().run(address(sessionRegistryMock), guardians, 1, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         timelock = pufferDeployment.timelock;
-        verifier = IWorkloadVerifier(pufferDeployment.workloadVerifier);
+        sessionRegistry = ISessionRegistry(pufferDeployment.sessionRegistry);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
@@ -253,101 +254,8 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
-        // Register Golden Measurement for TDX
-        vm.startPrank(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
-        // Grant DAO role to DAO address
-        accessManager.grantRole(ROLE_ID_DAO, DAO, 0);
-        // Set up registerGoldenMeasurement function to require DAO role
-        bytes4[] memory guardianModuleSelectors = new bytes4[](1);
-        guardianModuleSelectors[0] = GuardianModule.registerGoldenMeasurement.selector;
-        accessManager.setTargetFunctionRole(address(guardianModule), guardianModuleSelectors, ROLE_ID_DAO);
-        vm.stopPrank();
-
-        // Register a test golden measurement
-        bytes32 testMeasurementHash = keccak256("test-golden-measurement");
-        vm.startPrank(DAO);
-        guardianModule.registerGoldenMeasurement(
-            testMeasurementHash,
-            GoldenMeasurementInfo({
-                valid: true,
-                teeType: TEEType.IntelTDX,
-                cloudType: CloudType.GCP,
-                tag: "test-v1.0.0"
-            })
-        );
-
-        workloadVerifierMock.setMeasurementHash(testMeasurementHash);
-        vm.stopPrank();
-
-        assertEq(
-            blockhash(block.number),
-            hex"0000000000000000000000000000000000000000000000000000000000000000",
-            "bad blockhash"
-        );
-
-        // Register enclave keys for guardians
-        vm.startPrank(guardians[0]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian1EnclavePubKey,
-            TdxRegistrationData({
-                teeType: TEEType.IntelTDX,
-                teeReportType: TeeReportType.Solidity,
-                cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(
-                    keccak256(abi.encodePacked(guardian1EnclavePubKey, blockhash(block.number)))
-                ),
-                workloadCollaterals: _createEmptyWorkloadCollaterals()
-            })
-        );
-        vm.stopPrank();
-
-        vm.startPrank(guardians[1]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            1,
-            guardian2EnclavePubKey,
-            TdxRegistrationData({
-                teeType: TEEType.IntelTDX,
-                teeReportType: TeeReportType.Solidity,
-                cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(
-                    keccak256(abi.encodePacked(guardian2EnclavePubKey, blockhash(block.number)))
-                ),
-                workloadCollaterals: _createEmptyWorkloadCollaterals()
-            })
-        );
-        vm.stopPrank();
-
-        vm.startPrank(guardians[2]);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            2,
-            guardian3EnclavePubKey,
-            TdxRegistrationData({
-                teeType: TEEType.IntelTDX,
-                teeReportType: TeeReportType.Solidity,
-                cloudType: CloudType.GCP,
-                teeAttestationReport: abi.encodePacked(
-                    keccak256(abi.encodePacked(guardian3EnclavePubKey, blockhash(block.number)))
-                ),
-                workloadCollaterals: _createEmptyWorkloadCollaterals()
-            })
-        );
-        vm.stopPrank();
-
-        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
-        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
-        assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[2]), guardian3Enclave, "bad enclave address3");
-
-        bytes[] memory pubKeys = guardianModule.getGuardiansEnclavePubkeys();
-        assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
-        assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
-        assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
+        // No longer enclave adrresses in GuardianModule
+        // TODO Check if need to config session registry mock
     }
 
     function _upgradePufferVaultToMainnet() internal {
@@ -433,14 +341,4 @@ contract UnitTestHelper is Test, BaseScript {
         t.deadline = deadline;
     }
 
-    function _createEmptyWorkloadCollaterals() internal pure returns (WorkloadCollaterals memory) {
-        return WorkloadCollaterals({
-            tpmQuote: hex"",
-            tpmSignature: hex"",
-            pcrs: new MeasureablePcr[](0),
-            reportId: hex"",
-            akPub: hex"",
-            certs: new bytes[](0)
-        });
-    }
 }

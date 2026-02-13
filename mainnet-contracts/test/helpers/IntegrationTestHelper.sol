@@ -10,7 +10,7 @@ import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { IWorkloadVerifier } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+import { ISessionRegistry } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 contract IntegrationTestHelper is Test {
     address DAO = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
@@ -22,11 +22,11 @@ contract IntegrationTestHelper is Test {
 
     AccessManager public accessManager;
 
-    IWorkloadVerifier public verifier;
+    ISessionRegistry public sessionRegistry;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
     address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
-    address WORKLOAD_VERIFIER = address(0); //TODO [TDX] Set the address of the workload verifier
+    address SESSION_REGISTRY = address(0); //TODO [TDX] Set the address of the session registry
 
     // custom block number
     function deployContractsHoodi(uint256 blockNumber) public virtual {
@@ -51,14 +51,14 @@ contract IntegrationTestHelper is Test {
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
         (PufferProtocolDeployment memory pufferDeployment,) =
-            new DeployEverything().run(WORKLOAD_VERIFIER, guardians, threshold, PAYMASTER);
+            new DeployEverything().run(SESSION_REGISTRY, guardians, threshold, PAYMASTER);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");
         accessManager = AccessManager(pufferDeployment.accessManager);
         vm.label(address(accessManager), "AccessManager");
-        verifier = IWorkloadVerifier(pufferDeployment.workloadVerifier);
-        vm.label(address(verifier), "WorkloadVerifier");
+        sessionRegistry = ISessionRegistry(pufferDeployment.sessionRegistry);
+        vm.label(address(sessionRegistry), "SessionRegistry");
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         vm.label(address(guardianModule), "GuardianModule");
         beacon = UpgradeableBeacon(pufferDeployment.beacon);

@@ -174,7 +174,9 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     // Generates a new validator key using coral https://github.com/PufferFinance/coral/tree/main
     function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
         uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
-        bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
+        // bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys(); // This is now deprecated
+        //TODO Update this if needed
+        bytes[] memory guardianPubKeys = new bytes[](numberOfGuardians);
         address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
         bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
 

@@ -286,17 +286,6 @@ contract PufferProtocolTest is UnitTestHelper {
         );
     }
 
-    function test_get_payload() public view {
-        (bytes[] memory guardianPubKeys,, uint256 threshold,) = pufferProtocol.getPayload(PUFFER_MODULE_0, false);
-
-        assertEq(guardianPubKeys[0], guardian1EnclavePubKey, "guardian1");
-        assertEq(guardianPubKeys[1], guardian2EnclavePubKey, "guardian2");
-        assertEq(guardianPubKeys[2], guardian3EnclavePubKey, "guardian3");
-
-        assertEq(guardianPubKeys.length, 3, "pubkeys len");
-        assertEq(threshold, 1, "threshold");
-    }
-
     // Try to provision a validator when there is nothing to provision
     function test_provision_reverts() public {
         (, uint256 idx) = pufferProtocol.getNextValidatorToProvision();

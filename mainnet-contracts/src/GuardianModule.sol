@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
-import { IGuardianModule } from "./interface/IGuardianModule.sol";
+import { IGuardianModule, GuardianSessionProof } from "./interface/IGuardianModule.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -11,6 +11,8 @@ import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { ISessionRegistry, PublicIdentity, CVMSession } from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
+import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
 
 /**
  * @title Guardian module
@@ -54,22 +56,6 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @dev This variable is for the Guardian's to coordinate on when to eject Puffer validators
      */
     uint256 internal _ejectionThreshold;
-
-    /**
-     * @dev Enclave data
-     * The guardian doesn't know the Secret Key of an enclave wallet
-     */
-    struct GuardianData {
-        uint256 nonce;
-        bytes enclavePubKey;
-        address enclaveAddress;
-    }
-
-    /**
-     * @dev Mapping of a Guardian's fingerprint to enclave data
-     */
-    mapping(bytes32 ownerFingerprint => GuardianData data)
-        internal _guardianEnclaves;
 
     /**
      * @dev Mapping of allowed workload IDs (can be added/removed)
@@ -148,7 +134,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,
-        bytes[] calldata enclaveSignatures
+        GuardianSessionProof[] calldata guardianProofs
     ) external view {
         // Recreate the message hash
         bytes32 signedMessageHash = LibGuardianMessages
@@ -160,13 +146,11 @@ contract GuardianModule is AccessManaged, IGuardianModule {
                 depositDataRoot: depositDataRoot
             });
 
-        // Check the signatures
-        bool validSignatures = validateGuardiansEnclaveSignatures({
-            enclaveSignatures: enclaveSignatures,
-            signedMessageHash: signedMessageHash
-        });
-
-        if (!validSignatures) {
+        bool validSessionProofs = validateSessionProofs(
+            guardianProofs,
+            signedMessageHash
+        );
+        if (!validSessionProofs) {
             revert Unauthorized();
         }
     }
@@ -236,16 +220,80 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function validateGuardiansEnclaveSignatures(
-        bytes[] calldata enclaveSignatures,
+    function validateSessionProofs(
+        GuardianSessionProof[] calldata guardianProofs,
         bytes32 signedMessageHash
     ) public view returns (bool) {
-        return
-            _validateSignatures(
-                getGuardiansEnclaveAddresses(),
-                enclaveSignatures,
-                signedMessageHash
+        uint256 threshold = _threshold;
+        uint256 proofsLen = guardianProofs.length;
+        require(proofsLen >= threshold, Unauthorized());
+
+        uint256 validSignatures;
+        address[] memory seen = new address[](proofsLen);
+
+        for (uint256 i; i < proofsLen; ++i) {
+            address guardian = _verifyGuardianSession(
+                guardianProofs[i].sessionId,
+                guardianProofs[i].sessionKey,
+                guardianProofs[i].ownerKey,
+                signedMessageHash,
+                guardianProofs[i].signature
             );
+
+            bool duplicate;
+            for (uint256 j; j < validSignatures; ++j) {
+                if (seen[j] == guardian) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) continue;
+
+            seen[validSignatures] = guardian;
+            ++validSignatures;
+        }
+
+        return validSignatures >= threshold;
+    }
+
+    /**
+     * @dev Verifies a TEE session signature, validates the session owner, and checks workload.
+     * @param sessionId The session id to verify against
+     * @param sessionKey The session's public key
+     * @param ownerKey The owner's public key (must be ES256K, 65 bytes)
+     * @param signedMessageHash The message hash that was signed
+     * @param signature The signature to verify
+     * @return guardian The guardian address derived from ownerKey
+     */
+    function _verifyGuardianSession(
+        bytes32 sessionId,
+        PublicIdentity calldata sessionKey,
+        PublicIdentity calldata ownerKey,
+        bytes32 signedMessageHash,
+        bytes calldata signature
+    ) internal view returns (address guardian) {
+        require(ownerKey.typeId == ALGO_ID_ES256K, InvalidECDSAPubKey());
+        require(ownerKey.key.length == _ECDSA_KEY_LENGTH, InvalidECDSAPubKey());
+
+        guardian = address(uint160(uint256(keccak256(ownerKey.key[1:]))));
+        require(_guardians.contains(guardian), Unauthorized());
+
+        bool valid = SESSION_REGISTRY.verifySessionSignature(
+            sessionId,
+            sessionKey,
+            signedMessageHash,
+            signature
+        );
+        require(valid, InvalidSignature());
+
+        bytes32 ownerFingerprint = SESSION_REGISTRY.getSessionOwner(sessionId);
+        require(
+            ownerFingerprint == LibKey.computeKeyFingerprint(ownerKey),
+            InvalidECDSAPubKey()
+        );
+
+        CVMSession memory session = SESSION_REGISTRY.getSession(sessionId);
+        require(_allowedWorkloads[session.workloadId], WorkloadNotAllowed());
     }
 
     /**
@@ -260,7 +308,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function setAllowedWorkload(bytes32 workloadId, bool allowed) external restricted {
+    function setAllowedWorkload(
+        bytes32 workloadId,
+        bool allowed
+    ) external restricted {
         _allowedWorkloads[workloadId] = allowed;
         emit WorkloadAllowanceChanged(workloadId, allowed);
     }
@@ -316,117 +367,8 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function rotateGuardianKey(
-        bytes32 sessionId,
-        PublicIdentity calldata sessionKey,
-        uint256 nonce,
-        bytes calldata pubKey,
-        bytes calldata signature
-    ) external {
-        // Build rotation message (replay protection)
-        bytes32 rotationMessage = keccak256(
-            abi.encode(
-                "ROTATE_GUARDIAN_KEY",
-                nonce,
-                pubKey,
-                block.chainid,
-                address(this)
-            )
-        );
-        bool valid = SESSION_REGISTRY.verifySessionSignature(
-            sessionId,
-            sessionKey,
-            rotationMessage,
-            signature
-        );
-        require(valid, InvalidSignature());
-        // Signature verified: session is active and signature is valid
-
-        bytes32 ownerFingerprint = SESSION_REGISTRY.getSessionOwner(sessionId);
-
-        // Optional: Get more context via SESSION_REGISTRY.getSession(sessionId)
-        // Returns CVMSession with:
-        //   - workloadId: registered workload identifier
-        //   - baseImageId: trusted base image identifier
-        //   - platformProfileId: TEE platform (e.g., "gcp-tdx", "azure-snp")
-        //   - variantId: machineType variant
-        // Compare session.workloadId with allowedWorkloads mapping
-        CVMSession memory session = SESSION_REGISTRY.getSession(sessionId);
-        require(_allowedWorkloads[session.workloadId], WorkloadNotAllowed());
-
-        // Verify nonce for replay protection (starts at 0 for new guardians)
-        GuardianData storage stored = _guardianEnclaves[ownerFingerprint];
-        require(stored.nonce == nonce, InvalidNonce());
-
-        address computedAddress = address(
-            uint160(uint256(keccak256(pubKey[1:])))
-        );
-
-        // Update guardian's enclave data
-        stored.enclavePubKey = pubKey;
-        stored.nonce += 1;
-        stored.enclaveAddress = computedAddress;
-
-        emit RotatedGuardianKey(ownerFingerprint, computedAddress);
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
     function getEjectionThreshold() external view returns (uint256) {
         return _ejectionThreshold;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function getGuardiansEnclaveAddress(
-        address guardian
-    ) external view returns (address) {
-        return _guardianEnclaves[guardian].enclaveAddress;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function getGuardiansEnclaveAddresses()
-        public
-        view
-        returns (address[] memory)
-    {
-        uint256 guardiansLength = _guardians.length();
-        address[] memory enclaveAddresses = new address[](guardiansLength);
-
-        for (uint256 i; i < guardiansLength; ++i) {
-            // If the guardian doesn't have an enclave address, we use `0xdead` address
-            // The reason for this is that we use .tryRecover in signature verification, and a valid signature can be crafted to recover to address(0)
-            address enclaveAddress = _guardianEnclaves[_guardians.at(i)]
-                .enclaveAddress == address(0)
-                ? address(0x000000000000000000000000000000000000dEaD)
-                : _guardianEnclaves[_guardians.at(i)].enclaveAddress;
-            enclaveAddresses[i] = enclaveAddress;
-        }
-
-        return enclaveAddresses;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function getGuardiansEnclavePubkeys()
-        external
-        view
-        returns (bytes[] memory)
-    {
-        uint256 guardiansLength = _guardians.length();
-        bytes[] memory enclavePubkeys = new bytes[](guardiansLength);
-
-        for (uint256 i; i < guardiansLength; ++i) {
-            enclavePubkeys[i] = _guardianEnclaves[_guardians.at(i)]
-                .enclavePubKey;
-        }
-
-        return enclavePubkeys;
     }
 
     /**
@@ -504,4 +446,5 @@ contract GuardianModule is AccessManaged, IGuardianModule {
 
         return validSignatures < _threshold ? false : true;
     }
+
 }

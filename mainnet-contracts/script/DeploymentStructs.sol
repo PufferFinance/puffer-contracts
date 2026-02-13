@@ -7,7 +7,7 @@ pragma solidity >=0.8.0 <0.9.0;
 struct GuardiansDeployment {
     address accessManager;
     address guardianModule;
-    address workloadVerifier;
+    address sessionRegistry;
 }
 
 /**
@@ -18,7 +18,7 @@ struct PufferProtocolDeployment {
     address pufferProtocol;
     address guardianModule;
     address accessManager;
-    address workloadVerifier;
+    address sessionRegistry;
     address beacon; // Beacon for Puffer modules
     address restakingOperatorBeacon; // Beacon for Restaking Operator
     address moduleManager;
