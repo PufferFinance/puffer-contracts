@@ -279,7 +279,6 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferProtocol), "PufferProtocol");
 
         // No longer enclave adrresses in GuardianModule
-        // TODO Check if need to config session registry mock
         guardian1OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1OwnerPubKey });
         guardian2OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2OwnerPubKey });
         guardian3OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3OwnerPubKey });

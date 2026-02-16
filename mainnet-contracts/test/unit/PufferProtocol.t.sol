@@ -1857,6 +1857,65 @@ contract PufferProtocolTest is UnitTestHelper {
         assertEq(validatorTicket.balanceOf(bob), 50 ether, "bob got the VT");
     }
 
+    function test_failing_verification() public {
+
+        vm.deal(alice, 10 ether);
+
+        vm.startPrank(alice);
+        _registerValidatorKey(bytes32("alice"), PUFFER_MODULE_0);
+        vm.stopPrank();
+
+        // No workload allowed
+        guardianModule.setAllowedWorkload(keccak256("workload1"), false);
+
+        GuardianSessionProof[] memory proofs = _getGuardianProofs(_getPubKey(bytes32("alice")));
+        bytes memory signature = _validatorSignature();
+
+        vm.expectRevert(IGuardianModule.WorkloadNotAllowed.selector);
+        pufferProtocol.provisionNode(
+           proofs, signature, DEFAULT_DEPOSIT_ROOT
+        );
+
+        guardianModule.setAllowedWorkload(keccak256("workload1"), true);
+
+        // Invalid type id
+        proofs[0].ownerKey.typeId = 0;
+
+        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+        pufferProtocol.provisionNode(
+           proofs, signature, DEFAULT_DEPOSIT_ROOT
+        );
+
+        proofs[0].ownerKey.typeId = ALGO_ID_ES256K;
+
+        // Invalid key length
+        bytes memory realOwnerKey = proofs[0].ownerKey.key;
+        proofs[0].ownerKey.key = hex"04caf1";
+
+        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+        pufferProtocol.provisionNode(
+           proofs, signature, DEFAULT_DEPOSIT_ROOT
+        );
+
+        proofs[0].ownerKey.key = realOwnerKey;
+
+        // Invalid ownerFingerprint
+        sessionRegistryMock.setSessionOwner(guardian1SessionId, bytes32("invalidFingerprint"));
+
+        vm.expectRevert(IGuardianModule.InvalidECDSAPubKey.selector);
+        pufferProtocol.provisionNode(
+           proofs, signature, DEFAULT_DEPOSIT_ROOT
+        );
+
+        // InvalidSignature
+
+        proofs[0].signature = hex"beef";
+        vm.expectRevert(IGuardianModule.InvalidSignature.selector);
+        pufferProtocol.provisionNode(
+           proofs, signature, DEFAULT_DEPOSIT_ROOT
+        );
+    }
+
     function _getGuardianProofs(bytes memory pubKey) internal view returns (GuardianSessionProof[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
         Validator memory validator = pufferProtocol.getValidatorInfo(moduleName, pendingIdx);

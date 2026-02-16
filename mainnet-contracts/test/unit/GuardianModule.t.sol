@@ -119,4 +119,31 @@ contract GuardianModuleTest is UnitTestHelper {
         assertEq(guardian3.balance, 10);
         assertEq(address(guardianModule).balance, 2);
     }
+
+    function test_setAllowedWorkload() public {
+        vm.startPrank(DAO);
+
+        bytes32 workloadId = keccak256("test_workload");
+
+        // Initially workload should not be allowed
+        assertFalse(guardianModule.isWorkloadAllowed(workloadId), "workload should not be allowed initially");
+
+        // Set workload as allowed
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.WorkloadAllowanceChanged(workloadId, true);
+        guardianModule.setAllowedWorkload(workloadId, true);
+
+        // Verify workload is now allowed
+        assertTrue(guardianModule.isWorkloadAllowed(workloadId), "workload should be allowed");
+
+        // Set workload as not allowed
+        vm.expectEmit(true, true, true, true);
+        emit IGuardianModule.WorkloadAllowanceChanged(workloadId, false);
+        guardianModule.setAllowedWorkload(workloadId, false);
+
+        // Verify workload is not allowed anymore
+        assertFalse(guardianModule.isWorkloadAllowed(workloadId), "workload should not be allowed");
+
+        vm.stopPrank();
+    }
 }
