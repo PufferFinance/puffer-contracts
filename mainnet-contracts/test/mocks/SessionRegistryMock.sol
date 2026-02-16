@@ -8,16 +8,34 @@ import {
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract SessionRegistryMock {
-    function getSession(bytes32 sessionId) external view returns (CVMSession memory session) { }
 
-    function getSessionOwner(bytes32 sessionId) external view returns (bytes32 ownerFingerprint) { }
+    mapping(bytes32 sessionId => bytes32 ownerFingerPrint) private _sessionOwners;
+    mapping(bytes32 sessionId => bytes32 workload) private _sessionWorkloads;
+
+    function getSession(bytes32 sessionId) external view returns (CVMSession memory session) {
+        return CVMSession({
+            akPubKeyFingerprint: _sessionOwners[sessionId], // Attestation Key (root of trust)
+            tpmSigningKeyFingerprint: bytes32(0), // TPM Signing Key (extracted from quote)
+            sessionKeyFingerprint: bytes32(0), // Session Key (operational key)
+            baseImageId: bytes32(0), // Associated platform image
+            workloadId: _sessionWorkloads[sessionId], // Associated workload
+            platformProfileId: bytes32(0), // Platform profile identifier
+            measurementVariantId: bytes32(0), // Measurement variant identifier
+            registeredAt: 0, // Registration timestamp
+            expiresAt: 0 // Expiration timestamp
+        });
+    }
+
+    function getSessionOwner(bytes32 sessionId) external view returns (bytes32 ownerFingerprint) {
+        return _sessionOwners[sessionId];
+     }
 
     function verifySessionSignature(
-        bytes32 sessionId,
+        bytes32, // sessionId
         PublicIdentity calldata sessionKey,
         bytes32 message,
         bytes calldata signature
-    ) external view returns (bool valid) {
+    ) external pure returns (bool valid) {
         return _verifySecp256k1(sessionKey.key, message, signature);
     }
 
@@ -40,5 +58,13 @@ contract SessionRegistryMock {
 
         // Valid only if recovery succeeded and address matches
         return err == ECDSA.RecoverError.NoError && recovered == expectedAddress;
+    }
+
+    function setSessionOwner(bytes32 sessionId, bytes32 ownerFingerprint) external {
+        _sessionOwners[sessionId] = ownerFingerprint;
+    }
+
+    function setSessionWorkload(bytes32 sessionId, bytes32 workload) external {
+        _sessionWorkloads[sessionId] = workload;
     }
 }

@@ -9,7 +9,7 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
-import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
+import { IGuardianModule, PublicIdentity } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
@@ -24,6 +24,8 @@ import { PufferProtocolDeployment, BridgingDeployment } from "../../script/Deplo
 // import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
 import { ISessionRegistry } from
     "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
+import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -92,6 +94,27 @@ contract UnitTestHelper is Test, BaseScript {
     uint256 public guardian3SKEnclave;
     bytes public guardian3EnclavePubKey =
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
+
+    bytes public guardian1OwnerPubKey =
+        hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
+    bytes public guardian2OwnerPubKey =
+        hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
+    bytes public guardian3OwnerPubKey =
+        hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
+
+    PublicIdentity public guardian1OwnerPublicIdentity;
+    PublicIdentity public guardian2OwnerPublicIdentity;
+    PublicIdentity public guardian3OwnerPublicIdentity;
+
+    PublicIdentity public guardian1SessionPublicIdentity;
+    PublicIdentity public guardian2SessionPublicIdentity;
+    PublicIdentity public guardian3SessionPublicIdentity;
+
+    bytes32 public guardian1SessionId;
+    bytes32 public guardian2SessionId;
+    bytes32 public guardian3SessionId;
+
+    SessionRegistryMock public sessionRegistryMock;
 
     // TDX attestation test data
     bytes public guardian1TdxAttestationReport = hex"";
@@ -210,7 +233,7 @@ contract UnitTestHelper is Test, BaseScript {
         guardians[1] = guardian2;
         guardians[2] = guardian3;
 
-        SessionRegistryMock sessionRegistryMock = new SessionRegistryMock();
+        sessionRegistryMock = new SessionRegistryMock();
 
         // Deploy everything with one script
         PufferProtocolDeployment memory pufferDeployment;
@@ -257,6 +280,21 @@ contract UnitTestHelper is Test, BaseScript {
 
         // No longer enclave adrresses in GuardianModule
         // TODO Check if need to config session registry mock
+        guardian1OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1OwnerPubKey });
+        guardian2OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2OwnerPubKey });
+        guardian3OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3OwnerPubKey });
+
+        guardian1SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1EnclavePubKey });
+        guardian2SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2EnclavePubKey });
+        guardian3SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3EnclavePubKey });
+
+        guardian1SessionId = keccak256("guardian1");
+        guardian2SessionId = keccak256("guardian2");
+        guardian3SessionId = keccak256("guardian3");
+
+        sessionRegistryMock.setSessionOwner(guardian1SessionId, LibKey.computeKeyFingerprint(guardian1OwnerPublicIdentity));
+        sessionRegistryMock.setSessionOwner(guardian2SessionId, LibKey.computeKeyFingerprint(guardian2OwnerPublicIdentity));
+        sessionRegistryMock.setSessionOwner(guardian3SessionId, LibKey.computeKeyFingerprint(guardian3OwnerPublicIdentity));
     }
 
     function _upgradePufferVaultToMainnet() internal {
@@ -341,4 +379,5 @@ contract UnitTestHelper is Test, BaseScript {
         t.amount = amount;
         t.deadline = deadline;
     }
+
 }
