@@ -291,9 +291,15 @@ contract UnitTestHelper is Test, BaseScript {
         guardian2SessionId = keccak256("guardian2");
         guardian3SessionId = keccak256("guardian3");
 
-        sessionRegistryMock.setSessionOwner(guardian1SessionId, LibKey.computeKeyFingerprint(guardian1OwnerPublicIdentity));
-        sessionRegistryMock.setSessionOwner(guardian2SessionId, LibKey.computeKeyFingerprint(guardian2OwnerPublicIdentity));
-        sessionRegistryMock.setSessionOwner(guardian3SessionId, LibKey.computeKeyFingerprint(guardian3OwnerPublicIdentity));
+        sessionRegistryMock.setSessionOwner(
+            guardian1SessionId, LibKey.computeKeyFingerprint(guardian1OwnerPublicIdentity)
+        );
+        sessionRegistryMock.setSessionOwner(
+            guardian2SessionId, LibKey.computeKeyFingerprint(guardian2OwnerPublicIdentity)
+        );
+        sessionRegistryMock.setSessionOwner(
+            guardian3SessionId, LibKey.computeKeyFingerprint(guardian3OwnerPublicIdentity)
+        );
     }
 
     function _upgradePufferVaultToMainnet() internal {
@@ -378,5 +384,4 @@ contract UnitTestHelper is Test, BaseScript {
         t.amount = amount;
         t.deadline = deadline;
     }
-
 }

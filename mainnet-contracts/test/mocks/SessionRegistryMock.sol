@@ -8,7 +8,6 @@ import {
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract SessionRegistryMock {
-
     mapping(bytes32 sessionId => bytes32 ownerFingerPrint) private _sessionOwners;
     mapping(bytes32 sessionId => bytes32 workload) private _sessionWorkloads;
 
@@ -23,12 +22,12 @@ contract SessionRegistryMock {
             measurementVariantId: bytes32(0), // Measurement variant identifier
             registeredAt: 0, // Registration timestamp
             expiresAt: 0 // Expiration timestamp
-        });
+         });
     }
 
     function getSessionOwner(bytes32 sessionId) external view returns (bytes32 ownerFingerprint) {
         return _sessionOwners[sessionId];
-     }
+    }
 
     function verifySessionSignature(
         bytes32, // sessionId
