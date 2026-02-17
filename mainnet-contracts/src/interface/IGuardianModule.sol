@@ -29,24 +29,6 @@ interface IGuardianModule {
     error InvalidThreshold(uint256 threshold);
 
     /**
-     * @notice Thrown if the data is not valid
-     * @dev Signature "0x5cb045db"
-     */
-    error InvalidData();
-
-    /**
-     * @notice Thrown if the GoldenMeasurement is not valid
-     * @dev Signature "0x69e9d3ba"
-     */
-    error InvalidMeasurement();
-
-    /**
-     * @notice Thrown if the Commitment does not match the workload verifier
-     * @dev Signature "0x5054097b"
-     */
-    error CommitmentMismatch();
-
-    /**
      * @notice Thrown if the signature is not valid
      * @dev Signature "0x8baa579f"
      */
@@ -57,12 +39,6 @@ interface IGuardianModule {
      * @dev Signature "0x37c9b5f1"
      */
     error WorkloadNotAllowed();
-
-    /**
-     * @notice Thrown if the nonce is not valid
-     * @dev Signature "0x756688fe"
-     */
-    error InvalidNonce();
 
     /**
      * @notice Emitted when the ejection threshold is changed
@@ -93,14 +69,6 @@ interface IGuardianModule {
      * @dev Signature "0xb8107d0c6b40be480ce3172ee66ba6d64b71f6b1685a851340036e6e2e3e3c52"
      */
     event GuardianRemoved(address guardian);
-
-    /**
-     * @notice Emitted when the guardian changes guardian enclave address
-     * @param ownerFingerprint The fingerprint of the guardian's public key
-     * @param computedAddress The computed address from the new public key
-     * @dev Signature "0x6e41f97e85009a93fbd7a9e9c885b782819739d41a903d21bb4ad7a40d1af83a"
-     */
-    event RotatedGuardianKey(bytes32 ownerFingerprint, address computedAddress);
 
     /**
      * @notice Emitted when a workload allowance is changed

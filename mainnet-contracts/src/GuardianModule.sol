@@ -21,7 +21,9 @@ import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurem
 /**
  * @title Guardian module
  * @author Puffer Finance
- * @dev This contract is responsible for storing enclave keys and validation of guardian's EOA/Enclave signatures
+ * @dev Manages a threshold-based guardian system that validates critical protocol operations using either
+ *      EOA signatures or TEE session signatures from Automata's Session Registry. Guardians coordinate on
+ *      validator provisioning, withdrawals, and ejections.
  * @custom:security-contact security@puffer.fi
  */
 contract GuardianModule is AccessManaged, IGuardianModule {
@@ -52,7 +54,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     EnumerableSet.AddressSet private _guardians;
 
     /**
-     * @dev Threshold for the guardians
+     * @dev Threshold for the guardians. If the number of signatures/proofs is below this threshold, the action will not be authorized
      */
     uint256 internal _threshold;
 
@@ -286,6 +288,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @dev Restricted to the DAO
      */
     function setAllowedWorkload(bytes32 workloadId, bool allowed) external restricted {
+        require(workloadId != bytes32(0), WorkloadNotAllowed());
         _allowedWorkloads[workloadId] = allowed;
         emit WorkloadAllowanceChanged(workloadId, allowed);
     }

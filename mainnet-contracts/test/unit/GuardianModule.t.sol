@@ -123,6 +123,9 @@ contract GuardianModuleTest is UnitTestHelper {
     function test_setAllowedWorkload() public {
         vm.startPrank(DAO);
 
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.WorkloadNotAllowed.selector));
+        guardianModule.setAllowedWorkload(bytes32(0), true);
+
         bytes32 workloadId = keccak256("test_workload");
 
         // Initially workload should not be allowed
