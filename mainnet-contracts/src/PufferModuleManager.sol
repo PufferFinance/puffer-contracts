@@ -535,25 +535,37 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
-     * @notice Transfers ETH from the permissioned module to the vault
+     * @notice Transfers ETH Rewards from permissioned modules to a recipient
      * @param permissionedModules The addresses of the permissioned modules
-     * @param amounts The amounts of ETH to transfer
-     * @dev Restricted to Puffer Paymaster
+     * @param amounts The amounts of ETH to transfer from each module
+     * @param recipient The recipient address (vault or external EOA/multisig)
+     * @dev If recipient is PUFFER_VAULT, ETH is sent directly to vault's receive() function,
+     *      which increases totalAssets() and improves the exchange rate for pufETH holders.
+     *      Otherwise, transfers ETH directly to the recipient.
+     *      Restricted to DAO
      */
-    function transferPermissionedModuleETHToVault(address[] calldata permissionedModules, uint256[] calldata amounts)
-        external
-        virtual
-        restricted
-    {
+    function transferPermissionedModuleETH(
+        address[] calldata permissionedModules,
+        uint256[] calldata amounts,
+        address recipient
+    ) external virtual restricted {
+        if (recipient == address(0)) revert InvalidAmount();
+        if (permissionedModules.length != amounts.length) revert InvalidAmount();
+
         uint256 totalAmount;
         for (uint256 i = 0; i < permissionedModules.length; ++i) {
-            (bool success,) = PermissionedModule(payable(permissionedModules[i])).call(address(this), amounts[i], "");
-            if (!success) {
+            (bool callSuccess,) =
+                PermissionedModule(payable(permissionedModules[i])).call(address(this), amounts[i], "");
+            if (!callSuccess) {
                 revert InvalidAmount();
             }
             totalAmount += amounts[i];
         }
-        PufferVaultV5(PUFFER_VAULT).depositRewards{ value: totalAmount }();
+
+        (bool transferSuccess,) = recipient.call{ value: totalAmount }("");
+        if (!transferSuccess) revert InvalidAmount();
+
+        emit PermissionedModuleETHTransferred(permissionedModules, amounts, recipient, totalAmount);
     }
 
     /**

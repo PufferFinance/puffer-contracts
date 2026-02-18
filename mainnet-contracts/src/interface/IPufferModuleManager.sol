@@ -195,4 +195,15 @@ interface IPufferModuleManager {
     event PermissionedNonRestakedValidatorWithdrawalsTriggered(
         address indexed permissionedModule, IEigenPodTypes.WithdrawalRequest[] requests
     );
+
+    /**
+     * @notice Emitted when ETH is transferred from permissioned modules
+     * @param permissionedModules The addresses of the permissioned modules
+     * @param amounts The amounts transferred from each module
+     * @param recipient The recipient address (vault or external)
+     * @param totalAmount The total amount transferred
+     */
+    event PermissionedModuleETHTransferred(
+        address[] permissionedModules, uint256[] amounts, address indexed recipient, uint256 totalAmount
+    );
 }

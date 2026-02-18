@@ -255,11 +255,10 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         require(success, "grantRole OPERATIONS_PAYMASTER failed");
 
         // Grant PufferModuleManager functions to paymaster
-        bytes4[] memory moduleManagerSelectors = new bytes4[](4);
+        bytes4[] memory moduleManagerSelectors = new bytes4[](3);
         moduleManagerSelectors[0] = PufferModuleManager.triggerRestakedValidatorsExit.selector;
         moduleManagerSelectors[1] = PufferModuleManager.triggerNonRestakedValidatorWithdrawals.selector;
         moduleManagerSelectors[2] = PufferModuleManager.withdrawNonRestakedETH.selector;
-        moduleManagerSelectors[3] = PufferModuleManager.transferPermissionedModuleETHToVault.selector;
         callData = abi.encodeCall(
             accessManager.setTargetFunctionRole,
             (_getPufferModuleManager(), moduleManagerSelectors, ROLE_ID_OPERATIONS_PAYMASTER)
@@ -268,6 +267,18 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
         );
         require(success, "setTargetFunctionRole for paymaster module manager functions failed");
+
+        // Grant PufferModuleManager ETH transfer function to DAO
+        bytes4[] memory daoModuleManagerSelectors = new bytes4[](1);
+        daoModuleManagerSelectors[0] = PufferModuleManager.transferPermissionedModuleETH.selector;
+        callData = abi.encodeCall(
+            accessManager.setTargetFunctionRole,
+            (_getPufferModuleManager(), daoModuleManagerSelectors, ROLE_ID_DAO)
+        );
+        (success,) = address(timelock).call(
+            abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
+        );
+        require(success, "setTargetFunctionRole for DAO module manager functions failed");
 
         // Grant ROLE_ID_PUFFER_PROTOCOL to PufferProtocol for oracle updates
         selectors = new bytes4[](3);
@@ -692,6 +703,225 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         vm.prank(unauthorized);
         vm.expectRevert();
         pufferModuleManager.triggerNonRestakedValidatorWithdrawals(moduleAddress, requests);
+    }
+
+    // ============ Test: ETH Transfer ============
+
+    function test_transferPermissionedModuleETH_toVault() public {
+        // Setup: Create module and fund it
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+
+        // Send ETH to the module (simulating rewards/withdrawals)
+        vm.deal(moduleAddress, 10 ether);
+
+        uint256 vaultBalanceBefore = address(pufferVault).balance;
+        uint256 totalAssetsBefore = pufferVault.totalAssets();
+        uint256 totalRewardDepositBefore = pufferVault.getTotalRewardDepositAmount();
+
+        // Transfer ETH from module to vault
+        address[] memory modules = new address[](1);
+        modules[0] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5 ether;
+
+        vm.prank(dao);
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, address(pufferVault));
+
+        // Verify vault received the ETH
+        assertEq(address(pufferVault).balance, vaultBalanceBefore + 5 ether, "Vault should receive 5 ETH");
+        assertEq(moduleAddress.balance, 5 ether, "Module should have 5 ETH remaining");
+
+        // Verify depositRewards() was NOT called - totalRewardDepositAmount should be unchanged
+        // ETH is sent directly to vault's receive() function
+        assertEq(
+            pufferVault.getTotalRewardDepositAmount(),
+            totalRewardDepositBefore,
+            "totalRewardDepositAmount should be unchanged (direct transfer, not depositRewards)"
+        );
+
+        // totalAssets should increase by 5 ETH because:
+        // - vault ETH balance increases by 5 ETH
+        // - no offsetting accounting (depositRewards not called)
+        // This means the exchange rate improves for existing pufETH holders
+        assertEq(pufferVault.totalAssets(), totalAssetsBefore + 5 ether, "totalAssets should increase by 5 ETH");
+    }
+
+    function test_transferPermissionedModuleETH_toVault_exchangeRateImproves() public {
+        // This test verifies that transferring to vault DOES improve exchange rate
+        // because ETH is sent directly (not via depositRewards)
+
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+        vm.deal(moduleAddress, 100 ether);
+
+        // Record exchange rate before (shares per 1 ETH)
+        uint256 sharesBefore = pufferVault.convertToShares(1 ether);
+
+        // Transfer large amount to vault
+        address[] memory modules = new address[](1);
+        modules[0] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 100 ether;
+
+        vm.prank(dao);
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, address(pufferVault));
+
+        // Exchange rate should improve: fewer shares per ETH (each share is worth more ETH)
+        uint256 sharesAfter = pufferVault.convertToShares(1 ether);
+        assertLt(sharesAfter, sharesBefore, "Should get fewer shares per ETH (exchange rate improved)");
+
+        // Verify totalAssets increased
+        // This confirms the ETH contributed to backing existing pufETH holders
+    }
+
+    function test_transferPermissionedModuleETH_toExternalRecipient() public {
+        // Setup: Create module and fund it
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+
+        // Send ETH to the module (simulating rewards/withdrawals)
+        vm.deal(moduleAddress, 10 ether);
+
+        // External recipient (multisig)
+        address externalRecipient = makeAddr("externalMultisig");
+        uint256 recipientBalanceBefore = externalRecipient.balance;
+
+        // Record vault state before
+        uint256 vaultBalanceBefore = address(pufferVault).balance;
+        uint256 totalAssetsBefore = pufferVault.totalAssets();
+        uint256 exchangeRateBefore = pufferVault.convertToShares(1 ether);
+
+        // Transfer ETH from module to external recipient
+        address[] memory modules = new address[](1);
+        modules[0] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 7 ether;
+
+        vm.prank(dao);
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, externalRecipient);
+
+        // Verify external recipient received the ETH
+        assertEq(externalRecipient.balance, recipientBalanceBefore + 7 ether, "External recipient should receive 7 ETH");
+        assertEq(moduleAddress.balance, 3 ether, "Module should have 3 ETH remaining");
+
+        // Verify vault is completely unaffected
+        assertEq(address(pufferVault).balance, vaultBalanceBefore, "Vault balance should be unchanged");
+        assertEq(pufferVault.totalAssets(), totalAssetsBefore, "totalAssets should be unchanged");
+        assertEq(pufferVault.convertToShares(1 ether), exchangeRateBefore, "Exchange rate should be unchanged");
+    }
+
+    function test_transferPermissionedModuleETH_multipleModules() public {
+        // Setup: Create two modules
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        bytes32 moduleName2 = bytes32("PERM_MODULE_2");
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(moduleName2);
+
+        address module1 = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+        address module2 = pufferProtocol.getPermissionedModuleAddress(moduleName2);
+
+        // Fund both modules
+        vm.deal(module1, 10 ether);
+        vm.deal(module2, 20 ether);
+
+        address externalRecipient = makeAddr("multisig");
+
+        // Transfer from both modules
+        address[] memory modules = new address[](2);
+        modules[0] = module1;
+        modules[1] = module2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 5 ether;
+        amounts[1] = 15 ether;
+
+        vm.prank(dao);
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, externalRecipient);
+
+        // Verify
+        assertEq(externalRecipient.balance, 20 ether, "Recipient should receive 20 ETH total");
+        assertEq(module1.balance, 5 ether, "Module1 should have 5 ETH remaining");
+        assertEq(module2.balance, 5 ether, "Module2 should have 5 ETH remaining");
+    }
+
+    function test_transferPermissionedModuleETH_unauthorized() public {
+        // Setup: Create module
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+        vm.deal(moduleAddress, 10 ether);
+
+        address[] memory modules = new address[](1);
+        modules[0] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5 ether;
+
+        // Try to call from unauthorized address (paymaster, not DAO)
+        vm.prank(paymaster);
+        vm.expectRevert();
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, makeAddr("recipient"));
+    }
+
+    function test_transferPermissionedModuleETH_zeroRecipient() public {
+        // Setup: Create module
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+        vm.deal(moduleAddress, 10 ether);
+
+        address[] memory modules = new address[](1);
+        modules[0] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5 ether;
+
+        // Try to send to zero address
+        vm.prank(dao);
+        vm.expectRevert();
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, address(0));
+    }
+
+    function test_transferPermissionedModuleETH_arrayLengthMismatch() public {
+        // Setup: Create module
+        vm.prank(dao);
+        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
+
+        address moduleAddress = pufferProtocol.getPermissionedModuleAddress(TEST_MODULE_NAME);
+        vm.deal(moduleAddress, 10 ether);
+
+        // Create mismatched arrays (2 modules, 1 amount)
+        address[] memory modules = new address[](2);
+        modules[0] = moduleAddress;
+        modules[1] = moduleAddress;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5 ether;
+
+        address externalRecipient = makeAddr("externalRecipient");
+
+        // Should revert due to array length mismatch
+        vm.prank(dao);
+        vm.expectRevert();
+        pufferModuleManager.transferPermissionedModuleETH(modules, amounts, externalRecipient);
+
+        // Test opposite case: 1 module, 2 amounts
+        address[] memory modules2 = new address[](1);
+        modules2[0] = moduleAddress;
+        uint256[] memory amounts2 = new uint256[](2);
+        amounts2[0] = 3 ether;
+        amounts2[1] = 2 ether;
+
+        vm.prank(dao);
+        vm.expectRevert();
+        pufferModuleManager.transferPermissionedModuleETH(modules2, amounts2, externalRecipient);
     }
 
     // ============ Test: Oracle Integration ============
