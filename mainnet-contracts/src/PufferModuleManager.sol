@@ -365,8 +365,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev NRWC (NonRestakingWithdrawalCredentials) beacon address (stored in contract storage for upgradeability)
      * keccak256(abi.encode(uint256(keccak256("PufferModuleManager.nrwcBeacon")) - 1)) & ~bytes32(uint256(0xff))
      */
-    bytes32 private constant _NRWC_BEACON_SLOT =
-        0x5e3efd71b10c8d5afd6e403b79d40030cf08570b8694200c7f3948cb18b66b00;
+    bytes32 private constant _NRWC_BEACON_SLOT = 0x5e3efd71b10c8d5afd6e403b79d40030cf08570b8694200c7f3948cb18b66b00;
 
     /**
      * @notice Sets the NRWC beacon address

@@ -18,7 +18,9 @@ interface IPermissionedModule {
      * @param permissionedModule The permissioned module that owns the NRWC
      * @param withdrawalCredentials The NRWC contract address
      */
-    event NonRestakingWithdrawalCredentialsSet(address indexed permissionedModule, address indexed withdrawalCredentials);
+    event NonRestakingWithdrawalCredentialsSet(
+        address indexed permissionedModule, address indexed withdrawalCredentials
+    );
 
     /**
      * @notice Stakes a validator via EigenLayer (restaked path)
