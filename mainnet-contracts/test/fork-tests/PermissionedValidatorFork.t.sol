@@ -272,8 +272,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         bytes4[] memory daoModuleManagerSelectors = new bytes4[](1);
         daoModuleManagerSelectors[0] = PufferModuleManager.transferPermissionedModuleETH.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferModuleManager(), daoModuleManagerSelectors, ROLE_ID_DAO)
+            accessManager.setTargetFunctionRole, (_getPufferModuleManager(), daoModuleManagerSelectors, ROLE_ID_DAO)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
