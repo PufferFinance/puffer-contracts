@@ -475,11 +475,21 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Handles the exit of a permissioned validator
      * @param moduleName The name of the permissioned module
      * @param validatorIndex The index of the validator
-     * @param withdrawalAmount The amount of ETH withdrawn from the validator
-     * @dev Restricted to authorized roles. Updates oracle and marks validator as exited.
-     *      Oracle is updated based on actual withdrawal amount to ensure accurate totalAssets() accounting.
-     *      If withdrawalAmount < stakeAmount, a slashing event is emitted for transparency.
-     *      If withdrawalAmount > stakeAmount, extra is considered rewards (oracle only deducts stake).
+     * @param withdrawalAmount The actual withdrawal amount received from beacon chain
+     * @dev Restricted to ROLE_ID_OPERATIONS_PAYMASTER.
+     *
+     *      For 0x02 (non-restaked) validators with Pectra auto-compounding:
+     *      - withdrawalAmount includes original stake + any auto-compounded rewards
+     *      - Oracle is debited only for stakeAmount (original principal)
+     *      - Extra ETH (rewards) flows to module/vault balance automatically
+     *
+     *      For 0x01 (restaked) validators:
+     *      - Rewards flow through EigenLayer delegation mechanism
+     *      - Oracle debited for full stakeAmount (always 32 ETH)
+     *
+     *      If withdrawalAmount < stakeAmount, slashing is detected:
+     *      - adjustLockedEth is called first to account for the loss
+     *      - PermissionedValidatorSlashingDetected event emitted for transparency
      */
     function handlePermissionedValidatorExit(bytes32 moduleName, uint256 validatorIndex, uint256 withdrawalAmount)
         external

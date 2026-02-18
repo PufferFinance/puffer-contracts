@@ -52,24 +52,30 @@ interface IPermissionedOracle {
     function getModuleLockedEth(bytes32 moduleName) external view returns (uint256);
 
     /**
-     * @notice Called when a permissioned validator is provisioned
+     * @notice Records ETH locked when a permissioned validator is provisioned
      * @param moduleName The module name
-     * @param amount The staked ETH amount (32-2048 ETH)
+     * @param amount The amount of ETH locked (32-2048 ETH for Pectra)
+     * @dev Restricted to ROLE_ID_PUFFER_PROTOCOL. Called by PufferProtocol during validator provisioning.
      */
     function provisionValidator(bytes32 moduleName, uint256 amount) external;
 
     /**
-     * @notice Called when a permissioned validator exits
+     * @notice Records ETH unlocked when a permissioned validator exits
      * @param moduleName The module name
-     * @param amount The exited ETH amount
+     * @param amount The amount of ETH unlocked (original principal, not including auto-compounded rewards)
+     * @dev Restricted to ROLE_ID_PUFFER_PROTOCOL. Called by PufferProtocol during exit handling.
+     *      Note: For 0x02 validators with Pectra auto-compounding, consensus rewards auto-compound
+     *      on the beacon chain and are NOT tracked here. Only the original principal stake is debited.
      */
     function exitValidator(bytes32 moduleName, uint256 amount) external;
 
     /**
-     * @notice Adjusts locked ETH amount due to slashing or inactivity penalties
+     * @notice Adjusts locked ETH due to slashing or inactivity penalties
      * @param moduleName The module name
-     * @param reductionAmount The amount to reduce from locked ETH
-     * @dev This should be called when validator balance decreases due to slashing
+     * @param reductionAmount The amount to reduce (slashing/inactivity losses only, not rewards)
+     * @dev Restricted to ROLE_ID_PUFFER_PROTOCOL. Called when validator balance decreases due to slashing.
+     *      Note: Consensus rewards auto-compound on the beacon chain and are NOT tracked here.
+     *      Only the original principal stake is tracked in moduleLockedEth.
      */
     function adjustLockedEth(bytes32 moduleName, uint256 reductionAmount) external;
 }

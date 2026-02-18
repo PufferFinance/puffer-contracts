@@ -125,6 +125,12 @@ interface IPufferModuleManager {
     event PermissionedModuleBeaconSet(address indexed beacon);
 
     /**
+     * @notice Emitted when the NRWC (NonRestakingWithdrawalCredentials) beacon is set
+     * @param beacon The address of the NRWC beacon
+     */
+    event NRWCBeaconSet(address indexed beacon);
+
+    /**
      * @notice Emitted when queued withdrawals are completed for a permissioned module
      * @param permissionedModule The address of the permissioned module
      * @param sharesWithdrawn The amount of shares withdrawn
