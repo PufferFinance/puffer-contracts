@@ -77,7 +77,7 @@ contract PufferProtocolTest is UnitTestHelper {
         // Fund no restaking module with 200 ETH
         vm.deal(NoRestakingModule, 200 ether);
 
-        // TODO Set allowed workload in GuardianModule and sessionRegistry mock
+        // Set allowed workload in GuardianModule and sessionRegistry mock
         bytes32 workload1 = keccak256("workload1");
         bytes32 workload2 = keccak256("workload2");
         bytes32 workload3 = keccak256("workload3");

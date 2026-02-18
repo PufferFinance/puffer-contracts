@@ -30,7 +30,10 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     address EIGEN_DA_SERVICE_MANAGER = 0x3FF2204A567C15dC3731140B95362ABb4b17d8ED;
     // IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
-    address private constant HOODI_WETH_ADDRESS = 0x6CeA393234314e5c12d017F46a5cc9555c79fAee;
+    address private constant HOODI_WETH_ADDRESS = 0x06EDa6073b3dE1B1Dfd58cb5615fD8188C114a88;
+    address private constant HOODI_STRATEGY_MANAGER = 0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41;
+    address private constant HOODI_WETH_STRATEGY = 0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d;
+    address private constant HOODI_DELEGATION_MANAGER = 0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
 
     function setUp() public {
         deployContractsHoodi(0); // on latest block
@@ -45,14 +48,14 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         // buy weth
         vm.startPrank(0xA85Fdcb45aaFF3C310a47FE309D4a35FAfbdc0ad); // TODO Change
         Weth(HOODI_WETH_ADDRESS).deposit{ value: 500 ether }();
-        Weth(HOODI_WETH_ADDRESS).approve(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41, type(uint256).max);
+        Weth(HOODI_WETH_ADDRESS).approve(HOODI_STRATEGY_MANAGER, type(uint256).max);
         // deposit into weth strategy
-        IStrategyManager(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41).depositIntoStrategy(
-            IStrategy(0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d), IERC20(HOODI_WETH_ADDRESS), 500 ether
+        IStrategyManager(HOODI_STRATEGY_MANAGER).depositIntoStrategy(
+            IStrategy(HOODI_WETH_STRATEGY), IERC20(HOODI_WETH_ADDRESS), 500 ether
         );
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        IDelegationManager(0x867837a9722C512e0862d8c2E15b8bE220E8b87d).delegateTo(
+        IDelegationManager(HOODI_DELEGATION_MANAGER).delegateTo(
             restakingOperator, signatureWithExpiry, bytes32(0)
         );
     }

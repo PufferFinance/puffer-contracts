@@ -14,7 +14,7 @@ import { ISessionRegistry } from
     "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 contract IntegrationTestHelper is Test {
-    address DAO = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+    address DAO = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public moduleManager;
@@ -26,8 +26,8 @@ contract IntegrationTestHelper is Test {
     ISessionRegistry public sessionRegistry;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-    address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
-    address SESSION_REGISTRY = address(0); //TODO [TDX] Set the address of the session registry
+    address PAYMASTER = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
+    address SESSION_REGISTRY = 0xD1860020870ffEd23a644d0CD4CA9E7b3Ff53D6c;
 
     // custom block number
     function deployContractsHoodi(uint256 blockNumber) public virtual {
@@ -46,7 +46,7 @@ contract IntegrationTestHelper is Test {
 
     // 'default' block number
     function deployContractsHoodi() public virtual {
-        deployContractsHoodi(1_212_252); // TODO Change
+        deployContractsHoodi(2_260_721);
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
