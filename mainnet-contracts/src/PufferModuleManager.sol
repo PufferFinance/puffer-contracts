@@ -362,6 +362,35 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     }
 
     /**
+     * @dev NRWC (NonRestakingWithdrawalCredentials) beacon address (stored in contract storage for upgradeability)
+     * keccak256(abi.encode(uint256(keccak256("PufferModuleManager.nrwcBeacon")) - 1)) & ~bytes32(uint256(0xff))
+     */
+    bytes32 private constant _NRWC_BEACON_SLOT =
+        0x5e3efd71b10c8d5afd6e403b79d40030cf08570b8694200c7f3948cb18b66b00;
+
+    /**
+     * @notice Sets the NRWC beacon address
+     * @param beacon The address of the NRWC beacon
+     * @dev Restricted to the DAO
+     */
+    function setNRWCBeacon(address beacon) external virtual restricted {
+        assembly {
+            sstore(_NRWC_BEACON_SLOT, beacon)
+        }
+        emit NRWCBeaconSet(beacon);
+    }
+
+    /**
+     * @notice Returns the NRWC beacon address
+     * @return beacon The address of the NRWC beacon
+     */
+    function getNRWCBeacon() public view returns (address beacon) {
+        assembly {
+            beacon := sload(_NRWC_BEACON_SLOT)
+        }
+    }
+
+    /**
      * @notice Create a new Permissioned module
      * @dev This function creates a new Permissioned module with the given module name
      * @param moduleName The name of the module

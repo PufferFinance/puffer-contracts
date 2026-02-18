@@ -10,14 +10,16 @@ import { ISignatureUtils } from "./interface/Eigenlayer-Slashing/ISignatureUtils
 import { IStrategy } from "./interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IEigenPod, IEigenPodTypes } from "./interface/Eigenlayer-Slashing/IEigenPod.sol";
 import { IRewardsCoordinator } from "./interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
-import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { IPermissionedModule } from "./interface/IPermissionedModule.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { NonRestakingWithdrawalCredentials } from "./NonRestakingWithdrawalCredentials.sol";
+import { PermissionedModuleStorage } from "./struct/PermissionedModuleStorage.sol";
 import { Unauthorized } from "./Errors.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
 /**
  * @title PermissionedModule
@@ -29,20 +31,16 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
     using Address for address;
     using Address for address payable;
 
+    IEigenPodManager public immutable EIGEN_POD_MANAGER;
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
+    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
+    IPufferProtocol public immutable PUFFER_PROTOCOL;
+    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
+
     /**
      * @dev Represents the Beacon Chain strategy in EigenLayer
      */
     address internal constant _BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
-
-    /**
-     * @dev Storage struct for PermissionedModule
-     * @custom:storage-location erc7201:PermissionedModule.storage
-     */
-    struct PermissionedModuleStorage {
-        bytes32 moduleName;
-        IEigenPod eigenPod;
-        NonRestakingWithdrawalCredentials nonRestakingWithdrawalCredentials;
-    }
 
     /**
      * keccak256(abi.encode(uint256(keccak256("PermissionedModule.storage")) - 1)) & ~bytes32(uint256(0xff))
@@ -50,27 +48,18 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
     bytes32 private constant _PERMISSIONED_MODULE_STORAGE =
         0x7410446085c160ccc4c2b0e41801f8ac5004a5bf87d0402533c18d1e95927d00;
 
-    IEigenPodManager public immutable EIGEN_POD_MANAGER;
-    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
-    IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
-    IBeaconDepositContract public immutable BEACON_DEPOSIT_CONTRACT;
-    IPufferProtocol public immutable PUFFER_PROTOCOL;
-    PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
-
     constructor(
         IPufferProtocol protocol,
         address eigenPodManager,
         IDelegationManager delegationManager,
         PufferModuleManager moduleManager,
-        IRewardsCoordinator rewardsCoordinator,
-        IBeaconDepositContract beaconDepositContract
+        IRewardsCoordinator rewardsCoordinator
     ) payable {
         EIGEN_POD_MANAGER = IEigenPodManager(eigenPodManager);
         EIGEN_DELEGATION_MANAGER = delegationManager;
         PUFFER_PROTOCOL = protocol;
         PUFFER_MODULE_MANAGER = moduleManager;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinator;
-        BEACON_DEPOSIT_CONTRACT = beaconDepositContract;
         _disableInitializers();
     }
 
@@ -85,10 +74,26 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
         $.moduleName = moduleName;
         // Create EigenPod for restaked validators
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
-        // Deploy NonRestakingWithdrawalCredentials for non-restaked validators
-        $.nonRestakingWithdrawalCredentials = new NonRestakingWithdrawalCredentials(address(this), initialAuthority);
 
-        emit NonRestakingWithdrawalCredentialsSet(address($.nonRestakingWithdrawalCredentials));
+        // Deploy NonRestakingWithdrawalCredentials via beacon proxy for upgradeability
+        address nrwcBeacon = PUFFER_MODULE_MANAGER.getNRWCBeacon();
+        $.nonRestakingWithdrawalCredentials = NonRestakingWithdrawalCredentials(
+            payable(
+                Create2.deploy({
+                    amount: 0,
+                    salt: keccak256(abi.encodePacked("NRWC_", address(this))),
+                    bytecode: abi.encodePacked(
+                        type(BeaconProxy).creationCode,
+                        abi.encode(
+                            nrwcBeacon,
+                            abi.encodeCall(NonRestakingWithdrawalCredentials.initialize, (address(this), initialAuthority))
+                        )
+                    )
+                })
+            )
+        );
+
+        emit NonRestakingWithdrawalCredentialsSet(address(this), address($.nonRestakingWithdrawalCredentials));
     }
 
     /**
@@ -142,7 +147,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
         bytes32 depositDataRoot,
         uint256 amount
     ) external payable onlyPufferProtocol {
-        BEACON_DEPOSIT_CONTRACT.deposit{ value: amount }(
+        PUFFER_PROTOCOL.BEACON_DEPOSIT_CONTRACT().deposit{ value: amount }(
             pubKey, getNonRestakingWithdrawalCredentials(), signature, depositDataRoot
         );
     }
