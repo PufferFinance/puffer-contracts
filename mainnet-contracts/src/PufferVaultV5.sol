@@ -112,6 +112,7 @@ contract PufferVaultV5 is
      * + WETH held in the vault contract
      * + ETH  held in the vault contract
      * + PUFFER_ORACLE.getLockedEthAmount(), which is the oracle-reported Puffer validator ETH locked in the Beacon chain
+     * + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount(), which is the ETH locked by permissioned validators (supports variable stakes 32-2048 ETH via Pectra)
      * + getTotalRewardMintAmount(), which is the total amount of rewards minted
      * - getTotalRewardDepositAmount(), which is the total amount of rewards deposited to the Vault
      * - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount(), which is the total amount of rewards pending distribution
