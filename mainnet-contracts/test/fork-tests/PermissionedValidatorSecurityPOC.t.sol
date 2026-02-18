@@ -780,12 +780,19 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
             _getEigenPodManager(),
             IDelegationManager(_getDelegationManager()),
             pufferModuleManager,
-            IRewardsCoordinator(_getRewardsCoordinator()),
-            IBeaconDepositContract(_getBeaconDepositContract())
+            IRewardsCoordinator(_getRewardsCoordinator())
         );
 
         vm.prank(COMMUNITY_MULTISIG);
         permissionedModuleBeacon = new UpgradeableBeacon(address(permissionedModuleImpl), COMMUNITY_MULTISIG);
+
+        // Deploy NonRestakingWithdrawalCredentials implementation and beacon
+        NonRestakingWithdrawalCredentials nrwcImpl = new NonRestakingWithdrawalCredentials();
+        vm.label(address(nrwcImpl), "NRWCImpl");
+
+        vm.prank(COMMUNITY_MULTISIG);
+        UpgradeableBeacon nrwcBeacon = new UpgradeableBeacon(address(nrwcImpl), COMMUNITY_MULTISIG);
+        vm.label(address(nrwcBeacon), "NRWCBeacon");
 
         PufferProtocol newProtocolImpl = new PufferProtocol(
             pufferVault,
@@ -823,12 +830,10 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         );
         require(success, "PufferModuleManager upgrade failed");
 
-        bytes memory setBeaconCalldata = abi.encodeCall(
-            PufferModuleManager.setPermissionedModuleBeacon,
-            (address(permissionedModuleBeacon))
-        );
-        bytes4[] memory beaconSelectors = new bytes4[](1);
+        // Grant DAO role permission to call setPermissionedModuleBeacon and setNRWCBeacon
+        bytes4[] memory beaconSelectors = new bytes4[](2);
         beaconSelectors[0] = PufferModuleManager.setPermissionedModuleBeacon.selector;
+        beaconSelectors[1] = PufferModuleManager.setNRWCBeacon.selector;
         bytes memory grantBeaconRoleCalldata = abi.encodeCall(
             accessManager.setTargetFunctionRole,
             (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
@@ -840,8 +845,18 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         vm.stopPrank();
 
+        // Set permissioned module beacon
+        bytes memory setBeaconCalldata = abi.encodeCall(
+            PufferModuleManager.setPermissionedModuleBeacon,
+            (address(permissionedModuleBeacon))
+        );
         vm.prank(dao);
         accessManager.execute(_getPufferModuleManager(), setBeaconCalldata);
+
+        // Set NRWC beacon
+        bytes memory setNRWCBeaconCalldata = abi.encodeCall(PufferModuleManager.setNRWCBeacon, (address(nrwcBeacon)));
+        vm.prank(dao);
+        accessManager.execute(_getPufferModuleManager(), setNRWCBeaconCalldata);
     }
 
     function _setupAccessControl() internal {
