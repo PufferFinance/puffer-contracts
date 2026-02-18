@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { Unauthorized, InvalidAmount } from "./Errors.sol";
+import { Unauthorized, InvalidAmount, InvalidAddress, TransferFailed } from "./Errors.sol";
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { PermissionedModule } from "./PermissionedModule.sol";
@@ -408,7 +408,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
 
         address beacon = getPermissionedModuleBeacon();
         if (beacon == address(0)) {
-            revert InvalidAmount(); // Beacon not set
+            revert InvalidAddress(); // Beacon not set
         }
 
         // This called from the PufferProtocol and the event is emitted there
@@ -549,7 +549,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         uint256[] calldata amounts,
         address recipient
     ) external virtual restricted {
-        if (recipient == address(0)) revert InvalidAmount();
+        if (recipient == address(0)) revert InvalidAddress();
         if (permissionedModules.length != amounts.length) revert InvalidAmount();
 
         uint256 totalAmount;
@@ -557,13 +557,13 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             (bool callSuccess,) =
                 PermissionedModule(payable(permissionedModules[i])).call(address(this), amounts[i], "");
             if (!callSuccess) {
-                revert InvalidAmount();
+                revert TransferFailed();
             }
             totalAmount += amounts[i];
         }
 
         (bool transferSuccess,) = recipient.call{ value: totalAmount }("");
-        if (!transferSuccess) revert InvalidAmount();
+        if (!transferSuccess) revert TransferFailed();
 
         emit PermissionedModuleETHTransferred(permissionedModules, amounts, recipient, totalAmount);
     }
