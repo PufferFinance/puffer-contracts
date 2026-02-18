@@ -2,17 +2,21 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IEigenPodTypes } from "./interface/Eigenlayer-Slashing/IEigenPod.sol";
-import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
+import { AccessManagedUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { NRWCStorage } from "./struct/NRWCStorage.sol";
 import { Unauthorized } from "./Errors.sol";
 
 /**
  * @title NonRestakingWithdrawalCredentials
  * @author Puffer Finance
  * @notice Non-restaked validators should point the withdrawal credentials to this contract
+ * @dev Deployed as a beacon proxy for upgradeability
  * @custom:security-contact security@puffer.fi
  */
-contract NonRestakingWithdrawalCredentials is AccessManaged {
+contract NonRestakingWithdrawalCredentials is Initializable, AccessManagedUpgradeable {
     using Address for address payable;
 
     /**
@@ -41,12 +45,23 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
     address internal constant WITHDRAWAL_REQUEST_ADDRESS = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
     /**
-     * @notice The address of the PermissionedModule that owns this contract
+     * keccak256(abi.encode(uint256(keccak256("NonRestakingWithdrawalCredentials.storage")) - 1)) & ~bytes32(uint256(0xff))
      */
-    address public immutable PERMISSIONED_MODULE;
+    bytes32 private constant _NRWC_STORAGE = 0x75f3dc1703b3796fed3f2c6268997d3515c1e8991934a39283c37518525fd700;
 
-    constructor(address permissionedModule, address accessManager) AccessManaged(accessManager) {
-        PERMISSIONED_MODULE = permissionedModule;
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @notice Initializes the NonRestakingWithdrawalCredentials contract
+     * @param permissionedModule The address of the PermissionedModule that owns this contract
+     * @param accessManager The access manager address
+     */
+    function initialize(address permissionedModule, address accessManager) external initializer {
+        __AccessManaged_init(accessManager);
+        NRWCStorage storage $ = _getNRWCStorage();
+        $.permissionedModule = permissionedModule;
     }
 
     /**
@@ -55,14 +70,23 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
     receive() external payable { }
 
     /**
+     * @notice Returns the PermissionedModule that owns this contract
+     */
+    function getPermissionedModule() public view returns (address) {
+        NRWCStorage storage $ = _getNRWCStorage();
+        return $.permissionedModule;
+    }
+
+    /**
      * @notice Withdraw accumulated ETH to the PermissionedModule
      * @dev Only callable by the PermissionedModule
      */
     function withdrawETH() external {
-        if (msg.sender != PERMISSIONED_MODULE) {
+        NRWCStorage storage $ = _getNRWCStorage();
+        if (msg.sender != $.permissionedModule) {
             revert Unauthorized();
         }
-        payable(PERMISSIONED_MODULE).sendValue(address(this).balance);
+        payable($.permissionedModule).sendValue(address(this).balance);
     }
 
     /**
@@ -98,5 +122,12 @@ contract NonRestakingWithdrawalCredentials is AccessManaged {
             revert FeeQueryFailed();
         }
         return uint256(bytes32(result));
+    }
+
+    function _getNRWCStorage() internal pure returns (NRWCStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            $.slot := _NRWC_STORAGE
+        }
     }
 }
