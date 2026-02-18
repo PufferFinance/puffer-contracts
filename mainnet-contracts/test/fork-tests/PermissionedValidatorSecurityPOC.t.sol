@@ -804,27 +804,22 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
             IPermissionedOracle(address(permissionedOracle))
         );
 
-        PufferModuleManager newModuleManagerImpl = new PufferModuleManager(
-            _getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol()
-        );
+        PufferModuleManager newModuleManagerImpl =
+            new PufferModuleManager(_getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol());
 
         vm.startPrank(COMMUNITY_MULTISIG);
 
         bool success;
 
-        bytes memory protocolUpgradeCalldata = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall,
-            (address(newProtocolImpl), "")
-        );
+        bytes memory protocolUpgradeCalldata =
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newProtocolImpl), ""));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (_getPufferProtocol(), protocolUpgradeCalldata, 1))
         );
         require(success, "PufferProtocol upgrade failed");
 
-        bytes memory moduleManagerUpgradeCalldata = abi.encodeCall(
-            UUPSUpgradeable.upgradeToAndCall,
-            (address(newModuleManagerImpl), "")
-        );
+        bytes memory moduleManagerUpgradeCalldata =
+            abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(newModuleManagerImpl), ""));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (_getPufferModuleManager(), moduleManagerUpgradeCalldata, 2))
         );
@@ -835,8 +830,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         beaconSelectors[0] = PufferModuleManager.setPermissionedModuleBeacon.selector;
         beaconSelectors[1] = PufferModuleManager.setNRWCBeacon.selector;
         bytes memory grantBeaconRoleCalldata = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
+            accessManager.setTargetFunctionRole, (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), grantBeaconRoleCalldata, 3))
@@ -868,10 +862,8 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         selectors = new bytes4[](1);
         selectors[0] = PufferProtocol.createPermissionedModule.selector;
-        bytes memory callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_DAO)
-        );
+        bytes memory callData =
+            abi.encodeCall(accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_DAO));
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
         );
@@ -886,8 +878,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         selectors = new bytes4[](1);
         selectors[0] = PufferProtocol.registerPermissionedValidatorKey.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_PERMISSIONED_OPERATOR)
+            accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_PERMISSIONED_OPERATOR)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
@@ -905,8 +896,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         selectors[1] = PufferProtocol.handlePermissionedValidatorExit.selector;
         selectors[2] = PufferProtocol.skipPermissionedProvisioning.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (_getPufferProtocol(), selectors, ROLE_ID_OPERATIONS_PAYMASTER)
+            accessManager.setTargetFunctionRole, (_getPufferProtocol(), selectors, ROLE_ID_OPERATIONS_PAYMASTER)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
@@ -924,8 +914,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         selectors[1] = PermissionedOracle.exitValidator.selector;
         selectors[2] = PermissionedOracle.adjustLockedEth.selector;
         callData = abi.encodeCall(
-            accessManager.setTargetFunctionRole,
-            (address(permissionedOracle), selectors, ROLE_ID_PUFFER_PROTOCOL)
+            accessManager.setTargetFunctionRole, (address(permissionedOracle), selectors, ROLE_ID_PUFFER_PROTOCOL)
         );
         (success,) = address(timelock).call(
             abi.encodeCall(Timelock.executeTransaction, (address(accessManager), callData, operationId++))
