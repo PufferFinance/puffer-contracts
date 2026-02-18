@@ -64,7 +64,7 @@ contract DeployPuffer is BaseScript {
     address eigenPodManager;
     address delegationManager;
     address rewardsCoordinator;
-    address eigenSlasher;
+    address allocationManager;
     address treasury;
     address operationsMultisig;
 
@@ -79,7 +79,7 @@ contract DeployPuffer is BaseScript {
             // Mainnet / Mainnet fork
             eigenPodManager = 0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338;
             delegationManager = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
-            eigenSlasher = 0xD92145c07f8Ed1D392c1B88017934E301CC1c3Cd;
+            allocationManager = 0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39;
             rewardsCoordinator = address(0); //@todo
             treasury = vm.envAddress("TREASURY");
             operationsMultisig = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
@@ -88,14 +88,14 @@ contract DeployPuffer is BaseScript {
             eigenPodManager = address(new EigenPodManagerMock());
             delegationManager = address(new DelegationManagerMock());
             rewardsCoordinator = address(new RewardsCoordinatorMock());
-            eigenSlasher = address(new EigenAllocationManagerMock());
+            allocationManager = address(new EigenAllocationManagerMock());
             treasury = address(1);
             operationsMultisig = address(2);
         } else if (isHolesky()) {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
             delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
-            eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C;
+            allocationManager = 0xcAe751b75833ef09627549868A04E32679386e7C;
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
             rewardsCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
             operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
@@ -103,10 +103,10 @@ contract DeployPuffer is BaseScript {
             // Hoodi https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-deployment-contracts
             eigenPodManager = 0xcd1442415Fc5C29Aa848A49d2e232720BE07976c;
             delegationManager = 0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
-            eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C; // @todo Confirm EigenSlasher address
+            allocationManager = 0x95a7431400F362F3647a69535C5666cA0133CAA0;
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
             rewardsCoordinator = 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
-            operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+            operationsMultisig = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
         } else {
             revert("Deployment not configured for this chain");
         }
@@ -154,7 +154,7 @@ contract DeployPuffer is BaseScript {
 
             RestakingOperator restakingOperatorImplementation = new RestakingOperator(
                 IDelegationManager(delegationManager),
-                IAllocationManager(eigenSlasher),
+                IAllocationManager(allocationManager),
                 PufferModuleManager(payable(address(moduleManagerProxy))),
                 IRewardsCoordinator(rewardsCoordinator),
                 address(restakingOperatorController)

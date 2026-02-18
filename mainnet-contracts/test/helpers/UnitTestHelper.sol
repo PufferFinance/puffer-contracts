@@ -278,7 +278,7 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
-        // No longer enclave adrresses in GuardianModule
+        // Populate the session registry with the guardians' session and owner public identities
         guardian1OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1OwnerPubKey });
         guardian2OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2OwnerPubKey });
         guardian3OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3OwnerPubKey });
