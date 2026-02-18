@@ -16,6 +16,7 @@ import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
 import { PufferVaultV5 } from "../src/PufferVaultV5.sol";
 import { OperationsCoordinator } from "../src/OperationsCoordinator.sol";
+import { PermissionedOracle } from "../src/PermissionedOracle.sol";
 import { ValidatorTicketPricer } from "../src/ValidatorTicketPricer.sol";
 import { GenerateAccessManagerCallData } from "../script/GenerateAccessManagerCallData.sol";
 import { GenerateAccessManagerCalldata2 } from "../script/AccessManagerMigrations/GenerateAccessManagerCalldata2.s.sol";
@@ -52,7 +53,8 @@ contract SetupAccess is BaseScript {
             moduleManagerAccess: _setupPufferModuleManagerAccess(),
             roleLabels: _labelRoles(),
             coordinatorAccess: _setupCoordinatorAccess(),
-            validatorTicketAccess: _setupValidatorTicketPricerAccess()
+            validatorTicketAccess: _setupValidatorTicketPricerAccess(),
+            permissionedOracleAccess: _setupPermissionedOracleAccess()
         });
 
         bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
@@ -97,9 +99,10 @@ contract SetupAccess is BaseScript {
         bytes[] memory moduleManagerAccess,
         bytes[] memory roleLabels,
         bytes[] memory coordinatorAccess,
-        bytes[] memory validatorTicketAccess
+        bytes[] memory validatorTicketAccess,
+        bytes[] memory permissionedOracleAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](31);
+        calldatas = new bytes[](32);
         calldatas[0] = _setupGuardianModuleRoles();
         calldatas[1] = _setupEnclaveVerifierRoles();
         calldatas[2] = rolesCalldatas[0];
@@ -139,6 +142,8 @@ contract SetupAccess is BaseScript {
         calldatas[28] = validatorTicketAccess[1];
         calldatas[29] = validatorTicketAccess[2];
         calldatas[30] = validatorTicketAccess[3];
+
+        calldatas[31] = permissionedOracleAccess[0];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -419,6 +424,25 @@ contract SetupAccess is BaseScript {
             pufferDeployment.validatorTicketPricer,
             publicSelectors,
             accessManager.PUBLIC_ROLE()
+        );
+
+        return calldatas;
+    }
+
+    function _setupPermissionedOracleAccess() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](1);
+
+        // PufferProtocol role - can provision, exit, and adjust validators
+        bytes4[] memory protocolSelectors = new bytes4[](3);
+        protocolSelectors[0] = PermissionedOracle.provisionValidator.selector;
+        protocolSelectors[1] = PermissionedOracle.exitValidator.selector;
+        protocolSelectors[2] = PermissionedOracle.adjustLockedEth.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            pufferDeployment.permissionedOracle,
+            protocolSelectors,
+            ROLE_ID_PUFFER_PROTOCOL
         );
 
         return calldatas;

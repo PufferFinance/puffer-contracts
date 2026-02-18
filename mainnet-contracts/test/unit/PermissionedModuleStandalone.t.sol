@@ -37,13 +37,13 @@ contract PermissionedModuleStandaloneTest is Test {
 
     // Mock addresses
     address public pufferProtocolAddr;
-    address public pufferModuleManagerAddr;
+    PufferModuleManager public pufferModuleManager;
     address public owner;
 
     function setUp() public {
         owner = makeAddr("owner");
         pufferProtocolAddr = makeAddr("pufferProtocol");
-        pufferModuleManagerAddr = makeAddr("pufferModuleManager");
+        address pufferModuleManagerAddr = makeAddr("pufferModuleManager");
 
         vm.deal(owner, 1000 ether);
         vm.deal(pufferModuleManagerAddr, 1000 ether);
@@ -57,14 +57,27 @@ contract PermissionedModuleStandaloneTest is Test {
         rewardsCoordinatorMock = address(new RewardsCoordinatorMock());
         beaconDepositMock = address(new BeaconMock());
 
+        // Deploy NonRestakingWithdrawalCredentials implementation and beacon
+        NonRestakingWithdrawalCredentials nrwcImpl = new NonRestakingWithdrawalCredentials();
+        UpgradeableBeacon nrwcBeacon = new UpgradeableBeacon(address(nrwcImpl), owner);
+
+        // Mock the getNRWCBeacon call on the module manager mock address
+        vm.mockCall(
+            pufferModuleManagerAddr,
+            abi.encodeWithSelector(PufferModuleManager.getNRWCBeacon.selector),
+            abi.encode(address(nrwcBeacon))
+        );
+
+        // Create a fake PufferModuleManager reference for the PermissionedModule constructor
+        pufferModuleManager = PufferModuleManager(payable(pufferModuleManagerAddr));
+
         // Deploy implementation
         PermissionedModule impl = new PermissionedModule(
             IPufferProtocol(pufferProtocolAddr),
             eigenPodManagerMock,
             IDelegationManager(delegationManagerMock),
-            PufferModuleManager(payable(pufferModuleManagerAddr)),
-            IRewardsCoordinator(rewardsCoordinatorMock),
-            IBeaconDepositContract(beaconDepositMock)
+            pufferModuleManager,
+            IRewardsCoordinator(rewardsCoordinatorMock)
         );
 
         // Deploy beacon
@@ -127,7 +140,7 @@ contract PermissionedModuleStandaloneTest is Test {
         assertEq(address(permissionedModule.PUFFER_PROTOCOL()), pufferProtocolAddr, "PUFFER_PROTOCOL mismatch");
         assertEq(
             address(permissionedModule.PUFFER_MODULE_MANAGER()),
-            pufferModuleManagerAddr,
+            address(pufferModuleManager),
             "PUFFER_MODULE_MANAGER mismatch"
         );
         assertEq(address(permissionedModule.EIGEN_POD_MANAGER()), eigenPodManagerMock, "EIGEN_POD_MANAGER mismatch");
@@ -147,7 +160,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 0 // Full exit
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -158,7 +171,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 1_000_000_000 // 1 ETH partial withdrawal
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -179,7 +192,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 10_000_000_000 // 10 ETH partial
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: 3 * EXIT_FEE }(requests);
     }
 
@@ -189,7 +202,7 @@ contract PermissionedModuleStandaloneTest is Test {
         // Max uint64 amount in gwei
         requests[0] = IEigenPodTypes.WithdrawalRequest({ pubkey: _generatePubkey(1), amountGwei: type(uint64).max });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -233,7 +246,7 @@ contract PermissionedModuleStandaloneTest is Test {
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](1);
         requests[0] = IEigenPodTypes.WithdrawalRequest({ pubkey: _generatePubkey(1), amountGwei: amountGwei });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -249,7 +262,7 @@ contract PermissionedModuleStandaloneTest is Test {
              });
         }
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: uint256(numValidators) * EXIT_FEE }(requests);
     }
 
@@ -262,7 +275,7 @@ contract PermissionedModuleStandaloneTest is Test {
         requests[1] = IEigenPodTypes.WithdrawalRequest({ pubkey: _generatePubkey(2), amountGwei: amount2 });
         requests[2] = IEigenPodTypes.WithdrawalRequest({ pubkey: _generatePubkey(3), amountGwei: amount3 });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: 3 * EXIT_FEE }(requests);
     }
 
@@ -275,7 +288,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 1 // Minimum possible partial withdrawal (1 gwei)
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -286,7 +299,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 32_000_000_000 // 32 ETH in gwei
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -297,7 +310,7 @@ contract PermissionedModuleStandaloneTest is Test {
             amountGwei: 2048_000_000_000 // 2048 ETH in gwei (Pectra MaxEB)
          });
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: EXIT_FEE }(requests);
     }
 
@@ -305,7 +318,7 @@ contract PermissionedModuleStandaloneTest is Test {
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](0);
 
         // Should not revert at module level - validation is in PufferModuleManager
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerNonRestakedValidatorWithdrawals{ value: 0 }(requests);
     }
 
@@ -320,7 +333,7 @@ contract PermissionedModuleStandaloneTest is Test {
         uint256 moduleBalanceBefore = address(permissionedModule).balance;
 
         // Call withdrawNonRestakedETH
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.withdrawNonRestakedETH();
 
         assertEq(address(permissionedModule).balance, moduleBalanceBefore + 10 ether, "ETH should be withdrawn");
@@ -354,7 +367,7 @@ contract PermissionedModuleStandaloneTest is Test {
 
         uint256 moduleBalanceBefore = address(permissionedModule).balance;
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.withdrawNonRestakedETH();
 
         assertEq(address(permissionedModule).balance, moduleBalanceBefore + amount, "ETH should be withdrawn");
@@ -367,7 +380,7 @@ contract PermissionedModuleStandaloneTest is Test {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = _generatePubkey(1);
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerRestakedValidatorsExit{ value: EXIT_FEE }(pubkeys);
     }
 
@@ -377,7 +390,7 @@ contract PermissionedModuleStandaloneTest is Test {
         pubkeys[1] = _generatePubkey(2);
         pubkeys[2] = _generatePubkey(3);
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerRestakedValidatorsExit{ value: 3 * EXIT_FEE }(pubkeys);
     }
 
@@ -401,7 +414,7 @@ contract PermissionedModuleStandaloneTest is Test {
             pubkeys[i] = _generatePubkey(i);
         }
 
-        vm.prank(pufferModuleManagerAddr);
+        vm.prank(address(pufferModuleManager));
         permissionedModule.triggerRestakedValidatorsExit{ value: uint256(numPubkeys) * EXIT_FEE }(pubkeys);
     }
 

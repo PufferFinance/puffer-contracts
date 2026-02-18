@@ -206,8 +206,11 @@ contract DeployPuffer is BaseScript {
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
             beacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
+            permissionedModuleBeacon: address(0), // Set during permissioned module deployment
+            nrwcBeacon: address(0), // Set during permissioned module deployment
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
+            permissionedOracle: address(0), // Set during permissioned module deployment
             operationsCoordinator: address(operationsCoordinator),
             aVSContractsRegistry: address(aVSContractsRegistry),
             restakingOperatorController: address(restakingOperatorController),
