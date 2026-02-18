@@ -840,10 +840,8 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         vm.stopPrank();
 
         // Set permissioned module beacon
-        bytes memory setBeaconCalldata = abi.encodeCall(
-            PufferModuleManager.setPermissionedModuleBeacon,
-            (address(permissionedModuleBeacon))
-        );
+        bytes memory setBeaconCalldata =
+            abi.encodeCall(PufferModuleManager.setPermissionedModuleBeacon, (address(permissionedModuleBeacon)));
         vm.prank(dao);
         accessManager.execute(_getPufferModuleManager(), setBeaconCalldata);
 
