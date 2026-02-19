@@ -55,9 +55,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
         );
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
-        IDelegationManager(HOODI_DELEGATION_MANAGER).delegateTo(
-            restakingOperator, signatureWithExpiry, bytes32(0)
-        );
+        IDelegationManager(HOODI_DELEGATION_MANAGER).delegateTo(restakingOperator, signatureWithExpiry, bytes32(0));
     }
 
     // Creates a new restaking operator and returns it

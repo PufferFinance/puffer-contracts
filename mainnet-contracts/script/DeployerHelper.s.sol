@@ -437,7 +437,7 @@ abstract contract DeployerHelper is Script {
             return 0x180a345906e42293dcAd5CCD9b0e1DB26aE0274e;
         } else if (block.chainid == hoodi) {
             // https://hoodi.etherscan.io/address/0x0950195ac9b310815698f5dded3bd32814f46efd
-            return 0x0950195ac9b310815698f5dded3bd32814f46efd;
+            return 0x0950195AC9B310815698f5dDeD3BD32814f46EFD;
         } else if (block.chainid == binance) {
             // https://bscscan.com/address/0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474
             return 0x8849e9eB8bb27c1916AfB17ee4dEcAd375916474;
