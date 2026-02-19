@@ -108,6 +108,7 @@ contract DeployEverything is BaseScript {
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        vm.startBroadcast();
         MockAeraVault mockAeraVault = new MockAeraVault();
 
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
@@ -126,6 +127,7 @@ contract DeployEverything is BaseScript {
                 )
             )
         );
+        vm.stopBroadcast();
 
         bytes memory accessManagerCd =
             new GenerateRevenueDepositorCalldata().run(address(revenueDepositor), makeAddr("operationsMultisig"));
