@@ -52,7 +52,7 @@ contract DeployEverything is BaseScript {
         );
 
         PufferProtocolDeployment memory pufferDeployment =
-            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
+            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle, address(0));
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
@@ -64,7 +64,7 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor, address(0));
 
         // `anvil` in the terminal
         if (_localAnvil) {

@@ -32,6 +32,8 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     address public immutable RESTAKING_OPERATOR_BEACON;
     address public immutable PUFFER_PROTOCOL;
     address payable public immutable PUFFER_VAULT;
+    address public immutable PERMISSIONED_MODULE_BEACON;
+    address public immutable NRWC_BEACON;
 
     modifier onlyPufferProtocol() {
         if (msg.sender != PUFFER_PROTOCOL) {
@@ -40,11 +42,19 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
         _;
     }
 
-    constructor(address pufferModuleBeacon, address restakingOperatorBeacon, address pufferProtocol) {
+    constructor(
+        address pufferModuleBeacon,
+        address restakingOperatorBeacon,
+        address pufferProtocol,
+        address permissionedModuleBeacon,
+        address nrwcBeacon
+    ) {
         PUFFER_MODULE_BEACON = pufferModuleBeacon;
         RESTAKING_OPERATOR_BEACON = restakingOperatorBeacon;
         PUFFER_PROTOCOL = pufferProtocol;
         PUFFER_VAULT = payable(address(IPufferProtocol(PUFFER_PROTOCOL).PUFFER_VAULT()));
+        PERMISSIONED_MODULE_BEACON = permissionedModuleBeacon;
+        NRWC_BEACON = nrwcBeacon;
         _disableInitializers();
     }
 
@@ -333,63 +343,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
     // ============ Permissioned Module Support ============
 
     /**
-     * @dev Permissioned module beacon address (stored in contract storage for upgradeability)
-     * keccak256(abi.encode(uint256(keccak256("PufferModuleManager.permissionedModuleBeacon")) - 1)) & ~bytes32(uint256(0xff))
-     */
-    bytes32 private constant _PERMISSIONED_MODULE_BEACON_SLOT =
-        0x12ddf963a4f129d061806b3796c3f91a43d3f59a05b31d1b6ef212e44874cf00;
-
-    /**
-     * @notice Sets the permissioned module beacon address
-     * @param beacon The address of the permissioned module beacon
-     * @dev Restricted to the DAO
-     */
-    function setPermissionedModuleBeacon(address beacon) external virtual restricted {
-        assembly {
-            sstore(_PERMISSIONED_MODULE_BEACON_SLOT, beacon)
-        }
-        emit PermissionedModuleBeaconSet(beacon);
-    }
-
-    /**
-     * @notice Returns the permissioned module beacon address
-     * @return beacon The address of the permissioned module beacon
-     */
-    function getPermissionedModuleBeacon() public view returns (address beacon) {
-        assembly {
-            beacon := sload(_PERMISSIONED_MODULE_BEACON_SLOT)
-        }
-    }
-
-    /**
-     * @dev NRWC (NonRestakingWithdrawalCredentials) beacon address (stored in contract storage for upgradeability)
-     * keccak256(abi.encode(uint256(keccak256("PufferModuleManager.nrwcBeacon")) - 1)) & ~bytes32(uint256(0xff))
-     */
-    bytes32 private constant _NRWC_BEACON_SLOT = 0x5e3efd71b10c8d5afd6e403b79d40030cf08570b8694200c7f3948cb18b66b00;
-
-    /**
-     * @notice Sets the NRWC beacon address
-     * @param beacon The address of the NRWC beacon
-     * @dev Restricted to the DAO
-     */
-    function setNRWCBeacon(address beacon) external virtual restricted {
-        assembly {
-            sstore(_NRWC_BEACON_SLOT, beacon)
-        }
-        emit NRWCBeaconSet(beacon);
-    }
-
-    /**
-     * @notice Returns the NRWC beacon address
-     * @return beacon The address of the NRWC beacon
-     */
-    function getNRWCBeacon() public view returns (address beacon) {
-        assembly {
-            beacon := sload(_NRWC_BEACON_SLOT)
-        }
-    }
-
-    /**
      * @notice Create a new Permissioned module
      * @dev This function creates a new Permissioned module with the given module name
      * @param moduleName The name of the module
@@ -406,11 +359,6 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
             revert ForbiddenModuleName();
         }
 
-        address beacon = getPermissionedModuleBeacon();
-        if (beacon == address(0)) {
-            revert InvalidAddress(); // Beacon not set
-        }
-
         // This called from the PufferProtocol and the event is emitted there
         return PermissionedModule(
             payable(
@@ -419,7 +367,10 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
                     salt: keccak256(abi.encodePacked("PERMISSIONED_", moduleName)),
                     bytecode: abi.encodePacked(
                         type(BeaconProxy).creationCode,
-                        abi.encode(beacon, abi.encodeCall(PermissionedModule.initialize, (moduleName, authority())))
+                        abi.encode(
+                            PERMISSIONED_MODULE_BEACON,
+                            abi.encodeCall(PermissionedModule.initialize, (moduleName, authority()))
+                        )
                     )
                 })
             )

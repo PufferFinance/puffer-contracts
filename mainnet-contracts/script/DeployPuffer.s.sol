@@ -6,6 +6,8 @@ import { PufferModuleManager } from "../src/PufferModuleManager.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { PufferModule } from "../src/PufferModule.sol";
+import { PermissionedModule } from "../src/PermissionedModule.sol";
+import { NonRestakingWithdrawalCredentials } from "../src/NonRestakingWithdrawalCredentials.sol";
 import { RestakingOperator } from "../src/RestakingOperator.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
@@ -56,6 +58,8 @@ contract DeployPuffer is BaseScript {
     PufferProtocol pufferProtocol;
     UpgradeableBeacon pufferModuleBeacon;
     UpgradeableBeacon restakingOperatorBeacon;
+    UpgradeableBeacon permissionedModuleBeacon;
+    UpgradeableBeacon nrwcBeacon;
     PufferModuleManager moduleManager;
     OperationsCoordinator operationsCoordinator;
     ValidatorTicketPricer validatorTicketPricer;
@@ -69,7 +73,7 @@ contract DeployPuffer is BaseScript {
     address treasury;
     address operationsMultisig;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle)
+    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle, address permissionedOracle)
         public
         broadcast
         returns (PufferProtocolDeployment memory)
@@ -151,9 +155,22 @@ contract DeployPuffer is BaseScript {
                 address(restakingOperatorController)
             );
 
+            PermissionedModule permissionedModuleImplementation = new PermissionedModule(
+                PufferProtocol(payable(proxy)),
+                eigenPodManager,
+                IDelegationManager(delegationManager),
+                PufferModuleManager(payable(address(moduleManagerProxy))),
+                IRewardsCoordinator(rewardsCoordinator)
+            );
+
+            NonRestakingWithdrawalCredentials nrwcImplementation = new NonRestakingWithdrawalCredentials();
+
             pufferModuleBeacon = new UpgradeableBeacon(address(moduleImplementation), address(accessManager));
             restakingOperatorBeacon =
                 new UpgradeableBeacon(address(restakingOperatorImplementation), address(accessManager));
+            permissionedModuleBeacon =
+                new UpgradeableBeacon(address(permissionedModuleImplementation), address(accessManager));
+            nrwcBeacon = new UpgradeableBeacon(address(nrwcImplementation), address(accessManager));
 
             // Puffer Service implementation
             pufferProtocolImpl = new PufferProtocol({
@@ -163,7 +180,7 @@ contract DeployPuffer is BaseScript {
                 moduleManager: address(moduleManagerProxy),
                 oracle: IPufferOracleV2(oracle),
                 beaconDepositContract: getStakingContract(),
-                permissionedOracle: IPermissionedOracle(address(0)) // Will be set in upgrade
+                permissionedOracle: IPermissionedOracle(permissionedOracle)
              });
         }
 
@@ -174,7 +191,9 @@ contract DeployPuffer is BaseScript {
         moduleManager = new PufferModuleManager({
             pufferModuleBeacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            pufferProtocol: address(proxy)
+            pufferProtocol: address(proxy),
+            permissionedModuleBeacon: address(permissionedModuleBeacon),
+            nrwcBeacon: address(nrwcBeacon)
         });
 
         NoImplementation(payable(address(moduleManagerProxy))).upgradeToAndCall(
@@ -206,8 +225,8 @@ contract DeployPuffer is BaseScript {
             enclaveVerifier: guardiansDeployment.enclaveVerifier,
             beacon: address(pufferModuleBeacon),
             restakingOperatorBeacon: address(restakingOperatorBeacon),
-            permissionedModuleBeacon: address(0), // Set during permissioned module deployment
-            nrwcBeacon: address(0), // Set during permissioned module deployment
+            permissionedModuleBeacon: address(permissionedModuleBeacon),
+            nrwcBeacon: address(nrwcBeacon),
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
             permissionedOracle: address(0), // Set during permissioned module deployment

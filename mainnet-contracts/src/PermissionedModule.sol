@@ -76,7 +76,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
 
         // Deploy NonRestakingWithdrawalCredentials via beacon proxy for upgradeability
-        address nrwcBeacon = PUFFER_MODULE_MANAGER.getNRWCBeacon();
+        address nrwcBeacon = PUFFER_MODULE_MANAGER.NRWC_BEACON();
         $.nonRestakingWithdrawalCredentials = NonRestakingWithdrawalCredentials(
             payable(
                 Create2.deploy({
