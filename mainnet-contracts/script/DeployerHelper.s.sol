@@ -753,6 +753,9 @@ abstract contract DeployerHelper is Script {
         if (block.chainid == mainnet) {
             // https://etherscan.io/address/0x21660F4681aD5B6039007f7006b5ab0EF9dE7882
             return 0x21660F4681aD5B6039007f7006b5ab0EF9dE7882;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x8cafCc00DC0c10404a246Fa261428Df630374392
+            return 0x8cafCc00DC0c10404a246Fa261428Df630374392;
         }
 
         revert("RevenueDepositor not available for this chain");
