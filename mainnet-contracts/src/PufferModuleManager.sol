@@ -493,7 +493,7 @@ contract PufferModuleManager is IPufferModuleManager, AccessManagedUpgradeable, 
      * @dev If recipient is PUFFER_VAULT, ETH is sent directly to vault's receive() function,
      *      which increases totalAssets() and improves the exchange rate for pufETH holders.
      *      Otherwise, transfers ETH directly to the recipient.
-     *      Restricted to DAO
+     *      Restricted to Permissioned ETH Manager
      */
     function transferPermissionedModuleETH(
         address[] calldata permissionedModules,

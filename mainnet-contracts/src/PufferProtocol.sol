@@ -368,9 +368,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @param validatorIndex The index of the validator to provision
      * @param validatorSignature The validator's BLS signature
      * @param expectedDepositDataRoot Expected deposit data root (for reorg protection)
-     * @dev Restricted to multisig/provisioner role. Guardian signatures removed since
-     *      permissioned validators are provisioned by trusted multisig and deposit data
-     *      is verified on-chain.
+     * @dev Restricted to Puffer Paymaster.
      */
     function provisionPermissionedValidator(
         bytes32 moduleName,
@@ -541,7 +539,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @notice Skips provisioning of a permissioned validator (for invalid/unwanted registrations)
      * @param moduleName The name of the permissioned module
      * @param validatorIndex The index of the validator to skip
-     * @dev Restricted to authorized roles. Only PENDING validators can be skipped.
+     * @dev Restricted to Puffer Paymaster.
+     *      Only PENDING validators can be skipped.
      *      Unlike external validators, no VT penalty since permissioned validators don't pay VT.
      *      Only the next validator in line can be skipped (FIFO ordering enforced).
      *      This ensures consistent index tracking and prevents skipped validator tracking issues.

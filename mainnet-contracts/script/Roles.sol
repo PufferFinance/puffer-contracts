@@ -18,6 +18,9 @@ uint64 constant ROLE_ID_VALIDATOR_EJECTOR = 28;
 // Role assigned to permissioned validator operators (no bond, no VT)
 uint64 constant ROLE_ID_PERMISSIONED_OPERATOR = 29;
 
+// Role for transferring ETH out of permissioned modules (controls reward flow)
+uint64 constant ROLE_ID_PERMISSIONED_ETH_MANAGER = 30;
+
 // Role assigned to validator ticket price setter
 uint64 constant ROLE_ID_VT_PRICER = 25;
 
