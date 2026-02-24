@@ -388,6 +388,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             revert InvalidValidatorIndex();
         }
 
+        // Enforce FIFO ordering - only allow provisioning the next validator in line
+        uint256 nextToProvision = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
+        if (validatorIndex != nextToProvision) {
+            revert MustProvisionNextValidator(nextToProvision, validatorIndex);
+        }
+
         PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
 
         if (validator.status != Status.PENDING) {

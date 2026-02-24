@@ -105,6 +105,13 @@ interface IPufferProtocol {
     error MustSkipNextValidator(uint256 expected, uint256 actual);
 
     /**
+     * @notice Thrown when trying to provision a validator that is not next in line
+     * @param expected The expected validator index (next in line)
+     * @param actual The actual validator index that was provided
+     */
+    error MustProvisionNextValidator(uint256 expected, uint256 actual);
+
+    /**
      * @notice Emitted when a permissioned validator experiences slashing loss
      * @param moduleName The module name
      * @param validatorIndex The validator index
