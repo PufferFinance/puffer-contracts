@@ -73,11 +73,12 @@ contract DeployPuffer is BaseScript {
     address treasury;
     address operationsMultisig;
 
-    function run(GuardiansDeployment calldata guardiansDeployment, address pufferVault, address oracle, address permissionedOracle)
-        public
-        broadcast
-        returns (PufferProtocolDeployment memory)
-    {
+    function run(
+        GuardiansDeployment calldata guardiansDeployment,
+        address pufferVault,
+        address oracle,
+        address permissionedOracle
+    ) public broadcast returns (PufferProtocolDeployment memory) {
         accessManager = AccessManager(guardiansDeployment.accessManager);
 
         if (isMainnet()) {
@@ -181,7 +182,7 @@ contract DeployPuffer is BaseScript {
                 oracle: IPufferOracleV2(oracle),
                 beaconDepositContract: getStakingContract(),
                 permissionedOracle: IPermissionedOracle(permissionedOracle)
-             });
+            });
         }
 
         pufferProtocol = PufferProtocol(payable(address(proxy)));

@@ -97,9 +97,8 @@ contract GeneratePermissionedModuleCalldata is Script {
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = PufferProtocol.createPermissionedModule.selector;
 
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferProtocol, selectors, ROLE_ID_DAO
-        );
+        return
+            abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, pufferProtocol, selectors, ROLE_ID_DAO);
     }
 
     /**
@@ -113,10 +112,7 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[2] = PufferProtocol.skipPermissionedProvisioning.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferProtocol,
-            selectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            AccessManager.setTargetFunctionRole.selector, pufferProtocol, selectors, ROLE_ID_OPERATIONS_PAYMASTER
         );
     }
 
@@ -129,10 +125,7 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[0] = PufferProtocol.registerPermissionedValidatorKey.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            pufferProtocol,
-            selectors,
-            ROLE_ID_PERMISSIONED_OPERATOR
+            AccessManager.setTargetFunctionRole.selector, pufferProtocol, selectors, ROLE_ID_PERMISSIONED_OPERATOR
         );
     }
 
@@ -147,9 +140,8 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[2] = PufferModuleManager.callSetProofSubmitterPermissioned.selector;
         selectors[3] = PufferModuleManager.callSetClaimerForPermissioned.selector;
 
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, moduleManager, selectors, ROLE_ID_DAO
-        );
+        return
+            abi.encodeWithSelector(AccessManager.setTargetFunctionRole.selector, moduleManager, selectors, ROLE_ID_DAO);
     }
 
     /**
@@ -164,10 +156,7 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[3] = PufferModuleManager.triggerNonRestakedValidatorWithdrawals.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            moduleManager,
-            selectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            AccessManager.setTargetFunctionRole.selector, moduleManager, selectors, ROLE_ID_OPERATIONS_PAYMASTER
         );
     }
 
@@ -179,10 +168,7 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[0] = PufferModuleManager.triggerRestakedValidatorsExit.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            moduleManager,
-            selectors,
-            ROLE_ID_VALIDATOR_EJECTOR
+            AccessManager.setTargetFunctionRole.selector, moduleManager, selectors, ROLE_ID_VALIDATOR_EJECTOR
         );
     }
 
@@ -195,10 +181,7 @@ contract GeneratePermissionedModuleCalldata is Script {
         selectors[0] = PufferModuleManager.transferPermissionedModuleETH.selector;
 
         return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            moduleManager,
-            selectors,
-            ROLE_ID_PERMISSIONED_ETH_MANAGER
+            AccessManager.setTargetFunctionRole.selector, moduleManager, selectors, ROLE_ID_PERMISSIONED_ETH_MANAGER
         );
     }
 }
