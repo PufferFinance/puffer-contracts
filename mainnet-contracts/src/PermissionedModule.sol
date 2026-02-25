@@ -93,7 +93,7 @@ contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermiss
             )
         );
 
-        emit NonRestakingWithdrawalCredentialsSet(address(this), address($.nonRestakingWithdrawalCredentials));
+        emit NonRestakingWithdrawalCredentialsSet(address($.nonRestakingWithdrawalCredentials));
     }
 
     /**
