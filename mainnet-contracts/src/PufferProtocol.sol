@@ -365,14 +365,12 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Provisions a permissioned validator (no bond, no VT, no guardian signatures)
      * @param moduleName The name of the permissioned module
-     * @param validatorIndex The index of the validator to provision
      * @param validatorSignature The validator's BLS signature
      * @param expectedDepositDataRoot Expected deposit data root (for reorg protection)
-     * @dev Restricted to Puffer Paymaster.
+     * @dev Restricted to Puffer Paymaster. Provisions the next validator in FIFO order.
      */
     function provisionPermissionedValidator(
         bytes32 moduleName,
-        uint256 validatorIndex,
         bytes calldata validatorSignature,
         bytes32 expectedDepositDataRoot
     ) external restricted {
@@ -383,16 +381,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        // Bounds check: validatorIndex must be less than the number of registered validators
-        if (validatorIndex >= $.pendingPermissionedValidatorIndices[moduleName]) {
-            revert InvalidValidatorIndex();
-        }
-
-        // Enforce FIFO ordering - only allow provisioning the next validator in line
-        uint256 nextToProvision = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
-        if (validatorIndex != nextToProvision) {
-            revert MustProvisionNextValidator(nextToProvision, validatorIndex);
-        }
+        uint256 validatorIndex = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
 
         PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
 
@@ -544,27 +533,15 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Skips provisioning of a permissioned validator (for invalid/unwanted registrations)
      * @param moduleName The name of the permissioned module
-     * @param validatorIndex The index of the validator to skip
      * @dev Restricted to Puffer Paymaster.
      *      Only PENDING validators can be skipped.
      *      Unlike external validators, no VT penalty since permissioned validators don't pay VT.
-     *      Only the next validator in line can be skipped (FIFO ordering enforced).
-     *      This ensures consistent index tracking and prevents skipped validator tracking issues.
+     *      Skips the next validator in FIFO order.
      */
-    function skipPermissionedProvisioning(bytes32 moduleName, uint256 validatorIndex) external restricted {
+    function skipPermissionedProvisioning(bytes32 moduleName) external restricted {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
-        // Bounds check
-        if (validatorIndex >= $.pendingPermissionedValidatorIndices[moduleName]) {
-            revert InvalidValidatorIndex();
-        }
-
-        // Enforce FIFO ordering - only allow skipping the next validator in line
-        // This ensures nextPermissionedValidatorToBeProvisionedIndices stays consistent
-        uint256 nextToProvision = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
-        if (validatorIndex != nextToProvision) {
-            revert MustSkipNextValidator(nextToProvision, validatorIndex);
-        }
+        uint256 validatorIndex = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
 
         PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
 
@@ -577,7 +554,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         // Delete validator data
         delete $.permissionedValidators[moduleName][validatorIndex];
 
-        // Always update next to be provisioned index (guaranteed to be the skipped one due to FIFO check)
+        // Update next to be provisioned index
         $.nextPermissionedValidatorToBeProvisionedIndices[moduleName] = validatorIndex + 1;
 
         emit PermissionedValidatorSkipped(pubKey, validatorIndex, moduleName);
