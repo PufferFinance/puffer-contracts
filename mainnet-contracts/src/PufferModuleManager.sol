@@ -3,7 +3,6 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { Unauthorized, InvalidAmount, InvalidAddress, TransferFailed } from "./Errors.sol";
-import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
 import { PufferModule } from "./PufferModule.sol";
 import { PermissionedModule } from "./PermissionedModule.sol";
 import { PufferVaultV5 } from "./PufferVaultV5.sol";
@@ -17,10 +16,8 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { RestakingOperator } from "./RestakingOperator.sol";
 import { IAllocationManager } from "../src/interface/Eigenlayer-Slashing/IAllocationManager.sol";
 import { IEigenPodTypes } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
-import { PufferModule } from "./PufferModule.sol";
 
 /**
  * @title PufferModuleManager
