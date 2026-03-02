@@ -8,7 +8,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PufferProtocolStorage } from "./PufferProtocolStorage.sol";
 import { PufferModuleManager } from "./PufferModuleManager.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
-import { IGuardianModule, GuardianSessionProof } from "./interface/IGuardianModule.sol";
+import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
 import { Validator } from "./struct/Validator.sol";
@@ -252,7 +252,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      * @dev Restricted to Puffer Paymaster
      */
     function provisionNode(
-        GuardianSessionProof[] calldata guardianProofs,
+        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature,
         bytes32 depositRootHash
     ) external restricted {
@@ -275,7 +275,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             $: $,
             moduleName: moduleName,
             index: index,
-            guardianProofs: guardianProofs,
+            guardianEnclaveSignatures: guardianEnclaveSignatures,
             validatorSignature: validatorSignature
         });
 
@@ -612,15 +612,20 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     /**
      * @notice Returns necessary information to make Guardian's life easier
      */
-    function getPayload(bytes32 moduleName, bool usingEnclave) external view returns (bytes memory, uint256, uint256) {
+    function getPayload(bytes32 moduleName, bool usingEnclave)
+        external
+        view
+        returns (bytes[] memory, bytes memory, uint256, uint256)
+    {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
 
+        bytes[] memory pubKeys = GUARDIAN_MODULE.getGuardiansEnclavePubkeys();
         bytes memory withdrawalCredentials = getWithdrawalCredentials(address($.modules[moduleName]));
         uint256 threshold = GUARDIAN_MODULE.getThreshold();
         uint256 validatorBond = usingEnclave ? _ENCLAVE_VALIDATOR_BOND : _NO_ENCLAVE_VALIDATOR_BOND;
         uint256 ethAmount = validatorBond + ($.minimumVtAmount * PUFFER_ORACLE.getValidatorTicketPrice()) / 1 ether;
 
-        return (withdrawalCredentials, threshold, ethAmount);
+        return (pubKeys, withdrawalCredentials, threshold, ethAmount);
     }
 
     /**
@@ -765,7 +770,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         ProtocolStorage storage $,
         bytes32 moduleName,
         uint256 index,
-        GuardianSessionProof[] calldata guardianProofs,
+        bytes[] calldata guardianEnclaveSignatures,
         bytes calldata validatorSignature
     ) internal {
         bytes memory validatorPubKey = $.validators[moduleName][index].pubKey;
@@ -782,7 +787,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             signature: validatorSignature,
             depositDataRoot: depositDataRoot,
             withdrawalCredentials: withdrawalCredentials,
-            guardianProofs: guardianProofs
+            guardianEnclaveSignatures: guardianEnclaveSignatures
         });
 
         PufferModule module = $.modules[moduleName];

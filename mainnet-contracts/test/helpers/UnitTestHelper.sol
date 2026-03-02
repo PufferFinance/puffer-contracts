@@ -70,6 +70,8 @@ contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ONE = address(1);
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
 
+    uint256 public constant FRESHNESS_BLOCKS = 20;
+
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
@@ -240,7 +242,7 @@ contract UnitTestHelper is Test, BaseScript {
         BridgingDeployment memory bridgingDeployment;
 
         (pufferDeployment, bridgingDeployment) =
-            new DeployEverything().run(address(sessionRegistryMock), guardians, 1, PAYMASTER);
+            new DeployEverything().run(address(sessionRegistryMock), guardians, 1, PAYMASTER, FRESHNESS_BLOCKS);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
@@ -300,6 +302,8 @@ contract UnitTestHelper is Test, BaseScript {
         sessionRegistryMock.setSessionOwner(
             guardian3SessionId, LibKey.computeKeyFingerprint(guardian3OwnerPublicIdentity)
         );
+
+        // TODO Add Rotate guardians
     }
 
     function _upgradePufferVaultToMainnet() internal {

@@ -29,6 +29,8 @@ contract IntegrationTestHelper is Test {
     address PAYMASTER = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
     address SESSION_REGISTRY = 0xD1860020870ffEd23a644d0CD4CA9E7b3Ff53D6c;
 
+    uint256 public constant FRESHNESS_BLOCKS = 20;
+
     // custom block number
     function deployContractsHoodi(uint256 blockNumber) public virtual {
         // see foundry.toml for the rpc urls
@@ -52,7 +54,7 @@ contract IntegrationTestHelper is Test {
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
         (PufferProtocolDeployment memory pufferDeployment,) =
-            new DeployEverything().run(SESSION_REGISTRY, guardians, threshold, PAYMASTER);
+            new DeployEverything().run(SESSION_REGISTRY, guardians, threshold, PAYMASTER, FRESHNESS_BLOCKS);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");

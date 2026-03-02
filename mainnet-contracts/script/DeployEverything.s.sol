@@ -24,15 +24,18 @@ import { ISessionRegistry } from
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address, address[] calldata, uint256, address)' <session_registry> "[$DEV_WALLET]" 1 $DEV_WALLET --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address, address[] calldata, uint256, address, uint256)' <session_registry> "[$DEV_WALLET]" 1 $DEV_WALLET $FRESHNESS_BLOCKS --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address sessionRegistry, address[] calldata guardians, uint256 threshold, address paymaster)
-        public
-        returns (PufferProtocolDeployment memory, BridgingDeployment memory)
-    {
+    function run(
+        address sessionRegistry,
+        address[] calldata guardians,
+        uint256 threshold,
+        address paymaster,
+        uint256 freshnessBlocks
+    ) public returns (PufferProtocolDeployment memory, BridgingDeployment memory) {
         PufferProtocolDeployment memory deployment;
 
         // 1. Deploy pufETH
@@ -47,7 +50,11 @@ contract DeployEverything is BaseScript {
         deployment.accessManager = puffETHDeployment.accessManager;
 
         GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(
-            ISessionRegistry(sessionRegistry), AccessManager(puffETHDeployment.accessManager), guardians, threshold
+            ISessionRegistry(sessionRegistry),
+            AccessManager(puffETHDeployment.accessManager),
+            guardians,
+            threshold,
+            freshnessBlocks
         );
 
         address pufferOracle = new DeployPufferOracle().run(

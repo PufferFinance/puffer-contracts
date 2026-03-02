@@ -14,11 +14,13 @@ contract DeployGuardians is BaseScript {
         ISessionRegistry sessionRegistry,
         AccessManager accessManager,
         address[] calldata guardians,
-        uint256 threshold
+        uint256 threshold,
+        uint256 freshnessBlocks
     ) public broadcast returns (GuardiansDeployment memory) {
         vm.label(address(accessManager), "AccessManager");
 
-        GuardianModule module = new GuardianModule(sessionRegistry, guardians, threshold, address(accessManager));
+        GuardianModule module =
+            new GuardianModule(sessionRegistry, guardians, threshold, address(accessManager), freshnessBlocks);
 
         GuardiansDeployment memory deployment;
         deployment.accessManager = address(accessManager);

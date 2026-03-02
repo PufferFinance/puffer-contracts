@@ -4,6 +4,13 @@ pragma solidity >=0.8.0 <0.9.0;
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
 import { PublicIdentity } from "@automata-network/automata-tee-workload-measurement/types/Common.sol";
 
+/**
+ * @notice Proof of a guardian's session-based signature via SessionRegistry
+ * @param sessionId The session id to verify against
+ * @param sessionKey The session's public key
+ * @param ownerKey The owner's public key (identifies the guardian)
+ * @param signature The session signature over the message
+ */
 struct GuardianSessionProof {
     bytes32 sessionId;
     PublicIdentity sessionKey;
@@ -71,12 +78,33 @@ interface IGuardianModule {
     event GuardianRemoved(address guardian);
 
     /**
+     * @notice Emitted when the guardian changes guardian enclave address
+     * @param guardian is the address outside of the enclave
+     * @param guardianEnclave is the enclave address
+     * @param pubKey is the public key
+     * @dev Signature "0x14720919b20fceff2a396c4973d37c6087e4619d40c8f4003d8e44ee127461a2"
+     */
+    event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
+
+    /**
      * @notice Emitted when a workload allowance is changed
      * @param workloadId id of the workload
      * @param allowed bool indicating whether the workload is allowed or not
      * @dev Signature "0x73013b875c0fba87c394f60e5697094d91b6bdce94ca3c53133a34bd980e114d"
      */
     event WorkloadAllowanceChanged(bytes32 workloadId, bool allowed);
+
+    /**
+     * @notice Thrown if the Evidence that we're trying to verify is stale
+     * Evidence should be submitted for the recent block < `FRESHNESS_BLOCKS`
+     * @dev Signature "0x5d4ad9a9"
+     */
+    error StaleEvidence();
+
+    /**
+     * @notice Returns the enclave address registered to `guardian`
+     */
+    function getGuardiansEnclaveAddress(address guardian) external view returns (address);
 
     /**
      * @notice Returns the ejection threshold ETH value
@@ -125,7 +153,7 @@ interface IGuardianModule {
      * @param signature The signature
      * @param withdrawalCredentials The withdrawal credentials
      * @param depositDataRoot The deposit data root
-     * @param guardianProofs The guardian session proofs
+     * @param guardianEnclaveSignatures The guardian enclave signatures
      */
     function validateProvisionNode(
         uint256 pufferModuleIndex,
@@ -133,7 +161,7 @@ interface IGuardianModule {
         bytes calldata signature,
         bytes calldata withdrawalCredentials,
         bytes32 depositDataRoot,
-        GuardianSessionProof[] calldata guardianProofs
+        bytes[] calldata guardianEnclaveSignatures
     ) external view;
 
     /**
@@ -189,6 +217,17 @@ interface IGuardianModule {
     function setEjectionThreshold(uint256 newThreshold) external;
 
     /**
+     * @dev Validates the signatures of the guardians' enclave signatures
+     * @param enclaveSignatures The array of enclave signatures
+     * @param signedMessageHash The hash of the signed message
+     * @return A boolean indicating whether the signatures are valid
+     */
+    function validateGuardiansEnclaveSignatures(bytes[] calldata enclaveSignatures, bytes32 signedMessageHash)
+        external
+        view
+        returns (bool);
+
+    /**
      * @dev Validates the signatures of the guardians' EOAs.
      * @param eoaSignatures The array of EOAs' signatures.
      * @param signedMessageHash The hash of the signed message.
@@ -198,19 +237,27 @@ interface IGuardianModule {
         external
         view
         returns (bool);
+    /**
+     * @notice Rotates a guardian's enclave key using a SessionRegistry-based proof
+     * @dev The caller provides a session proof that attests the new enclave public key.
+     *      The ownerKey in the proof must resolve to a registered guardian address.
+     *      blockNumber-based freshness is used for replay protection.
+     * @param blockNumber The block number used for freshness verification
+     * @param pubKey The new uncompressed ECDSA enclave public key (65 bytes)
+     * @param proof The session proof containing sessionId, sessionKey, ownerKey, and signature
+     */
+    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, GuardianSessionProof calldata proof)
+        external;
 
     /**
-     * @dev Validates an array of guardian session proofs against a message hash.
-     * Verifies each proof via SessionRegistry (including workload), prevents duplicate
-     * guardian counting, and requires at least `_threshold` unique valid guardian proofs.
-     * @param guardianProofs The array of guardian session proofs
-     * @param signedMessageHash The message hash that was signed
-     * @return A boolean indicating whether the session proofs are valid and meet the threshold requirement
+     * @notice Returns the guardians enclave addresses
      */
-    function validateSessionProofs(GuardianSessionProof[] calldata guardianProofs, bytes32 signedMessageHash)
-        external
-        view
-        returns (bool);
+    function getGuardiansEnclaveAddresses() external view returns (address[] memory);
+
+    /**
+     * @notice Returns the guardians enclave public keys
+     */
+    function getGuardiansEnclavePubkeys() external view returns (bytes[] memory);
 
     /**
      * @notice Checks if an account is a guardian
