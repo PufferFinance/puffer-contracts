@@ -297,9 +297,15 @@ contract UnitTestHelper is Test, BaseScript {
         guardian2SessionId = keccak256("guardian2");
         guardian3SessionId = keccak256("guardian3");
 
-        bytes32 signedMessageHash1 = keccak256(abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian1EnclavePubKey));
-        bytes32 signedMessageHash2 = keccak256(abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian2EnclavePubKey));
-        bytes32 signedMessageHash3 = keccak256(abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian3EnclavePubKey));
+        bytes32 signedMessageHash1 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian1EnclavePubKey)
+        );
+        bytes32 signedMessageHash2 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian2EnclavePubKey)
+        );
+        bytes32 signedMessageHash3 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian3EnclavePubKey)
+        );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, signedMessageHash1);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -349,35 +355,17 @@ contract UnitTestHelper is Test, BaseScript {
         sessionRegistryMock.setSessionWorkload(guardian3SessionId, workloadId);
 
         // Register enclave keys for guardians
-        vm.startPrank(guardians[0]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian1EnclavePubKey,
-            guardian1SessionProof
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian1EnclavePubKey, guardian1SessionProof);
 
-        vm.startPrank(guardians[1]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian2EnclavePubKey,
-            guardian2SessionProof
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian2EnclavePubKey, guardian2SessionProof);
 
-        vm.startPrank(guardians[2]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian3EnclavePubKey,
-            guardian3SessionProof
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, guardian3SessionProof);
 
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");
@@ -387,7 +375,6 @@ contract UnitTestHelper is Test, BaseScript {
         assertEq(pubKeys[0], guardian1EnclavePubKey, "guardian1 pub key");
         assertEq(pubKeys[1], guardian2EnclavePubKey, "guardian2 pub key");
         assertEq(pubKeys[2], guardian3EnclavePubKey, "guardian3 pub key");
-
     }
 
     function _upgradePufferVaultToMainnet() internal {

@@ -57,7 +57,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     EnumerableSet.AddressSet private _guardians;
 
     /**
-     * @dev Threshold for the guardians
+     * @dev Threshold for the guardians. If the number of signatures/proofs is below this threshold, the action will not be authorized
      */
     uint256 internal _threshold;
 
