@@ -45,7 +45,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
             forkVersion = "0x01017000";
         } else if (block.chainid == 560048) {
             // Hoodi
-            protocolAddress = 0xa3eca8ef718538Fc2610899e95590B521D59a842;
+            protocolAddress = 0x6ECcBAB07B8e592D9e5Ab9042EF2CacF1eff1155;
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x10000910";
         } else if (block.chainid == 1) {
@@ -174,9 +174,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
     // Generates a new validator key using coral https://github.com/PufferFinance/coral/tree/main
     function _generateValidatorKey(uint256 idx, bytes32 moduleName) internal {
         uint256 numberOfGuardians = pufferProtocol.GUARDIAN_MODULE().getGuardians().length;
-        // bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys(); // This is now deprecated
-        //TODO Update this if needed
-        bytes[] memory guardianPubKeys = new bytes[](numberOfGuardians);
+        bytes[] memory guardianPubKeys = pufferProtocol.GUARDIAN_MODULE().getGuardiansEnclavePubkeys();
         address moduleAddress = IPufferProtocol(protocolAddress).getModuleAddress(moduleName);
         bytes memory withdrawalCredentials = IPufferProtocol(protocolAddress).getWithdrawalCredentials(moduleAddress);
 

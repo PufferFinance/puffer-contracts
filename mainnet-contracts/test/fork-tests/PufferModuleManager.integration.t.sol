@@ -30,7 +30,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     address EIGEN_DA_SERVICE_MANAGER = 0x3FF2204A567C15dC3731140B95362ABb4b17d8ED;
     // IAVSDirectory public avsDirectory = IAVSDirectory(0x055733000064333CaDDbC92763c58BF0192fFeBf);
 
-    address private constant HOODI_WETH_ADDRESS = 0x06EDa6073b3dE1B1Dfd58cb5615fD8188C114a88;
+    address private constant HOODI_WETH_ADDRESS = 0x6E9C82F6002B03cbC105D4e77d1da16C3f067035;
     address private constant HOODI_STRATEGY_MANAGER = 0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41;
     address private constant HOODI_WETH_STRATEGY = 0x24579aD4fe83aC53546E5c2D3dF5F85D6383420d;
     address private constant HOODI_DELEGATION_MANAGER = 0x867837a9722C512e0862d8c2E15b8bE220E8b87d;

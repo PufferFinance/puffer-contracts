@@ -7,3 +7,4 @@
 [submodule "mainnet-contracts/lib/automata-tee-workload-measurement"]
 	path = mainnet-contracts/lib/automata-tee-workload-measurement
 	url = https://github.com/automata-network/automata-tee-workload-measurement
+    branch = develop
