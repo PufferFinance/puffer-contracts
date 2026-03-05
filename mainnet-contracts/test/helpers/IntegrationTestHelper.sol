@@ -48,7 +48,7 @@ contract IntegrationTestHelper is Test {
 
     // 'default' block number
     function deployContractsHoodi() public virtual {
-        deployContractsHoodi(2_260_721); // Feb-18-2026 03:43:24 PM +UTC
+        deployContractsHoodi(2352200); // Mar-04-2026 05:17:12 PM +UTC
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {

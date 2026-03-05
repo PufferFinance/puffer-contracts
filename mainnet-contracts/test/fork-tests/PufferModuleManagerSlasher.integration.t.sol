@@ -28,7 +28,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
     DeployPufferModuleImplementation deployPufferModule;
     DeployRestakingOperator deployRestakingOperator;
 
-    uint32 START_BLOCK = 2_260_721; // Feb-18-2026 03:43:24 PM +UTC
+    uint32 START_BLOCK = 2352200; // Mar-04-2026 05:17:12 PM +UTC
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("hoodi"), START_BLOCK);
