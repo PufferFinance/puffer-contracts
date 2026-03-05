@@ -42,6 +42,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
     function test_create_puffer_module() public {
         vm.startPrank(DAO);
         pufferProtocol.createPufferModule(bytes32("SOME_MODULE_NAME"));
+        vm.stopPrank();
     }
 
     function _depositToWETHEigenLayerStrategyAndDelegateTo(address restakingOperator) internal {
@@ -56,6 +57,7 @@ contract PufferModuleManagerIntegrationTest is IntegrationTestHelper {
 
         ISignatureUtils.SignatureWithExpiry memory signatureWithExpiry;
         IDelegationManager(HOODI_DELEGATION_MANAGER).delegateTo(restakingOperator, signatureWithExpiry, bytes32(0));
+        vm.stopPrank();
     }
 
     // Creates a new restaking operator and returns it

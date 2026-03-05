@@ -14,7 +14,7 @@ import { ISessionRegistry } from
     "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 contract IntegrationTestHelper is Test {
-    address DAO = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
+    address DAO = 0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1;
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public moduleManager;
