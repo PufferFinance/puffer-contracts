@@ -553,7 +553,7 @@ contract PufferProtocolHandler is Test {
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48)
-         });
+        });
 
         return validatorData;
     }

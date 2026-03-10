@@ -252,7 +252,7 @@ contract PufferProtocolTest is UnitTestHelper {
             depositDataRoot: bytes32(""),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48)
-         });
+        });
 
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, 0, PUFFER_MODULE_0);
@@ -1114,9 +1114,7 @@ contract PufferProtocolTest is UnitTestHelper {
         _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
 
         assertEq(validatorTicket.balanceOf(address(pufferProtocol)), 30 ether, "protocol has 30 VT");
-        assertApproxEqAbs(
-            _getUnderlyingETHAmount(address(pufferProtocol)), BOND, 1, "protocol should have ~2 eth bond"
-        );
+        assertApproxEqAbs(_getUnderlyingETHAmount(address(pufferProtocol)), BOND, 1, "protocol should have ~2 eth bond");
 
         vm.startPrank(alice);
 
@@ -1799,7 +1797,9 @@ contract PufferProtocolTest is UnitTestHelper {
         pufferProtocol.registerValidatorKey{ value: 9 ether }(data, PUFFER_MODULE_0, permit, emptyPermit);
 
         // Because alice purchased VT in the registration TX, it modified the exchange rate and we take less pufETH from her.
-        assertEq(pufferVault.balanceOf(alice), 16833167574628528, "alice has 16833167574628528 pufETH after registering");
+        assertEq(
+            pufferVault.balanceOf(alice), 16833167574628528, "alice has 16833167574628528 pufETH after registering"
+        );
     }
 
     // Alice uses Permit for VT and pays for the bond with ETH, but sends more ETH than needed
@@ -1969,7 +1969,7 @@ contract PufferProtocolTest is UnitTestHelper {
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
             blsPubKeySet: new bytes(48)
-         });
+        });
 
         return validatorData;
     }
