@@ -552,8 +552,7 @@ contract PufferProtocolHandler is Test {
                 withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(1) // Guardians are checking it off chain
+            blsPubKeySet: new bytes(48)
          });
 
         return validatorData;
@@ -583,10 +582,10 @@ contract PufferProtocolHandler is Test {
 
         uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-        uint256 bond = 1 ether;
+        uint256 bond = 2 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
             validatorKeyData, moduleName, emptyPermit, emptyPermit
         );

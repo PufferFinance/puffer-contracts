@@ -6,6 +6,7 @@ import { DeployerHelper } from "../../script/DeployerHelper.s.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
+import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { IStrategy } from "../../src/interface/Eigenlayer-Slashing/IStrategy.sol";
 import { IDelegationManagerTypes } from "../../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -51,6 +52,13 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
         deployRestakingOperator.deployRestakingOperatorTests(address(reOpController));
 
         pufferModuleManager = PufferModuleManager(payable(_getPufferModuleManager()));
+
+        PufferProtocol pufferProtocol = PufferProtocol(_getPufferProtocol());
+
+        vm.label(address(pufferModuleManager), "PufferModuleManager");
+        vm.label(address(pufferProtocol), "PufferProtocol");
+        vm.label(address(pufferModuleManager.authority()), "AccessManager");
+        vm.label(pufferProtocol.getModuleAddress(PUFFER_MODULE_0_NAME), "PufferModule0");
     }
 
     // Queue new withdrawals
