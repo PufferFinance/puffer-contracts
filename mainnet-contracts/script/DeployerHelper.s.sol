@@ -121,6 +121,8 @@ abstract contract DeployerHelper is Script {
     function _getBeaconChainStrategy() internal view returns (address) {
         if (block.chainid == holesky) {
             return 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+        } else if (block.chainid == hoodi) {
+            return 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
         }
 
         revert("BEACON_CHAIN_STRATEGY not available for this chain");

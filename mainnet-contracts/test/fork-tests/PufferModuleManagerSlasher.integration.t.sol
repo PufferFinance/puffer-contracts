@@ -29,7 +29,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
     DeployPufferModuleImplementation deployPufferModule;
     DeployRestakingOperator deployRestakingOperator;
 
-    uint32 START_BLOCK = 2352200; // Mar-04-2026 05:17:12 PM +UTC
+    uint32 START_BLOCK = 2409477; // Mar-13-2026 12:19:00 PM +UTC
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("hoodi"), START_BLOCK);
@@ -71,7 +71,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
     function test_queue_and_claim_withdrawals() public {
         vm.startPrank(_getPaymaster());
 
-        uint256 amount = 0.1 ether;
+        uint256 amount = 0.0001 ether;
         pufferModuleManager.callQueueWithdrawals(PUFFER_MODULE_0_NAME, amount);
 
         IStrategy[] memory strategies = new IStrategy[](1);
@@ -85,7 +85,7 @@ contract PufferModuleManagerSlasherIntegrationTest is Test, DeployerHelper {
             staker: PUFFER_MODULE_0_HOODI,
             delegatedTo: RESTAKING_OPERATOR_0_HOODI,
             withdrawer: PUFFER_MODULE_0_HOODI,
-            nonce: 42,
+            nonce: 0,
             startBlock: START_BLOCK,
             strategies: strategies,
             scaledShares: scaledShares

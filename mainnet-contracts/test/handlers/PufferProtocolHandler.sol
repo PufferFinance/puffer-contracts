@@ -428,7 +428,7 @@ contract PufferProtocolHandler is Test {
         // Account for that deposited eth in ghost variable
         ghost_eth_deposited_amount += depositedETHAmount;
         ghost_validators += 1;
-        ghost_pufETH_bond_amount += pufferVault.previewDeposit(1 ether);
+        ghost_pufETH_bond_amount += pufferVault.previewDeposit(2 ether);
 
         // Add node operator to the set
         _nodeOperators.add(currentActor);
