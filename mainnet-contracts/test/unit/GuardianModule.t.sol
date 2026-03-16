@@ -3,10 +3,14 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { IGuardianModule, PublicIdentity, GuardianSessionProof } from "../../src/interface/IGuardianModule.sol";
-import { Unauthorized } from "../../src/Errors.sol";
+import { GuardianModule } from "../../src/GuardianModule.sol";
+import { Unauthorized, InvalidAddress } from "../../src/Errors.sol";
 import { SessionRegistryMock } from "../mocks/SessionRegistryMock.sol";
 import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
 import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+
 
 contract GuardianModuleTest is UnitTestHelper {
     uint256 public newSKEnclave;
@@ -39,6 +43,29 @@ contract GuardianModuleTest is UnitTestHelper {
         newGuardianSessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: newEnclavePubKey });
     }
 
+    function test_invalid_constructor() public {
+        address[] memory guardians = new address[](1);
+        guardians[0] = guardian1;
+        address authority = guardianModule.authority();
+
+        // invalid session registry
+        vm.expectRevert(InvalidAddress.selector);
+        new GuardianModule(ISessionRegistry(address(0)), guardians, 1, authority, FRESHNESS_BLOCKS);
+
+        // invalid authority
+        vm.expectRevert(InvalidAddress.selector);
+        new GuardianModule(ISessionRegistry(address(sessionRegistryMock)), guardians, 1, address(0), FRESHNESS_BLOCKS);
+
+        // empty guardians
+        address[] memory emptyGuardians = new address[](1);
+        vm.expectRevert(InvalidAddress.selector);
+        new GuardianModule(ISessionRegistry(address(sessionRegistryMock)), emptyGuardians, 1, authority, FRESHNESS_BLOCKS);
+
+        // invalid threshold
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 0));
+        new GuardianModule(ISessionRegistry(address(sessionRegistryMock)), guardians, 0, authority, FRESHNESS_BLOCKS);
+    }
+
     function test_setup() public view {
         assertEq(guardianModule.getEjectionThreshold(), 31.75 ether, "initial value ejection threshold (31.75)");
         assertEq(guardianModule.getThreshold(), 1, "initial value threshold (1)");
@@ -46,6 +73,13 @@ contract GuardianModuleTest is UnitTestHelper {
 
     function test_rave() public {
         _deployContractAndSetupGuardians();
+    }
+
+    function test_set_ejection_threshold_reverts() public {
+        vm.startPrank(DAO);
+
+        vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 32.1 ether));
+        guardianModule.setEjectionThreshold(32.1 ether);
     }
 
     function test_set_threshold_to_0_reverts() public {
