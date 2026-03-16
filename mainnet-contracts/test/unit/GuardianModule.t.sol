@@ -11,7 +11,6 @@ import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/
 import { ISessionRegistry } from
     "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
-
 contract GuardianModuleTest is UnitTestHelper {
     uint256 public newSKEnclave;
     bytes public newEnclavePubKey;
@@ -59,7 +58,9 @@ contract GuardianModuleTest is UnitTestHelper {
         // empty guardians
         address[] memory emptyGuardians = new address[](1);
         vm.expectRevert(InvalidAddress.selector);
-        new GuardianModule(ISessionRegistry(address(sessionRegistryMock)), emptyGuardians, 1, authority, FRESHNESS_BLOCKS);
+        new GuardianModule(
+            ISessionRegistry(address(sessionRegistryMock)), emptyGuardians, 1, authority, FRESHNESS_BLOCKS
+        );
 
         // invalid threshold
         vm.expectRevert(abi.encodeWithSelector(IGuardianModule.InvalidThreshold.selector, 0));
