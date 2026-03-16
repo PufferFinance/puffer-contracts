@@ -64,7 +64,7 @@ contract PermissionedModuleStandaloneTest is Test {
         // Mock the getNRWCBeacon call on the module manager mock address
         vm.mockCall(
             pufferModuleManagerAddr,
-            abi.encodeWithSelector(PufferModuleManager.getNRWCBeacon.selector),
+            abi.encodeWithSignature("NRWC_BEACON()"),
             abi.encode(address(nrwcBeacon))
         );
 

@@ -100,7 +100,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         uint256 oracleLockedBefore = permissionedOracle.totalLockedEth();
         assertEq(oracleLockedBefore, originalStake);
@@ -139,7 +139,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         // Rewards scenario: 2 ETH earned
         uint256 actualWithdrawal = 102 ether;
@@ -174,7 +174,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 0; i < 5; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -195,25 +195,6 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
     // ============================================================================
 
     /**
-     * @notice Verifies non-sequential skip reverts with correct error
-     */
-    function test_nonSequentialSkipReverts() public {
-        vm.prank(dao);
-        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
-
-        for (uint256 i = 0; i < 5; i++) {
-            bytes memory pubkey = _generatePubkey(i + 1);
-            vm.prank(permissionedOperator);
-            pufferProtocol.registerPermissionedValidatorKey(pubkey, TEST_MODULE_NAME, true, 32 ether);
-        }
-
-        // Try to skip index 2 when next is 0
-        vm.prank(paymaster);
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.MustSkipNextValidator.selector, 0, 2));
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 2);
-    }
-
-    /**
      * @notice Verifies sequential skips work correctly
      */
     function test_sequentialSkipsWork() public {
@@ -229,7 +210,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         // Skip 0, 1, 2 sequentially
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(paymaster);
-            pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, i);
+            pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
             assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), i + 1);
         }
     }
@@ -258,32 +239,32 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         // Skip 0
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 0);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 1);
 
         // Provision 1
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 1, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
         depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         // Skip 2
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 2);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 3);
 
         // Provision 3
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 3, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
         depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         // Skip 4
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 4);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 5);
 
         // Provision 5
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 5, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         // Verify final state
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 6);
@@ -325,7 +306,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         // Skip first 4
         for (uint256 i = 0; i < 4; i++) {
             vm.prank(paymaster);
-            pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, i);
+            pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         }
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 4);
 
@@ -333,7 +314,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 4; i < 8; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -357,7 +338,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), 100 ether);
 
@@ -378,7 +359,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         // Provision new validator
         depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 1, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), 200 ether);
     }
@@ -400,40 +381,13 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         // Skip it
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 0);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
 
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 1);
 
         // Verify deleted
         PermissionedValidator memory v = pufferProtocol.getPermissionedValidatorInfo(TEST_MODULE_NAME, 0);
         assertEq(v.node, address(0));
-    }
-
-    /**
-     * @notice Tests cannot skip already provisioned validator
-     */
-    function test_cannotSkipProvisionedValidator() public {
-        vm.prank(dao);
-        pufferProtocol.createPermissionedModule(TEST_MODULE_NAME);
-
-        vm.deal(address(pufferVault), 200 ether);
-
-        // Register 2 validators
-        for (uint256 i = 0; i < 2; i++) {
-            bytes memory pubkey = _generatePubkey(i + 1);
-            vm.prank(permissionedOperator);
-            pufferProtocol.registerPermissionedValidatorKey(pubkey, TEST_MODULE_NAME, true, 32 ether);
-        }
-
-        // Provision first
-        bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
-        vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
-
-        // Try to skip index 0 (already provisioned) - should fail due to FIFO (next is 1)
-        vm.prank(paymaster);
-        vm.expectRevert(abi.encodeWithSelector(IPufferProtocol.MustSkipNextValidator.selector, 1, 0));
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 0);
     }
 
     /**
@@ -456,7 +410,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -464,13 +418,13 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         // Now skip 3 (next in line)
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 3);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
 
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 4);
 
         // Provision 4
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 4, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), 128 ether); // 4 * 32 ETH
     }
@@ -505,19 +459,19 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         // Module A: skip 0, provision 1, skip 2
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(moduleA, 0);
+        pufferProtocol.skipPermissionedProvisioning(moduleA);
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(moduleA, 1, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(moduleA, TEST_SIGNATURE, depositRoot);
         depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(moduleA, 2);
+        pufferProtocol.skipPermissionedProvisioning(moduleA);
 
         // Module B: provision all
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(moduleB, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(moduleB, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -550,7 +504,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -587,9 +541,9 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         }
 
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 0);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 1);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
 
         assertEq(pufferProtocol.getNextPermissionedValidatorToBeProvisionedIndex(TEST_MODULE_NAME), 2);
         assertEq(pufferProtocol.getPendingPermissionedValidatorIndex(TEST_MODULE_NAME), 2);
@@ -607,7 +561,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 2; i < 4; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -634,7 +588,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), maxStake);
 
@@ -674,7 +628,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         for (uint256 i = 0; i < 2; i++) {
             vm.prank(paymaster);
-            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, i, TEST_SIGNATURE, depositRoot);
+            pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
             depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         }
 
@@ -683,9 +637,9 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         // Skip remaining 2
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 2);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 3);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
 
         // Oracle should be unchanged (skipping doesn't affect locked ETH)
         assertEq(permissionedOracle.totalLockedEth(), oracleBefore);
@@ -721,7 +675,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         uint256 slashingLoss = (stakeAmount * slashingPercent) / 100;
         uint256 actualWithdrawal = stakeAmount - slashingLoss;
@@ -752,7 +706,7 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
 
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         uint256 rewards = (stakeAmount * rewardPercent) / 100;
         uint256 actualWithdrawal = stakeAmount + rewards;
@@ -804,8 +758,13 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
             IPermissionedOracle(address(permissionedOracle))
         );
 
-        PufferModuleManager newModuleManagerImpl =
-            new PufferModuleManager(_getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol());
+        PufferModuleManager newModuleManagerImpl = new PufferModuleManager(
+            _getPufferModuleBeacon(),
+            _getRestakingOperatorBeacon(),
+            _getPufferProtocol(),
+            address(permissionedModuleBeacon),
+            address(nrwcBeacon)
+        );
 
         vm.startPrank(COMMUNITY_MULTISIG);
 
@@ -825,30 +784,8 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         );
         require(success, "PufferModuleManager upgrade failed");
 
-        // Grant DAO role permission to call setPermissionedModuleBeacon and setNRWCBeacon
-        bytes4[] memory beaconSelectors = new bytes4[](2);
-        beaconSelectors[0] = PufferModuleManager.setPermissionedModuleBeacon.selector;
-        beaconSelectors[1] = PufferModuleManager.setNRWCBeacon.selector;
-        bytes memory grantBeaconRoleCalldata = abi.encodeCall(
-            accessManager.setTargetFunctionRole, (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
-        );
-        (success,) = address(timelock).call(
-            abi.encodeCall(Timelock.executeTransaction, (address(accessManager), grantBeaconRoleCalldata, 3))
-        );
-        require(success, "Grant beacon role failed");
-
         vm.stopPrank();
 
-        // Set permissioned module beacon
-        bytes memory setBeaconCalldata =
-            abi.encodeCall(PufferModuleManager.setPermissionedModuleBeacon, (address(permissionedModuleBeacon)));
-        vm.prank(dao);
-        accessManager.execute(_getPufferModuleManager(), setBeaconCalldata);
-
-        // Set NRWC beacon
-        bytes memory setNRWCBeaconCalldata = abi.encodeCall(PufferModuleManager.setNRWCBeacon, (address(nrwcBeacon)));
-        vm.prank(dao);
-        accessManager.execute(_getPufferModuleManager(), setNRWCBeaconCalldata);
     }
 
     function _setupAccessControl() internal {

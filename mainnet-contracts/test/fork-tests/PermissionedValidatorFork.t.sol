@@ -139,8 +139,13 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         vm.label(address(newProtocolImpl), "PufferProtocolNewImpl");
 
         // Deploy new PufferModuleManager implementation
-        PufferModuleManager newModuleManagerImpl =
-            new PufferModuleManager(_getPufferModuleBeacon(), _getRestakingOperatorBeacon(), _getPufferProtocol());
+        PufferModuleManager newModuleManagerImpl = new PufferModuleManager(
+            _getPufferModuleBeacon(),
+            _getRestakingOperatorBeacon(),
+            _getPufferProtocol(),
+            address(permissionedModuleBeacon),
+            address(nrwcBeacon)
+        );
         vm.label(address(newModuleManagerImpl), "PufferModuleManagerNewImpl");
 
         // Execute upgrades through Timelock as COMMUNITY_MULTISIG (instant execution, no delay)
@@ -164,31 +169,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         );
         require(success, "PufferModuleManager upgrade failed");
 
-        // 3. Set permissioned module beacon and NRWC beacon via Timelock -> AccessManager -> PufferModuleManager
-        // First, grant the DAO role permission to call setPermissionedModuleBeacon and setNRWCBeacon
-        bytes4[] memory beaconSelectors = new bytes4[](2);
-        beaconSelectors[0] = PufferModuleManager.setPermissionedModuleBeacon.selector;
-        beaconSelectors[1] = PufferModuleManager.setNRWCBeacon.selector;
-        bytes memory grantBeaconRoleCalldata = abi.encodeCall(
-            accessManager.setTargetFunctionRole, (_getPufferModuleManager(), beaconSelectors, ROLE_ID_DAO)
-        );
-        (success,) = address(timelock).call(
-            abi.encodeCall(Timelock.executeTransaction, (address(accessManager), grantBeaconRoleCalldata, 3))
-        );
-        require(success, "Grant beacon role failed");
-
-        vm.stopPrank();
-
-        // Now execute setPermissionedModuleBeacon as dao (who has ROLE_ID_DAO)
-        bytes memory setBeaconCalldata =
-            abi.encodeCall(PufferModuleManager.setPermissionedModuleBeacon, (address(permissionedModuleBeacon)));
-        vm.prank(dao);
-        accessManager.execute(_getPufferModuleManager(), setBeaconCalldata);
-
-        // Also set NRWC beacon
-        bytes memory setNRWCBeaconCalldata = abi.encodeCall(PufferModuleManager.setNRWCBeacon, (address(nrwcBeacon)));
-        vm.prank(dao);
-        accessManager.execute(_getPufferModuleManager(), setNRWCBeaconCalldata);
+        // TODO Redeploy PMM with new beacons
     }
 
     function _setupAccessControl() internal {
@@ -482,7 +463,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         // Provision validator
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, index, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         // Verify status changed to ACTIVE
         PermissionedValidator memory validator = pufferProtocol.getPermissionedValidatorInfo(TEST_MODULE_NAME, index);
@@ -514,7 +495,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         // Provision validator
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, index, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         // Verify status changed to ACTIVE
         PermissionedValidator memory validator = pufferProtocol.getPermissionedValidatorInfo(TEST_MODULE_NAME, index);
@@ -657,7 +638,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         // Skip provisioning
         vm.prank(paymaster);
-        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME, 0);
+        pufferProtocol.skipPermissionedProvisioning(TEST_MODULE_NAME);
 
         // Verify validator data deleted
         PermissionedValidator memory validator = pufferProtocol.getPermissionedValidatorInfo(TEST_MODULE_NAME, 0);
@@ -693,7 +674,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         vm.prank(unauthorized);
         vm.expectRevert();
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, bytes32(0));
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, bytes32(0));
 
         // Trigger withdrawals (only paymaster)
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](1);
@@ -945,7 +926,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         // Provision first validator
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), 100 ether, "Should track 100 ETH after first provision");
         assertEq(permissionedOracle.getModuleLockedEth(TEST_MODULE_NAME), 100 ether);
@@ -955,7 +936,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
 
         // Provision second validator
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 1, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
 
         assertEq(permissionedOracle.totalLockedEth(), 300 ether, "Should track 300 ETH after second provision");
         assertEq(permissionedOracle.getModuleLockedEth(TEST_MODULE_NAME), 300 ether);
@@ -987,7 +968,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
     }
 
     function _setupProvisionedRestakedValidator() internal {
@@ -1007,7 +988,7 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
         bytes32 depositRoot = IBeaconDepositContract(_getBeaconDepositContract()).get_deposit_root();
 
         vm.prank(paymaster);
-        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, 0, TEST_SIGNATURE, depositRoot);
+        pufferProtocol.provisionPermissionedValidator(TEST_MODULE_NAME, TEST_SIGNATURE, depositRoot);
     }
 
     function _grantNRWCAccess(address nrwc, address moduleAddress) internal {
