@@ -785,7 +785,6 @@ contract PermissionedValidatorEdgeCaseTest is MainnetForkTestHelper {
         require(success, "PufferModuleManager upgrade failed");
 
         vm.stopPrank();
-
     }
 
     function _setupAccessControl() internal {

@@ -62,11 +62,7 @@ contract PermissionedModuleStandaloneTest is Test {
         UpgradeableBeacon nrwcBeacon = new UpgradeableBeacon(address(nrwcImpl), owner);
 
         // Mock the getNRWCBeacon call on the module manager mock address
-        vm.mockCall(
-            pufferModuleManagerAddr,
-            abi.encodeWithSignature("NRWC_BEACON()"),
-            abi.encode(address(nrwcBeacon))
-        );
+        vm.mockCall(pufferModuleManagerAddr, abi.encodeWithSignature("NRWC_BEACON()"), abi.encode(address(nrwcBeacon)));
 
         // Create a fake PufferModuleManager reference for the PermissionedModule constructor
         pufferModuleManager = PufferModuleManager(payable(pufferModuleManagerAddr));
