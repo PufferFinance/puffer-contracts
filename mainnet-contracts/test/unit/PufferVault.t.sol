@@ -1047,7 +1047,6 @@ contract PufferVaultTest is UnitTestHelper {
             stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor, permissionedOracle
         );
 
-
         console.log("permissionedOracle", address(permissionedOracle));
 
         UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
