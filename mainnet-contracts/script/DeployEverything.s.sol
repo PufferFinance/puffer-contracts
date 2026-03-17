@@ -23,7 +23,7 @@ import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256, address)' "[$DEV_WALLET]" 1 $DEV_WALLET --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
