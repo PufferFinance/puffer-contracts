@@ -10,6 +10,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { WETH9 } from "../mocks/WETH9.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
+import { MockPermissionedOracle } from "../mocks/MockPermissionedOracle.sol";
 import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
@@ -115,6 +116,7 @@ contract PufETHTest is ERC4626Test {
         vm.stopPrank();
 
         MockPufferOracle mockOracle = new MockPufferOracle();
+        MockPermissionedOracle mockPermissionedOracle = new MockPermissionedOracle();
         PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
         PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: stETH,
@@ -122,7 +124,7 @@ contract PufETHTest is ERC4626Test {
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
             revenueDepositor: revenueDepositor,
-            permissionedOracle: IPermissionedOracle(address(0))
+            permissionedOracle: mockPermissionedOracle
         });
 
         vm.startPrank(communityMultisig);

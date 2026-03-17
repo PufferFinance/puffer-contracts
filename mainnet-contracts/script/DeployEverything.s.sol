@@ -10,6 +10,7 @@ import { DeployPufETH, PufferDeployment } from "../script/DeployPufETH.s.sol";
 import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
 import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
+import { DeployPermissionedOracle } from "script/DeployPermissionedOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -51,8 +52,10 @@ contract DeployEverything is BaseScript {
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
         );
 
+        address permissionedOracle = address(new DeployPermissionedOracle().run(puffETHDeployment.accessManager));
+
         PufferProtocolDeployment memory pufferDeployment =
-            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle, address(0));
+            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle, permissionedOracle);
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
@@ -64,7 +67,7 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor, address(0));
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor, permissionedOracle);
 
         // `anvil` in the terminal
         if (_localAnvil) {

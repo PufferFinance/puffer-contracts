@@ -230,7 +230,7 @@ contract DeployPuffer is BaseScript {
             nrwcBeacon: address(nrwcBeacon),
             moduleManager: address(moduleManagerProxy),
             pufferOracle: address(oracle),
-            permissionedOracle: address(0), // Set during permissioned module deployment
+            permissionedOracle: address(permissionedOracle),
             operationsCoordinator: address(operationsCoordinator),
             aVSContractsRegistry: address(aVSContractsRegistry),
             restakingOperatorController: address(restakingOperatorController),

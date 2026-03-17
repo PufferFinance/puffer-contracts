@@ -12,13 +12,14 @@ import { console } from "forge-std/console.sol";
  * @dev Tracks actual ETH amounts locked by permissioned validators (supports Pectra variable 32-2048 ETH).
  *
  *      forge script script/DeployPermissionedOracle.s.sol:DeployPermissionedOracle \
+ *             --sig 'run(address)' <access_manager_address> \
  *          -vvvv --rpc-url=$RPC_URL --broadcast --verify
  */
 contract DeployPermissionedOracle is DeployerHelper {
-    function run() public returns (PermissionedOracle) {
+    function run(address accessManager) public returns (PermissionedOracle) {
         vm.startBroadcast();
 
-        PermissionedOracle oracle = new PermissionedOracle(_getAccessManager());
+        PermissionedOracle oracle = new PermissionedOracle(accessManager);
 
         vm.label(address(oracle), "PermissionedOracle");
         console.log("Deployed PermissionedOracle at", address(oracle));
