@@ -315,7 +315,7 @@ abstract contract DeployerHelper is Script {
     function _getWstETH() internal view returns (address) {
         if (block.chainid == mainnet) {
             return 0x8d09a4502Cc8Cf1547aD300E066060D043f6982D;
-        } else if(block.chainid == hoodi) {
+        } else if (block.chainid == hoodi) {
             return 0x7E99eE3C66636DE415D2d7C880938F2f40f94De4;
         }
 

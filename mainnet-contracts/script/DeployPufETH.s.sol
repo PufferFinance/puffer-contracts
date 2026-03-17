@@ -261,7 +261,7 @@ contract DeployPufETH is BaseScript {
             lidoWithdrawalQueue = ILidoWithdrawalQueue(0xfe56573178f1bcdf53F01A6E9977670dcBBD9186);
             stETHStrategy = IStrategy(0xF8a1a66130D614c7360e868576D5E59203475FE0);
             eigenStrategyManager = IEigenLayer(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41);
-        }  else {
+        } else {
             stETH = IStETH(address(new stETHMock()));
             weth = new WETH9();
             lidoWithdrawalQueue = new LidoWithdrawalQueueMock();
