@@ -38,7 +38,7 @@ contract DeployPufferVault is DeployerHelper {
             pufferOracle: IPufferOracleV2(_getPufferOracle()),
             revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor()),
             permissionedOracle: IPermissionedOracle(_getPermissionedOracle())
-         });
+        });
 
         //@todo Double check reinitialization
         _consoleLogOrUpgradeUUPS({
