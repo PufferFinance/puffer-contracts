@@ -27,15 +27,15 @@ contract PufferModuleManagerHoodiTestnetFFI is Test {
 
     // Puffer Hoodi deployment
     address PUFFER_SHARED_DEV_WALLET = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
-    address ACCESS_MANAGER_HOODI = address(0); // @todo
-    address MODULE_BEACON_HOODI = address(0); // @todo
-    address PUFFER_PROTOCOL_HOODI = address(0); // @todo
-    address PUFFER_MODULE_MANAGER = address(0); // @todo
-    address PUFFER_MODULE_0_HOODI = address(0); // @todo
-    // https://holesky.eigenlayer.xyz/operator/address(0); // @todo
-    address RESTAKING_OPERATOR_CONTRACT = address(0); // @todo
-    address RESTAKING_OPERATOR_BEACON = address(0); // @todo
-    address REWARDS_COORDINATOR = address(0); // @todo
+    address ACCESS_MANAGER_HOODI = 0x08FB343f638e18421Be7A26Ed1e8ADFAf378cf97;
+    address MODULE_BEACON_HOODI = 0xbAfD7A578351baDC855328963562EE7a3b8Fae00;
+    address PUFFER_PROTOCOL_HOODI = 0xb39cA8C580eEA0996CEaAd1f199A135F9Bdfc74C;
+    address PUFFER_MODULE_MANAGER = 0xc97d22D8638044C27a59E1930C4C684A40778046;
+    address PUFFER_MODULE_0_HOODI = 0xcabed454A76f1d6CB41241dDD8361312b949Fb20;
+    // https://holesky.eigenlayer.xyz/operator/0xE9C3DE989D30dE331AaE0771F1b81Ed158d25b0b
+    address RESTAKING_OPERATOR_CONTRACT = 0xE9C3DE989D30dE331AaE0771F1b81Ed158d25b0b;
+    address RESTAKING_OPERATOR_BEACON = 0x48564bF0a15F3B0a6d2f16De35c810578a667982;
+    address REWARDS_COORDINATOR = 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
 
     function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {
         string[] memory inputs = new string[](3);

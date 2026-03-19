@@ -37,7 +37,7 @@ contract DeployPufferVault is DeployerHelper {
             weth: IWETH(_getWETH()),
             pufferOracle: IPufferOracleV2(_getPufferOracle()),
             revenueDepositor: IPufferRevenueDepositor(_getRevenueDepositor()),
-            permissionedOracle: IPermissionedOracle(address(0)) // TODO: set actual address
+            permissionedOracle: IPermissionedOracle(_getPermissionedOracle())
          });
 
         //@todo Double check reinitialization

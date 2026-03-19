@@ -168,8 +168,6 @@ contract PermissionedValidatorForkTest is MainnetForkTestHelper {
             abi.encodeCall(Timelock.executeTransaction, (_getPufferModuleManager(), moduleManagerUpgradeCalldata, 2))
         );
         require(success, "PufferModuleManager upgrade failed");
-
-        // TODO Redeploy PMM with new beacons
     }
 
     function _setupAccessControl() internal {

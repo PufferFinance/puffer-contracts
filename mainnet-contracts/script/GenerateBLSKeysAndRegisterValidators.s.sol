@@ -45,7 +45,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
             forkVersion = "0x01017000";
         } else if (block.chainid == 560048) {
             // Hoodi
-            protocolAddress = address(0); // @todo Add protocol address once deployed
+            protocolAddress = 0xb39cA8C580eEA0996CEaAd1f199A135F9Bdfc74C;
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x10000910";
         } else if (block.chainid == 1) {

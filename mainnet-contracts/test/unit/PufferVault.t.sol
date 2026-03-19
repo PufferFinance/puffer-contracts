@@ -10,8 +10,6 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { LidoWithdrawalQueueMock } from "../mocks/LidoWithdrawalQueueMock.sol";
 import { IPermissionedOracle } from "src/interface/IPermissionedOracle.sol";
 
-import "forge-std/console.sol";
-
 contract PufferVaultTest is UnitTestHelper {
     uint256 pointZeroZeroOne = 0.0001e18;
 
@@ -1046,8 +1044,6 @@ contract PufferVaultTest is UnitTestHelper {
         PufferVaultV5Liq newImplementation = new PufferVaultV5Liq(
             stETH, weth, new LidoWithdrawalQueueMock(), pufferOracle, revenueDepositor, permissionedOracle
         );
-
-        console.log("permissionedOracle", address(permissionedOracle));
 
         UUPSUpgradeable(address(pufferVault)).upgradeToAndCall(address(newImplementation), "");
         vm.stopPrank();

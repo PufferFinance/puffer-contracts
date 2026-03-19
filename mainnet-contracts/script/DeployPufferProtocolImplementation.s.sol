@@ -31,7 +31,7 @@ contract DeployPufferProtocolImplementation is DeployerHelper {
                 moduleManager: _getPufferModuleManager(),
                 oracle: IPufferOracleV2(_getPufferOracle()),
                 beaconDepositContract: _getBeaconDepositContract(),
-                permissionedOracle: IPermissionedOracle(address(0)) // TODO: set actual address
+                permissionedOracle: IPermissionedOracle(_getPermissionedOracle())
              })
         );
 
