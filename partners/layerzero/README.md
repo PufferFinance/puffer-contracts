@@ -1,150 +1,263 @@
-## Clone the repository
-```bash
-git clone https://github.com/PufferFinance/layerzero-bridge-scripts.git
-```
+# LayerZero Bridge Scripts
 
-## 1) Developing Contracts
+Scripts for deploying and wiring LayerZero OFT/OFTAdapter contracts for cross-chain token bridging.
 
-### Installing Dependencies
+## Prerequisites
 
-We recommend using `pnpm` as the package manager (though you can use any package manager of your choice):
+- Node.js (v18+)
+- pnpm package manager
 
-If you don't have pnpm installed, install it first:
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
-
-```bash
-cd layerzero-bridge-scripts
-```
+## Installation
 
 ```bash
 pnpm install
 ```
 
-### Setting Up a New Chain
+## Configuration
 
-#### Adding a New Contract for Bridging
-1. Add the contract to `contracts/`
-2. Update the token address in `deploy/MyOFTAdapter.ts`:
+1. Copy `.env.example` to `.env` and fill in required values:
+   - `PRIVATE_KEY` or `MNEMONIC` for transaction signing
+   - RPC URLs (optional - defaults provided)
+   - Explorer API keys (optional - for verification)
+
+2. Chain configurations are in `config/chains/`. Each chain has:
+   - Network details (chainId, RPC, explorer)
+   - LayerZero infrastructure addresses (endpoint, DVNs, executor)
+   - Wiring parameters (confirmations, gas limits)
+   - Deployed contract addresses
+
+## Adding a New Chain
+
+### Finding LayerZero Deployment Addresses
+
+LayerZero maintains a metadata API with all deployment addresses for each chain:
+
+**https://metadata.layerzero-api.com/v1/metadata/deployments**
+
+From this API, you'll need:
+- `endpointV2` - The main LayerZero endpoint contract
+- `sendUln302` / `receiveUln302` - Message library contracts
+- `executor` - The executor contract for your chain
+- `dvns` - DVN (Decentralized Verifier Network) addresses (e.g., Horizen, Nethermind) (Remember to add same nos. of DVNs to both source and destination chains)
+
+### Creating the Chain Config
+
+1. Create a new config file in `config/chains/`:
+
 ```typescript
-args: [
-    '0x<BASE_TOKEN_ADDRESS>', // The base token address
-    endpointV2Deployment.address, // LayerZero's EndpointV2 address
-    deployer, // Owner
-],
+// config/chains/mychain.ts
+import { CustomChainConfig } from '../types'
+
+export const MYCHAIN_EID = 30XXX // LayerZero endpoint ID
+
+export const mychain: CustomChainConfig = {
+    name: 'mychain',
+    chainId: 1234,
+    eid: MYCHAIN_EID,
+    rpcUrl: process.env.MYCHAIN_RPC_URL || 'https://rpc.mychain.com',
+    timeout: 120000,
+    explorer: {
+        apiUrl: 'https://explorer.mychain.com/api',
+        browserUrl: 'https://explorer.mychain.com',
+        apiKey: process.env.MYCHAIN_EXPLORER_API_KEY || 'mychain',
+    },
+    layerzero: {
+        endpointV2: '0x...',
+        sendUln302: '0x...',
+        receiveUln302: '0x...',
+        executor: '0x...',
+        dvns: {
+            required: ['0x...'], // Required DVN addresses
+            optional: [],
+        },
+    },
+    wiring: {
+        confirmations: 5,
+        executorMaxMessageSize: 10000,
+        lzReceiveGas: 80000,
+    },
+    contracts: {
+        // Add deployed contract addresses here
+        // pufETH: '0x...',
+    },
+    tokenType: 'OFT', // or 'OFTAdapter' for source chain
+}
 ```
 
-#### Adding a New Chain for Bridging
-1. Add the chain information to `hardhat.config.ts`
-2. Add the chain mappings to `<TOKEN_NAME>.simple.config.ts`
+2. Export it from `config/chains/index.ts`
 
-### Compiling Your Contracts
+3. List available chains:
+```bash
+npx hardhat custom:chains
+```
 
-This project supports both `hardhat` and `forge` compilation. By default, the `compile` command executes both:
+## Deploying Contracts
+
+Deploy OFT contract to a new chain:
 
 ```bash
-pnpm compile
+npx hardhat deploy --network mychain --tags pufETH
 ```
 
-If you prefer one tool over the other, you can use the tool-specific commands:
+The deployment script will automatically attempt verification after deployment.
+
+## Wiring Contracts
+
+Wire contracts between Ethereum (source) and a destination chain:
 
 ```bash
-pnpm compile:forge
-pnpm compile:hardhat
+npx hardhat custom:wire --token pufETH --dest megaeth
 ```
 
-Alternatively, you can modify the `package.json` to use only one build tool. For example, to remove `forge` build:
+### Options
 
-```diff
-- "compile": "$npm_execpath run compile:forge && $npm_execpath run compile:hardhat",
-- "compile:forge": "forge build",
-- "compile:hardhat": "hardhat compile",
-+ "compile": "hardhat compile"
-```
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--token` | Token to wire (pufETH or PUFFER) | required |
+| `--dest` | Destination chain name | required |
+| `--source` | Source chain name | ethereum-mainnet |
+| `--mode` | Execution mode: auto, execute, or calldata | auto |
+| `--restart` | Ignore saved state and start fresh | false |
+| `--dry-run` | Show what would be done without executing | false |
+| `--source-only` | Only wire source chain | false |
+| `--dest-only` | Only wire destination chain | false |
+| `--execute-endpoint-config` | Execute EndpointV2 config only (after Safe executes) | false |
 
-### Deploying the Contracts
+### Execution Modes
+
+- **auto** (default): Executes transactions if signer is owner, otherwise generates calldata
+- **execute**: Always attempt to execute transactions
+- **calldata**: Always generate calldata (useful for multisig)
+
+### Resume Support
+
+The wiring script saves state to `.wiring-state/` and can resume from where it left off. Use `--restart` to start fresh.
+
+### Example: Wire to MegaETH
 
 ```bash
-npx hardhat lz:deploy
+# Full wiring (both chains)
+npx hardhat custom:wire --token pufETH --dest megaeth
+
+# Only wire destination chain (if source already done via multisig)
+npx hardhat custom:wire --token pufETH --dest megaeth --dest-only
+
+# Dry run to see what would happen
+npx hardhat custom:wire --token pufETH --dest megaeth --dry-run
 ```
 
-You will be presented with a list of networks to deploy to. Make sure to fund your deployer account with native gas tokens beforehand.
+## Checking Wiring Status
 
-**Important Note for Multisig Owners:**
+Verify that contracts are properly wired:
 
-If the contract owner is a multisig wallet (not an EOA), follow these steps:
-
-1. **Generate Transaction Calldatas**: Run the `wire` script below to generate transaction calldatas. On new chains, the deployer becomes the owner, so all transactions can be executed directly via CLI. Only Mainnet transactions need to be executed through a safe.
-
-2. **Execute Safe Transactions**: Create safe transactions with the generated calldatas that include the OmniAddress as the OFT address. You'll need 2 transactions:
-   - `SetPeer`
-   - `SetEnforcedOptionSet` on the Adapter
-   
-   Example: [Etherscan Transaction](https://etherscan.io/tx/0xce4f5d71219bcd4b0ba847fb02a611f82503a48ddbedba5b93e392cd2ef72b14#eventlog)
-
-3. **Wire the Contracts**: After the safe transactions are executed, run the `wire` script again to configure the contracts and set up DVNs (this can be called by anyone).
-
-4. **Verify Connections**: Run the `peers:get` script to verify the connections are properly established.
-
-### Wiring the Contracts
-
-Run the following command to wire the contracts:
 ```bash
-npx hardhat lz:oapp:wire --oapp-config <TOKEN_NAME>.simple.config.ts
+npx hardhat custom:check --token pufETH --dest megaeth
 ```
 
-### Verifying the Connections
+## Multisig Workflow
 
-Run this command to verify the connections:
+If the source chain contract (OFTAdapter) is owned by a multisig, follow these steps:
+
+### Understanding the Wiring Process
+
+The wiring process involves 4 transactions on each chain:
+
+| # | Transaction | Contract | Who Can Execute |
+|---|-------------|----------|-----------------|
+| 1 | `setPeer` | OFTAdapter | Owner only (multisig) |
+| 2 | `setEnforcedOptions` | OFTAdapter | Owner only (multisig) |
+| 3 | `setSendConfig` | EndpointV2 | Delegate (set during deployment) |
+| 4 | `setReceiveConfig` | EndpointV2 | Delegate (set during deployment) |
+
+**Why we split these:**
+- Transactions 1-2 modify the OFTAdapter contract and require the multisig owner to sign
+- Transactions 3-4 are called on the LayerZero EndpointV2 contract and can be executed by the **delegate** (typically the deployer wallet)
+- The EndpointV2 config calls may revert if the peer is not set yet, so they must be executed **after** the Safe transactions confirm
+
+### Step 1: Generate Safe Calldata (OFT-level transactions only)
+
+By default, the script generates calldata for only the multisig-required transactions (steps 1-2):
+
 ```bash
-npx hardhat lz:oapp:peers:get --oapp-config <TOKEN_NAME>.simple.config.ts
+npx hardhat custom:wire --token pufETH --dest megaeth --source-only
 ```
 
-## 2) Using the Bridge
+This generates calldata for only 2 transactions:
+- `setPeer` - on pufETHAdapter (links to the destination chain OFT)
+- `setEnforcedOptions` - on pufETHAdapter (sets minimum gas for cross-chain messages)
 
-After deploying the contracts, you can use the bridge to transfer tokens between chains. The project includes scripts for bridging tokens between Ethereum and BSC.
+Calldata is saved to `.wiring-state/safe-batch-ethereum-mainnet-pufETH.json`
 
-### Updating Script Values
+### Step 2: Execute via Safe Multisig
 
-The `scripts/BridgeToBSC.s.sol` and `scripts/BridgeToETH.s.sol` files contain the bridging scripts. You need to update the following parameters:
+1. Import the Safe batch JSON into your Safe wallet
+2. Execute the transactions
+3. **Wait for the transactions to confirm on-chain**
 
-```solidity
-// ---------- TO CHANGE ----------
-address toAddress = 0x37f49eBf12c9dC8459A313E65c48aF199550159a; // Recipient address
-uint256 _tokensToSend = 100 ether; // Amount to send (you can use decimal notation like 1.2 ether)
-// ---------- TO CHANGE ----------
-```
+### Step 3: Execute Endpoint Config via CLI (after Safe transactions confirm)
 
-### Bridging Tokens
+Once the peer is set via Safe, come back to the CLI and execute the EndpointV2 config using `--execute-endpoint-config`. This executes the transactions directly from your deployer wallet (which has delegate permission):
 
-#### Bridge from Ethereum to BSC
 ```bash
-pnpm bridge:to:bsc
+npx hardhat custom:wire --token pufETH --dest megaeth --source-only --execute-endpoint-config
 ```
-This will generate a `cast` command. Copy and execute this command to perform the bridge transaction.
 
-#### Bridge from BSC to Ethereum
+This will execute as direct transactions (not calldata):
+- `setSendConfig` - on EndpointV2 (configures which DVNs verify outgoing messages)
+- `setReceiveConfig` - on EndpointV2 (configures which DVNs verify incoming messages)
+
+### Step 4: Wire the Destination Chain
+
+Wire the destination chain. Since you deployed the OFT on the new chain, you are the owner and can execute all 4 transactions directly:
+
 ```bash
-pnpm bridge:to:eth
+npx hardhat custom:wire --token pufETH --dest megaeth --dest-only
 ```
-This will generate a `cast` command. Copy and execute this command to perform the bridge transaction.
 
-**Prerequisites:**
-- Sufficient tokens in your wallet on the source chain
-- Sufficient native tokens for gas fees
-- **Token spending approval for the bridge contract**
+This executes all 4 transactions on the destination chain:
+- `setPeer` - links back to Ethereum OFTAdapter
+- `setEnforcedOptions` - sets minimum gas for messages to Ethereum
+- `setSendConfig` - configures DVNs for outgoing messages
+- `setReceiveConfig` - configures DVNs for incoming messages
 
-### Customizing Bridge Parameters
+### Step 5: Verify Wiring
 
-You can modify the following parameters in the bridge scripts:
-- `toAddress`: The recipient address on the destination chain
-- `_tokensToSend`: The amount of tokens to send (in ether units, e.g., "100 ether")
+Check that both sides are properly configured:
 
-These parameters are located in `scripts/BridgeToBSC.s.sol` and `scripts/BridgeToETH.s.sol`.
+```bash
+npx hardhat custom:check --token pufETH --dest megaeth
+```
 
-<br></br>
+This verifies that peers are set correctly on both chains.
 
-<p align="center">
-  Join our <a href="https://layerzero.network/community" style="color: #a77dff">community</a>! | Follow us on <a href="https://x.com/LayerZero_Labs" style="color: #a77dff">X (formerly Twitter)</a>
-</p>
+## Contract Verification
+
+Verify a deployed contract:
+
+```bash
+npx hardhat verify --network megaeth --contract contracts/pufETH.sol:pufETH <ADDRESS> <CONSTRUCTOR_ARGS>
+```
+
+Example:
+```bash
+npx hardhat verify --network megaeth --contract contracts/pufETH.sol:pufETH \
+  0x37D6382B6889cCeF8d6871A8b60E667115eDDBcF \
+  0x6F475642a6e85809B1c36Fa62763669b1b48DD5B \
+  0x1BfAec64abFddcC8c5dA134880d1E71f3E03689E
+```
+
+## Using the Bridge
+
+After wiring is complete, use the send task to transfer tokens:
+
+```bash
+npx hardhat send --network ethereum-mainnet --to <RECIPIENT> --amount <AMOUNT>
+```
+
+Don't forget to add the deployed contract address to ACL. 
+
+## Resources
+
+- **LayerZero Deployment Addresses**: https://metadata.layerzero-api.com/v1/metadata/deployments
+- **LayerZero Docs**: https://docs.layerzero.network/
+- **LayerZero Scan** (cross-chain explorer): https://layerzeroscan.com/

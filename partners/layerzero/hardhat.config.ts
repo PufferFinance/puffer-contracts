@@ -11,10 +11,13 @@ import '@nomiclabs/hardhat-ethers'
 import '@layerzerolabs/toolbox-hardhat'
 import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from 'hardhat/types'
 
-import { EndpointId } from '@layerzerolabs/lz-definitions'
 import '@nomicfoundation/hardhat-verify'
 import './tasks/send'
+import './tasks/customWire'
 import './type-extensions'
+
+// Import chain configs for dynamic network setup
+import { chainConfigs } from './config'
 
 // Set your preferred authentication method
 //
@@ -37,6 +40,56 @@ if (accounts == null) {
     )
 }
 
+// Build networks from chain configs
+function buildNetworksFromConfig(): Record<string, any> {
+    const networks: Record<string, any> = {}
+    for (const [name, config] of Object.entries(chainConfigs)) {
+        // Skip aliases (e.g., 'ethereum' alias for 'ethereum-mainnet')
+        if (name === 'ethereum') continue
+
+        networks[name] = {
+            eid: config.eid,
+            url: config.rpcUrl,
+            accounts,
+            timeout: config.timeout || 120000,
+        }
+    }
+    return networks
+}
+
+// Build custom chains for etherscan verification
+function buildCustomChains(): Array<{ network: string; chainId: number; urls: { apiURL: string; browserURL: string } }> {
+    const customChains: Array<{ network: string; chainId: number; urls: { apiURL: string; browserURL: string } }> = []
+    for (const [name, config] of Object.entries(chainConfigs)) {
+        // Skip aliases and chains without explorer config
+        if (name === 'ethereum' || !config.explorer) continue
+
+        customChains.push({
+            network: name,
+            chainId: config.chainId,
+            urls: {
+                apiURL: config.explorer.apiUrl,
+                browserURL: config.explorer.browserUrl,
+            },
+        })
+    }
+    return customChains
+}
+
+// Build API keys for etherscan verification
+function buildApiKeys(): Record<string, string> {
+    const apiKeys: Record<string, string> = {}
+    for (const [name, config] of Object.entries(chainConfigs)) {
+        if (name === 'ethereum' || !config.explorer?.apiKey) continue
+        apiKeys[name] = config.explorer.apiKey
+    }
+    // Add default etherscan key
+    if (process.env.ETHERSCAN_API_KEY) {
+        apiKeys['ethereum-mainnet'] = process.env.ETHERSCAN_API_KEY
+    }
+    return apiKeys
+}
+
 const config: HardhatUserConfig = {
     paths: {
         cache: 'cache/hardhat',
@@ -55,82 +108,31 @@ const config: HardhatUserConfig = {
         ],
     },
     networks: {
-        // the network you are deploying to or are already on
-        // Ethereum Mainnet (EID=30101)
-        'ethereum-mainnet': {
-            eid: EndpointId.ETHEREUM_V2_MAINNET,
-            url: 'https://eth.llamarpc.com',
-            accounts,
-            timeout: 120000,
-        },
-        // another network you want to connect to
-        // 'bsc-mainnet': {
-        //     eid: EndpointId.BSC_V2_MAINNET,
-        //     url: 'https://bsc-dataseed.binance.org',
-        //     accounts,
-        // },
-        // 'hyperliquid-mainnet': {
-        //     eid: EndpointId.HYPERLIQUID_V2_MAINNET,
-        //     url: 'https://rpc.hyperliquid.xyz/evm',
-        //     accounts,
-        // },
-        // 'tac-mainnet': {
-        //     eid: EndpointId.TAC_V2_MAINNET,
-        //     url: 'https://rpc.tac.build',
-        //     accounts,
-        // },
-        // base: {
-        //     eid: EndpointId.BASE_V2_MAINNET,
-        //     // url: 'https://base.gateway.tenderly.co/42Viz6jx3HHiu8Dsuf7PkN',
-        //     url: 'https://base.api.onfinality.io/public',
-        //     accounts,
-        //     timeout: 120000,
-        // },
-        linea: {
-            eid: EndpointId.ZKCONSENSYS_V2_MAINNET,
-            url: 'https://1rpc.io/linea',
-            accounts,
-            timeout: 120000,
-        },
+        // Networks are loaded from config/chains/*.ts
+        // To add a new chain, create a config file in config/chains/
+        ...buildNetworksFromConfig(),
+
+        // Hardhat local network for testing
         hardhat: {
-            // Need this for testing because TestHelperOz5.sol is exceeding the compiled contract size limit
             allowUnlimitedContractSize: true,
         },
-        // the network you are deploying to or are already on
     },
     namedAccounts: {
         deployer: {
             default: 0, // wallet address of index[0], of the mnemonic in .env
         },
     },
+    sourcify: {
+        enabled: true,
+        apiUrl: 'https://sourcify-api-monad.blockvision.org',
+        browserUrl: 'https://testnet.monadexplorer.com',
+    },
     etherscan: {
-        apiKey: 'J43TVJFZUHAVRBD2T6CDHDSA35EHCNTK96',
-        customChains: [
-            {
-                network: 'linea',
-                chainId: 59144,
-                urls: {
-                    apiURL: 'https://api.etherscan.io/v2/api?chainid=59144',
-                    browserURL: 'https://lineascan.build',
-                },
-            },
-            // {
-            //     network: 'hyperevm-mainnet',
-            //     chainId: 999,
-            //     urls: {
-            //         apiURL: 'https://www.hyperscan.com/api',
-            //         browserURL: 'https://www.hyperscan.com',
-            //     },
-            // },
-            // {
-            //     network: 'tac-mainnet',
-            //     chainId: 239,
-            //     urls: {
-            //         apiURL: 'https://explorer.tac.build/api',
-            //         browserURL: 'https://explorer.tac.build',
-            //     },
-            // },
-        ],
+        enabled: true,
+        // API keys loaded from chain configs (set via env vars)
+        apiKey: buildApiKeys(),
+        // Custom chains loaded from config/chains/*.ts
+        customChains: buildCustomChains(),
     },
 }
 
