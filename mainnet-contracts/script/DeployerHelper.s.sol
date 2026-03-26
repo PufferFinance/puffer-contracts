@@ -64,7 +64,7 @@ abstract contract DeployerHelper is Script {
         vm.label(implementation, contractName);
         console.log("Deployed", contractName, "at", implementation);
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(
                 proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
             );
@@ -103,7 +103,7 @@ abstract contract DeployerHelper is Script {
         vm.label(implementation, contractName);
         console.log("Deployed", contractName, "at", implementation);
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             // @DEPRECATED
             AccessManager(_getAccessManager()).execute(
                 proxyTarget, abi.encodeCall(UUPSUpgradeable.upgradeToAndCall, (address(implementation), data))
