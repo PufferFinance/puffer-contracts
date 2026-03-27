@@ -23,4 +23,4 @@ l2-contracts/=node_modules/l2-contracts/
 @layerzerolabs/lz-evm-v1-0.7/=node_modules/@layerzerolabs/lz-evm-v1-0.7/
 solidity-bytes-utils/=node_modules/solidity-bytes-utils/
 partners-layerzero/=../partners/layerzero/
-@automata-network/automata-tee-workload-measurement=lib/automata-tee-workload-measurement/src/
+@automata-network/automata-tee-workload-measurement=../mainnet-contracts/lib/automata-tee-workload-measurement/src/
