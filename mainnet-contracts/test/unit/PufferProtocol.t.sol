@@ -16,6 +16,7 @@ import { LibGuardianMessages } from "../../src/LibGuardianMessages.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
@@ -23,6 +24,7 @@ contract PufferProtocolTest is UnitTestHelper {
     event ValidatorKeyRegistered(bytes pubKey, uint256 indexed, bytes32 indexed);
     event SuccessfullyProvisioned(bytes pubKey, uint256 indexed, bytes32 indexed);
     event ModuleWeightsChanged(bytes32[] oldWeights, bytes32[] newWeights);
+    event ValidatorTicketsDeposited(address indexed node, address indexed depositor, uint256 amount);
 
     bytes zeroPubKey = new bytes(48);
     bytes32 zeroPubKeyPart;
@@ -2005,9 +2007,13 @@ contract PufferProtocolTest is UnitTestHelper {
         ValidatorKeyData memory validatorKeyData = _getMockValidatorKeyData(pubKey, moduleName);
         uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
+        address msgSender = _getCaller();
+
         // Empty permit means that the node operator is paying with ETH for both bond & VT in the registration transaction
         vm.expectEmit(true, true, true, true);
         emit ValidatorKeyRegistered(pubKey, idx, moduleName);
+        vm.expectEmit(true, true, true, true);
+        emit ValidatorTicketsDeposited(msgSender, msgSender, numberOfDays * 1 ether);
         pufferProtocol.registerValidatorKey{ value: (vtPrice + BOND) }(
             validatorKeyData, moduleName, emptyPermit, emptyPermit
         );
@@ -2055,6 +2061,16 @@ contract PufferProtocolTest is UnitTestHelper {
         // Epoch has 32 blocks, each block is 12 seconds, we upscale to 18 decimals to get the VT amount and divide by 1 day
         // The formula is validatedEpochs * 32 * 12 * 1 ether / 1 days (4444444444444444.44444444...) we round it up
         return validatedEpochs * 4444444444444445;
+    }
+
+    function _getCaller() internal returns (address caller) {
+        (VmSafe.CallerMode mode, address msgSender,) = vm.readCallers();
+
+        if (mode == VmSafe.CallerMode.Prank || mode == VmSafe.CallerMode.RecurrentPrank) {
+            return msgSender;
+        } else {
+            return address(this);
+        }
     }
 }
 

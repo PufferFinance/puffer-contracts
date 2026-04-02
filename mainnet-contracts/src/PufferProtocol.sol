@@ -657,6 +657,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         }
         emit NumberOfRegisteredValidatorsChanged(moduleName, $.moduleLimits[moduleName].numberOfRegisteredValidators);
         emit ValidatorKeyRegistered(data.blsPubKey, pufferModuleIndex, moduleName);
+        emit ValidatorTicketsDeposited(msg.sender, msg.sender, vtAmount);
     }
 
     function _setValidatorLimitPerModule(bytes32 moduleName, uint128 limit) internal {
