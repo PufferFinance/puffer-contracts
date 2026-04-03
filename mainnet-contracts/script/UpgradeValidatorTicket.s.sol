@@ -48,7 +48,7 @@ contract UpgradeValidatorTicket is DeployerHelper {
         console.logBytes(accessManagerCallData);
 
         // If on testnet, upgrade and execute access control changes directly
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             // upgrade to implementation
             AccessManager(_getAccessManager()).execute(
                 address(validatorTicket),
