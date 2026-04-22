@@ -6,7 +6,7 @@ export const bsc: CustomChainConfig = {
     chainId: 56,
     eid: EndpointId.BSC_V2_MAINNET, // 30102
 
-    rpcUrl: process.env.BSC_RPC_URL || 'https://binance.llamarpc.com',
+    rpcUrl: process.env.BSC_RPC_URL || 'https://public-bsc-mainnet.fastnode.io',
     timeout: 120000,
 
     explorer: {
