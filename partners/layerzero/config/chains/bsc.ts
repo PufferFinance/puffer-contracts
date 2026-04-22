@@ -1,7 +1,7 @@
 import { CustomChainConfig } from '../types'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 
-export const mychain: CustomChainConfig = {
+export const bsc: CustomChainConfig = {
     name: 'bsc',
     chainId: 56,
     eid: EndpointId.BSC_V2_MAINNET, // 30102

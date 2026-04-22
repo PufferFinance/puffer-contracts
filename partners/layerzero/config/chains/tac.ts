@@ -1,12 +1,12 @@
 import { CustomChainConfig } from '../types'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 
-export const mychain: CustomChainConfig = {
-    name: 'hyperliquid',
+export const tac: CustomChainConfig = {
+    name: 'tac',
     chainId: 239,
     eid: EndpointId.TAC_V2_MAINNET, // 30377
 
-    rpcUrl: process.env.HYPERLIQUID_RPC_URL || 'https://rpc.ankr.com/tac',
+    rpcUrl: process.env.TAC_RPC_URL || 'https://rpc.ankr.com/tac',
     timeout: 120000,
 
     explorer: {
