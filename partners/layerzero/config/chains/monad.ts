@@ -29,10 +29,10 @@ export const monad: CustomChainConfig = {
         dvns: {
             required: [
                 '0xdcdd4628f858b45260c31d6ad076bd2c3d3c2f73', // Horizen
-            ],
-            optional: [
                 '0xacde1f22eeab249d3ca6ba8805c8fee9f52a16e7', // Nethermind
+                '0x493626c5d852b9b187a9eb709d0b0978a3877238', // Canary
             ],
+            optional: [],
         },
     },
 
