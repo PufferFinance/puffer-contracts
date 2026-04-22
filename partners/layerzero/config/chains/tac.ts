@@ -12,7 +12,7 @@ export const tac: CustomChainConfig = {
     explorer: {
         apiUrl: 'https://explorer.tac.build/api/v2/',
         browserUrl: 'https://explorer.tac.build',
-        apiKey: process.env.ETHERSCAN_API_KEY || 'tac',
+        apiKey: process.env.TAC_EXPLORER_API_KEY,
     },
 
     layerzero: {

@@ -12,7 +12,7 @@ export const bsc: CustomChainConfig = {
     explorer: {
         apiUrl: 'https://api.bscscan.com',
         browserUrl: 'https://bscscan.com',
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.BSC_EXPLORER_API_KEY,
     },
 
     layerzero: {

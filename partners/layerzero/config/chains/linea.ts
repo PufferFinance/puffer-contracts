@@ -1,7 +1,7 @@
 import { CustomChainConfig } from '../types'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 
-export const mychain: CustomChainConfig = {
+export const linea: CustomChainConfig = {
     name: 'linea',
     chainId: 59144,
     eid: EndpointId.ZKCONSENSYS_V2_MAINNET, // 30183
@@ -12,7 +12,7 @@ export const mychain: CustomChainConfig = {
     explorer: {
         apiUrl: 'https://api.lineascan.build',
         browserUrl: 'https://lineascan.build',
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.LINEA_EXPLORER_API_KEY,
     },
 
     layerzero: {

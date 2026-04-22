@@ -1,7 +1,7 @@
 import { CustomChainConfig } from '../types'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 
-export const mychain: CustomChainConfig = {
+export const hyperliquid: CustomChainConfig = {
     name: 'hyperliquid',
     chainId: 999,
     eid: EndpointId.HYPERLIQUID_V2_MAINNET, // 30367
@@ -12,7 +12,7 @@ export const mychain: CustomChainConfig = {
     explorer: {
         apiUrl: 'https://api.hyperevmscan.io/',
         browserUrl: 'https://hyperevmscan.io/',
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.HYPERLIQUID_EXPLORER_API_KEY,
     },
 
     layerzero: {

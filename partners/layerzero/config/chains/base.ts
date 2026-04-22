@@ -12,7 +12,7 @@ export const base: CustomChainConfig = {
     explorer: {
         apiUrl: 'https://api.basescan.org',
         browserUrl: 'https://basescan.org',
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.BASE_EXPLORER_API_KEY,
     },
 
     layerzero: {
