@@ -66,36 +66,50 @@ function createSafeBatch(
     }
 }
 
-// Check if signer is owner of contract
-async function isOwner(contract: any, signerAddress: string): Promise<boolean> {
-    try {
-        const owner = await contract.owner()
-        return owner.toLowerCase() === signerAddress.toLowerCase()
-    } catch {
-        return false
-    }
-}
-
 // Generate calldata for a transaction
 function encodeTransaction(contract: any, method: string, args: any[]): string {
     return contract.interface.encodeFunctionData(method, args)
 }
 
+// Simulate a call with an impersonated sender via eth_call (no on-chain effect).
+// Used by --dry-run to validate that the calldata would succeed when executed by the multisig.
+async function simulateCall(
+    provider: any,
+    to: string,
+    data: string,
+    from: string,
+    description: string
+): Promise<void> {
+    try {
+        await provider.call({ to, data, from })
+        console.log(`      [SIMULATE] ${description}: OK (from ${from})`)
+    } catch (error: any) {
+        const reason =
+            error.reason ||
+            error.error?.reason ||
+            error.error?.data?.message ||
+            error.error?.message ||
+            error.message ||
+            'unknown'
+        console.log(`      [SIMULATE] ${description}: REVERT — ${reason}`)
+        if (error.data && typeof error.data === 'string') {
+            console.log(`         revert data: ${error.data}`)
+        }
+    }
+}
+
 interface WiringContext {
     hre: HardhatRuntimeEnvironment
-    signer: any
-    signerAddress: string
+    provider: any
     sourceConfig: CustomChainConfig
     destConfig: CustomChainConfig
     token: string
-    mode: 'execute' | 'calldata' | 'auto'
     state: WiringState
     dryRun: boolean
-    executeEndpointConfig: boolean // When true, skip OFT config and only execute endpoint config
 }
 
-// Execute or generate calldata for a step
-async function executeStep(
+// Generate calldata for a step targeting an OFT/OFTAdapter method
+function generateStepCalldata(
     ctx: WiringContext,
     stepName: keyof WiringState['steps'],
     description: string,
@@ -103,64 +117,15 @@ async function executeStep(
     method: string,
     args: any[],
     targetAddress: string
-): Promise<{ executed: boolean; txHash?: string; calldata?: string }> {
-    const step = ctx.state.steps[stepName]
-
-    // Check if already completed (resume functionality)
-    if (step?.status === 'completed') {
-        console.log(`   [SKIP] ${description} - already completed (tx: ${step.txHash || 'N/A'})`)
-        return { executed: true, txHash: step.txHash }
-    }
-
+): string {
     const calldata = encodeTransaction(contract, method, args)
-    const ownerCheck = await isOwner(contract, ctx.signerAddress)
 
-    // Determine execution mode
-    const shouldExecute = ctx.mode === 'execute' || (ctx.mode === 'auto' && ownerCheck)
+    const prefix = ctx.dryRun ? '[DRY-RUN]' : '[CALLDATA]'
+    console.log(`   ${prefix} ${description}`)
+    console.log(`      To: ${targetAddress}`)
+    console.log(`      Data: ${calldata}`)
 
-    if (ctx.dryRun) {
-        console.log(`   [DRY-RUN] ${description}`)
-        console.log(`      To: ${targetAddress}`)
-        console.log(`      Data: ${calldata}`)
-        console.log(`      Would execute: ${shouldExecute}`)
-        return { executed: false, calldata }
-    }
-
-    if (shouldExecute) {
-        console.log(`   [EXEC] ${description}...`)
-        try {
-            const tx = await contract[method](...args, { gasLimit: 200_000 })
-            console.log(`      Transaction: ${tx.hash}`)
-            await tx.wait()
-            console.log(`      Confirmed`)
-
-            // Update state
-            ctx.state.steps[stepName] = {
-                name: description,
-                status: 'completed',
-                txHash: tx.hash,
-                timestamp: Date.now(),
-            }
-            saveState(ctx.state)
-
-            return { executed: true, txHash: tx.hash }
-        } catch (error: any) {
-            console.log(`      FAILED: ${error.message}`)
-            ctx.state.steps[stepName] = {
-                name: description,
-                status: 'pending',
-                error: error.message,
-                timestamp: Date.now(),
-            }
-            saveState(ctx.state)
-            throw error
-        }
-    } else {
-        console.log(`   [CALLDATA] ${description}`)
-        console.log(`      Not owner - generating calldata`)
-        console.log(`      To: ${targetAddress}`)
-        console.log(`      Data: ${calldata}`)
-
+    if (!ctx.dryRun) {
         ctx.state.steps[stepName] = {
             name: description,
             status: 'pending',
@@ -168,13 +133,13 @@ async function executeStep(
             timestamp: Date.now(),
         }
         saveState(ctx.state)
-
-        return { executed: false, calldata }
     }
+
+    return calldata
 }
 
-// Execute endpoint config (special case - called on endpoint, not OFT)
-async function executeEndpointConfig(
+// Generate calldata for endpoint config (called on EndpointV2, not the OFT)
+function generateEndpointConfigCalldata(
     ctx: WiringContext,
     stepName: keyof WiringState['steps'],
     description: string,
@@ -183,62 +148,15 @@ async function executeEndpointConfig(
     ulnAddress: string,
     configParams: any[],
     chainConfig: CustomChainConfig
-): Promise<{ executed: boolean; txHash?: string; calldata?: string }> {
-    const step = ctx.state.steps[stepName]
-
-    if (step?.status === 'completed') {
-        console.log(`   [SKIP] ${description} - already completed (tx: ${step.txHash || 'N/A'})`)
-        return { executed: true, txHash: step.txHash }
-    }
-
+): string {
     const calldata = endpointContract.interface.encodeFunctionData('setConfig', [oftAddress, ulnAddress, configParams])
 
-    // For endpoint config, check if delegate is set (we might have permission)
-    // For now, we'll check if we're the OFT owner as a proxy
-    const oftContract = await ctx.hre.ethers.getContractAt('OFT', oftAddress, ctx.signer)
-    const ownerCheck = await isOwner(oftContract, ctx.signerAddress)
-    const shouldExecute = ctx.mode === 'execute' || (ctx.mode === 'auto' && ownerCheck)
+    const prefix = ctx.dryRun ? '[DRY-RUN]' : '[CALLDATA]'
+    console.log(`   ${prefix} ${description}`)
+    console.log(`      To: ${chainConfig.layerzero.endpointV2}`)
+    console.log(`      Data: ${calldata}`)
 
-    if (ctx.dryRun) {
-        console.log(`   [DRY-RUN] ${description}`)
-        console.log(`      To: ${chainConfig.layerzero.endpointV2}`)
-        console.log(`      Data: ${calldata}`)
-        return { executed: false, calldata }
-    }
-
-    if (shouldExecute) {
-        console.log(`   [EXEC] ${description}...`)
-        try {
-            const tx = await endpointContract.setConfig(oftAddress, ulnAddress, configParams, { gasLimit: 290_000 })
-            console.log(`      Transaction: ${tx.hash}`)
-            await tx.wait()
-            console.log(`      Confirmed`)
-
-            ctx.state.steps[stepName] = {
-                name: description,
-                status: 'completed',
-                txHash: tx.hash,
-                timestamp: Date.now(),
-            }
-            saveState(ctx.state)
-
-            return { executed: true, txHash: tx.hash }
-        } catch (error: any) {
-            console.log(`      FAILED: ${error.message}`)
-            ctx.state.steps[stepName] = {
-                name: description,
-                status: 'pending',
-                error: error.message,
-                timestamp: Date.now(),
-            }
-            saveState(ctx.state)
-            throw error
-        }
-    } else {
-        console.log(`   [CALLDATA] ${description}`)
-        console.log(`      To: ${chainConfig.layerzero.endpointV2}`)
-        console.log(`      Data: ${calldata}`)
-
+    if (!ctx.dryRun) {
         ctx.state.steps[stepName] = {
             name: description,
             status: 'pending',
@@ -246,304 +164,200 @@ async function executeEndpointConfig(
             timestamp: Date.now(),
         }
         saveState(ctx.state)
-
-        return { executed: false, calldata }
     }
+
+    return calldata
 }
 
-// Wire source chain (e.g., Ethereum with OFTAdapter)
-// Default: Generate calldata for OFT-level calls only (setPeer, setEnforcedOptions) - for Safe multisig
-// With --execute-endpoint-config: Execute EndpointV2 config directly (after Safe transactions confirm)
-async function wireSourceChain(
-    ctx: WiringContext,
-    sourceContract: any,
-    sourceAddress: string,
-    destAddress: string
-): Promise<{ txHashes: string[]; calldatas: Array<{ to: string; data: string; description: string }> }> {
-    const { hre, sourceConfig, destConfig } = ctx
-    const txHashes: string[] = []
-    const calldatas: Array<{ to: string; data: string; description: string }> = []
-
-    console.log(`\n  Source Chain Wiring (${sourceConfig.name})`)
-    console.log(`  ─────────────────────────────────────`)
-
-    if (ctx.executeEndpointConfig) {
-        // --execute-endpoint-config flag: Skip OFT config (assume Safe already executed), execute endpoint config directly
-        console.log('   [MODE] Executing EndpointV2 config only (assuming Safe already executed setPeer/setEnforcedOptions)\n')
-
-        const endpointContract = await hre.ethers.getContractAt(
-            'ILayerZeroEndpointV2',
-            sourceConfig.layerzero.endpointV2,
-            ctx.signer
-        )
-
-        const ulnConfig = hre.ethers.utils.defaultAbiCoder.encode(
-            ['(uint64,uint8,uint8,uint8,address[],address[])'],
+// Build the encoded ULN config for a chain/peer pair
+function buildUlnConfig(hre: HardhatRuntimeEnvironment, chainConfig: CustomChainConfig): string {
+    return hre.ethers.utils.defaultAbiCoder.encode(
+        ['(uint64,uint8,uint8,uint8,address[],address[])'],
+        [
             [
-                [
-                    sourceConfig.wiring.confirmations,
-                    sourceConfig.layerzero.dvns.required.length,
-                    sourceConfig.layerzero.dvns.optional?.length || 0,
-                    0, // optionalDVNThreshold
-                    sourceConfig.layerzero.dvns.required,
-                    sourceConfig.layerzero.dvns.optional || [],
-                ],
-            ]
-        )
-
-        // Step 3: Set Send Config (on EndpointV2) - execute directly
-        const sendConfigParams = [{ eid: destConfig.eid, configType: 2, config: ulnConfig }]
-
-        console.log('   [EXEC] Set send config (DVN)...')
-        if (!ctx.dryRun) {
-            try {
-                console.log('      Estimating gas...')
-                const gasEstimate = await endpointContract.estimateGas.setConfig(
-                    sourceAddress,
-                    sourceConfig.layerzero.sendUln302,
-                    sendConfigParams
-                )
-                console.log(`      Gas estimate: ${gasEstimate.toString()}`)
-
-                console.log('      Sending transaction...')
-                const tx = await endpointContract.setConfig(
-                    sourceAddress,
-                    sourceConfig.layerzero.sendUln302,
-                    sendConfigParams,
-                    { gasLimit: gasEstimate.mul(120).div(100) } // 20% buffer
-                )
-                console.log(`      Transaction: ${tx.hash}`)
-                console.log(`      Explorer: https://etherscan.io/tx/${tx.hash}`)
-                console.log('      Waiting for confirmation...')
-                const receipt = await tx.wait(1)
-                console.log(`      Confirmed in block ${receipt.blockNumber}`)
-                txHashes.push(tx.hash)
-            } catch (error: any) {
-                console.log(`      FAILED: ${error.reason || error.message}`)
-                if (error.code === 'TIMEOUT') {
-                    console.log('      Transaction may still be pending. Check explorer.')
-                }
-                throw error
-            }
-        } else {
-            console.log('      [DRY-RUN] Would execute setSendConfig')
-        }
-
-        // Step 4: Set Receive Config (on EndpointV2) - execute directly
-        const receiveConfigParams = [{ eid: destConfig.eid, configType: 2, config: ulnConfig }]
-
-        console.log('   [EXEC] Set receive config (DVN)...')
-        if (!ctx.dryRun) {
-            try {
-                console.log('      Estimating gas...')
-                const gasEstimate = await endpointContract.estimateGas.setConfig(
-                    sourceAddress,
-                    sourceConfig.layerzero.receiveUln302,
-                    receiveConfigParams
-                )
-                console.log(`      Gas estimate: ${gasEstimate.toString()}`)
-
-                console.log('      Sending transaction...')
-                const tx = await endpointContract.setConfig(
-                    sourceAddress,
-                    sourceConfig.layerzero.receiveUln302,
-                    receiveConfigParams,
-                    { gasLimit: gasEstimate.mul(120).div(100) } // 20% buffer
-                )
-                console.log(`      Transaction: ${tx.hash}`)
-                console.log(`      Explorer: https://etherscan.io/tx/${tx.hash}`)
-                console.log('      Waiting for confirmation...')
-                const receipt = await tx.wait(1)
-                console.log(`      Confirmed in block ${receipt.blockNumber}`)
-                txHashes.push(tx.hash)
-            } catch (error: any) {
-                console.log(`      FAILED: ${error.reason || error.message}`)
-                if (error.code === 'TIMEOUT') {
-                    console.log('      Transaction may still be pending. Check explorer.')
-                }
-                throw error
-            }
-        } else {
-            console.log('      [DRY-RUN] Would execute setReceiveConfig')
-        }
-    } else {
-        // Default: Generate calldata for OFT-level calls only (for Safe multisig)
-        console.log('   [MODE] Generating calldata for Safe multisig (OFT-level calls only)\n')
-
-        // Step 1: Set Peer
-        const peerBytes32 = addressToBytes32(destAddress)
-        const peerCalldata = encodeTransaction(sourceContract, 'setPeer', [destConfig.eid, peerBytes32])
-        console.log(`   [CALLDATA] Set peer to ${destConfig.name} (EID: ${destConfig.eid})`)
-        console.log(`      To: ${sourceAddress}`)
-        console.log(`      Data: ${peerCalldata}`)
-        calldatas.push({ to: sourceAddress, data: peerCalldata, description: 'setPeer' })
-
-        // Step 2: Set Enforced Options
-        const lzReceiveGas = destConfig.wiring.lzReceiveGas || 80000
-
-        // msgType 1 (SEND): only needs lzReceive gas
-        const optionsSend = Options.newOptions()
-            .addExecutorLzReceiveOption(lzReceiveGas, 0)
-            .toHex()
-
-        // msgType 2 (SEND_AND_CALL): needs lzReceive + lzCompose gas
-        const optionsSendAndCall = Options.newOptions()
-            .addExecutorLzReceiveOption(lzReceiveGas, 0)
-            .addExecutorComposeOption(0, lzReceiveGas, 0)
-            .toHex()
-
-        const enforcedOptions = [
-            { eid: destConfig.eid, msgType: 1, options: optionsSend }, // SEND
-            { eid: destConfig.eid, msgType: 2, options: optionsSendAndCall }, // SEND_AND_CALL
+                chainConfig.wiring.confirmations,
+                chainConfig.layerzero.dvns.required.length,
+                chainConfig.layerzero.dvns.optional?.length || 0,
+                chainConfig.layerzero.dvns.threshold || 0,
+                chainConfig.layerzero.dvns.required,
+                chainConfig.layerzero.dvns.optional || [],
+            ],
         ]
-        const optionsCalldata = encodeTransaction(sourceContract, 'setEnforcedOptions', [enforcedOptions])
-        console.log(`   [CALLDATA] Set enforced options`)
-        console.log(`      To: ${sourceAddress}`)
-        console.log(`      Data: ${optionsCalldata}`)
-        calldatas.push({ to: sourceAddress, data: optionsCalldata, description: 'setEnforcedOptions' })
-
-        console.log('\n   [INFO] After Safe executes these transactions, run with --execute-endpoint-config to complete wiring')
-    }
-
-    return { txHashes, calldatas }
+    )
 }
 
-// Wire destination chain (e.g., Monad with OFT)
-async function wireDestChain(
-    ctx: WiringContext,
-    destContract: any,
-    destAddress: string,
-    sourceAddress: string
-): Promise<{ txHashes: string[]; calldatas: Array<{ to: string; data: string; description: string }> }> {
-    const { hre, sourceConfig, destConfig } = ctx
-    const txHashes: string[] = []
-    const calldatas: Array<{ to: string; data: string; description: string }> = []
-
-    console.log(`\n  Destination Chain Wiring (${destConfig.name})`)
-    console.log(`  ─────────────────────────────────────────`)
-
-    // Step 1: Set Peer
-    const peerBytes32 = addressToBytes32(sourceAddress)
-    const peerResult = await executeStep(
-        ctx,
-        'dest_setPeer',
-        `Set peer to ${sourceConfig.name} (EID: ${sourceConfig.eid})`,
-        destContract,
-        'setPeer',
-        [sourceConfig.eid, peerBytes32],
-        destAddress
-    )
-    if (peerResult.txHash) txHashes.push(peerResult.txHash)
-    if (peerResult.calldata) calldatas.push({ to: destAddress, data: peerResult.calldata, description: 'setPeer' })
-
-    // Step 2: Set Enforced Options
-    const lzReceiveGas = sourceConfig.wiring.lzReceiveGas || 80000
-
-    // msgType 1 (SEND): only needs lzReceive gas
-    const optionsSend = Options.newOptions()
-        .addExecutorLzReceiveOption(lzReceiveGas, 0)
-        .toHex()
-
-    // msgType 2 (SEND_AND_CALL): needs lzReceive + lzCompose gas
+// Build enforced options for SEND (msgType 1) and SEND_AND_CALL (msgType 2)
+function buildEnforcedOptions(peerEid: number, lzReceiveGas: number) {
+    const optionsSend = Options.newOptions().addExecutorLzReceiveOption(lzReceiveGas, 0).toHex()
     const optionsSendAndCall = Options.newOptions()
         .addExecutorLzReceiveOption(lzReceiveGas, 0)
         .addExecutorComposeOption(0, lzReceiveGas, 0)
         .toHex()
-
-    const enforcedOptions = [
-        { eid: sourceConfig.eid, msgType: 1, options: optionsSend }, // SEND
-        { eid: sourceConfig.eid, msgType: 2, options: optionsSendAndCall }, // SEND_AND_CALL
+    return [
+        { eid: peerEid, msgType: 1, options: optionsSend },
+        { eid: peerEid, msgType: 2, options: optionsSendAndCall },
     ]
-    const optionsResult = await executeStep(
+}
+
+// Wire a chain by generating calldata for all 4 transactions (to be executed by the multisig owner).
+// Works symmetrically for source (OFTAdapter) and destination (OFT) — caller picks which config is
+// local vs peer and passes the matching contract type.
+async function wireChain(
+    ctx: WiringContext,
+    localContract: any,
+    localAddress: string,
+    peerAddress: string,
+    localConfig: CustomChainConfig,
+    peerConfig: CustomChainConfig,
+    stepPrefix: 'source' | 'dest',
+    label: string
+): Promise<Array<{ to: string; data: string; description: string }>> {
+    const { hre, provider } = ctx
+    const calldatas: Array<{ to: string; data: string; description: string }> = []
+
+    console.log(`\n  ${label} Chain Wiring (${localConfig.name})`)
+    console.log(`  ─────────────────────────────────────`)
+    console.log('   [MODE] Generating calldata for Safe multisig\n')
+
+    const endpointArtifact = await hre.artifacts.readArtifact('ILayerZeroEndpointV2')
+    const endpointContract = new hre.ethers.Contract(
+        localConfig.layerzero.endpointV2,
+        endpointArtifact.abi,
+        provider
+    )
+
+    // For --dry-run, resolve the impersonated senders once per chain:
+    // - owner()        → for setPeer / setEnforcedOptions on the OFT/OFTAdapter
+    // - delegates(oft) → for setConfig on EndpointV2
+    let ownerAddress: string | undefined
+    let delegateAddress: string | undefined
+    if (ctx.dryRun) {
+        const endpointWithGetter = new hre.ethers.Contract(
+            localConfig.layerzero.endpointV2,
+            ['function delegates(address) view returns (address)'],
+            provider
+        )
+        try {
+            ownerAddress = await localContract.owner()
+            console.log(`   [INFO] OFT owner: ${ownerAddress}`)
+        } catch (e: any) {
+            console.log(`   [WARN] Could not fetch owner(): ${e.message}`)
+        }
+        try {
+            delegateAddress = await endpointWithGetter.delegates(localAddress)
+            console.log(`   [INFO] Endpoint delegate: ${delegateAddress}`)
+            if (delegateAddress === hre.ethers.constants.AddressZero) {
+                console.log(`   [WARN] Delegate is unset — setConfig will revert until setDelegate is called`)
+                delegateAddress = undefined
+            }
+        } catch (e: any) {
+            console.log(`   [WARN] Could not fetch delegates(): ${e.message}`)
+        }
+        console.log('')
+    }
+
+    // Step 1: Set Peer
+    const peerBytes32 = addressToBytes32(peerAddress)
+    const peerCalldata = generateStepCalldata(
         ctx,
-        'dest_setEnforcedOptions',
+        `${stepPrefix}_setPeer` as keyof WiringState['steps'],
+        `Set peer to ${peerConfig.name} (EID: ${peerConfig.eid})`,
+        localContract,
+        'setPeer',
+        [peerConfig.eid, peerBytes32],
+        localAddress
+    )
+    calldatas.push({ to: localAddress, data: peerCalldata, description: 'setPeer' })
+    if (ctx.dryRun && ownerAddress) {
+        await simulateCall(provider, localAddress, peerCalldata, ownerAddress, 'setPeer')
+    }
+
+    // Step 2: Set Enforced Options
+    const lzReceiveGas = peerConfig.wiring.lzReceiveGas || 80000
+    const enforcedOptions = buildEnforcedOptions(peerConfig.eid, lzReceiveGas)
+    const optionsCalldata = generateStepCalldata(
+        ctx,
+        `${stepPrefix}_setEnforcedOptions` as keyof WiringState['steps'],
         'Set enforced options',
-        destContract,
+        localContract,
         'setEnforcedOptions',
         [enforcedOptions],
-        destAddress
+        localAddress
     )
-    if (optionsResult.txHash) txHashes.push(optionsResult.txHash)
-    if (optionsResult.calldata)
-        calldatas.push({ to: destAddress, data: optionsResult.calldata, description: 'setEnforcedOptions' })
+    calldatas.push({ to: localAddress, data: optionsCalldata, description: 'setEnforcedOptions' })
+    if (ctx.dryRun && ownerAddress) {
+        await simulateCall(provider, localAddress, optionsCalldata, ownerAddress, 'setEnforcedOptions')
+    }
 
     // Step 3 & 4: Set Send/Receive Config (on EndpointV2)
-    const endpointContract = await hre.ethers.getContractAt(
-        'ILayerZeroEndpointV2',
-        destConfig.layerzero.endpointV2,
-        ctx.signer
-    )
+    const ulnConfig = buildUlnConfig(hre, localConfig)
 
-    const ulnConfig = hre.ethers.utils.defaultAbiCoder.encode(
-        ['(uint64,uint8,uint8,uint8,address[],address[])'],
-        [
-            [
-                destConfig.wiring.confirmations,
-                destConfig.layerzero.dvns.required.length,
-                destConfig.layerzero.dvns.optional?.length || 0,
-                0,
-                destConfig.layerzero.dvns.required,
-                destConfig.layerzero.dvns.optional || [],
-            ],
-        ]
-    )
-    const sendConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
-
-    const sendConfigResult = await executeEndpointConfig(
+    const sendConfigParams = [{ eid: peerConfig.eid, configType: 2, config: ulnConfig }]
+    const sendConfigCalldata = generateEndpointConfigCalldata(
         ctx,
-        'dest_setSendConfig',
+        `${stepPrefix}_setSendConfig` as keyof WiringState['steps'],
         'Set send config (DVN)',
         endpointContract,
-        destAddress,
-        destConfig.layerzero.sendUln302,
+        localAddress,
+        localConfig.layerzero.sendUln302,
         sendConfigParams,
-        destConfig
+        localConfig
     )
-    if (sendConfigResult.txHash) txHashes.push(sendConfigResult.txHash)
-    if (sendConfigResult.calldata)
-        calldatas.push({
-            to: destConfig.layerzero.endpointV2,
-            data: sendConfigResult.calldata,
-            description: 'setSendConfig',
-        })
+    calldatas.push({
+        to: localConfig.layerzero.endpointV2,
+        data: sendConfigCalldata,
+        description: 'setSendConfig',
+    })
+    if (ctx.dryRun && delegateAddress) {
+        await simulateCall(
+            provider,
+            localConfig.layerzero.endpointV2,
+            sendConfigCalldata,
+            delegateAddress,
+            'setSendConfig'
+        )
+    }
 
-    // Step 4: Set Receive Config (on EndpointV2)
-    const receiveConfigParams = [{ eid: sourceConfig.eid, configType: 2, config: ulnConfig }]
-
-    const receiveConfigResult = await executeEndpointConfig(
+    const receiveConfigParams = [{ eid: peerConfig.eid, configType: 2, config: ulnConfig }]
+    const receiveConfigCalldata = generateEndpointConfigCalldata(
         ctx,
-        'dest_setReceiveConfig',
+        `${stepPrefix}_setReceiveConfig` as keyof WiringState['steps'],
         'Set receive config (DVN)',
         endpointContract,
-        destAddress,
-        destConfig.layerzero.receiveUln302,
+        localAddress,
+        localConfig.layerzero.receiveUln302,
         receiveConfigParams,
-        destConfig
+        localConfig
     )
-    if (receiveConfigResult.txHash) txHashes.push(receiveConfigResult.txHash)
-    if (receiveConfigResult.calldata)
-        calldatas.push({
-            to: destConfig.layerzero.endpointV2,
-            data: receiveConfigResult.calldata,
-            description: 'setReceiveConfig',
-        })
+    calldatas.push({
+        to: localConfig.layerzero.endpointV2,
+        data: receiveConfigCalldata,
+        description: 'setReceiveConfig',
+    })
+    if (ctx.dryRun && delegateAddress) {
+        await simulateCall(
+            provider,
+            localConfig.layerzero.endpointV2,
+            receiveConfigCalldata,
+            delegateAddress,
+            'setReceiveConfig'
+        )
+    }
 
-    return { txHashes, calldatas }
+    return calldatas
 }
 
 // Main task
-task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
+task('custom:wire', 'Generate Safe multisig calldata to wire OFT contracts for custom chains')
     .addParam('token', 'Token to wire (pufETH or PUFFER)')
     .addParam('dest', 'Destination chain name (e.g., monad, megaeth)')
     .addOptionalParam('source', 'Source chain name (default: ethereum-mainnet)', 'ethereum-mainnet')
-    .addOptionalParam('mode', 'Execution mode: auto, execute, or calldata (default: auto)', 'auto')
     .addFlag('restart', 'Ignore saved state and start fresh')
-    .addFlag('dryRun', 'Show what would be done without executing')
+    .addFlag('dryRun', 'Show what would be done without writing state or Safe batch files')
     .addFlag('sourceOnly', 'Only wire source chain')
     .addFlag('destOnly', 'Only wire destination chain')
-    .addFlag('executeEndpointConfig', 'Execute EndpointV2 config only (after Safe executes setPeer/setEnforcedOptions)')
     .setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
-        const { token, source, dest, mode, restart, dryRun, sourceOnly, destOnly, executeEndpointConfig } = taskArgs
+        const { token, source, dest, restart, dryRun, sourceOnly, destOnly } = taskArgs
 
         console.log('\n╔═══════════════════════════════════════════════════════════╗')
         console.log('║           LayerZero Custom Chain Wiring                   ║')
@@ -587,9 +401,7 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
         console.log(`  Token: ${token}`)
         console.log(`  Source: ${source} (${sourceAddress})`)
         console.log(`  Dest: ${dest} (${destAddress})`)
-        console.log(`  Mode: ${mode}`)
         console.log(`  Dry Run: ${dryRun}`)
-        console.log(`  Execute Endpoint Config Only: ${executeEndpointConfig}`)
         console.log('')
 
         // Load or initialize state
@@ -616,64 +428,70 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
         if (!destOnly) {
             console.log(`\n  Connecting to ${source}...`)
 
-            // Switch to source network
             const sourceProvider = new hre.ethers.providers.JsonRpcProvider(sourceConfig.rpcUrl)
-            const sourceSigner = new hre.ethers.Wallet(process.env.PRIVATE_KEY!, sourceProvider)
-
-            const sourceContract = await hre.ethers.getContractAt('OFTAdapter', sourceAddress, sourceSigner)
+            const sourceArtifact = await hre.artifacts.readArtifact('OFTAdapter')
+            const sourceContract = new hre.ethers.Contract(sourceAddress, sourceArtifact.abi, sourceProvider)
 
             const sourceCtx: WiringContext = {
                 hre,
-                signer: sourceSigner,
-                signerAddress: sourceSigner.address,
+                provider: sourceProvider,
                 sourceConfig,
                 destConfig,
                 token,
-                mode: mode as 'auto' | 'execute' | 'calldata',
                 state,
                 dryRun,
-                executeEndpointConfig,
             }
 
-            const sourceResult = await wireSourceChain(sourceCtx, sourceContract, sourceAddress, destAddress)
-            outputCalldatas.source = sourceResult.calldatas
+            outputCalldatas.source = await wireChain(
+                sourceCtx,
+                sourceContract,
+                sourceAddress,
+                destAddress,
+                sourceConfig,
+                destConfig,
+                'source',
+                'Source'
+            )
         }
 
         // Wire destination chain
         if (!sourceOnly) {
             console.log(`\n  Connecting to ${dest}...`)
 
-            // Switch to dest network
             const destProvider = new hre.ethers.providers.JsonRpcProvider(destConfig.rpcUrl)
-            const destSigner = new hre.ethers.Wallet(process.env.PRIVATE_KEY!, destProvider)
-
-            const destContract = await hre.ethers.getContractAt('OFT', destAddress, destSigner)
+            const destArtifact = await hre.artifacts.readArtifact('OFT')
+            const destContract = new hre.ethers.Contract(destAddress, destArtifact.abi, destProvider)
 
             const destCtx: WiringContext = {
                 hre,
-                signer: destSigner,
-                signerAddress: destSigner.address,
+                provider: destProvider,
                 sourceConfig,
                 destConfig,
                 token,
-                mode: mode as 'auto' | 'execute' | 'calldata',
                 state,
                 dryRun,
-                executeEndpointConfig: false, // Dest chain always does all steps (we're the owner)
             }
 
-            const destResult = await wireDestChain(destCtx, destContract, destAddress, sourceAddress)
-            outputCalldatas.dest = destResult.calldatas
+            outputCalldatas.dest = await wireChain(
+                destCtx,
+                destContract,
+                destAddress,
+                sourceAddress,
+                destConfig,
+                sourceConfig,
+                'dest',
+                'Destination'
+            )
         }
 
         // Output Safe batch JSONs if there are calldatas
-        if (outputCalldatas.source.length > 0 || outputCalldatas.dest.length > 0) {
+        if (!dryRun && (outputCalldatas.source.length > 0 || outputCalldatas.dest.length > 0)) {
             if (!fs.existsSync(STATE_DIR)) {
                 fs.mkdirSync(STATE_DIR, { recursive: true })
             }
         }
 
-        if (outputCalldatas.source.length > 0) {
+        if (!dryRun && outputCalldatas.source.length > 0) {
             const safeBatch = createSafeBatch(
                 sourceConfig.chainId,
                 outputCalldatas.source,
@@ -684,7 +502,7 @@ task('custom:wire', 'Deploy and wire OFT contracts for custom chains')
             console.log(`\n  Safe batch saved: ${outputPath}`)
         }
 
-        if (outputCalldatas.dest.length > 0) {
+        if (!dryRun && outputCalldatas.dest.length > 0) {
             const safeBatch = createSafeBatch(
                 destConfig.chainId,
                 outputCalldatas.dest,
