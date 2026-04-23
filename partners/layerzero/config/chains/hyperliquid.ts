@@ -22,9 +22,9 @@ export const hyperliquid: CustomChainConfig = {
         executor: '0x41Bdb4aa4A63a5b2Efc531858d3118392B1A1C3d',
         dvns: {
             required: [
-                '0xbb83ecf372cbb6daa629ea9a9a53bec6d601f229', // Horizen
-                '0x8e49ef1dfae17e547ca0e7526ffda81fbaca810a', // Nethermind
                 '0x83342ec538df0460e730a8f543fe63063e2d44c4', // Canary
+                '0x8e49ef1dfae17e547ca0e7526ffda81fbaca810a', // Nethermind
+                '0xbb83ecf372cbb6daa629ea9a9a53bec6d601f229', // Horizen
                 '0xc7423626016bc40375458bc0277f28681ec91c8e', // P2P
             ],
             optional: [],

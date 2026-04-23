@@ -22,10 +22,10 @@ export const base: CustomChainConfig = {
         executor: '0x2CCA08ae69E0C44b18a57Ab2A87644234dAebaE4',
         dvns: {
             required: [
-                '0xa7b5189bca84cd304d8553977c7c614329750d99', // Horizen
-                '0xcd37ca043f8479064e10635020c65ffc005d36f6', // Nethermind
                 '0x554833698ae0fb22ecc90b01222903fd62ca4b47', // Canary
                 '0x5b6735c66d97479ccd18294fc96b3084ecb2fa3f', // P2P
+                '0xa7b5189bca84cd304d8553977c7c614329750d99', // Horizen
+                '0xcd37ca043f8479064e10635020c65ffc005d36f6', // Nethermind
             ],
             optional: [],
         },

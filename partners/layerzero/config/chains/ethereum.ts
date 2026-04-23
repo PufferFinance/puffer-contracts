@@ -26,10 +26,10 @@ export const ethereum: CustomChainConfig = {
         executor: '0x173272739Bd7Aa6e4e214714048a9fE699453059',
         dvns: {
             required: [
-                '0x380275805876ff19055ea900cdb2b46a94ecf20d', // Horizen
-                '0xa59ba433ac34d2927232918ef5b2eaafcf130ba5', // Nethermind
-                '0xa4fe5a5b9a846458a70cd0748228aed3bf65c2cd', // Canary
                 '0x06559ee34d85a88317bf0bfe307444116c631b67', // P2P
+                '0x380275805876ff19055ea900cdb2b46a94ecf20d', // Horizen
+                '0xa4fe5a5b9a846458a70cd0748228aed3bf65c2cd', // Canary
+                '0xa59ba433ac34d2927232918ef5b2eaafcf130ba5', // Nethermind
             ],
             optional: [],
         },

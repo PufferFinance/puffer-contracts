@@ -22,10 +22,10 @@ export const tac: CustomChainConfig = {
         executor: '0x4208D6E27538189bB48E603D6123A94b8Abe0A0b',
         dvns: {
             required: [
-                '0xb19a9370d404308040a9760678c8ca28affbbb76', // Horizen
-                '0x97841d4ab18e9a923322a002d5b8eb42b31ccdb5', // Nethermind
                 '0x07ff86c392588254ad10f0811dbbcad45f4c7d87', // Canary
                 '0x965a80dc87cec5848310e612dead84b543aef874', // P2P
+                '0x97841d4ab18e9a923322a002d5b8eb42b31ccdb5', // Nethermind
+                '0xb19a9370d404308040a9760678c8ca28affbbb76', // Horizen
             ],
             optional: [],
         },

@@ -24,8 +24,8 @@ export const bsc: CustomChainConfig = {
             required: [
                 '0x247624e2143504730aec22912ed41f092498bef2', // Horizen
                 '0x31f748a368a893bdb5abb67ec95f232507601a73', // Nethermind
-                '0xfa9ba83c102283958b997adc8b44ed3a3cdb5dda', // Canary
                 '0x439264fb87581a70bb6d7befd16b636521b0ad2d', // P2P
+                '0xfa9ba83c102283958b997adc8b44ed3a3cdb5dda', // Canary
             ],
             optional: [],
         },
