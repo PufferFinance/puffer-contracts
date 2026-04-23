@@ -1,6 +1,7 @@
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { Options } from '@layerzerolabs/lz-v2-utilities'
+import { utils as ethersUtils } from 'ethers'
 import * as fs from 'fs'
 import * as path from 'path'
 import { CustomChainConfig, WiringState, SafeBatch, getChainConfig, listChains } from '../config'
@@ -71,18 +72,47 @@ function encodeTransaction(contract: any, method: string, args: any[]): string {
     return contract.interface.encodeFunctionData(method, args)
 }
 
+// Best-effort decode of revert bytes: handles Error(string), Panic(uint256),
+// and falls back to the 4-byte custom-error selector for anything else.
+function decodeRevert(data: string): string {
+    if (!data || data === '0x') return 'no data'
+    // Error(string) — 0x08c379a0
+    if (data.startsWith('0x08c379a0')) {
+        try {
+            const [reason] = ethersUtils.defaultAbiCoder.decode(['string'], '0x' + data.slice(10))
+            return `Error("${reason}")`
+        } catch {
+            // fall through
+        }
+    }
+    // Panic(uint256) — 0x4e487b71
+    if (data.startsWith('0x4e487b71')) {
+        try {
+            const [code] = ethersUtils.defaultAbiCoder.decode(['uint256'], '0x' + data.slice(10))
+            return `Panic(0x${code.toString(16)})`
+        } catch {
+            // fall through
+        }
+    }
+    return `custom error selector ${data.slice(0, 10)} (data: ${data.slice(10) || '∅'})`
+}
+
 // Simulate a call with an impersonated sender via eth_call (no on-chain effect).
 // Used by --dry-run to validate that the calldata would succeed when executed by the multisig.
-async function simulateCall(
-    provider: any,
-    to: string,
-    data: string,
-    from: string,
-    description: string
-): Promise<void> {
+//
+// Caveat: all functions we simulate return void, so a non-empty eth_call result
+// means the RPC misreported a revert as success (some gateway providers do this
+// for custom-error reverts). We treat any non-empty result as a revert.
+async function simulateCall(provider: any, to: string, data: string, from: string, description: string): Promise<void> {
     try {
-        await provider.call({ to, data, from })
-        console.log(`      [SIMULATE] ${description}: OK (from ${from})`)
+        const result = await provider.call({ to, data, from })
+        if (result && result !== '0x') {
+            console.log(
+                `      [SIMULATE] ${description}: ❌ REVERT (RPC returned revert data as success) — ${decodeRevert(result)}`
+            )
+            return
+        }
+        console.log(`      [SIMULATE] ${description}: ✅​ OK (from ${from})`)
     } catch (error: any) {
         const reason =
             error.reason ||
@@ -91,9 +121,11 @@ async function simulateCall(
             error.error?.message ||
             error.message ||
             'unknown'
-        console.log(`      [SIMULATE] ${description}: REVERT — ${reason}`)
-        if (error.data && typeof error.data === 'string') {
-            console.log(`         revert data: ${error.data}`)
+        const revertData = error.data ?? error.error?.data
+        const decoded = typeof revertData === 'string' ? decodeRevert(revertData) : null
+        console.log(`      [SIMULATE] ${description}: ❌ REVERT — ${decoded ?? reason}`)
+        if (typeof revertData === 'string' && revertData !== '0x') {
+            console.log(`         revert data: ${revertData}`)
         }
     }
 }
@@ -220,11 +252,7 @@ async function wireChain(
     console.log('   [MODE] Generating calldata for Safe multisig\n')
 
     const endpointArtifact = await hre.artifacts.readArtifact('ILayerZeroEndpointV2')
-    const endpointContract = new hre.ethers.Contract(
-        localConfig.layerzero.endpointV2,
-        endpointArtifact.abi,
-        provider
-    )
+    const endpointContract = new hre.ethers.Contract(localConfig.layerzero.endpointV2, endpointArtifact.abi, provider)
 
     // For --dry-run, resolve the impersonated senders once per chain:
     // - owner()        → for setPeer / setEnforcedOptions on the OFT/OFTAdapter
