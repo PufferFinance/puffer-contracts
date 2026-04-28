@@ -25,6 +25,8 @@ library HelperUtils {
             return "arbitrum";
         } else if (chainId == 80094) {
             return "berachain";
+        } else if (chainId == 48900) {
+            return "zircuit";
         } else {
             revert("Unsupported chain ID");
         }
@@ -51,6 +53,8 @@ library HelperUtils {
             return helperConfig.getArbitrumConfig();
         } else if (chainId == 80094) {
             return helperConfig.getBerachainConfig();
+        } else if (chainId == 48900) {
+            return helperConfig.getZircuitConfig();
         } else {
             revert("Unsupported chain ID");
         }
