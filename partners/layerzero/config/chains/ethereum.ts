@@ -26,11 +26,12 @@ export const ethereum: CustomChainConfig = {
         executor: '0x173272739Bd7Aa6e4e214714048a9fE699453059',
         dvns: {
             required: [
+                '0x06559ee34d85a88317bf0bfe307444116c631b67', // P2P
                 '0x380275805876ff19055ea900cdb2b46a94ecf20d', // Horizen
+                '0xa4fe5a5b9a846458a70cd0748228aed3bf65c2cd', // Canary
                 '0xa59ba433ac34d2927232918ef5b2eaafcf130ba5', // Nethermind
             ],
-            optional: [
-            ],
+            optional: [],
         },
     },
 
@@ -44,7 +45,7 @@ export const ethereum: CustomChainConfig = {
         // pufETH OFTAdapter on Ethereum (wraps native pufETH)
         pufETHAdapter: '0xa4931a9F9Aaf79057334371D6f62164743f97b18',
         // PUFFER OFTAdapter would go here if deployed
-        // PUFFERAdapter: '0x...',
+        PUFFERAdapter: '0x3Ea9bb9fcDCC1C37cB09175aecdb488A97EDd83F',
     },
 
     tokenType: 'OFTAdapter',

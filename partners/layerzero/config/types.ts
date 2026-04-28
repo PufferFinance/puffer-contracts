@@ -30,6 +30,7 @@ export interface CustomChainConfig {
         dvns: {
             required: string[] // Required DVNs (at least 1)
             optional?: string[] // Optional DVNs
+            threshold?: number // Threshold for optional DVNs
         }
     }
 

@@ -28,6 +28,7 @@ export const megaeth: CustomChainConfig = {
         executor: '0x4208D6E27538189bB48E603D6123A94b8Abe0A0b',
         dvns: {
             required: [
+                '0x7decc6df3af9cfc275e25d2f9703ecf7ad800d5d', // Canary
                 '0x8ede21203e062d7d1eaec11c4c72ad04cdc15658', // Horizen
                 '0xeede111103535e473451311e26c3e6660b0f77e1', // Nethermind
             ],
