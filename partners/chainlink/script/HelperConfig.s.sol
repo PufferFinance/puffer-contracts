@@ -34,6 +34,8 @@ contract HelperConfig is Script {
             activeNetworkConfig = getArbitrumConfig();
         } else if (block.chainid == 80094) {
             activeNetworkConfig = getBerachainConfig();
+        } else if (block.chainid == 48900) {
+            activeNetworkConfig = getZircuitConfig();
         }
     }
 
@@ -146,5 +148,19 @@ contract HelperConfig is Script {
             nativeCurrencySymbol: "ETH"
         });
         return baseSepoliaConfig;
+    }
+
+    function getZircuitConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory zircuitConfig = NetworkConfig({
+            chainSelector: 17198166215261833993,
+            router: 0x0A6436B56378D305729713ac332ccdCD367f3918,
+            rmnProxy: 0xf735667F2F3193d407089bb4c50824941821b156,
+            tokenAdminRegistry: 0x47d2D93EEDb694bf445E7F6458f17669459612c7,
+            registryModuleOwnerCustom: 0x55aeb80Aa6Ab34aA83E1F387903F8Bb2Aa9e2F2d,
+            link: 0x5D6d033B4FbD2190D99D930719fAbAcB64d2439a,
+            confirmations: 2,
+            nativeCurrencySymbol: "ETH"
+        });
+        return zircuitConfig;
     }
 }
