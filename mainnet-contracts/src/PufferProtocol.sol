@@ -323,6 +323,10 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
+            if (burnAmount > bondAmount) { // Failsafe in extreme rare case validator balance falls under (32-bondAmount) ETH
+                burnAmount = bondAmount;  // residual loss socialized to pufETH holders
+            }
+
             uint256 vtBurnAmount = _getVTBurnAmount($, bondWithdrawals[i].node, validatorInfos[i]);
 
             // Update the burnAmounts
