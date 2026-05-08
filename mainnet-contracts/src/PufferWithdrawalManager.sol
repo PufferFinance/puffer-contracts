@@ -223,6 +223,48 @@ contract PufferWithdrawalManager is
 
     /**
      * @inheritdoc IPufferWithdrawalManager
+     * @dev Allows users to cancel their withdrawal requests and receive back pufETH
+     */
+    function cancelWithdrawal(uint256 withdrawalIdx) external {
+        WithdrawalManagerStorage storage $ = _getWithdrawalManagerStorage();
+
+        require(withdrawalIdx < $.withdrawals.length, WithdrawalDoesNotExist());
+
+        Withdrawal memory withdrawal = $.withdrawals[withdrawalIdx];
+        address recipient = withdrawal.recipient;
+
+        // Check if withdrawal has already been completed (recipient is set to address(0) when completed)
+        require(recipient != address(0), WithdrawalAlreadyCompleted());
+
+        // Check if the caller is the original recipient
+        require(recipient == msg.sender, NotWithdrawalOwner());
+
+        // Check if the withdrawal's batch has been finalized
+        uint256 batchIndex = withdrawalIdx / BATCH_SIZE;
+        require(batchIndex > $.finalizedWithdrawalBatch, WithdrawalAlreadyFinalized());
+
+        WithdrawalBatch storage batch = $.withdrawalBatches[batchIndex];
+
+        // Treat this canceled withdrawal as a claimed withdrawal to avoid issues in the `returnExcessETHToVault` function
+        ++batch.withdrawalsClaimed;
+
+        uint256 pufETHAmount = withdrawal.pufETHAmount;
+
+        uint256 expectedETHAmount = (pufETHAmount * withdrawal.pufETHToETHExchangeRate) / 1 ether;
+        batch.toBurn -= uint88(pufETHAmount);
+        batch.toTransfer -= uint96(expectedETHAmount);
+
+        // Clear the withdrawal data
+        delete $.withdrawals[withdrawalIdx];
+
+        // Transfer pufETH back to the user
+        PUFFER_VAULT.transfer(recipient, pufETHAmount);
+
+        emit WithdrawalCancelled({ withdrawalIdx: withdrawalIdx, pufETHAmount: pufETHAmount, recipient: recipient });
+    }
+
+    /**
+     * @inheritdoc IPufferWithdrawalManager
      * @dev Restricted access to ROLE_ID_OPERATIONS_MULTISIG
      */
     function returnExcessETHToVault(uint256[] calldata batchIndices) external restricted {
@@ -230,6 +272,7 @@ contract PufferWithdrawalManager is
         uint256 totalExcessETH = 0;
 
         for (uint256 i = 0; i < batchIndices.length; ++i) {
+            require(batchIndices[i] <= $.finalizedWithdrawalBatch, NotFinalized());
             WithdrawalBatch storage batch = $.withdrawalBatches[batchIndices[i]];
 
             require(batch.withdrawalsClaimed == BATCH_SIZE, NotAllWithdrawalsClaimed());
