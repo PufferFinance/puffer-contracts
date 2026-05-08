@@ -323,8 +323,8 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             // Get the burnAmount for the withdrawal at the current exchange rate
             uint256 burnAmount =
                 _getBondBurnAmount({ validatorInfo: validatorInfos[i], validatorBondAmount: bondAmount });
+            // Failsafe in extreme rare case validator balance falls under (32-bondAmount) ETH
             if (burnAmount > bondAmount) {
-                // Failsafe in extreme rare case validator balance falls under (32-bondAmount) ETH
                 burnAmount = bondAmount; // residual loss socialized to pufETH holders
             }
 
@@ -335,6 +335,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
             burnAmounts.vt += vtBurnAmount;
 
             // Store the withdrawal amount for that node operator
+            // Underflow is not possible because of the checks in the `_getBondBurnAmount` function and the fact that we are capping the burn amount to the bond amount
             // nosemgrep basic-arithmetic-underflow
             bondWithdrawals[i].pufETHAmount = (bondAmount - burnAmount);
 

@@ -17,8 +17,6 @@ import { Permit } from "../../src/structs/Permit.sol";
 import { ModuleLimit } from "../../src/struct/ProtocolStorage.sol";
 import { StoppedValidatorInfo } from "../../src/struct/StoppedValidatorInfo.sol";
 
-import "forge-std/console.sol";
-
 contract PufferProtocolTest is UnitTestHelper {
     using ECDSA for bytes32;
 
