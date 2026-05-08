@@ -324,9 +324,9 @@ contract L2RewardManagerTest is Test, TestHelperOz5 {
         l2RewardManager.setDelayPeriod(1 hours);
 
         vm.expectRevert(abi.encodeWithSelector(IL2RewardManager.InvalidDelayPeriod.selector));
-        l2RewardManager.setDelayPeriod(15 hours);
+        l2RewardManager.setDelayPeriod(73 hours);
 
-        uint256 delayPeriod = 10 hours;
+        uint256 delayPeriod = 48 hours;
         l2RewardManager.setDelayPeriod(delayPeriod);
         assertEq(l2RewardManager.getClaimingDelay(), delayPeriod, "Claiming delay should be set correctly");
     }

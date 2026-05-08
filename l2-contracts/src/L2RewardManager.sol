@@ -353,7 +353,7 @@ contract L2RewardManager is
         if (newDelay < 6 hours) {
             revert InvalidDelayPeriod();
         }
-        if (newDelay > 12 hours) {
+        if (newDelay > 72 hours) {
             revert InvalidDelayPeriod();
         }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
