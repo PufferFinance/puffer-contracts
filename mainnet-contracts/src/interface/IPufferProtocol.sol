@@ -69,6 +69,12 @@ interface IPufferProtocol {
     error InvalidValidatorState(Status status);
 
     /**
+     * @notice Thrown when the validator is not owned by the sender
+     * @dev Signature "682a6e7c"
+     */
+    error InvalidValidator();
+
+    /**
      * @notice Thrown if the sender did not send enough ETH in the transaction
      * @dev Signature "0x242b035c"
      */
@@ -85,6 +91,27 @@ interface IPufferProtocol {
      * @dev Signature "0x625a40e6"
      */
     error Failed();
+
+    /**
+     * @notice Thrown when an invalid validator index is provided
+     */
+    error InvalidValidatorIndex();
+
+    /**
+     * @notice Emitted when a permissioned validator experiences slashing loss
+     * @param moduleName The module name
+     * @param validatorIndex The validator index
+     * @param stakeAmount The original stake amount
+     * @param withdrawalAmount The actual withdrawal amount
+     * @param slashingLoss The slashing loss (stakeAmount - withdrawalAmount)
+     */
+    event PermissionedValidatorSlashingDetected(
+        bytes32 indexed moduleName,
+        uint256 indexed validatorIndex,
+        uint256 stakeAmount,
+        uint256 withdrawalAmount,
+        uint256 slashingLoss
+    );
 
     /**
      * @notice Emitted when the number of active validators changes
@@ -178,6 +205,64 @@ interface IPufferProtocol {
     event SuccessfullyProvisioned(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when a new permissioned module is created
+     * @param module is the address of the new permissioned module
+     * @param moduleName is the name of the module
+     */
+    event NewPermissionedModuleCreated(address indexed module, bytes32 indexed moduleName);
+
+    /**
+     * @notice Emitted when a permissioned validator key is registered
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param isNonRestaked indicates if the validator is non-restaked (direct Beacon Chain)
+     * @param stakeAmount is the stake amount in wei (32-2048 ETH for non-restaked, always 32 ETH for restaked)
+     */
+    event PermissionedValidatorKeyRegistered(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        bool isNonRestaked,
+        uint256 stakeAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator is provisioned
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param isNonRestaked indicates if the validator is non-restaked (direct Beacon Chain)
+     * @param stakeAmount is the stake amount in wei
+     */
+    event PermissionedValidatorProvisioned(
+        bytes pubKey,
+        uint256 indexed pufferModuleIndex,
+        bytes32 indexed moduleName,
+        bool isNonRestaked,
+        uint256 stakeAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator exits
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     * @param withdrawalAmount is the amount withdrawn
+     */
+    event PermissionedValidatorExited(
+        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, uint256 withdrawalAmount
+    );
+
+    /**
+     * @notice Emitted when a permissioned validator provisioning is skipped
+     * @param pubKey is the validator public key
+     * @param pufferModuleIndex is the internal validator index
+     * @param moduleName is the permissioned module name
+     */
+    event PermissionedValidatorSkipped(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
+
+    /**
      * @notice Returns validator information
      * @param moduleName is the staking Module
      * @param pufferModuleIndex is the Index of the validator in Puffer, not to be mistaken with Validator index on beacon chain
@@ -209,6 +294,16 @@ interface IPufferProtocol {
      * @dev Each active validator requires node operator to have at least `minimumVtAmount` locked
      */
     function withdrawValidatorTickets(uint96 amount, address recipient) external;
+
+    /**
+     * @notice Triggers the validators exit for the given indices
+     * @param moduleName The name of the Puffer module
+     * @param indices The indices of the validators to exit
+     * @dev Restricted to Node Operators
+     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
+     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     */
+    function triggerValidatorsExit(bytes32 moduleName, uint256[] calldata indices) external payable;
 
     /**
      * @notice Batch settling of validator withdrawals

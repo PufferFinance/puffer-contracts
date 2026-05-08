@@ -14,6 +14,7 @@ import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQu
 import { IPufferOracleV2 } from "../../src/interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
+import { IPermissionedOracle } from "../../src/interface/IPermissionedOracle.sol";
 
 using Math for uint256;
 
@@ -203,7 +204,8 @@ contract PufferVaultForkTest is MainnetForkTestHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             pufferOracle: IPufferOracleV2(address(mockOracle)),
-            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882))
+            revenueDepositor: IPufferRevenueDepositor(address(0x21660F4681aD5B6039007f7006b5ab0EF9dE7882)),
+            permissionedOracle: IPermissionedOracle(address(0))
         });
         vm.prank(address(timelock));
         pufferVault.upgradeToAndCall(address(v5Impl), "");

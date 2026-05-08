@@ -3,28 +3,31 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IDelegationManager } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IEigenPodManager } from "../src/interface/Eigenlayer-Slashing/IEigenPodManager.sol";
-import { ISignatureUtils } from "../src/interface/Eigenlayer-Slashing/ISignatureUtils.sol";
-import { IStrategy } from "../src/interface/Eigenlayer-Slashing/IStrategy.sol";
-import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
-import { IEigenPod, IEigenPodTypes } from "../src/interface/Eigenlayer-Slashing/IEigenPod.sol";
-import { PufferModuleManager } from "./PufferModuleManager.sol";
-import { Unauthorized } from "./Errors.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IDelegationManager, IDelegationManagerTypes } from "./interface/Eigenlayer-Slashing/IDelegationManager.sol";
+import { IEigenPodManager } from "./interface/Eigenlayer-Slashing/IEigenPodManager.sol";
+import { ISignatureUtils } from "./interface/Eigenlayer-Slashing/ISignatureUtils.sol";
+import { IStrategy } from "./interface/Eigenlayer-Slashing/IStrategy.sol";
+import { IEigenPod, IEigenPodTypes } from "./interface/Eigenlayer-Slashing/IEigenPod.sol";
+import { IRewardsCoordinator } from "./interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { IPufferProtocol } from "./interface/IPufferProtocol.sol";
+import { IPermissionedModule } from "./interface/IPermissionedModule.sol";
+import { PufferModuleManager } from "./PufferModuleManager.sol";
+import { NonRestakingWithdrawalCredentials } from "./NonRestakingWithdrawalCredentials.sol";
+import { PermissionedModuleStorage } from "./struct/PermissionedModuleStorage.sol";
+import { Unauthorized } from "./Errors.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ModuleStorage } from "./struct/ModuleStorage.sol";
-import { IDelegationManagerTypes } from "../src/interface/Eigenlayer-Slashing/IDelegationManager.sol";
-import { IRewardsCoordinator } from "../src/interface/Eigenlayer-Slashing/IRewardsCoordinator.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
 /**
- * @title PufferModule
+ * @title PermissionedModule
  * @author Puffer Finance
- * @notice PufferModule
+ * @notice Module that supports both restaked and non-restaked permissioned validators
  * @custom:security-contact security@puffer.fi
  */
-contract PufferModule is Initializable, AccessManagedUpgradeable {
+contract PermissionedModule is Initializable, AccessManagedUpgradeable, IPermissionedModule {
     using Address for address;
     using Address for address payable;
 
@@ -33,15 +36,17 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     IDelegationManager public immutable EIGEN_DELEGATION_MANAGER;
     IPufferProtocol public immutable PUFFER_PROTOCOL;
     PufferModuleManager public immutable PUFFER_MODULE_MANAGER;
+
     /**
      * @dev Represents the Beacon Chain strategy in EigenLayer
      */
     address internal constant _BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+
     /**
-     * keccak256(abi.encode(uint256(keccak256("PufferModule.storage")) - 1)) & ~bytes32(uint256(0xff))
+     * keccak256(abi.encode(uint256(keccak256("PermissionedModule.storage")) - 1)) & ~bytes32(uint256(0xff))
      */
-    bytes32 private constant _PUFFER_MODULE_BASE_STORAGE =
-        0x501caad7d5b9c1542c99d193b659cbf5c57571609bcfc93d65f1e159821d6200;
+    bytes32 private constant _PERMISSIONED_MODULE_STORAGE =
+        0x7410446085c160ccc4c2b0e41801f8ac5004a5bf87d0402533c18d1e95927d00;
 
     constructor(
         IPufferProtocol protocol,
@@ -58,11 +63,37 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
         _disableInitializers();
     }
 
+    /**
+     * @notice Initializes the module, creates EigenPod and NonRestakingWithdrawalCredentials
+     * @param moduleName The name of this module
+     * @param initialAuthority The access manager address
+     */
     function initialize(bytes32 moduleName, address initialAuthority) external initializer {
         __AccessManaged_init(initialAuthority);
-        ModuleStorage storage $ = _getPufferModuleStorage();
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
         $.moduleName = moduleName;
+        // Create EigenPod for restaked validators
         $.eigenPod = IEigenPod(address(EIGEN_POD_MANAGER.createPod()));
+
+        // Deploy NonRestakingWithdrawalCredentials via beacon proxy for upgradeability
+        address nrwcBeacon = PUFFER_MODULE_MANAGER.NRWC_BEACON();
+        $.nonRestakingWithdrawalCredentials = NonRestakingWithdrawalCredentials(
+            payable(
+                Create2.deploy({
+                    amount: 0,
+                    salt: keccak256(abi.encodePacked("NRWC_", address(this))),
+                    bytecode: abi.encodePacked(
+                        type(BeaconProxy).creationCode,
+                        abi.encode(
+                            nrwcBeacon,
+                            abi.encodeCall(NonRestakingWithdrawalCredentials.initialize, (address(this), initialAuthority))
+                        )
+                    )
+                })
+            )
+        );
+
+        emit NonRestakingWithdrawalCredentialsSet(address($.nonRestakingWithdrawalCredentials));
     }
 
     /**
@@ -97,28 +128,40 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     receive() external payable { }
 
     /**
-     * @notice Starts the validator
+     * @inheritdoc IPermissionedModule
      */
-    function callStake(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
+    function callStakeRestaked(bytes calldata pubKey, bytes calldata signature, bytes32 depositDataRoot)
         external
         payable
         onlyPufferProtocol
     {
-        // EigenPod is deployed in this call
         EIGEN_POD_MANAGER.stake{ value: 32 ether }(pubKey, signature, depositDataRoot);
     }
 
     /**
-     * @notice Sets the proof submitter on the EigenPod
+     * @inheritdoc IPermissionedModule
+     */
+    function callStakeNonRestaked(
+        bytes calldata pubKey,
+        bytes calldata signature,
+        bytes32 depositDataRoot,
+        uint256 amount
+    ) external payable onlyPufferProtocol {
+        PUFFER_PROTOCOL.BEACON_DEPOSIT_CONTRACT().deposit{ value: amount }(
+            pubKey, getNonRestakingWithdrawalCredentials(), signature, depositDataRoot
+        );
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
      */
     function setProofSubmitter(address proofSubmitter) external onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
-
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
         $.eigenPod.setProofSubmitter(proofSubmitter);
     }
 
     /**
-     * @notice Queues the withdrawal from EigenLayer for the Beacon Chain strategy
+     * @inheritdoc IPermissionedModule
      */
     function queueWithdrawals(uint256 shareAmount)
         external
@@ -145,7 +188,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
-     * @notice Completes the queued withdrawals
+     * @inheritdoc IPermissionedModule
      */
     function completeQueuedWithdrawals(
         IDelegationManagerTypes.Withdrawal[] calldata withdrawals,
@@ -160,9 +203,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
-     * @notice the `to` with custom `value` and `data`
-     * @return success the success of the call
-     * @return returnData the return data of the call
+     * @inheritdoc IPermissionedModule
      */
     function call(address to, uint256 amount, bytes calldata data)
         external
@@ -175,10 +216,7 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
-     * @notice Calls the delegateTo function on the EigenLayer delegation manager
-     * @param operator is the address of the restaking operator
-     * @param approverSignatureAndExpiry the signature of the delegation approver
-     * @param approverSalt salt for the signature
+     * @inheritdoc IPermissionedModule
      */
     function callDelegateTo(
         address operator,
@@ -189,69 +227,101 @@ contract PufferModule is Initializable, AccessManagedUpgradeable {
     }
 
     /**
-     * @notice Calls the undelegate function on the EigenLayer delegation manager
+     * @inheritdoc IPermissionedModule
      */
     function callUndelegate() external virtual onlyPufferModuleManager returns (bytes32[] memory withdrawalRoot) {
         return EIGEN_DELEGATION_MANAGER.undelegate(address(this));
     }
 
     /**
-     * @notice Triggers the validators exit for the given pubkeys
-     * @param pubkeys The pubkeys of the validators to exit
-     * @dev Only callable by the PufferModuleManager
-     * @dev According to EIP-7002 there is a fee for each validator exit request (See https://eips.ethereum.org/assets/eip-7002/fee_analysis)
-     *      The fee is paid in the msg.value of this function. Since the fee is not fixed and might change, the excess amount will be kept in the PufferModule
+     * @inheritdoc IPermissionedModule
      */
-    function triggerValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
-        ModuleStorage storage $ = _getPufferModuleStorage();
+    function triggerRestakedValidatorsExit(bytes[] calldata pubkeys) external payable virtual onlyPufferModuleManager {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
 
         IEigenPodTypes.WithdrawalRequest[] memory requests = new IEigenPodTypes.WithdrawalRequest[](pubkeys.length);
         for (uint256 i = 0; i < pubkeys.length; i++) {
             requests[i] = IEigenPodTypes.WithdrawalRequest({
                 pubkey: pubkeys[i],
-                amountGwei: 0 // This means full exit. Only value supported for 0x01 validators
+                amountGwei: 0 // Full exit
              });
         }
         $.eigenPod.requestWithdrawal{ value: msg.value }(requests);
     }
 
     /**
-     * @notice Sets the rewards claimer to `claimer` for the PufferModule
+     * @inheritdoc IPermissionedModule
+     */
+    function withdrawNonRestakedETH() external onlyPufferModuleManager {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
+        $.nonRestakingWithdrawalCredentials.withdrawETH();
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
+     */
+    function triggerNonRestakedValidatorWithdrawals(IEigenPodTypes.WithdrawalRequest[] calldata requests)
+        external
+        payable
+        virtual
+        onlyPufferModuleManager
+    {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
+        $.nonRestakingWithdrawalCredentials.requestWithdrawal{ value: msg.value }(requests);
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
      */
     function callSetClaimerFor(address claimer) external virtual onlyPufferModuleManager {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
     /**
-     * @notice Returns the Withdrawal credentials for that module
+     * @inheritdoc IPermissionedModule
      */
-    function getWithdrawalCredentials() public view returns (bytes memory) {
-        // Withdrawal credentials for EigenLayer modules are EigenPods
-        ModuleStorage storage $ = _getPufferModuleStorage();
+    function getRestakingWithdrawalCredentials() public view returns (bytes memory) {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), $.eigenPod);
     }
 
     /**
-     * @notice Returns the EigenPod address owned by the module
+     * @inheritdoc IPermissionedModule
+     */
+    function getNonRestakingWithdrawalCredentials() public view returns (bytes memory) {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
+        return abi.encodePacked(bytes1(uint8(2)), bytes11(0), $.nonRestakingWithdrawalCredentials);
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
      */
     function getEigenPod() external view returns (address) {
-        ModuleStorage storage $ = _getPufferModuleStorage();
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
         return address($.eigenPod);
     }
 
     /**
-     * @notice Returns the module name
+     * @inheritdoc IPermissionedModule
+     */
+    function getNonRestakingWithdrawalCredentialsContract() external view returns (address) {
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
+        return address($.nonRestakingWithdrawalCredentials);
+    }
+
+    /**
+     * @inheritdoc IPermissionedModule
      */
     // solhint-disable-next-line func-name-mixedcase
     function NAME() external view returns (bytes32) {
-        ModuleStorage storage $ = _getPufferModuleStorage();
+        PermissionedModuleStorage storage $ = _getPermissionedModuleStorage();
         return $.moduleName;
     }
 
-    function _getPufferModuleStorage() internal pure returns (ModuleStorage storage $) {
-        // solhint-disable-next-line
+    function _getPermissionedModuleStorage() internal pure returns (PermissionedModuleStorage storage $) {
+        // solhint-disable-next-line no-inline-assembly
         assembly {
-            $.slot := _PUFFER_MODULE_BASE_STORAGE
+            $.slot := _PERMISSIONED_MODULE_STORAGE
         }
     }
 }

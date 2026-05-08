@@ -19,6 +19,7 @@ import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
 import { IPufferOracle } from "../src/interface/IPufferOracle.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 
 /**
  * @title UpgradePufETH
@@ -49,7 +50,12 @@ contract UpgradePufETH is BaseScript {
     ILidoWithdrawalQueue internal constant _LIDO_WITHDRAWAL_QUEUE =
         ILidoWithdrawalQueue(0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1);
 
-    function run(PufferDeployment memory deployment, address pufferOracle, address revenueDepositor) public broadcast {
+    function run(
+        PufferDeployment memory deployment,
+        address pufferOracle,
+        address revenueDepositor,
+        address permissionedOracle
+    ) public broadcast {
         //@todo this is for tests only
         AccessManager(deployment.accessManager).grantRole(1, _broadcaster, 0);
 
@@ -58,7 +64,8 @@ contract UpgradePufETH is BaseScript {
             IWETH(deployment.weth),
             ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             IPufferOracleV2(pufferOracle),
-            IPufferRevenueDepositor(revenueDepositor)
+            IPufferRevenueDepositor(revenueDepositor),
+            IPermissionedOracle(permissionedOracle)
         );
 
         vm.label(address(newImplementation), "PufferVaultV5Implementation");

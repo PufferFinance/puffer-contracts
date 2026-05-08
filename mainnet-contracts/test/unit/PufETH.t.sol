@@ -10,6 +10,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { stETHMock } from "../mocks/stETHMock.sol";
 import { WETH9 } from "../mocks/WETH9.sol";
 import { MockPufferOracle } from "../mocks/MockPufferOracle.sol";
+import { MockPermissionedOracle } from "../mocks/MockPermissionedOracle.sol";
 import { ILidoWithdrawalQueue } from "../../src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { IPufferRevenueDepositor } from "../../src/interface/IPufferRevenueDepositor.sol";
@@ -20,6 +21,7 @@ import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils
 import { PufferRevenueDepositorMock } from "../mocks/PufferRevenueDepositorMock.sol";
 import { Timelock } from "../../src/Timelock.sol";
 import { ROLE_ID_DAO } from "script/Roles.sol";
+import { IPermissionedOracle } from "../../src/interface/IPermissionedOracle.sol";
 
 contract PufETHTest is ERC4626Test {
     PufferDepositor public pufferDepositor;
@@ -114,13 +116,15 @@ contract PufETHTest is ERC4626Test {
         vm.stopPrank();
 
         MockPufferOracle mockOracle = new MockPufferOracle();
+        MockPermissionedOracle mockPermissionedOracle = new MockPermissionedOracle();
         PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
         PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: stETH,
             lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
-            revenueDepositor: revenueDepositor
+            revenueDepositor: revenueDepositor,
+            permissionedOracle: mockPermissionedOracle
         });
 
         vm.startPrank(communityMultisig);

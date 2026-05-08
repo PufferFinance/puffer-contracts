@@ -13,21 +13,23 @@ import { DeployerHelper } from "./DeployerHelper.s.sol";
  * forge script script/DeployPufferModuleManager.s.sol:DeployPufferModuleManager -vvvv --rpc-url=$RPC_URL --broadcast --verify
  */
 contract DeployPufferModuleManager is DeployerHelper {
-    function run() public {
+    function run(address permissionedModuleBeacon, address nrwcBeacon) public {
         vm.startBroadcast();
 
-        _deploy();
+        _deploy(permissionedModuleBeacon, nrwcBeacon);
     }
 
     function deployPufferModuleManagerTests() public returns (PufferModuleManager) {
-        return _deploy();
+        return _deploy(address(0), address(0));
     }
 
-    function _deploy() internal returns (PufferModuleManager) {
+    function _deploy(address permissionedModuleBeacon, address nrwcBeacon) internal returns (PufferModuleManager) {
         PufferModuleManager newPufferModuleManagerImplementation = new PufferModuleManager({
             pufferModuleBeacon: address(_getPufferModuleBeacon()),
             restakingOperatorBeacon: address(_getRestakingOperatorBeacon()),
-            pufferProtocol: address(_getPufferProtocol())
+            pufferProtocol: address(_getPufferProtocol()),
+            permissionedModuleBeacon: permissionedModuleBeacon,
+            nrwcBeacon: nrwcBeacon
         });
 
         _consoleLogOrUpgradeUUPSPrank({
