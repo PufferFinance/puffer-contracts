@@ -1272,7 +1272,11 @@ contract PufferProtocolTest is UnitTestHelper {
 
         vm.expectEmit(true, true, true, true);
         emit IPufferProtocol.ValidatorExited(
-            _getPubKey(bytes32("alice")), 0, PUFFER_MODULE_0, burnedAmount, _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
+            _getPubKey(bytes32("alice")),
+            0,
+            PUFFER_MODULE_0,
+            burnedAmount,
+            _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
         );
         pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
     }
