@@ -45,7 +45,7 @@ contract DeployRevenueDepositor is DeployerHelper {
         console.log("Queue from Timelock -> AccessManager", _getAccessManager());
         console.logBytes(encodedCalldata);
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             (bool success,) = address(_getAccessManager()).call(encodedCalldata);
             require(success, "AccessManager.call failed");
         }

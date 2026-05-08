@@ -24,7 +24,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: _getRestakingOperatorController()
@@ -39,7 +39,7 @@ contract DeployRestakingOperator is DeployerHelper {
         console.log("From Timelock queue a tx to accessManager");
         console.logBytes(calldataToExecute);
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(_getRestakingOperatorBeacon(), cd);
         }
     }
@@ -49,7 +49,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: _getRestakingOperatorController()
@@ -59,7 +59,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(restakingOperatorImplementation));
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(_getRestakingOperatorBeacon(), cd);
         }
     }
@@ -69,7 +69,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: restakingOperatorController
@@ -79,7 +79,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(restakingOperatorImplementation));
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(_getRestakingOperatorBeacon(), cd);
         }
     }

@@ -9,13 +9,23 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
 import { RestakingOperatorController } from "../../src/RestakingOperatorController.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
-import { IGuardianModule } from "../../src/interface/IGuardianModule.sol";
+import { IGuardianModule, GuardianSessionProof, PublicIdentity } from "../../src/interface/IGuardianModule.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { PufferProtocolDeployment, BridgingDeployment } from "../../script/DeploymentStructs.sol";
-import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
-import { Guardian1RaveEvidence, Guardian2RaveEvidence, Guardian3RaveEvidence } from "./GuardiansRaveEvidence.sol";
+// import {
+//     IWorkloadVerifier,
+//     TEEType,
+//     CloudType,
+//     WorkloadCollaterals
+// } from "@automata-network/automata-tee-workload-measurement/interfaces/IWorkloadVerifier.sol";
+// import { TeeReportType } from "@automata-network/automata-tee-workload-measurement/lib/LibTEE.sol";
+// import { MeasureablePcr } from "@automata-network/automata-tpm-attestation/interfaces/ITpmAttestation.sol";
+// import { GoldenMeasurementInfo, TdxRegistrationData } from "../../src/struct/GuardianModuleStructs.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
+import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Permit } from "../../src/structs/Permit.sol";
 import { PufferDepositor } from "../../src/PufferDepositor.sol";
@@ -25,12 +35,9 @@ import { IWETH } from "../../src/interface/Other/IWETH.sol";
 import { ValidatorTicket } from "../../src/ValidatorTicket.sol";
 import { ValidatorTicketPricer } from "../../src/ValidatorTicketPricer.sol";
 import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
-// import { xPufETH } from "src/l2/xPufETH.sol";
-// import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
-// import { ConnextMock } from "../mocks/ConnextMock.sol";
 import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
 import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
 import {
@@ -40,6 +47,7 @@ import {
     ROLE_ID_LOCKBOX
 } from "../../script/Roles.sol";
 import { GenerateSlashingELCalldata } from "../../script/AccessManagerMigrations/07_GenerateSlashingELCalldata.s.sol";
+import { SessionRegistryMock } from "../mocks/SessionRegistryMock.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     bytes32 private constant _PERMIT_TYPEHASH =
@@ -61,6 +69,8 @@ contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ZERO = address(0);
     address public constant ADDRESS_ONE = address(1);
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+
+    uint256 public constant FRESHNESS_BLOCKS = 20;
 
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
@@ -87,6 +97,34 @@ contract UnitTestHelper is Test, BaseScript {
     bytes public guardian3EnclavePubKey =
         hex"04a55b152177219971a93a64aafc2d61baeaf86526963caa260e71efa2b865527e0307d7bda85312dd6ff23bcc88f2bf228da6295239f72c31b686c48b7b69cdfd";
 
+    bytes public guardian1OwnerPubKey =
+        hex"04af497e622b580acc7e8d961bc7fa69aad88774ea39c838ff5411ac87746eb0d0b157c9e9b6f94d4b58313c7c59c975760b4c640e78d9e466e1a2255359d6e092";
+    bytes public guardian2OwnerPubKey =
+        hex"04169f04b8a0f6c552666fbccf9a73184bb0e2a1fbeb66ee56ca2c3271f9398803cad67262f0987f9ea085771868683b53944d421a081a73cce357275b47f3629f";
+    bytes public guardian3OwnerPubKey =
+        hex"04bcb747c6ce73688d800755ac8715198ca92e7d2f0a828e083e254078c8c652e64f15534685ba90ec89362c8c276df81c7e6a2db9f2f2620d7596d9962171d2fc";
+
+    PublicIdentity public guardian1OwnerPublicIdentity;
+    PublicIdentity public guardian2OwnerPublicIdentity;
+    PublicIdentity public guardian3OwnerPublicIdentity;
+
+    PublicIdentity public guardian1SessionPublicIdentity;
+    PublicIdentity public guardian2SessionPublicIdentity;
+    PublicIdentity public guardian3SessionPublicIdentity;
+
+    bytes32 public guardian1SessionId;
+    bytes32 public guardian2SessionId;
+    bytes32 public guardian3SessionId;
+
+    GuardianSessionProof guardian1SessionProof;
+    GuardianSessionProof guardian2SessionProof;
+    GuardianSessionProof guardian3SessionProof;
+
+    SessionRegistryMock public sessionRegistryMock;
+
+    // TDX attestation test data
+    bytes public guardian1TdxAttestationReport = hex"";
+
     PufferDepositor public pufferDepositor;
     PufferVaultV5 public pufferVault;
     stETHMock public stETH;
@@ -101,7 +139,7 @@ contract UnitTestHelper is Test, BaseScript {
     GuardianModule public guardianModule;
 
     AccessManager public accessManager;
-    IEnclaveVerifier public verifier;
+    ISessionRegistry public sessionRegistry;
     OperationsCoordinator public operationsCoordinator;
     AVSContractsRegistry public avsContractsRegistry;
     RestakingOperatorController public restakingOperatorController;
@@ -172,7 +210,7 @@ contract UnitTestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
         fuzzedAddressMapping[address(guardianModule)] = true;
-        fuzzedAddressMapping[address(verifier)] = true;
+        fuzzedAddressMapping[address(sessionRegistry)] = true;
         fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(beacon)] = true;
         fuzzedAddressMapping[address(pufferProtocol)] = true;
@@ -201,16 +239,19 @@ contract UnitTestHelper is Test, BaseScript {
         guardians[1] = guardian2;
         guardians[2] = guardian3;
 
+        sessionRegistryMock = new SessionRegistryMock();
+
         // Deploy everything with one script
         PufferProtocolDeployment memory pufferDeployment;
         BridgingDeployment memory bridgingDeployment;
 
-        (pufferDeployment, bridgingDeployment) = new DeployEverything().run(guardians, 1, PAYMASTER);
+        (pufferDeployment, bridgingDeployment) =
+            new DeployEverything().run(address(sessionRegistryMock), guardians, 1, PAYMASTER, FRESHNESS_BLOCKS);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         accessManager = AccessManager(pufferDeployment.accessManager);
         timelock = pufferDeployment.timelock;
-        verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
+        sessionRegistry = ISessionRegistry(pufferDeployment.sessionRegistry);
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         beacon = UpgradeableBeacon(pufferDeployment.beacon);
         pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
@@ -243,75 +284,88 @@ contract UnitTestHelper is Test, BaseScript {
         vm.label(address(pufferDepositor), "PufferDepositor");
         vm.label(address(pufferProtocol), "PufferProtocol");
 
-        Guardian1RaveEvidence guardian1Rave = new Guardian1RaveEvidence();
-        Guardian2RaveEvidence guardian2Rave = new Guardian2RaveEvidence();
-        Guardian3RaveEvidence guardian3Rave = new Guardian3RaveEvidence();
+        // Populate the session registry with the guardians' session and owner public identities
+        guardian1OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1OwnerPubKey });
+        guardian2OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2OwnerPubKey });
+        guardian3OwnerPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3OwnerPubKey });
 
-        // mrenclave and mrsigner are the same for all evidences
+        guardian1SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian1EnclavePubKey });
+        guardian2SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian2EnclavePubKey });
+        guardian3SessionPublicIdentity = PublicIdentity({ typeId: ALGO_ID_ES256K, key: guardian3EnclavePubKey });
+
+        guardian1SessionId = keccak256("guardian1");
+        guardian2SessionId = keccak256("guardian2");
+        guardian3SessionId = keccak256("guardian3");
+
+        bytes32 signedMessageHash1 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian1EnclavePubKey)
+        );
+        bytes32 signedMessageHash2 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian2EnclavePubKey)
+        );
+        bytes32 signedMessageHash3 = keccak256(
+            abi.encode("ROTATE_GUARDIAN_KEY", address(guardianModule), block.chainid, 0, guardian3EnclavePubKey)
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SKEnclave, signedMessageHash1);
+        bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian2SKEnclave, signedMessageHash2);
+        bytes memory signature2 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        (v, r, s) = vm.sign(guardian3SKEnclave, signedMessageHash3);
+        bytes memory signature3 = abi.encodePacked(r, s, v); // note the order here is different from line above.
+
+        guardian1SessionProof = GuardianSessionProof({
+            sessionId: guardian1SessionId,
+            sessionKey: guardian1SessionPublicIdentity,
+            ownerKey: guardian1OwnerPublicIdentity,
+            signature: signature1
+        });
+        guardian2SessionProof = GuardianSessionProof({
+            sessionId: guardian2SessionId,
+            sessionKey: guardian2SessionPublicIdentity,
+            ownerKey: guardian2OwnerPublicIdentity,
+            signature: signature2
+        });
+        guardian3SessionProof = GuardianSessionProof({
+            sessionId: guardian3SessionId,
+            sessionKey: guardian3SessionPublicIdentity,
+            ownerKey: guardian3OwnerPublicIdentity,
+            signature: signature3
+        });
+
+        sessionRegistryMock.setSessionOwner(
+            guardian1SessionId, LibKey.computeKeyFingerprint(guardian1OwnerPublicIdentity)
+        );
+        sessionRegistryMock.setSessionOwner(
+            guardian2SessionId, LibKey.computeKeyFingerprint(guardian2OwnerPublicIdentity)
+        );
+        sessionRegistryMock.setSessionOwner(
+            guardian3SessionId, LibKey.computeKeyFingerprint(guardian3OwnerPublicIdentity)
+        );
+
+        bytes32 workloadId = keccak256("workload");
         vm.startPrank(DAO);
-        vm.expectEmit(true, true, true, true);
-        emit IGuardianModule.MrEnclaveChanged(bytes32(0), guardian1Rave.mrenclave());
-        emit IGuardianModule.MrSignerChanged(bytes32(0), guardian1Rave.mrsigner());
-        guardianModule.setGuardianEnclaveMeasurements(guardian1Rave.mrenclave(), guardian1Rave.mrsigner());
+        guardianModule.setAllowedWorkload(workloadId, true);
         vm.stopPrank();
 
-        assertEq(guardianModule.getMrenclave(), guardian1Rave.mrenclave(), "mrenclave");
-        assertEq(guardianModule.getMrsigner(), guardian1Rave.mrsigner(), "mrsigner");
-
-        // Add a valid certificate to verifier
-        verifier = guardianModule.ENCLAVE_VERIFIER();
-        verifier.addLeafX509(guardian1Rave.signingCert());
-
-        require(keccak256(guardian1EnclavePubKey) == keccak256(guardian1Rave.payload()), "pubkeys don't match");
-
-        assertEq(
-            blockhash(block.number),
-            hex"0000000000000000000000000000000000000000000000000000000000000000",
-            "bad blockhash"
-        );
+        sessionRegistryMock.setSessionWorkload(guardian1SessionId, workloadId);
+        sessionRegistryMock.setSessionWorkload(guardian2SessionId, workloadId);
+        sessionRegistryMock.setSessionWorkload(guardian3SessionId, workloadId);
 
         // Register enclave keys for guardians
-        vm.startPrank(guardians[0]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[0], guardian1Enclave, guardian1EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian1EnclavePubKey,
-            RaveEvidence({
-                report: guardian1Rave.report(),
-                signature: guardian1Rave.sig(),
-                leafX509CertDigest: keccak256(guardian1Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian1EnclavePubKey, guardian1SessionProof);
 
-        vm.startPrank(guardians[1]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[1], guardian2Enclave, guardian2EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian2EnclavePubKey,
-            RaveEvidence({
-                report: guardian2Rave.report(),
-                signature: guardian2Rave.sig(),
-                leafX509CertDigest: keccak256(guardian2Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian2EnclavePubKey, guardian2SessionProof);
 
-        vm.startPrank(guardians[2]);
         vm.expectEmit(true, true, true, true);
         emit IGuardianModule.RotatedGuardianKey(guardians[2], guardian3Enclave, guardian3EnclavePubKey);
-        guardianModule.rotateGuardianKey(
-            0,
-            guardian3EnclavePubKey,
-            RaveEvidence({
-                report: guardian3Rave.report(),
-                signature: guardian3Rave.sig(),
-                leafX509CertDigest: keccak256(guardian3Rave.signingCert())
-            })
-        );
-        vm.stopPrank();
+        guardianModule.rotateGuardianKey(0, guardian3EnclavePubKey, guardian3SessionProof);
 
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[0]), guardian1Enclave, "bad enclave address1");
         assertEq(guardianModule.getGuardiansEnclaveAddress(guardians[1]), guardian2Enclave, "bad enclave address2");

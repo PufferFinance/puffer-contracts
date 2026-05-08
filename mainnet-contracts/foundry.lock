@@ -1,0 +1,20 @@
+{
+  "../partners/chainlink/lib/forge-std": {
+    "rev": "3b20d60d14b343ee4f908cb8079495c07f5e8981"
+  },
+  "lib/automata-dcap-attestation": {
+    "tag": {
+      "name": "v1.1.0",
+      "rev": "9c96312657f2a905003f6ebf565d5742422f24a2"
+    }
+  },
+  "lib/automata-tee-workload-measurement": {
+    "rev": "c3bcd68f4b887f86374cc47b31041bf2d667e7d3"
+  },
+  "lib/automata-tpm-attestation": {
+    "rev": "1a3ab2bc4886ac5313365f94e3d60dcf01fd9c41"
+  },
+  "partners/chainlink/lib/forge-std": {
+    "rev": "3b20d60d14b343ee4f908cb8079495c07f5e8981"
+  }
+}

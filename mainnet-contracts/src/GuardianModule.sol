@@ -2,9 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
-import { IGuardianModule } from "./interface/IGuardianModule.sol";
-import { IEnclaveVerifier } from "./EnclaveVerifier.sol";
-import { RaveEvidence } from "./struct/RaveEvidence.sol";
+import { IGuardianModule, GuardianSessionProof } from "./interface/IGuardianModule.sol";
 import { Unauthorized, InvalidAddress } from "./Errors.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -12,6 +10,13 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { LibGuardianMessages } from "./LibGuardianMessages.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
+import {
+    ISessionRegistry,
+    PublicIdentity,
+    CVMSession
+} from "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
+import { LibKey } from "@automata-network/automata-tee-workload-measurement/lib/LibKey.sol";
+import { ALGO_ID_ES256K } from "@automata-network/automata-tee-workload-measurement/types/Constants.sol";
 
 /**
  * @title Guardian module
@@ -37,9 +42,14 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     uint256 internal constant _EJECTION_THRESHOLD_BALANCE = 31.75 ether;
 
     /**
-     * @notice Enclave Verifier smart contract
+     * @notice Freshness number of blocks
      */
-    IEnclaveVerifier public immutable ENCLAVE_VERIFIER;
+    uint256 public immutable FRESHNESS_BLOCKS;
+
+    /**
+     * @notice Session Registry smart contract
+     */
+    ISessionRegistry public immutable SESSION_REGISTRY;
 
     /**
      * @dev Guardians set
@@ -47,19 +57,9 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     EnumerableSet.AddressSet private _guardians;
 
     /**
-     * @dev Threshold for the guardians
+     * @dev Threshold for the guardians. If the number of signatures/proofs is below this threshold, the action will not be authorized
      */
     uint256 internal _threshold;
-
-    /**
-     * @dev MRSIGNER value for SGX
-     */
-    bytes32 internal _mrsigner;
-
-    /**
-     * @dev MRENCLAVE value for SGX
-     */
-    bytes32 internal _mrenclave;
 
     /**
      * @dev This variable is for the Guardian's to coordinate on when to eject Puffer validators
@@ -80,22 +80,32 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      */
     mapping(address guardian => GuardianData data) internal _guardianEnclaves;
 
-    constructor(IEnclaveVerifier verifier, address[] memory guardians, uint256 threshold, address pufferAuthority)
-        payable
-        AccessManaged(pufferAuthority)
-    {
-        if (address(verifier) == address(0)) {
+    /**
+     * @dev Mapping of allowed workload IDs (can be added/removed)
+     */
+    mapping(bytes32 workloadId => bool allowed) internal _allowedWorkloads;
+
+    constructor(
+        ISessionRegistry sessionRegistry,
+        address[] memory guardians,
+        uint256 threshold,
+        address pufferAuthority,
+        uint256 freshnessBlocks
+    ) payable AccessManaged(pufferAuthority) {
+        if (address(sessionRegistry) == address(0)) {
             revert InvalidAddress();
         }
         if (address(pufferAuthority) == address(0)) {
             revert InvalidAddress();
         }
-        ENCLAVE_VERIFIER = verifier;
+        SESSION_REGISTRY = sessionRegistry;
         for (uint256 i = 0; i < guardians.length; ++i) {
             _addGuardian(guardians[i]);
         }
         _setEjectionThreshold(_EJECTION_THRESHOLD_BALANCE);
         _setThreshold(threshold);
+
+        FRESHNESS_BLOCKS = freshnessBlocks;
     }
 
     receive() external payable { }
@@ -241,11 +251,10 @@ contract GuardianModule is AccessManaged, IGuardianModule {
      * @inheritdoc IGuardianModule
      * @dev Restricted to the DAO
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrEnclave, bytes32 newMrSigner) external restricted {
-        emit MrEnclaveChanged(_mrenclave, newMrEnclave);
-        emit MrSignerChanged(_mrsigner, newMrSigner);
-        _mrenclave = newMrEnclave;
-        _mrsigner = newMrSigner;
+    function setAllowedWorkload(bytes32 workloadId, bool allowed) external restricted {
+        require(workloadId != bytes32(0), WorkloadNotAllowed());
+        _allowedWorkloads[workloadId] = allowed;
+        emit WorkloadAllowanceChanged(workloadId, allowed);
     }
 
     /**
@@ -264,7 +273,7 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     function removeGuardian(address guardian) external restricted {
         splitGuardianFunds();
 
-        (bool success) = _guardians.remove(guardian);
+        bool success = _guardians.remove(guardian);
         if (success) {
             emit GuardianRemoved(guardian);
         }
@@ -299,8 +308,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external {
-        address guardian = msg.sender;
+    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, GuardianSessionProof calldata proof)
+        external
+    {
+        // The ownerKey is provided by the operator during TEE workload deployment (via atakit deploy --owner-private-key).
+        // The CVM agent binds the ownerKey to the session, so a valid session signature attests that the message originated from the operator.
+        require(proof.ownerKey.typeId == ALGO_ID_ES256K, InvalidECDSAPubKey());
+        require(proof.ownerKey.key.length == _ECDSA_KEY_LENGTH, InvalidECDSAPubKey());
+
+        address guardian = address(uint160(uint256(keccak256(proof.ownerKey.key[1:]))));
 
         if (!_guardians.contains(guardian)) {
             revert Unauthorized();
@@ -310,18 +326,25 @@ contract GuardianModule is AccessManaged, IGuardianModule {
             revert InvalidECDSAPubKey();
         }
 
-        // slither-disable-next-line uninitialized-state-variables
-        bool isValid = ENCLAVE_VERIFIER.verifyEvidence({
-            blockNumber: blockNumber,
-            raveCommitment: keccak256(pubKey),
-            mrenclave: _mrenclave,
-            mrsigner: _mrsigner,
-            evidence: evidence
-        });
-
-        if (!isValid) {
-            revert InvalidRAVE();
+        if ((block.number - blockNumber) > FRESHNESS_BLOCKS) {
+            revert StaleEvidence();
         }
+
+        // Since rotateGuardianKey is called infrequently, blockNumber-based freshness is used for replay protection instead of a nonce.
+        bytes32 signedMessageHash =
+            keccak256(abi.encode("ROTATE_GUARDIAN_KEY", address(this), block.chainid, blockNumber, pubKey));
+        bool isValid = SESSION_REGISTRY.verifySessionSignature(
+            proof.sessionId, proof.sessionKey, signedMessageHash, proof.signature
+        );
+        if (!isValid) {
+            revert InvalidSignature();
+        }
+
+        bytes32 ownerFingerprint = SESSION_REGISTRY.getSessionOwner(proof.sessionId);
+        require(ownerFingerprint == LibKey.computeKeyFingerprint(proof.ownerKey), InvalidECDSAPubKey());
+
+        CVMSession memory session = SESSION_REGISTRY.getSession(proof.sessionId);
+        require(_allowedWorkloads[session.workloadId], WorkloadNotAllowed());
 
         // pubKey[1:] means we need to strip the first byte '0x' if we want to get the correct address
         address computedAddress = address(uint160(uint256(keccak256(pubKey[1:]))));
@@ -382,22 +405,15 @@ contract GuardianModule is AccessManaged, IGuardianModule {
     /**
      * @inheritdoc IGuardianModule
      */
-    function getMrenclave() external view returns (bytes32) {
-        return _mrenclave;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
-    function getMrsigner() external view returns (bytes32) {
-        return _mrsigner;
-    }
-
-    /**
-     * @inheritdoc IGuardianModule
-     */
     function isGuardian(address account) external view returns (bool) {
         return _guardians.contains(account);
+    }
+
+    /**
+     * @inheritdoc IGuardianModule
+     */
+    function isWorkloadAllowed(bytes32 workloadId) external view returns (bool) {
+        return _allowedWorkloads[workloadId];
     }
 
     function _addGuardian(address newGuardian) internal {

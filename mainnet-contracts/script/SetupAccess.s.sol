@@ -10,7 +10,6 @@ import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { PufferProtocol } from "../src/PufferProtocol.sol";
 import { GuardianModule } from "../src/GuardianModule.sol";
 import { PufferModuleManager } from "../src/PufferModuleManager.sol";
-import { EnclaveVerifier } from "../src/EnclaveVerifier.sol";
 import { PufferOracleV2 } from "../src/PufferOracleV2.sol";
 import { PufferProtocolDeployment } from "./DeploymentStructs.sol";
 import { ValidatorTicket } from "../src/ValidatorTicket.sol";
@@ -98,45 +97,44 @@ contract SetupAccess is BaseScript {
         bytes[] memory coordinatorAccess,
         bytes[] memory validatorTicketAccess
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](30);
+        calldatas = new bytes[](29);
         calldatas[0] = _setupGuardianModuleRoles();
-        calldatas[1] = _setupEnclaveVerifierRoles();
-        calldatas[2] = rolesCalldatas[0];
-        calldatas[3] = rolesCalldatas[1];
-        calldatas[4] = rolesCalldatas[2];
-        calldatas[5] = rolesCalldatas[3];
-        calldatas[6] = rolesCalldatas[4];
-        calldatas[7] = rolesCalldatas[5];
-        calldatas[8] = rolesCalldatas[6];
+        calldatas[1] = rolesCalldatas[0];
+        calldatas[2] = rolesCalldatas[1];
+        calldatas[3] = rolesCalldatas[2];
+        calldatas[4] = rolesCalldatas[3];
+        calldatas[5] = rolesCalldatas[4];
+        calldatas[6] = rolesCalldatas[5];
+        calldatas[7] = rolesCalldatas[6];
 
-        calldatas[9] = pufferProtocolRoles[0];
-        calldatas[10] = pufferProtocolRoles[1];
-        calldatas[11] = pufferProtocolRoles[2];
+        calldatas[8] = pufferProtocolRoles[0];
+        calldatas[9] = pufferProtocolRoles[1];
+        calldatas[10] = pufferProtocolRoles[2];
 
-        calldatas[12] = validatorTicketRoles[0];
-        calldatas[13] = validatorTicketRoles[1];
+        calldatas[11] = validatorTicketRoles[0];
+        calldatas[12] = validatorTicketRoles[1];
 
-        calldatas[14] = vaultMainnetAccess[0];
+        calldatas[13] = vaultMainnetAccess[0];
 
-        calldatas[15] = pufferOracleAccess[0];
-        calldatas[16] = pufferOracleAccess[1];
-        calldatas[17] = pufferOracleAccess[2];
+        calldatas[14] = pufferOracleAccess[0];
+        calldatas[15] = pufferOracleAccess[1];
+        calldatas[16] = pufferOracleAccess[2];
 
-        calldatas[18] = moduleManagerAccess[0];
-        calldatas[19] = moduleManagerAccess[1];
+        calldatas[17] = moduleManagerAccess[0];
+        calldatas[18] = moduleManagerAccess[1];
 
-        calldatas[20] = roleLabels[0];
-        calldatas[21] = roleLabels[1];
-        calldatas[22] = roleLabels[2];
-        calldatas[23] = roleLabels[3];
+        calldatas[19] = roleLabels[0];
+        calldatas[20] = roleLabels[1];
+        calldatas[21] = roleLabels[2];
+        calldatas[22] = roleLabels[3];
 
-        calldatas[24] = coordinatorAccess[0];
-        calldatas[25] = coordinatorAccess[1];
+        calldatas[23] = coordinatorAccess[0];
+        calldatas[24] = coordinatorAccess[1];
 
-        calldatas[26] = validatorTicketAccess[0];
-        calldatas[27] = validatorTicketAccess[1];
-        calldatas[28] = validatorTicketAccess[2];
-        calldatas[29] = validatorTicketAccess[3];
+        calldatas[25] = validatorTicketAccess[0];
+        calldatas[26] = validatorTicketAccess[1];
+        calldatas[27] = validatorTicketAccess[2];
+        calldatas[28] = validatorTicketAccess[3];
     }
 
     function _labelRoles() internal pure returns (bytes[] memory) {
@@ -270,7 +268,7 @@ contract SetupAccess is BaseScript {
 
     function _setupGuardianModuleRoles() internal view returns (bytes memory) {
         bytes4[] memory selectors = new bytes4[](5);
-        selectors[0] = GuardianModule.setGuardianEnclaveMeasurements.selector;
+        selectors[0] = GuardianModule.setAllowedWorkload.selector;
         selectors[1] = GuardianModule.addGuardian.selector;
         selectors[2] = GuardianModule.removeGuardian.selector;
         selectors[3] = GuardianModule.setEjectionThreshold.selector;
@@ -278,15 +276,6 @@ contract SetupAccess is BaseScript {
 
         return abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, pufferDeployment.guardianModule, selectors, ROLE_ID_DAO
-        );
-    }
-
-    function _setupEnclaveVerifierRoles() internal view returns (bytes memory) {
-        bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = EnclaveVerifier.removeLeafX509.selector;
-
-        return abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, pufferDeployment.enclaveVerifier, selectors, ROLE_ID_DAO
         );
     }
 
