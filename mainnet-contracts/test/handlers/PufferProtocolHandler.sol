@@ -606,6 +606,7 @@ contract PufferProtocolHandler is Test {
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            address(pufferProtocol.GUARDIAN_MODULE()),
             pendingIdx,
             pubKey,
             mockValidatorSignature,

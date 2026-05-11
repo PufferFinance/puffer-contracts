@@ -207,7 +207,11 @@ contract PufferProtocolTest is UnitTestHelper {
             5,
             99999999,
             _getGuardianEOASignatures(
-                LibGuardianMessages._getSetNumberOfValidatorsMessage({ numberOfValidators: 5, epochNumber: 99999999 })
+                LibGuardianMessages._getSetNumberOfValidatorsMessage({
+                    verifyingContract: address(guardianModule),
+                    numberOfValidators: 5,
+                    epochNumber: 99999999
+                })
             )
         );
 
@@ -1864,6 +1868,7 @@ contract PufferProtocolTest is UnitTestHelper {
         bytes memory withdrawalCredentials = pufferProtocol.getWithdrawalCredentials(validator.module);
 
         bytes32 digest = LibGuardianMessages._getBeaconDepositMessageToBeSigned(
+            address(guardianModule),
             pendingIdx,
             pubKey,
             _validatorSignature(),
@@ -1896,7 +1901,8 @@ contract PufferProtocolTest is UnitTestHelper {
     function _getGuardianSignaturesForSkipping() internal view returns (bytes[] memory) {
         (bytes32 moduleName, uint256 pendingIdx) = pufferProtocol.getNextValidatorToProvision();
 
-        bytes32 digest = LibGuardianMessages._getSkipProvisioningMessage(moduleName, pendingIdx);
+        bytes32 digest =
+            LibGuardianMessages._getSkipProvisioningMessage(address(guardianModule), moduleName, pendingIdx);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
@@ -1920,7 +1926,7 @@ contract PufferProtocolTest is UnitTestHelper {
         view
         returns (bytes[] memory)
     {
-        bytes32 digest = LibGuardianMessages._getHandleBatchWithdrawalMessage(validatorInfos);
+        bytes32 digest = LibGuardianMessages._getHandleBatchWithdrawalMessage(address(guardianModule), validatorInfos);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardian1SK, digest);
         bytes memory signature1 = abi.encodePacked(r, s, v); // note the order here is different from line above.
