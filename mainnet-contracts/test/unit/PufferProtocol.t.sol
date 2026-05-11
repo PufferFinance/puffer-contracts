@@ -1250,6 +1250,35 @@ contract PufferProtocolTest is UnitTestHelper {
         assertApproxEqAbs(_getUnderlyingETHAmount(address(bob)), 1 ether, 1, "bob got back the bond");
     }
 
+    function test_batch_claim_underflow() public {
+        _registerAndProvisionNode(bytes32("alice"), PUFFER_MODULE_0, alice);
+
+        StoppedValidatorInfo memory aliceInfo = StoppedValidatorInfo({
+            module: NoRestakingModule,
+            moduleName: PUFFER_MODULE_0,
+            pufferModuleIndex: 0,
+            withdrawalAmount: 29 ether, // Withdrawal amount is less than 32 ETH - bond, but still shouldn't revert due to fix
+            startEpoch: 100,
+            endEpoch: _getEpochNumber(28 days, 100),
+            wasSlashed: false
+        });
+
+        StoppedValidatorInfo[] memory stopInfos = new StoppedValidatorInfo[](1);
+        stopInfos[0] = aliceInfo;
+
+        uint256 burnedAmount = pufferVault.convertToShares(1 ether); // 1 ETH to pufETH. This is the bond, the max that can be burned
+
+        vm.expectEmit(true, true, true, true);
+        emit IPufferProtocol.ValidatorExited(
+            _getPubKey(bytes32("alice")),
+            0,
+            PUFFER_MODULE_0,
+            burnedAmount,
+            _getVTBurnAmount(100, _getEpochNumber(28 days, 100))
+        );
+        pufferProtocol.batchHandleWithdrawals(stopInfos, _getHandleBatchWithdrawalMessage(stopInfos));
+    }
+
     // Batch claim of different amounts
     function test_different_amounts_batch_claim() public {
         // Buy and approve VT
