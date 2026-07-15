@@ -36,6 +36,12 @@ contract HelperConfig is Script {
             activeNetworkConfig = getBerachainConfig();
         } else if (block.chainid == 48900) {
             activeNetworkConfig = getZircuitConfig();
+        } else if (block.chainid == 8453) {
+            activeNetworkConfig = getBaseConfig();
+        } else if (block.chainid == 56) {
+            activeNetworkConfig = getBscConfig();
+        } else if (block.chainid == 33139) {
+            activeNetworkConfig = getApechainConfig();
         }
     }
 
@@ -44,20 +50,21 @@ contract HelperConfig is Script {
             chainSelector: 1294465214383781161,
             router: 0x71a275704c283486fBa26dad3dd0DB78804426eF,
             rmnProxy: 0x25943b8C30C47F4eF09CcF2BAE315EbaF591881d,
-            tokenAdminRegistry: 0x0944C3Fb1dB7D165336569221995B31cBE6c8A55 ,
-            registryModuleOwnerCustom:0x452b8543fdF4Da91FE914CC92c3B79632730cFC7 ,
+            tokenAdminRegistry: 0x0944C3Fb1dB7D165336569221995B31cBE6c8A55,
+            registryModuleOwnerCustom: 0x452b8543fdF4Da91FE914CC92c3B79632730cFC7,
             link: 0x71052BAe71C25C78E37fD12E5ff1101A71d9018F,
             confirmations: 2,
             nativeCurrencySymbol: "BERA"
         });
         return berachainConfig;
     }
+
     function getArbitrumConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory arbitrumConfig = NetworkConfig({
             chainSelector: 4949039107694359620,
-            router: 0x141fa059441E0ca23ce184B6A78bafD2A517DdE8 ,
+            router: 0x141fa059441E0ca23ce184B6A78bafD2A517DdE8,
             rmnProxy: 0xC311a21e6fEf769344EB1515588B9d535662a145,
-            tokenAdminRegistry: 0x39AE1032cF4B334a1Ed41cdD0833bdD7c7E7751E ,
+            tokenAdminRegistry: 0x39AE1032cF4B334a1Ed41cdD0833bdD7c7E7751E,
             registryModuleOwnerCustom: 0x1f1df9f7fc939E71819F766978d8F900B816761b,
             link: 0xf97f4df75117a78c1A5a0DBb814Af92458539FB4,
             confirmations: 2,
@@ -65,6 +72,7 @@ contract HelperConfig is Script {
         });
         return arbitrumConfig;
     }
+
     function getSoneiumConfig() public pure returns (NetworkConfig memory) {
         NetworkConfig memory soneiumConfig = NetworkConfig({
             chainSelector: 12505351618335765396,
@@ -162,5 +170,47 @@ contract HelperConfig is Script {
             nativeCurrencySymbol: "ETH"
         });
         return zircuitConfig;
+    }
+
+    function getBaseConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory baseConfig = NetworkConfig({
+            chainSelector: 15971525489660198786,
+            router: 0x881e3A65B4d4a04dD529061dd0071cf975F58bCD,
+            rmnProxy: 0xC842c69d54F83170C42C4d556B4F6B2ca53Dd3E8,
+            tokenAdminRegistry: 0x6f6C373d09C07425BaAE72317863d7F6bb731e37,
+            registryModuleOwnerCustom: 0xAFEd606Bd2CAb6983fC6F10167c98aaC2173D77f,
+            link: 0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196,
+            confirmations: 2,
+            nativeCurrencySymbol: "ETH"
+        });
+        return baseConfig;
+    }
+
+    function getBscConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory bscConfig = NetworkConfig({
+            chainSelector: 11344663589394136015,
+            router: 0x34B03Cb9086d7D758AC55af71584F81A598759FE,
+            rmnProxy: 0x9e09697842194f77d315E0907F1Bda77922e8f84,
+            tokenAdminRegistry: 0x736Fd8660c443547a85e4Eaf70A49C1b7Bb008fc,
+            registryModuleOwnerCustom: 0x47Db76c9c97F4bcFd54D8872FDb848Cab696092d,
+            link: 0x404460C6A5EdE2D891e8297795264fDe62ADBB75,
+            confirmations: 2,
+            nativeCurrencySymbol: "BNB"
+        });
+        return bscConfig;
+    }
+
+    function getApechainConfig() public pure returns (NetworkConfig memory) {
+        NetworkConfig memory bscConfig = NetworkConfig({
+            chainSelector: 14894068710063348487,
+            router: 0xe9c6945281028cb6530d43F998eE539dFE2a9191,
+            rmnProxy: 0x768a1a3B321126A8B214d7376D48465C7f6Fa061,
+            tokenAdminRegistry: 0xD3ED6fC9fd22412764ac2Ef64fB664b9393dF9F2,
+            registryModuleOwnerCustom: 0x1c2F528e3BEeFF81Bc03CC63E64dB131d18be7fA,
+            link: 0xf575731b78981B86d34321d875A3D25a48479be6,
+            confirmations: 2,
+            nativeCurrencySymbol: "APE"
+        });
+        return bscConfig;
     }
 }
