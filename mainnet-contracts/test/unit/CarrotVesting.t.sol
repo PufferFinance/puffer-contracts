@@ -320,13 +320,10 @@ contract CarrotVestingTest is Test {
 
         skip(newStepDuration + 5);
         uint256 numNewStepsPassed = (block.timestamp - secondVestingTimestamp) / newStepDuration;
-        uint256 expectedClaimableAfterReinit =
-            (numNewStepsPassed * depositAmount2 / NEW_STEPS_2) * EXCHANGE_RATE / 1e18;
+        uint256 expectedClaimableAfterReinit = (numNewStepsPassed * depositAmount2 / NEW_STEPS_2) * EXCHANGE_RATE / 1e18;
         uint256 claimableAfterReinit = carrotVesting.calculateClaimableAmount(alice);
 
-        assertApproxEqAbs(
-            claimableAfterReinit, expectedClaimableAfterReinit, 1, "Claimable after reinit2 not correct"
-        );
+        assertApproxEqAbs(claimableAfterReinit, expectedClaimableAfterReinit, 1, "Claimable after reinit2 not correct");
 
         // Verify the vesting end time also changed to the new duration
         vm.startPrank(alice);
