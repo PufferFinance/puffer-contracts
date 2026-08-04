@@ -42,7 +42,7 @@ contract DeployPufferModuleImplementation is DeployerHelper {
         console.log("From Timelock queue a tx to accessManager");
         console.logBytes(calldataToExecute);
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
         }
     }
@@ -62,8 +62,9 @@ contract DeployPufferModuleImplementation is DeployerHelper {
 
         bytes memory cd = abi.encodeCall(UpgradeableBeacon.upgradeTo, address(newImpl));
 
-        if (block.chainid == holesky) {
+        if (block.chainid == holesky || block.chainid == hoodi) {
             AccessManager(_getAccessManager()).execute(_getPufferModuleBeacon(), cd);
         }
+        vm.stopPrank();
     }
 }

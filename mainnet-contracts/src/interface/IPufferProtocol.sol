@@ -145,12 +145,9 @@ interface IPufferProtocol {
      * @param pubKey is the validator public key
      * @param pufferModuleIndex is the internal validator index in Puffer Finance, not to be mistaken with validator index on Beacon Chain
      * @param moduleName is the staking Module
-     * @param usingEnclave is indicating if the validator is using secure enclave
-     * @dev Signature "0xc73344cf227e056eee8d82aee54078c9b55323b61d17f61587eb570873f8e319"
+     * @dev Signature "0x6b9febc68231d6c196b22b02f442fa6dc3148ee90b6e83d5b978c11833587159"
      */
-    event ValidatorKeyRegistered(
-        bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName, bool usingEnclave
-    );
+    event ValidatorKeyRegistered(bytes pubKey, uint256 indexed pufferModuleIndex, bytes32 indexed moduleName);
 
     /**
      * @notice Emitted when the Validator exited and stopped validating

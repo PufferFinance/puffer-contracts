@@ -31,6 +31,8 @@ contract PUFFERTest is UnitTestHelper {
 
     function test_allowedSenderCanTransferToAnybody(address recipient) public {
         vm.assume(recipient != address(0));
+        vm.assume(recipient != alice);
+        vm.assume(recipient != owner);
         assertEq(puffer.paused(), true, "PUFFER should be paused");
 
         vm.startPrank(owner);

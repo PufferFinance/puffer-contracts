@@ -9,8 +9,9 @@ import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { DeployEverything } from "script/DeployEverything.s.sol";
-import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 contract IntegrationTestHelper is Test {
     address DAO = 0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1;
@@ -21,18 +22,22 @@ contract IntegrationTestHelper is Test {
     GuardianModule public guardianModule;
 
     AccessManager public accessManager;
-    IEnclaveVerifier public verifier;
+
+    ISessionRegistry public sessionRegistry;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-    address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+    address PAYMASTER = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
+    address SESSION_REGISTRY = 0xD1860020870ffEd23a644d0CD4CA9E7b3Ff53D6c;
+
+    uint256 public constant FRESHNESS_BLOCKS = 20;
 
     // custom block number
-    function deployContractsHolesky(uint256 blockNumber) public virtual {
+    function deployContractsHoodi(uint256 blockNumber) public virtual {
         // see foundry.toml for the rpc urls
         if (blockNumber == 0) {
-            vm.createSelectFork(vm.rpcUrl("holesky"));
+            vm.createSelectFork(vm.rpcUrl("hoodi"));
         } else {
-            vm.createSelectFork(vm.rpcUrl("holesky"), blockNumber);
+            vm.createSelectFork(vm.rpcUrl("hoodi"), blockNumber);
         }
 
         address[] memory guardians = new address[](1);
@@ -42,21 +47,21 @@ contract IntegrationTestHelper is Test {
     }
 
     // 'default' block number
-    function deployContractsHolesky() public virtual {
-        deployContractsHolesky(1_212_252);
+    function deployContractsHoodi() public virtual {
+        deployContractsHoodi(2352200); // Mar-04-2026 05:17:12 PM +UTC
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
         // Deploy everything with one script
         (PufferProtocolDeployment memory pufferDeployment,) =
-            new DeployEverything().run(guardians, threshold, PAYMASTER);
+            new DeployEverything().run(SESSION_REGISTRY, guardians, threshold, PAYMASTER, FRESHNESS_BLOCKS);
 
         pufferProtocol = PufferProtocol(payable(pufferDeployment.pufferProtocol));
         vm.label(address(pufferProtocol), "PufferProtocol");
         accessManager = AccessManager(pufferDeployment.accessManager);
         vm.label(address(accessManager), "AccessManager");
-        verifier = IEnclaveVerifier(pufferDeployment.enclaveVerifier);
-        vm.label(address(verifier), "EnclaveVerifier");
+        sessionRegistry = ISessionRegistry(pufferDeployment.sessionRegistry);
+        vm.label(address(sessionRegistry), "SessionRegistry");
         guardianModule = GuardianModule(payable(pufferDeployment.guardianModule));
         vm.label(address(guardianModule), "GuardianModule");
         beacon = UpgradeableBeacon(pufferDeployment.beacon);

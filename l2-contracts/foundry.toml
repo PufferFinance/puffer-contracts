@@ -30,6 +30,7 @@ bracket_spacing = true
 [rpc_endpoints]
 mainnet="${ETH_RPC_URL}"
 holesky="${HOLESKY_RPC_URL}"
+hoodi="${HOODI_RPC_URL}"
 
 [invariant]
 fail_on_revert=false

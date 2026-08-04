@@ -43,6 +43,11 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
             protocolAddress = 0xE00c79408B9De5BaD2FDEbB1688997a68eC988CD;
             pufferProtocol = PufferProtocol(protocolAddress);
             forkVersion = "0x01017000";
+        } else if (block.chainid == 560048) {
+            // Hoodi
+            protocolAddress = 0x6ECcBAB07B8e592D9e5Ab9042EF2CacF1eff1155;
+            pufferProtocol = PufferProtocol(protocolAddress);
+            forkVersion = "0x10000910";
         } else if (block.chainid == 1) {
             // Mainnet
             protocolAddress = 0xf7b6B32492c2e13799D921E84202450131bd238B;
@@ -103,8 +108,7 @@ contract GenerateBLSKeysAndRegisterValidators is Script {
                 signature: stdJson.readBytes(registrationJson, ".signature"),
                 depositDataRoot: stdJson.readBytes32(registrationJson, ".deposit_data_root"),
                 blsEncryptedPrivKeyShares: blsEncryptedPrivKeyShares,
-                blsPubKeySet: stdJson.readBytes(registrationJson, ".bls_pub_key_set"),
-                raveEvidence: ""
+                blsPubKeySet: stdJson.readBytes(registrationJson, ".bls_pub_key_set")
             });
 
             Permit memory pufETHPermit = _signPermit({

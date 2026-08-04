@@ -1,9 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { RaveEvidence } from "../struct/RaveEvidence.sol";
-import { IEnclaveVerifier } from "../EnclaveVerifier.sol";
 import { StoppedValidatorInfo } from "../struct/StoppedValidatorInfo.sol";
+import { PublicIdentity } from "@automata-network/automata-tee-workload-measurement/types/Common.sol";
+
+/**
+ * @notice Proof of a guardian's session-based signature via SessionRegistry
+ * @param sessionId The session id to verify against
+ * @param sessionKey The session's public key
+ * @param ownerKey The owner's public key (identifies the guardian)
+ * @param signature The session signature over the message
+ */
+struct GuardianSessionProof {
+    bytes32 sessionId;
+    PublicIdentity sessionKey;
+    PublicIdentity ownerKey;
+    bytes signature;
+}
 
 /**
  * @title IGuardianModule interface
@@ -17,16 +30,22 @@ interface IGuardianModule {
     error InvalidECDSAPubKey();
 
     /**
-     * @notice Thrown when the RAVE evidence is not valid
-     * @dev Signature "0x2b3c629b"
-     */
-    error InvalidRAVE();
-
-    /**
      * @notice Thrown if the threshold value is not valid
      * @dev Signature "0x651a749b"
      */
     error InvalidThreshold(uint256 threshold);
+
+    /**
+     * @notice Thrown if the signature is not valid
+     * @dev Signature "0x8baa579f"
+     */
+    error InvalidSignature();
+
+    /**
+     * @notice Thrown if the workload is not allowed
+     * @dev Signature "0x37c9b5f1"
+     */
+    error WorkloadNotAllowed();
 
     /**
      * @notice Emitted when the ejection threshold is changed
@@ -68,16 +87,19 @@ interface IGuardianModule {
     event RotatedGuardianKey(address guardian, address guardianEnclave, bytes pubKey);
 
     /**
-     * @notice Emitted when the mrenclave value is changed
-     * @dev Signature "0x1ff2c57ef9a384cea0c482d61fec8d708967d266f03266e301c6786f7209904a"
+     * @notice Emitted when a workload allowance is changed
+     * @param workloadId id of the workload
+     * @param allowed bool indicating whether the workload is allowed or not
+     * @dev Signature "0x73013b875c0fba87c394f60e5697094d91b6bdce94ca3c53133a34bd980e114d"
      */
-    event MrEnclaveChanged(bytes32 oldMrEnclave, bytes32 newMrEnclave);
+    event WorkloadAllowanceChanged(bytes32 workloadId, bool allowed);
 
     /**
-     * @notice Emitted when the mrsigner value is changed
-     * @dev Signature "0x1a1fe271c5533136fccd1c6df515ca1f227d95822bfe78b9dd93debf3d709ae6"
+     * @notice Thrown if the Evidence that we're trying to verify is stale
+     * Evidence should be submitted for the recent block < `FRESHNESS_BLOCKS`
+     * @dev Signature "0x5d4ad9a9"
      */
-    event MrSignerChanged(bytes32 oldMrSigner, bytes32 newMrSigner);
+    error StaleEvidence();
 
     /**
      * @notice Returns the enclave address registered to `guardian`
@@ -94,9 +116,12 @@ interface IGuardianModule {
     function getEjectionThreshold() external view returns (uint256);
 
     /**
-     * @notice Sets the values for mrEnclave and mrSigner to `newMrenclave` and `newMrsigner`
+     * @notice Set allowed workloads for guardians
+     * @dev Workload policies are managed in WorkloadRegistry
+     * @param workloadId Id of the workload
+     * @param allowed Bool indicating whether the workload is allowed or not
      */
-    function setGuardianEnclaveMeasurements(bytes32 newMrenclave, bytes32 newMrsigner) external;
+    function setAllowedWorkload(bytes32 workloadId, bool allowed) external;
 
     /**
      * @notice Validates the update of the number of validators
@@ -106,11 +131,6 @@ interface IGuardianModule {
         uint256 epochNumber,
         bytes[] calldata guardianEOASignatures
     ) external view;
-
-    /**
-     * @notice Returns the enclave verifier
-     */
-    function ENCLAVE_VERIFIER() external view returns (IEnclaveVerifier);
 
     /**
      * @notice Validates the batch withdrawals calldata
@@ -217,15 +237,17 @@ interface IGuardianModule {
         external
         view
         returns (bool);
-
     /**
-     * @notice Rotates guardian's key
-     * @dev If he caller is not a valid guardian or if the RAVE evidence is not valid the tx will revert
-     * @param blockNumber is the block number
-     * @param pubKey is the public key of the new signature
-     * @param evidence is the RAVE evidence
+     * @notice Rotates a guardian's enclave key using a SessionRegistry-based proof
+     * @dev The caller provides a session proof that attests the new enclave public key.
+     *      The ownerKey in the proof must resolve to a registered guardian address.
+     *      blockNumber-based freshness is used for replay protection.
+     * @param blockNumber The block number used for freshness verification
+     * @param pubKey The new uncompressed ECDSA enclave public key (65 bytes)
+     * @param proof The session proof containing sessionId, sessionKey, ownerKey, and signature
      */
-    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, RaveEvidence calldata evidence) external;
+    function rotateGuardianKey(uint256 blockNumber, bytes calldata pubKey, GuardianSessionProof calldata proof)
+        external;
 
     /**
      * @notice Returns the guardians enclave addresses
@@ -245,12 +267,9 @@ interface IGuardianModule {
     function isGuardian(address account) external view returns (bool);
 
     /**
-     * @notice Returns the mrenclave value
+     * @notice Returns the workload allowed status
+     * @param workloadId The workload id to check
+     * @return A boolean indicating whether the workload is allowed
      */
-    function getMrenclave() external view returns (bytes32);
-
-    /**
-     * @notice Returns the mrsigner value
-     */
-    function getMrsigner() external view returns (bytes32);
+    function isWorkloadAllowed(bytes32 workloadId) external view returns (bool);
 }

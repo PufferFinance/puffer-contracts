@@ -16,21 +16,26 @@ import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy
 import { GenerateRevenueDepositorCalldata } from
     "script/AccessManagerMigrations/06_GenerateRevenueDepositorCalldata.s.sol";
 import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
+import { ISessionRegistry } from
+    "@automata-network/automata-tee-workload-measurement/interfaces/registries/ISessionRegistry.sol";
 
 /**
  * @title Deploy all protocol contracts
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address, address[] calldata, uint256, address, uint256)' <session_registry> "[$DEV_WALLET]" 1 $DEV_WALLET $FRESHNESS_BLOCKS --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
 
-    function run(address[] calldata guardians, uint256 threshold, address paymaster)
-        public
-        returns (PufferProtocolDeployment memory, BridgingDeployment memory)
-    {
+    function run(
+        address sessionRegistry,
+        address[] calldata guardians,
+        uint256 threshold,
+        address paymaster,
+        uint256 freshnessBlocks
+    ) public returns (PufferProtocolDeployment memory, BridgingDeployment memory) {
         PufferProtocolDeployment memory deployment;
 
         // 1. Deploy pufETH
@@ -44,8 +49,13 @@ contract DeployEverything is BaseScript {
         deployment.weth = puffETHDeployment.weth;
         deployment.accessManager = puffETHDeployment.accessManager;
 
-        GuardiansDeployment memory guardiansDeployment =
-            new DeployGuardians().run(AccessManager(puffETHDeployment.accessManager), guardians, threshold);
+        GuardiansDeployment memory guardiansDeployment = new DeployGuardians().run(
+            ISessionRegistry(sessionRegistry),
+            AccessManager(puffETHDeployment.accessManager),
+            guardians,
+            threshold,
+            freshnessBlocks
+        );
 
         address pufferOracle = new DeployPufferOracle().run(
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
@@ -92,7 +102,7 @@ contract DeployEverything is BaseScript {
         vm.serializeAddress(obj, "guardianModule", deployment.guardianModule);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
 
-        vm.serializeAddress(obj, "enclaveVerifier", deployment.enclaveVerifier);
+        vm.serializeAddress(obj, "sessionRegistry", deployment.sessionRegistry);
         vm.serializeAddress(obj, "moduleBeacon", deployment.beacon);
         vm.serializeAddress(obj, "moduleManager", deployment.moduleManager);
         vm.serializeAddress(obj, "validatorTicket", deployment.validatorTicket);
@@ -105,6 +115,7 @@ contract DeployEverything is BaseScript {
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        vm.startBroadcast();
         MockAeraVault mockAeraVault = new MockAeraVault();
 
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
@@ -123,6 +134,7 @@ contract DeployEverything is BaseScript {
                 )
             )
         );
+        vm.stopBroadcast();
 
         bytes memory accessManagerCd =
             new GenerateRevenueDepositorCalldata().run(address(revenueDepositor), makeAddr("operationsMultisig"));

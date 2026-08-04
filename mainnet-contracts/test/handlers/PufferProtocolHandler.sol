@@ -4,7 +4,6 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IPufferProtocol } from "../../src/interface/IPufferProtocol.sol";
 import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { RaveEvidence } from "../../src/struct/RaveEvidence.sol";
 import { console } from "forge-std/console.sol";
 import { Test } from "forge-std/Test.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
@@ -429,7 +428,7 @@ contract PufferProtocolHandler is Test {
         // Account for that deposited eth in ghost variable
         ghost_eth_deposited_amount += depositedETHAmount;
         ghost_validators += 1;
-        ghost_pufETH_bond_amount += pufferVault.previewDeposit(1 ether);
+        ghost_pufETH_bond_amount += pufferVault.previewDeposit(2 ether);
 
         // Add node operator to the set
         _nodeOperators.add(currentActor);
@@ -553,9 +552,8 @@ contract PufferProtocolHandler is Test {
                 withdrawalCredentials: withdrawalCredentials
             }),
             blsEncryptedPrivKeyShares: new bytes[](3),
-            blsPubKeySet: new bytes(48),
-            raveEvidence: new bytes(1) // Guardians are checking it off chain
-         });
+            blsPubKeySet: new bytes(48)
+        });
 
         return validatorData;
     }
@@ -584,10 +582,10 @@ contract PufferProtocolHandler is Test {
 
         uint256 idx = pufferProtocol.getPendingValidatorIndex(moduleName);
 
-        uint256 bond = 1 ether;
+        uint256 bond = 2 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName, true);
+        emit IPufferProtocol.ValidatorKeyRegistered(pubKey, idx, moduleName);
         pufferProtocol.registerValidatorKey{ value: (smoothingCommitment + bond) }(
             validatorKeyData, moduleName, emptyPermit, emptyPermit
         );
