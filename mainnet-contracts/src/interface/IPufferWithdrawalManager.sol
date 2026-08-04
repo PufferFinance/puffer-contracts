@@ -73,6 +73,21 @@ interface IPufferWithdrawalManager {
     error WithdrawalAmountTooHigh();
 
     /**
+     * @notice Thrown when attempting to cancel a withdrawal that has already been finalized
+     */
+    error WithdrawalAlreadyFinalized();
+
+    /**
+     * @notice Thrown when attempting to cancel a withdrawal that doesn't exist
+     */
+    error WithdrawalDoesNotExist();
+
+    /**
+     * @notice Thrown when attempting to cancel a withdrawal that you don't own
+     */
+    error NotWithdrawalOwner();
+
+    /**
      * @notice Emitted when a withdrawal is requested
      * @param withdrawalIdx The index of the requested withdrawal
      * @param batchIdx The index of the batch the withdrawal is added to
@@ -120,6 +135,14 @@ interface IPufferWithdrawalManager {
     event ExcessETHReturned(uint256[] batchIndices, uint256 totalExcessETH);
 
     /**
+     * @notice Emitted when a withdrawal is cancelled
+     * @param withdrawalIdx The index of the cancelled withdrawal
+     * @param pufETHAmount The amount of pufETH returned to the user
+     * @param recipient The address that received the returned pufETH
+     */
+    event WithdrawalCancelled(uint256 indexed withdrawalIdx, uint256 pufETHAmount, address indexed recipient);
+
+    /**
      * @notice Returns the address of the PufferVaultV5 contract
      * @return The address of the PufferVaultV5 contract
      */
@@ -153,6 +176,12 @@ interface IPufferWithdrawalManager {
      * @param withdrawalIdx The index of the withdrawal to complete
      */
     function completeQueuedWithdrawal(uint256 withdrawalIdx) external;
+
+    /**
+     * @notice Cancel a withdrawal request and receive back the pufETH
+     * @param withdrawalIdx The index of the withdrawal to cancel
+     */
+    function cancelWithdrawal(uint256 withdrawalIdx) external;
 
     /**
      * @notice Returns the excess ETH transferred from the Vault to the WithdrawalManager
