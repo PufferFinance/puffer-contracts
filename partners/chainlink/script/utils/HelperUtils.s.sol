@@ -27,6 +27,12 @@ library HelperUtils {
             return "berachain";
         } else if (chainId == 48900) {
             return "zircuit";
+        } else if (chainId == 8453) {
+            return "base";
+        } else if (chainId == 56) {
+            return "bsc";
+        } else if (chainId == 33139) {
+            return "ape";
         } else {
             revert("Unsupported chain ID");
         }
@@ -55,6 +61,12 @@ library HelperUtils {
             return helperConfig.getBerachainConfig();
         } else if (chainId == 48900) {
             return helperConfig.getZircuitConfig();
+        } else if (chainId == 8453) {
+            return helperConfig.getBaseConfig();
+        } else if (chainId == 56) {
+            return helperConfig.getBscConfig();
+        } else if (chainId == 33139) {
+            return helperConfig.getApechainConfig();
         } else {
             revert("Unsupported chain ID");
         }
