@@ -24,6 +24,8 @@ contract CarrotVestingTest is Test {
     uint32 public constant STEPS = 1;
     uint32 public constant NEW_DURATION = 6 * 30 days; // 6 months
     uint32 public constant NEW_STEPS = 6;
+    uint32 public constant NEW_DURATION_2 = 12 * 30 days; // 12 months
+    uint32 public constant NEW_STEPS_2 = 12;
     uint256 public constant TOTAL_PUFFER_REWARDS = 55_000_000 ether;
     uint256 public constant MAX_CARROT_AMOUNT = 100_000_000 ether;
     uint256 public constant EXCHANGE_RATE = 1e18 * TOTAL_PUFFER_REWARDS / MAX_CARROT_AMOUNT;
@@ -58,6 +60,11 @@ contract CarrotVestingTest is Test {
         vm.expectEmit(true, true, true, true);
         emit CarrotVesting.VestingInitialized(block.timestamp, DURATION, STEPS);
         carrotVesting.initializeVesting(uint48(block.timestamp), DURATION, STEPS);
+        _;
+    }
+
+    modifier reinitialized() {
+        carrotVesting.reinitializeVesting(NEW_DURATION, NEW_STEPS);
         _;
     }
 
@@ -227,6 +234,165 @@ contract CarrotVestingTest is Test {
 
         uint256 expectedTotal = EXCHANGE_RATE * depositAmount / 1e18;
         assertApproxEqAbs(totalClaimed, expectedTotal, 1, "New user total claim not correct");
+    }
+
+    function test_reinitializeVesting2_Unauthorized() public initialized reinitialized {
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
+        carrotVesting.reinitializeVesting2(365 days, 365);
+        vm.stopPrank();
+    }
+
+    function test_reinitializeVesting2_InvalidDuration() public initialized reinitialized {
+        vm.expectRevert(CarrotVesting.InvalidDuration.selector);
+        carrotVesting.reinitializeVesting2(0, 365);
+    }
+
+    function test_reinitializeVesting2_InvalidSteps() public initialized reinitialized {
+        vm.expectRevert(CarrotVesting.InvalidSteps.selector);
+        carrotVesting.reinitializeVesting2(365 days, 0);
+    }
+
+    function test_reinitializeVesting2_DurationLessThanSteps() public initialized reinitialized {
+        vm.expectRevert(CarrotVesting.InvalidDuration.selector);
+        carrotVesting.reinitializeVesting2(100, 200);
+    }
+
+    function test_reinitializeVesting2_CalledTwice() public initialized reinitialized {
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        carrotVesting.reinitializeVesting2(730 days, 730);
+    }
+
+    function test_reinitializeVesting2_WhenDismantled() public initialized reinitialized {
+        carrotVesting.recoverPuffer(treasury);
+
+        vm.expectRevert(CarrotVesting.AlreadyDismantled.selector);
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+    }
+
+    function test_reinitializeVesting2_NotReinitialized() public initialized {
+        // reinitializeVesting (the first upgrade) was never called, so upgradeTimestamp == 0
+        vm.expectRevert(CarrotVesting.InvalidUpgradeVersion.selector);
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+    }
+
+    function test_reinitializeVesting2() public initialized reinitialized {
+        vm.expectEmit(true, true, true, true);
+        emit CarrotVesting.VestingReinitialized(NEW_DURATION_2, NEW_STEPS_2);
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+
+        assertEq(carrotVesting.getNewDuration2(), NEW_DURATION_2, "Duration2 was not updated");
+        assertEq(carrotVesting.getNewSteps2(), NEW_STEPS_2, "Steps2 were not updated");
+        assertEq(carrotVesting.getUpgradeTimestamp2(), block.timestamp, "Upgrade timestamp2 was not set");
+    }
+
+    function test_reinitializeVesting2_AffectsExistingUsers() public initialized reinitialized {
+        uint256 depositAmount = 100 ether;
+        _startVesting(alice, depositAmount);
+
+        // Alice deposited after the first upgrade, so her vesting uses NEW_DURATION / NEW_STEPS.
+        // Fully vest and claim it before the second upgrade.
+        skip(NEW_DURATION);
+
+        uint256 expectedClaimableBeforeReinit = EXCHANGE_RATE * depositAmount / 1e18;
+        uint256 claimableBeforeReinit = carrotVesting.calculateClaimableAmount(alice);
+        assertApproxEqAbs(
+            claimableBeforeReinit, expectedClaimableBeforeReinit, 1, "Claimable before reinit2 not correct"
+        );
+
+        // Now reinitialize to the second-upgrade parameters
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+
+        // Existing vesting should still be claimable after the second reinitialization
+        vm.startPrank(alice);
+        uint256 totalClaimableBeforeReinit = carrotVesting.claim();
+        vm.stopPrank();
+        assertApproxEqAbs(totalClaimableBeforeReinit, expectedClaimableBeforeReinit, 1, "Claim before reinit2 wrong");
+
+        uint256 depositAmount2 = 50 ether;
+        _startVesting(alice, depositAmount2);
+        uint256 secondVestingTimestamp = block.timestamp;
+
+        // The calculation should now use the NEW_DURATION_2 duration and steps
+        uint256 newStepDuration = NEW_DURATION_2 / NEW_STEPS_2;
+
+        skip(newStepDuration + 5);
+        uint256 numNewStepsPassed = (block.timestamp - secondVestingTimestamp) / newStepDuration;
+        uint256 expectedClaimableAfterReinit = (numNewStepsPassed * depositAmount2 / NEW_STEPS_2) * EXCHANGE_RATE / 1e18;
+        uint256 claimableAfterReinit = carrotVesting.calculateClaimableAmount(alice);
+
+        assertApproxEqAbs(claimableAfterReinit, expectedClaimableAfterReinit, 1, "Claimable after reinit2 not correct");
+
+        // Verify the vesting end time also changed to the new duration
+        vm.startPrank(alice);
+        skip(NEW_DURATION_2); // Skip the NEW_DURATION_2 full duration
+        uint256 totalClaimable = carrotVesting.claim();
+        vm.stopPrank();
+
+        uint256 expectedTotalClaimable = EXCHANGE_RATE * depositAmount2 / 1e18;
+        assertApproxEqAbs(totalClaimable, expectedTotalClaimable, 1, "Total claimable not correct");
+    }
+
+    function test_reinitializeVesting2_NewUsersUseNewParameters() public initialized reinitialized {
+        // Reinitialize to 12 months
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+
+        // New user deposits
+        uint256 depositAmount = 100 ether;
+        _startVesting(alice, depositAmount);
+
+        uint256 newStepDuration = NEW_DURATION_2 / NEW_STEPS_2;
+
+        // Skip one new step
+        skip(newStepDuration);
+
+        uint256 expectedClaimable = (1 * depositAmount / NEW_STEPS_2) * EXCHANGE_RATE / 1e18;
+        uint256 claimable = carrotVesting.calculateClaimableAmount(alice);
+
+        assertApproxEqAbs(claimable, expectedClaimable, 1, "New user claimable not correct");
+
+        // Verify full vesting takes the new duration
+        skip(NEW_DURATION_2);
+
+        vm.startPrank(alice);
+        uint256 totalClaimed = carrotVesting.claim();
+        vm.stopPrank();
+
+        uint256 expectedTotal = EXCHANGE_RATE * depositAmount / 1e18;
+        assertApproxEqAbs(totalClaimed, expectedTotal, 1, "New user total claim not correct");
+    }
+
+    function test_reinitializeVesting2_MiddleWindowKeepsFirstUpgradeParams() public initialized reinitialized {
+        // Alice deposits AFTER the first upgrade but strictly BEFORE the second upgrade
+        uint256 depositAmount = 100 ether;
+        _startVesting(alice, depositAmount);
+        uint256 initTimestamp = block.timestamp;
+
+        // Second upgrade happens later, so Alice's depositedTimestamp < upgradeTimestamp2
+        skip(1 days);
+        carrotVesting.reinitializeVesting2(NEW_DURATION_2, NEW_STEPS_2);
+
+        // Alice's vesting must keep using the FIRST-upgrade parameters (NEW_DURATION / NEW_STEPS),
+        // not the second-upgrade parameters, and it must NOT become frozen.
+        uint256 stepDuration = NEW_DURATION / NEW_STEPS;
+        skip(stepDuration - 1 days);
+
+        uint256 expectedClaimable = EXCHANGE_RATE * depositAmount / NEW_STEPS / 1e18;
+        uint256 claimable = carrotVesting.calculateClaimableAmount(alice);
+        assertApproxEqAbs(claimable, expectedClaimable, 1, "Middle-window vesting should use first-upgrade params");
+
+        // Fully vests over NEW_DURATION (first upgrade), not NEW_DURATION_2
+        skip(NEW_DURATION);
+        vm.startPrank(alice);
+        uint256 totalClaimed = carrotVesting.claim();
+        vm.stopPrank();
+
+        uint256 expectedTotal = EXCHANGE_RATE * depositAmount / 1e18;
+        assertApproxEqAbs(totalClaimed, expectedTotal, 1, "Middle-window vesting total not correct");
+
+        _checkVesting(alice, 0, depositAmount, expectedTotal, block.timestamp, initTimestamp);
     }
 
     function test_startVesting_NotStarted() public {

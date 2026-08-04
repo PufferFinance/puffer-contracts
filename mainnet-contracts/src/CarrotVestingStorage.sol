@@ -22,6 +22,9 @@ abstract contract CarrotVestingStorage {
         uint48 upgradeTimestamp;
         uint32 newDuration;
         uint32 newSteps;
+        uint48 upgradeTimestamp2;
+        uint32 newDuration2;
+        uint32 newSteps2;
     }
 
     // keccak256(abi.encode(uint256(keccak256("carrotvesting.storage")) - 1)) & ~bytes32(uint256(0xff))

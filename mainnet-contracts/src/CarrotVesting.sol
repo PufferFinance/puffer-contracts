@@ -34,6 +34,7 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     error InvalidAmount();
     error NoClaimableAmount();
     error AlreadyDismantled();
+    error InvalidUpgradeVersion();
 
     /**
      * @notice Emitted when the vesting is initialized
@@ -138,6 +139,26 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
         $.newSteps = newSteps;
         $.upgradeTimestamp = uint48(block.timestamp);
         emit VestingReinitialized({ duration: newDuration, steps: newSteps });
+    }
+
+    /**
+     * @notice Reinitializes the vesting. This is used to change the duration or steps of the vesting after it has been initialized once.
+     * @dev This function can only be called by the owner
+     * @param newDuration2 The new duration of the vesting (seconds since the user deposits)
+     * @param newSteps2 The new number of steps in the vesting (Example: If the vesting is 6 months and the user can claim every month, steps = 6)
+     */
+    function reinitializeVesting2(uint32 newDuration2, uint32 newSteps2) external onlyOwner reinitializer(4) {
+        require(newDuration2 > 0, InvalidDuration());
+        require(newSteps2 > 0, InvalidSteps());
+        require(newDuration2 >= newSteps2, InvalidDuration());
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        require($.upgradeTimestamp != 0, InvalidUpgradeVersion());
+        require(!$.isDismantled, AlreadyDismantled());
+
+        $.newDuration2 = newDuration2;
+        $.newSteps2 = newSteps2;
+        $.upgradeTimestamp2 = uint48(block.timestamp);
+        emit VestingReinitialized({ duration: newDuration2, steps: newSteps2 });
     }
 
     /**
@@ -268,6 +289,15 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     }
 
     /**
+     * @notice Gets the timestamp when the vesting was upgraded for the second time
+     * @return The timestamp when the vesting was upgraded for the second time
+     */
+    function getUpgradeTimestamp2() external view returns (uint48) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.upgradeTimestamp2;
+    }
+
+    /**
      * @notice Gets the duration of the vesting
      * @return The duration of the vesting
      */
@@ -286,6 +316,15 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     }
 
     /**
+     * @notice Gets the new duration of the vesting after the second upgrade
+     * @return The new duration of the vesting after the second upgrade
+     */
+    function getNewDuration2() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newDuration2;
+    }
+
+    /**
      * @notice Gets the steps of the vesting
      * @return The steps of the vesting
      */
@@ -301,6 +340,15 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
     function getNewSteps() external view returns (uint32) {
         VestingStorage storage $ = _getCarrotVestingStorage();
         return $.newSteps;
+    }
+
+    /**
+     * @notice Gets the new steps of the vesting after the second upgrade
+     * @return The new steps of the vesting after the second upgrade
+     */
+    function getNewSteps2() external view returns (uint32) {
+        VestingStorage storage $ = _getCarrotVestingStorage();
+        return $.newSteps2;
     }
 
     /**
@@ -334,10 +382,14 @@ contract CarrotVesting is UUPSUpgradeable, Ownable2StepUpgradeable, PausableUpgr
             // Vesting was created before the upgrade
             duration = $.duration;
             steps = $.steps;
-        } else {
+        } else if ($.upgradeTimestamp2 == 0 || vesting.depositedTimestamp < $.upgradeTimestamp2) {
             // Vesting was created after the upgrade
             duration = $.newDuration;
             steps = $.newSteps;
+        } else {
+            // Vesting was created after the 2nd upgrade
+            duration = $.newDuration2;
+            steps = $.newSteps2;
         }
         uint256 endOfVesting = vesting.depositedTimestamp + duration;
         if (vesting.lastClaimedTimestamp >= endOfVesting) {
