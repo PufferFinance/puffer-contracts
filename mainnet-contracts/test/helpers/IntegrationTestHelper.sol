@@ -13,7 +13,7 @@ import { IEnclaveVerifier } from "../../src/interface/IEnclaveVerifier.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 contract IntegrationTestHelper is Test {
-    address DAO = 0xC4a2E012024d4ff28a4E2334F58D4Cc233EB1FE1;
+    address DAO = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
     PufferProtocol public pufferProtocol;
     UpgradeableBeacon public beacon;
     PufferModuleManager public moduleManager;
@@ -27,12 +27,12 @@ contract IntegrationTestHelper is Test {
     address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
 
     // custom block number
-    function deployContractsHolesky(uint256 blockNumber) public virtual {
+    function deployContractsHoodi(uint256 blockNumber) public virtual {
         // see foundry.toml for the rpc urls
         if (blockNumber == 0) {
-            vm.createSelectFork(vm.rpcUrl("holesky"));
+            vm.createSelectFork(vm.rpcUrl("hoodi"));
         } else {
-            vm.createSelectFork(vm.rpcUrl("holesky"), blockNumber);
+            vm.createSelectFork(vm.rpcUrl("hoodi"), blockNumber);
         }
 
         address[] memory guardians = new address[](1);
@@ -42,8 +42,8 @@ contract IntegrationTestHelper is Test {
     }
 
     // 'default' block number
-    function deployContractsHolesky() public virtual {
-        deployContractsHolesky(1_212_252);
+    function deployContractsHoodi() public virtual {
+        deployContractsHoodi(1_212_252); // TODO Change
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {
