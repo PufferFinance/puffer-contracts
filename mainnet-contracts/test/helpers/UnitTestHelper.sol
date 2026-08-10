@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import { BaseScript } from "../../script/BaseScript.s.sol";
 import { GuardianModule } from "../../src/GuardianModule.sol";
 import { PufferOracleV2 } from "../../src/PufferOracleV2.sol";
+import { PermissionedOracle } from "../../src/PermissionedOracle.sol";
 import { PufferProtocol } from "../../src/PufferProtocol.sol";
 import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
 import { AVSContractsRegistry } from "../../src/AVSContractsRegistry.sol";
@@ -97,6 +98,7 @@ contract UnitTestHelper is Test, BaseScript {
     PufferModuleManager public pufferModuleManager;
     ValidatorTicket public validatorTicket;
     PufferOracleV2 public pufferOracle;
+    PermissionedOracle public permissionedOracle;
 
     GuardianModule public guardianModule;
 
@@ -216,6 +218,7 @@ contract UnitTestHelper is Test, BaseScript {
         pufferModuleManager = PufferModuleManager(payable(pufferDeployment.moduleManager));
         validatorTicket = ValidatorTicket(pufferDeployment.validatorTicket);
         pufferOracle = PufferOracleV2(pufferDeployment.pufferOracle);
+        permissionedOracle = PermissionedOracle(pufferDeployment.permissionedOracle);
         operationsCoordinator = OperationsCoordinator(payable(pufferDeployment.operationsCoordinator));
         validatorTicketPricer = ValidatorTicketPricer(pufferDeployment.validatorTicketPricer);
         avsContractsRegistry = AVSContractsRegistry(payable(pufferDeployment.aVSContractsRegistry));

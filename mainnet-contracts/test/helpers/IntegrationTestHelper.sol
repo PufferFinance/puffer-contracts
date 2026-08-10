@@ -24,10 +24,10 @@ contract IntegrationTestHelper is Test {
     IEnclaveVerifier public verifier;
 
     bytes32 PUFFER_MODULE_0 = bytes32("PUFFER_MODULE_0");
-    address PAYMASTER = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+    address PAYMASTER = 0xeeE554b5b2bF5FBc9730Ce33c6dc92828DA01BeE;
 
     // custom block number
-    function deployContractsHolesky(uint256 blockNumber) public virtual {
+    function deployContractsHoodi(uint256 blockNumber) public virtual {
         // see foundry.toml for the rpc urls
         if (blockNumber == 0) {
             vm.createSelectFork(vm.rpcUrl("holesky"));
@@ -42,8 +42,8 @@ contract IntegrationTestHelper is Test {
     }
 
     // 'default' block number
-    function deployContractsHolesky() public virtual {
-        deployContractsHolesky(1_212_252);
+    function deployContractsHoodi() public virtual {
+        deployContractsHoodi(1_212_252); // TODO Change
     }
 
     function _deployAndLabel(address[] memory guardians, uint256 threshold) internal {

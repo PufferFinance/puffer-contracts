@@ -21,10 +21,13 @@ struct PufferProtocolDeployment {
     address enclaveVerifier;
     address beacon; // Beacon for Puffer modules
     address restakingOperatorBeacon; // Beacon for Restaking Operator
+    address permissionedModuleBeacon; // Beacon for Permissioned modules
+    address nrwcBeacon; // Beacon for NonRestakingWithdrawalCredentials
     address moduleManager;
     address validatorTicket;
     address validatorTicketPricer;
     address pufferOracle;
+    address permissionedOracle; // Oracle for permissioned validators
     address operationsCoordinator;
     address aVSContractsRegistry;
     address restakingOperatorController;

@@ -23,6 +23,7 @@ import { Permit } from "../src/structs/Permit.sol";
 import { ERC1967Utils } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import { DeployerHelper } from "../script/DeployerHelper.s.sol";
 import { IPufferRevenueDepositor } from "../src/interface/IPufferRevenueDepositor.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 
 contract MainnetForkTestHelper is Test, DeployerHelper {
     /**
@@ -148,7 +149,8 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             oracle: mockOracle,
-            revenueDepositor: IPufferRevenueDepositor(address(0))
+            revenueDepositor: IPufferRevenueDepositor(address(0)),
+            permissionedOracle: IPermissionedOracle(address(0))
         });
 
         // Simulate that our deployed oracle becomes active and starts posting results of Puffer staking
@@ -160,7 +162,8 @@ contract MainnetForkTestHelper is Test, DeployerHelper {
             lidoWithdrawalQueue: ILidoWithdrawalQueue(_getLidoWithdrawalQueue()),
             weth: IWETH(_getWETH()),
             pufferOracle: mockOracle,
-            revenueDepositor: IPufferRevenueDepositor(address(0))
+            revenueDepositor: IPufferRevenueDepositor(address(0)),
+            permissionedOracle: IPermissionedOracle(address(0))
         });
 
         // Community multisig can do thing instantly

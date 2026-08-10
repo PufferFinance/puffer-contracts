@@ -25,6 +25,7 @@ import { IWETH } from "../src/interface/Other/IWETH.sol";
 import { WETH9 } from "../test/mocks/WETH9.sol";
 import { ROLE_ID_UPGRADER, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import { IPermissionedOracle } from "../src/interface/IPermissionedOracle.sol";
 /**
  * @title DeployPuffer
  * @author Puffer Finance
@@ -117,7 +118,8 @@ contract DeployPufETH is BaseScript {
                 lidoWithdrawalQueue,
                 weth,
                 IPufferOracleV2(address(0)), // Will be set in the upgrade
-                IPufferRevenueDepositor(address(0)) // Will be set in the upgrade
+                IPufferRevenueDepositor(address(0)), // Will be set in the upgrade
+                IPermissionedOracle(address(0)) // Will be set in the upgrade
             );
             vm.label(address(pufferVaultImplementation), "PufferVaultOriginalImplementation");
             pufferDepositorImplementation =
@@ -253,6 +255,12 @@ contract DeployPufETH is BaseScript {
             lidoWithdrawalQueue = ILidoWithdrawalQueue(0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50);
             stETHStrategy = IStrategy(0x7D704507b76571a51d9caE8AdDAbBFd0ba0e63d3);
             eigenStrategyManager = IEigenLayer(0xdfB5f6CE42aAA7830E94ECFCcAd411beF4d4D5b6);
+        } else if (isHoodi()) {
+            stETH = IStETH(address(0x3508A952176b3c15387C97BE809eaffB1982176a));
+            weth = new WETH9();
+            lidoWithdrawalQueue = ILidoWithdrawalQueue(0xfe56573178f1bcdf53F01A6E9977670dcBBD9186);
+            stETHStrategy = IStrategy(0xF8a1a66130D614c7360e868576D5E59203475FE0);
+            eigenStrategyManager = IEigenLayer(0xeE45e76ddbEDdA2918b8C7E3035cd37Eab3b5D41);
         } else {
             stETH = IStETH(address(new stETHMock()));
             weth = new WETH9();

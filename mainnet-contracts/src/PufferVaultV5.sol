@@ -19,6 +19,7 @@ import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableM
 import { IPufferVaultV5 } from "./interface/IPufferVaultV5.sol";
 import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IPufferRevenueDepositor } from "./interface/IPufferRevenueDepositor.sol";
+import { IPermissionedOracle } from "./interface/IPermissionedOracle.sol";
 import { InvalidAddress } from "./Errors.sol";
 
 /**
@@ -46,19 +47,22 @@ contract PufferVaultV5 is
     IWETH internal immutable _WETH;
     IPufferOracleV2 public immutable PUFFER_ORACLE;
     IPufferRevenueDepositor public immutable RESTAKING_REWARDS_DEPOSITOR;
+    IPermissionedOracle public immutable PUFFER_PERMISSIONED_ORACLE;
 
     constructor(
         IStETH stETH,
         ILidoWithdrawalQueue lidoWithdrawalQueue,
         IWETH weth,
         IPufferOracleV2 pufferOracle,
-        IPufferRevenueDepositor revenueDepositor
+        IPufferRevenueDepositor revenueDepositor,
+        IPermissionedOracle permissionedOracle
     ) {
         _ST_ETH = stETH;
         _LIDO_WITHDRAWAL_QUEUE = lidoWithdrawalQueue;
         _WETH = weth;
         PUFFER_ORACLE = pufferOracle;
         RESTAKING_REWARDS_DEPOSITOR = revenueDepositor;
+        PUFFER_PERMISSIONED_ORACLE = permissionedOracle;
         _disableInitializers();
     }
 
@@ -108,6 +112,7 @@ contract PufferVaultV5 is
      * + WETH held in the vault contract
      * + ETH  held in the vault contract
      * + PUFFER_ORACLE.getLockedEthAmount(), which is the oracle-reported Puffer validator ETH locked in the Beacon chain
+     * + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount(), which is the ETH locked by permissioned validators (supports variable stakes 32-2048 ETH via Pectra)
      * + getTotalRewardMintAmount(), which is the total amount of rewards minted
      * - getTotalRewardDepositAmount(), which is the total amount of rewards deposited to the Vault
      * - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount(), which is the total amount of rewards pending distribution
@@ -127,8 +132,9 @@ contract PufferVaultV5 is
             callValue := callvalue()
         }
         return _ST_ETH.balanceOf(address(this)) + getPendingLidoETHAmount() + _WETH.balanceOf(address(this))
-            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount()
-            - getTotalRewardDepositAmount() - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount();
+            + (address(this).balance - callValue) + PUFFER_ORACLE.getLockedEthAmount()
+            + PUFFER_PERMISSIONED_ORACLE.getLockedEthAmount() + getTotalRewardMintAmount() - getTotalRewardDepositAmount()
+            - RESTAKING_REWARDS_DEPOSITOR.getPendingDistributionAmount();
     }
 
     /**

@@ -17,9 +17,11 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PufferRevenueDepositorMock } from "test/mocks/PufferRevenueDepositorMock.sol";
 import { MockPufferOracle } from "test/mocks/MockPufferOracle.sol";
+import { MockPermissionedOracle } from "test/mocks/MockPermissionedOracle.sol";
 import { PufferVaultV5Tests } from "test/mocks/PufferVaultV5Tests.sol";
 import { ILidoWithdrawalQueue } from "src/interface/Lido/ILidoWithdrawalQueue.sol";
 import { IWETH } from "src/interface/Other/IWETH.sol";
+import { IPermissionedOracle } from "src/interface/IPermissionedOracle.sol";
 
 contract xPufETHTest is Test {
     PufferDepositor public pufferDepositor;
@@ -148,13 +150,15 @@ contract xPufETHTest is Test {
         vm.stopPrank();
 
         MockPufferOracle mockOracle = new MockPufferOracle();
+        MockPermissionedOracle mockPermissionedOracle = new MockPermissionedOracle();
         PufferRevenueDepositorMock revenueDepositor = new PufferRevenueDepositorMock();
         PufferVaultV5 pufferVaultNonBlocking = new PufferVaultV5Tests({
             stETH: stETH,
             lidoWithdrawalQueue: ILidoWithdrawalQueue(deployment.lidoWithdrawalQueueMock),
             weth: IWETH(deployment.weth),
             oracle: mockOracle,
-            revenueDepositor: revenueDepositor
+            revenueDepositor: revenueDepositor,
+            permissionedOracle: mockPermissionedOracle
         });
 
         vm.startPrank(communityMultisig);

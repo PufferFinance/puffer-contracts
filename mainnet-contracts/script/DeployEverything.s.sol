@@ -10,6 +10,7 @@ import { DeployPufETH, PufferDeployment } from "../script/DeployPufETH.s.sol";
 import { UpgradePufETH } from "../script/UpgradePufETH.s.sol";
 import { DeployPufETHBridging } from "../script/DeployPufETHBridging.s.sol";
 import { DeployPufferOracle } from "script/DeployPufferOracle.s.sol";
+import { DeployPermissionedOracle } from "script/DeployPermissionedOracle.s.sol";
 import { GuardiansDeployment, PufferProtocolDeployment, BridgingDeployment } from "./DeploymentStructs.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -22,7 +23,7 @@ import { MockAeraVault } from "test/mocks/MockAeraVault.sol";
  * @author Puffer Finance
  * @notice Deploys pufETH (upgrade it in test environment), Guardians, Oracle, Puffer, and sets up the access control
  * @dev Example on how to run the script
- *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256)' "[$DEV_WALLET]" 1 --broadcast
+ *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run(address[] calldata, uint256, address)' "[$DEV_WALLET]" 1 $DEV_WALLET --broadcast
  */
 contract DeployEverything is BaseScript {
     address DAO;
@@ -51,8 +52,10 @@ contract DeployEverything is BaseScript {
             puffETHDeployment.accessManager, guardiansDeployment.guardianModule, puffETHDeployment.pufferVault
         );
 
+        address permissionedOracle = address(new DeployPermissionedOracle().run(puffETHDeployment.accessManager));
+
         PufferProtocolDeployment memory pufferDeployment =
-            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle);
+            new DeployPuffer().run(guardiansDeployment, puffETHDeployment.pufferVault, pufferOracle, permissionedOracle);
 
         pufferDeployment.pufferDepositor = puffETHDeployment.pufferDepositor;
         pufferDeployment.pufferVault = puffETHDeployment.pufferVault;
@@ -64,7 +67,7 @@ contract DeployEverything is BaseScript {
         address revenueDepositor = _deployRevenueDepositor(puffETHDeployment);
         pufferDeployment.revenueDepositor = revenueDepositor;
 
-        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor);
+        new UpgradePufETH().run(puffETHDeployment, pufferOracle, revenueDepositor, permissionedOracle);
 
         // `anvil` in the terminal
         if (_localAnvil) {
@@ -105,6 +108,7 @@ contract DeployEverything is BaseScript {
 
     // script/DeployRevenueDepositor.s.sol It should match the one in the script
     function _deployRevenueDepositor(PufferDeployment memory puffETHDeployment) internal returns (address) {
+        vm.startBroadcast();
         MockAeraVault mockAeraVault = new MockAeraVault();
 
         PufferRevenueDepositor revenueDepositorImpl = new PufferRevenueDepositor({
@@ -123,6 +127,7 @@ contract DeployEverything is BaseScript {
                 )
             )
         );
+        vm.stopBroadcast();
 
         bytes memory accessManagerCd =
             new GenerateRevenueDepositorCalldata().run(address(revenueDepositor), makeAddr("operationsMultisig"));

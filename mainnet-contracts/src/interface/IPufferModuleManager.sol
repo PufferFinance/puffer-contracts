@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { RestakingOperator } from "../RestakingOperator.sol";
+import { IEigenPodTypes } from "./Eigenlayer-Slashing/IEigenPod.sol";
 
 /**
  * @title IPufferModuleManager
@@ -13,6 +14,11 @@ interface IPufferModuleManager {
      * @notice Thrown if the module name is not allowed
      */
     error ForbiddenModuleName();
+
+    /**
+     * @notice Thrown if the input array length is zero
+     */
+    error InputArrayLengthZero();
 
     /**
      * @notice Emitted when the Custom Call from the restakingOperator is successful
@@ -74,6 +80,14 @@ interface IPufferModuleManager {
     event PufferModuleUndelegated(bytes32 indexed moduleName);
 
     /**
+     * @notice Emitted when the validators exit is triggered
+     * @param moduleName the module name to be exited
+     * @param pubkeys the pubkeys of the validators to exit
+     * @dev Signature "0x456e0aba5f7f36ec541f2f550d3f5895eb7d1ae057f45e8683952ac182254e5d"
+     */
+    event ValidatorsExitTriggered(bytes32 indexed moduleName, bytes[] pubkeys);
+
+    /**
      * @notice Emitted when the restaking operator avs signature proof is updated
      * @param restakingOperator is the address of the restaking operator
      * @param digestHash is the message hash
@@ -103,4 +117,81 @@ interface IPufferModuleManager {
      * @dev Signature "0x4925eafc82d0c4d67889898eeed64b18488ab19811e61620f387026dec126a28"
      */
     event ClaimerSet(address indexed rewardsReceiver, address indexed claimer);
+
+    /**
+     * @notice Emitted when queued withdrawals are completed for a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     * @param sharesWithdrawn The amount of shares withdrawn
+     */
+    event PermissionedModuleCompletedQueuedWithdrawals(address indexed permissionedModule, uint256 sharesWithdrawn);
+
+    /**
+     * @notice Emitted when withdrawals are queued for a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     * @param shareAmount The amount of shares queued
+     * @param withdrawalRoot The withdrawal root
+     */
+    event PermissionedModuleWithdrawalsQueued(
+        address indexed permissionedModule, uint256 shareAmount, bytes32 withdrawalRoot
+    );
+
+    /**
+     * @notice Emitted when a permissioned module is delegated
+     * @param permissionedModule The address of the permissioned module
+     * @param operator The operator address
+     */
+    event PermissionedModuleDelegated(address indexed permissionedModule, address indexed operator);
+
+    /**
+     * @notice Emitted when a permissioned module is undelegated
+     * @param permissionedModule The address of the permissioned module
+     */
+    event PermissionedModuleUndelegated(address indexed permissionedModule);
+
+    /**
+     * @notice Emitted when restaked validators exit is triggered for a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     * @param pubkeys The pubkeys of the validators
+     */
+    event PermissionedRestakedValidatorsExitTriggered(address indexed permissionedModule, bytes[] pubkeys);
+
+    /**
+     * @notice Emitted when non-restaked ETH is withdrawn from a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     */
+    event PermissionedNonRestakedETHWithdrawn(address indexed permissionedModule);
+
+    /**
+     * @notice Emitted when proof submitter is set for a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     * @param proofSubmitter The proof submitter address
+     */
+    event PermissionedProofSubmitterSet(address indexed permissionedModule, address indexed proofSubmitter);
+
+    /**
+     * @notice Emitted when claimer is set for a permissioned module
+     * @param permissionedModule The address of the permissioned module
+     * @param claimer The claimer address
+     */
+    event PermissionedClaimerSet(address indexed permissionedModule, address indexed claimer);
+
+    /**
+     * @notice Emitted when withdrawal requests are triggered for non-restaked validators
+     * @param permissionedModule The address of the permissioned module
+     * @param requests The withdrawal requests (amountGwei == 0 for full exit, > 0 for partial)
+     */
+    event PermissionedNonRestakedValidatorWithdrawalsTriggered(
+        address indexed permissionedModule, IEigenPodTypes.WithdrawalRequest[] requests
+    );
+
+    /**
+     * @notice Emitted when ETH is transferred from permissioned modules
+     * @param permissionedModules The addresses of the permissioned modules
+     * @param amounts The amounts transferred from each module
+     * @param recipient The recipient address (vault or external)
+     * @param totalAmount The total amount transferred
+     */
+    event PermissionedModuleETHTransferred(
+        address[] permissionedModules, uint256[] amounts, address indexed recipient, uint256 totalAmount
+    );
 }

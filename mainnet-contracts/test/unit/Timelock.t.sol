@@ -18,6 +18,8 @@ contract TimelockTest is Test {
     stETHMock public stETH;
     Timelock public timelock;
 
+    address public constant BROADCASTER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
     function setUp() public {
         PufferDeployment memory deployment = new DeployPufETH().run();
 
@@ -33,6 +35,7 @@ contract TimelockTest is Test {
         vm.assume(caller != timelock.OPERATIONS_MULTISIG());
         vm.assume(caller != address(timelock));
         vm.assume(caller != address(accessManager));
+        vm.assume(caller != BROADCASTER);
 
         // Upgrades are forbidden
         (bool canCall, uint32 delay) =
@@ -236,10 +239,11 @@ contract TimelockTest is Test {
         assertTrue(!canCall, "should not be able to call");
     }
 
-    function test_pause_depositor_slectors(address caller) public {
+    function test_pause_depositor_selectors(address caller) public {
         vm.startPrank(timelock.pauserMultisig());
         vm.assume(caller != address(timelock));
         vm.assume(caller != address(accessManager));
+        vm.assume(caller != BROADCASTER);
 
         address[] memory targets = new address[](1);
         targets[0] = address(pufferDepositor);

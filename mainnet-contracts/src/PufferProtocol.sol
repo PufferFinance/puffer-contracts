@@ -11,7 +11,7 @@ import { IPufferOracleV2 } from "./interface/IPufferOracleV2.sol";
 import { IGuardianModule } from "./interface/IGuardianModule.sol";
 import { IBeaconDepositContract } from "./interface/IBeaconDepositContract.sol";
 import { ValidatorKeyData } from "./struct/ValidatorKeyData.sol";
-import { Validator } from "./struct/Validator.sol";
+import { Validator, PermissionedValidator } from "./struct/Validator.sol";
 import { Permit } from "./structs/Permit.sol";
 import { Status } from "./struct/Status.sol";
 import { ProtocolStorage, NodeInfo, ModuleLimit } from "./struct/ProtocolStorage.sol";
@@ -23,6 +23,8 @@ import { ValidatorTicket } from "./ValidatorTicket.sol";
 import { InvalidAddress } from "./Errors.sol";
 import { StoppedValidatorInfo } from "./struct/StoppedValidatorInfo.sol";
 import { PufferModule } from "./PufferModule.sol";
+import { PermissionedModule } from "./PermissionedModule.sol";
+import { IPermissionedOracle } from "./interface/IPermissionedOracle.sol";
 
 /**
  * @title PufferProtocol
@@ -100,13 +102,19 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
      */
     IBeaconDepositContract public immutable override BEACON_DEPOSIT_CONTRACT;
 
+    /**
+     * @notice Oracle for tracking permissioned validator ETH (supports variable stake amounts)
+     */
+    IPermissionedOracle public immutable PUFFER_PERMISSIONED_ORACLE;
+
     constructor(
         PufferVaultV5 pufferVault,
         IGuardianModule guardianModule,
         address moduleManager,
         ValidatorTicket validatorTicket,
         IPufferOracleV2 oracle,
-        address beaconDepositContract
+        address beaconDepositContract,
+        IPermissionedOracle permissionedOracle
     ) {
         GUARDIAN_MODULE = guardianModule;
         PUFFER_VAULT = PufferVaultV5(payable(address(pufferVault)));
@@ -114,6 +122,7 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
         VALIDATOR_TICKET = validatorTicket;
         PUFFER_ORACLE = oracle;
         BEACON_DEPOSIT_CONTRACT = IBeaconDepositContract(beaconDepositContract);
+        PUFFER_PERMISSIONED_ORACLE = permissionedOracle;
         _disableInitializers();
     }
 
@@ -248,6 +257,71 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @notice Registers a permissioned validator key (no bond, no VT required)
+     * @param blsPubKey The BLS public key of the validator
+     * @param moduleName The name of the permissioned module
+     * @param isNonRestaked true = direct Beacon Chain, false = EigenLayer restaking
+     * @param stakeAmount The stake amount in wei (32-2048 ETH for non-restaked, must be 32 ETH for restaked)
+     * @return index The index of the registered validator
+     * @dev Restricted to permissioned operators
+     */
+    function registerPermissionedValidatorKey(
+        bytes calldata blsPubKey,
+        bytes32 moduleName,
+        bool isNonRestaked,
+        uint256 stakeAmount
+    ) external restricted returns (uint256 index) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // Validate BLS public key length
+        if (blsPubKey.length != _BLS_PUB_KEY_LENGTH) {
+            revert InvalidBLSPubKey();
+        }
+
+        // Get the permissioned module
+        PermissionedModule module = $.permissionedModules[moduleName];
+        if (address(module) == address(0)) {
+            revert InvalidAddress();
+        }
+
+        // Validate stake amount
+        uint64 stakeAmountGwei;
+        if (isNonRestaked) {
+            // Non-restaked: variable 32-2048 ETH (Pectra MaxEB)
+            if (stakeAmount < 32 ether || stakeAmount > 2048 ether) {
+                revert InvalidETHAmount();
+            }
+            if (stakeAmount % 1 gwei != 0) {
+                revert InvalidETHAmount(); // Must be in gwei increments
+            }
+            stakeAmountGwei = uint64(stakeAmount / 1 gwei);
+        } else {
+            // Restaked (EigenLayer): fixed 32 ETH due to EigenPod limitation
+            if (stakeAmount != 32 ether) {
+                revert InvalidETHAmount();
+            }
+            stakeAmountGwei = uint64(32 ether / 1 gwei);
+        }
+
+        index = $.pendingPermissionedValidatorIndices[moduleName];
+
+        $.permissionedValidators[moduleName][index] = PermissionedValidator({
+            node: msg.sender,
+            status: Status.PENDING,
+            isNonRestaked: isNonRestaked,
+            stakeAmountGwei: stakeAmountGwei,
+            module: address(module),
+            pubKey: blsPubKey
+        });
+
+        unchecked {
+            ++$.pendingPermissionedValidatorIndices[moduleName];
+        }
+
+        emit PermissionedValidatorKeyRegistered(blsPubKey, index, moduleName, isNonRestaked, stakeAmount);
+    }
+
+    /**
      * @inheritdoc IPufferProtocol
      * @dev Restricted to Puffer Paymaster
      */
@@ -286,6 +360,222 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
 
         // Mark the validator as active
         $.validators[moduleName][index].status = Status.ACTIVE;
+    }
+
+    /**
+     * @notice Provisions a permissioned validator (no bond, no VT, no guardian signatures)
+     * @param moduleName The name of the permissioned module
+     * @param validatorSignature The validator's BLS signature
+     * @param expectedDepositDataRoot Expected deposit data root (for reorg protection)
+     * @dev Restricted to Puffer Paymaster. Provisions the next validator in FIFO order.
+     */
+    function provisionPermissionedValidator(
+        bytes32 moduleName,
+        bytes calldata validatorSignature,
+        bytes32 expectedDepositDataRoot
+    ) external restricted {
+        // Verify deposit root matches (protects against reorgs)
+        if (expectedDepositDataRoot != BEACON_DEPOSIT_CONTRACT.get_deposit_root()) {
+            revert InvalidDepositRootHash();
+        }
+
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 validatorIndex = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
+
+        PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
+
+        if (validator.status != Status.PENDING) {
+            revert InvalidValidatorState(validator.status);
+        }
+
+        _provisionPermissionedValidatorInternal({
+            $: $,
+            moduleName: moduleName,
+            validatorIndex: validatorIndex,
+            validator: validator,
+            validatorSignature: validatorSignature
+        });
+    }
+
+    /**
+     * @dev Internal function to provision permissioned validator
+     */
+    function _provisionPermissionedValidatorInternal(
+        ProtocolStorage storage $,
+        bytes32 moduleName,
+        uint256 validatorIndex,
+        PermissionedValidator storage validator,
+        bytes calldata validatorSignature
+    ) internal {
+        PermissionedModule module = $.permissionedModules[moduleName];
+
+        // Get stake amount from validator record
+        uint256 stakeAmount = uint256(validator.stakeAmountGwei) * 1 gwei;
+
+        // Get withdrawal credentials based on restaking preference
+        bytes memory withdrawalCredentials = validator.isNonRestaked
+            ? module.getNonRestakingWithdrawalCredentials()
+            : module.getRestakingWithdrawalCredentials();
+
+        // Calculate deposit data root ON-CHAIN (no guardian needed)
+        // Note: We use getDepositDataRootWithAmount for ALL non-restaked validators because
+        // they use 0x02 withdrawal credentials, regardless of stake amount.
+        // getDepositDataRoot is only for restaked (0x01) with exactly 32 ETH.
+        bytes32 depositDataRoot;
+        if (validator.isNonRestaked) {
+            // Non-restaked: uses 0x02 credentials and variable amount (32-2048 ETH)
+            depositDataRoot = LibBeaconchainContract.getDepositDataRootWithAmount({
+                pubKey: validator.pubKey,
+                signature: validatorSignature,
+                withdrawalCredentials: withdrawalCredentials,
+                amount: stakeAmount
+            });
+        } else {
+            // Restaked: uses 0x01 credentials and fixed 32 ETH
+            depositDataRoot = LibBeaconchainContract.getDepositDataRoot({
+                pubKey: validator.pubKey,
+                signature: validatorSignature,
+                withdrawalCredentials: withdrawalCredentials
+            });
+        }
+
+        // Transfer ETH from vault to module
+        PUFFER_VAULT.transferETH(address(module), stakeAmount);
+
+        // Stake based on restaking preference
+        if (validator.isNonRestaked) {
+            module.callStakeNonRestaked(validator.pubKey, validatorSignature, depositDataRoot, stakeAmount);
+        } else {
+            module.callStakeRestaked(validator.pubKey, validatorSignature, depositDataRoot);
+        }
+
+        // Update permissioned oracle with actual amount
+        PUFFER_PERMISSIONED_ORACLE.provisionValidator(moduleName, stakeAmount);
+
+        // Mark validator as active
+        validator.status = Status.ACTIVE;
+
+        // Update next to be provisioned index
+        $.nextPermissionedValidatorToBeProvisionedIndices[moduleName] = validatorIndex + 1;
+
+        emit PermissionedValidatorProvisioned(
+            validator.pubKey, validatorIndex, moduleName, validator.isNonRestaked, stakeAmount
+        );
+    }
+
+    /**
+     * @notice Handles the exit of a permissioned validator
+     * @param moduleName The name of the permissioned module
+     * @param validatorIndex The index of the validator
+     * @param withdrawalAmount The actual withdrawal amount received from beacon chain
+     * @dev Restricted to ROLE_ID_OPERATIONS_PAYMASTER.
+     *
+     *      For 0x02 (non-restaked) validators with Pectra auto-compounding:
+     *      - withdrawalAmount includes original stake + any auto-compounded rewards
+     *      - Oracle is debited only for stakeAmount (original principal)
+     *      - Extra ETH (rewards) flows to module/vault balance automatically
+     *
+     *      For 0x01 (restaked) validators:
+     *      - Rewards flow through EigenLayer delegation mechanism
+     *      - Oracle debited for full stakeAmount (always 32 ETH)
+     *
+     *      If withdrawalAmount < stakeAmount, slashing is detected:
+     *      - adjustLockedEth is called first to account for the loss
+     *      - PermissionedValidatorSlashingDetected event emitted for transparency
+     */
+    function handlePermissionedValidatorExit(bytes32 moduleName, uint256 validatorIndex, uint256 withdrawalAmount)
+        external
+        restricted
+    {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        // Bounds check: validatorIndex must be less than the number of registered validators
+        if (validatorIndex >= $.pendingPermissionedValidatorIndices[moduleName]) {
+            revert InvalidValidatorIndex();
+        }
+
+        PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
+
+        if (validator.status != Status.ACTIVE) {
+            revert InvalidValidatorState(validator.status);
+        }
+
+        uint256 stakeAmount = uint256(validator.stakeAmountGwei) * 1 gwei;
+        bytes memory pubKey = validator.pubKey;
+
+        // Proper oracle accounting based on actual withdrawal amount
+        // If slashing occurred (withdrawalAmount < stakeAmount):
+        //   - First adjust for slashing loss, then exit with remaining amount
+        // If rewards accrued (withdrawalAmount >= stakeAmount):
+        //   - Exit with original stake amount only (rewards are extra)
+        if (withdrawalAmount < stakeAmount) {
+            // Slashing detected - emit event for transparency and tracking
+            uint256 slashingLoss = stakeAmount - withdrawalAmount;
+            emit PermissionedValidatorSlashingDetected(
+                moduleName, validatorIndex, stakeAmount, withdrawalAmount, slashingLoss
+            );
+            // Adjust for slashing loss first, then exit with actual withdrawal
+            PUFFER_PERMISSIONED_ORACLE.adjustLockedEth(moduleName, slashingLoss);
+            PUFFER_PERMISSIONED_ORACLE.exitValidator(moduleName, withdrawalAmount);
+        } else {
+            // No slashing (withdrawalAmount >= stakeAmount) - exit with original stake
+            // Any extra is rewards and will be reflected in module/vault balance
+            PUFFER_PERMISSIONED_ORACLE.exitValidator(moduleName, stakeAmount);
+        }
+
+        // Delete validator data (same as batchHandleWithdrawals for external validators)
+        delete $.permissionedValidators[moduleName][validatorIndex];
+
+        emit PermissionedValidatorExited(pubKey, validatorIndex, moduleName, withdrawalAmount);
+    }
+
+    /**
+     * @notice Skips provisioning of a permissioned validator (for invalid/unwanted registrations)
+     * @param moduleName The name of the permissioned module
+     * @dev Restricted to Puffer Paymaster.
+     *      Only PENDING validators can be skipped.
+     *      Unlike external validators, no VT penalty since permissioned validators don't pay VT.
+     *      Skips the next validator in FIFO order.
+     */
+    function skipPermissionedProvisioning(bytes32 moduleName) external restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        uint256 validatorIndex = $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
+
+        PermissionedValidator storage validator = $.permissionedValidators[moduleName][validatorIndex];
+
+        if (validator.status != Status.PENDING) {
+            revert InvalidValidatorState(validator.status);
+        }
+
+        bytes memory pubKey = validator.pubKey;
+
+        // Delete validator data
+        delete $.permissionedValidators[moduleName][validatorIndex];
+
+        // Update next to be provisioned index
+        $.nextPermissionedValidatorToBeProvisionedIndices[moduleName] = validatorIndex + 1;
+
+        emit PermissionedValidatorSkipped(pubKey, validatorIndex, moduleName);
+    }
+
+    /**
+     * @inheritdoc IPufferProtocol
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     * @dev Only the node operators that own the indicated validators can call this function
+     */
+    function triggerValidatorsExit(bytes32 moduleName, uint256[] calldata indices) external payable restricted {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        bytes[] memory pubkeys = new bytes[](indices.length);
+
+        for (uint256 i = 0; i < indices.length; ++i) {
+            Validator memory validator = $.validators[moduleName][indices[i]];
+            require(validator.node == msg.sender, InvalidValidator());
+            pubkeys[i] = validator.pubKey;
+        }
+
+        PUFFER_MODULE_MANAGER.triggerValidatorsExit{ value: msg.value }(moduleName, pubkeys);
     }
 
     /**
@@ -438,6 +728,36 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     }
 
     /**
+     * @notice Creates a new permissioned module
+     * @param moduleName The name of the permissioned module
+     * @return The address of the newly created module
+     * @dev Restricted to the DAO
+     */
+    function createPermissionedModule(bytes32 moduleName) external restricted returns (address) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+
+        if (address($.permissionedModules[moduleName]) != address(0)) {
+            revert ModuleAlreadyExists();
+        }
+
+        PermissionedModule module = PUFFER_MODULE_MANAGER.createNewPermissionedModule(moduleName);
+        $.permissionedModules[moduleName] = module;
+
+        emit NewPermissionedModuleCreated(address(module), moduleName);
+        return address(module);
+    }
+
+    /**
+     * @notice Returns the address of a permissioned module
+     * @param moduleName The name of the permissioned module
+     * @return The address of the permissioned module
+     */
+    function getPermissionedModuleAddress(bytes32 moduleName) external view returns (address) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return address($.permissionedModules[moduleName]);
+    }
+
+    /**
      * @dev Restricted to the DAO
      */
     function setModuleWeights(bytes32[] calldata newModuleWeights) external restricted {
@@ -551,6 +871,41 @@ contract PufferProtocol is IPufferProtocol, AccessManagedUpgradeable, UUPSUpgrad
     function getValidatorInfo(bytes32 moduleName, uint256 pufferModuleIndex) external view returns (Validator memory) {
         ProtocolStorage storage $ = _getPufferProtocolStorage();
         return $.validators[moduleName][pufferModuleIndex];
+    }
+
+    /**
+     * @notice Returns information about a permissioned validator
+     * @param moduleName The name of the permissioned module
+     * @param validatorIndex The index of the validator
+     * @return The permissioned validator information
+     */
+    function getPermissionedValidatorInfo(bytes32 moduleName, uint256 validatorIndex)
+        external
+        view
+        returns (PermissionedValidator memory)
+    {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.permissionedValidators[moduleName][validatorIndex];
+    }
+
+    /**
+     * @notice Returns the pending validator index for a permissioned module
+     * @param moduleName The name of the permissioned module
+     * @return The pending validator index (total registered validators)
+     */
+    function getPendingPermissionedValidatorIndex(bytes32 moduleName) external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.pendingPermissionedValidatorIndices[moduleName];
+    }
+
+    /**
+     * @notice Returns the next permissioned validator index to be provisioned
+     * @param moduleName The name of the permissioned module
+     * @return The next validator index to provision
+     */
+    function getNextPermissionedValidatorToBeProvisionedIndex(bytes32 moduleName) external view returns (uint256) {
+        ProtocolStorage storage $ = _getPufferProtocolStorage();
+        return $.nextPermissionedValidatorToBeProvisionedIndices[moduleName];
     }
 
     /**
