@@ -62,7 +62,8 @@ contract PufferBridgeTimelockTest is Test {
     event TransactionExecuted(
         bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId, bool whitelisted
     );
-    event WhitelistedSelectorUpdated(address indexed target, bytes4 indexed selector, bool whitelisted);
+    event SelectorWhitelisted(address indexed target, bytes4 indexed selector);
+    event SelectorRemovedFromWhitelist(address indexed target, bytes4 indexed selector);
 
     function setUp() public {
         // Move off of timestamp 0 so that `lockedUntil` values are never ambiguous with "not queued"
@@ -90,13 +91,13 @@ contract PufferBridgeTimelockTest is Test {
     }
 
     /**
-     * @notice Whitelists a selector by driving it through the timelock, the only way it can be set
+     * @notice Whitelists a selector by driving it through the timelock, the only way it can be added
      */
-    function _whitelist(address to, bytes4 selector, bool whitelisted) internal {
+    function _whitelist(address to, bytes4 selector) internal {
         _queueAndExecute(
             address(timelock),
-            abi.encodeCall(PufferBridgeTimelock.updateSelectorWhitelist, (to, selector, whitelisted)),
-            uint256(keccak256(abi.encode(to, selector, whitelisted)))
+            abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (to, selector)),
+            uint256(keccak256(abi.encode(to, selector)))
         );
     }
 
@@ -177,10 +178,29 @@ contract PufferBridgeTimelockTest is Test {
         timelock.setDelay(2 days);
     }
 
-    function test_updateSelectorWhitelist_onlyTimelock() public {
+    function test_addSelectorToWhitelist_onlyTimelock() public {
         vm.prank(executor);
         vm.expectRevert(PufferBridgeTimelock.Unauthorized.selector);
-        timelock.updateSelectorWhitelist(address(target), TargetMock.ping.selector, true);
+        timelock.addSelectorToWhitelist(address(target), TargetMock.ping.selector);
+    }
+
+    function test_removeSelectorFromWhitelist_onlyExecutor() public {
+        _whitelist(address(target), TargetMock.setValue.selector);
+
+        vm.prank(attacker);
+        vm.expectRevert(PufferBridgeTimelock.Unauthorized.selector);
+        timelock.removeSelectorFromWhitelist(address(target), TargetMock.setValue.selector);
+    }
+
+    /**
+     * @notice Removal is an `EXECUTOR` action, so the timelock itself must not be able to call it
+     */
+    function test_removeSelectorFromWhitelist_rejectsTimelock() public {
+        _whitelist(address(target), TargetMock.setValue.selector);
+
+        vm.prank(address(timelock));
+        vm.expectRevert(PufferBridgeTimelock.Unauthorized.selector);
+        timelock.removeSelectorFromWhitelist(address(target), TargetMock.setValue.selector);
     }
 
     // -------------------------------------------------------------------------
@@ -373,17 +393,16 @@ contract PufferBridgeTimelockTest is Test {
     // Whitelisted selectors
     // -------------------------------------------------------------------------
 
-    function test_updateSelectorWhitelist() public {
+    function test_addSelectorToWhitelist() public {
         bytes4 selector = TargetMock.ping.selector;
-        bytes memory callData =
-            abi.encodeCall(PufferBridgeTimelock.updateSelectorWhitelist, (address(target), selector, true));
+        bytes memory callData = abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (address(target), selector));
 
         vm.prank(executor);
         timelock.queueTransaction(address(timelock), callData, 1);
         vm.warp(block.timestamp + INITIAL_DELAY);
 
         vm.expectEmit(true, true, true, true);
-        emit WhitelistedSelectorUpdated(address(target), selector, true);
+        emit SelectorWhitelisted(address(target), selector);
 
         vm.prank(executor);
         timelock.executeTransaction(address(timelock), callData, 1);
@@ -391,27 +410,27 @@ contract PufferBridgeTimelockTest is Test {
         assertTrue(timelock.whitelistedSelectors(address(target), selector), "selector whitelisted");
     }
 
-    function test_updateSelectorWhitelist_revertsOnZeroAddress() public {
+    function test_addSelectorToWhitelist_revertsOnZeroAddress() public {
         vm.prank(address(timelock));
         vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
-        timelock.updateSelectorWhitelist(address(0), TargetMock.ping.selector, true);
+        timelock.addSelectorToWhitelist(address(0), TargetMock.ping.selector);
     }
 
-    function test_updateSelectorWhitelist_revertsOnTimelockItself() public {
+    function test_addSelectorToWhitelist_revertsOnTimelockItself() public {
         vm.prank(address(timelock));
         vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
-        timelock.updateSelectorWhitelist(address(timelock), PufferBridgeTimelock.setDelay.selector, true);
+        timelock.addSelectorToWhitelist(address(timelock), PufferBridgeTimelock.setDelay.selector);
     }
 
-    function test_updateSelectorWhitelist_revertsOnCodelessTarget() public {
+    function test_addSelectorToWhitelist_revertsOnCodelessTarget() public {
         vm.prank(address(timelock));
         vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
-        timelock.updateSelectorWhitelist(makeAddr("eoa"), TargetMock.ping.selector, true);
+        timelock.addSelectorToWhitelist(makeAddr("eoa"), TargetMock.ping.selector);
     }
 
     function test_whitelistedSelector_executesWithNoDelay() public {
         bytes4 selector = TargetMock.setValue.selector;
-        _whitelist(address(target), selector, true);
+        _whitelist(address(target), selector);
 
         bytes memory callData = abi.encodeCall(TargetMock.setValue, (7));
         bytes32 txHash = timelock.hashTransaction(address(target), callData, 99);
@@ -427,7 +446,7 @@ contract PufferBridgeTimelockTest is Test {
     }
 
     function test_whitelistedSelector_isRepeatable() public {
-        _whitelist(address(target), TargetMock.setValue.selector, true);
+        _whitelist(address(target), TargetMock.setValue.selector);
 
         vm.startPrank(executor);
         timelock.executeTransaction(address(target), abi.encodeCall(TargetMock.setValue, (1)), 0);
@@ -439,7 +458,7 @@ contract PufferBridgeTimelockTest is Test {
 
     function test_whitelistedSelector_isScopedPerTarget() public {
         TargetMock other = new TargetMock();
-        _whitelist(address(target), TargetMock.setValue.selector, true);
+        _whitelist(address(target), TargetMock.setValue.selector);
 
         bytes memory callData = abi.encodeCall(TargetMock.setValue, (1));
         bytes32 txHash = timelock.hashTransaction(address(other), callData, 0);
@@ -449,11 +468,23 @@ contract PufferBridgeTimelockTest is Test {
         timelock.executeTransaction(address(other), callData, 0);
     }
 
-    function test_whitelistedSelector_canBeRevoked() public {
+    /**
+     * @notice Revoking is immediate: no queueing, no delay, and the selector stops bypassing the
+     *         timelock in the very same block
+     */
+    function test_removeSelectorFromWhitelist() public {
         bytes4 selector = TargetMock.setValue.selector;
-        _whitelist(address(target), selector, true);
-        _whitelist(address(target), selector, false);
+        _whitelist(address(target), selector);
 
+        uint256 timestampBefore = block.timestamp;
+
+        vm.expectEmit(true, true, true, true);
+        emit SelectorRemovedFromWhitelist(address(target), selector);
+
+        vm.prank(executor);
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+
+        assertEq(block.timestamp, timestampBefore, "removal must not need any delay");
         assertFalse(timelock.whitelistedSelectors(address(target), selector), "revoked");
 
         bytes memory callData = abi.encodeCall(TargetMock.setValue, (1));
@@ -462,6 +493,82 @@ contract PufferBridgeTimelockTest is Test {
         vm.prank(executor);
         vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidTransaction.selector, txHash));
         timelock.executeTransaction(address(target), callData, 0);
+    }
+
+    function test_removeSelectorFromWhitelist_revertsWhenNotWhitelisted() public {
+        bytes4 selector = TargetMock.setValue.selector;
+
+        vm.prank(executor);
+        vm.expectRevert(
+            abi.encodeWithSelector(PufferBridgeTimelock.SelectorNotWhitelisted.selector, address(target), selector)
+        );
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+    }
+
+    function test_removeSelectorFromWhitelist_isNotIdempotent() public {
+        bytes4 selector = TargetMock.setValue.selector;
+        _whitelist(address(target), selector);
+
+        vm.startPrank(executor);
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(PufferBridgeTimelock.SelectorNotWhitelisted.selector, address(target), selector)
+        );
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+        vm.stopPrank();
+    }
+
+    function test_removeSelectorFromWhitelist_isScopedPerTarget() public {
+        TargetMock other = new TargetMock();
+        bytes4 selector = TargetMock.setValue.selector;
+
+        _whitelist(address(target), selector);
+        _whitelist(address(other), selector);
+
+        vm.prank(executor);
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+
+        assertFalse(timelock.whitelistedSelectors(address(target), selector), "removed on target");
+        assertTrue(timelock.whitelistedSelectors(address(other), selector), "untouched on other target");
+    }
+
+    /**
+     * @notice A selector can be re-added after removal, but only through the timelock again
+     */
+    function test_removedSelectorCanBeReAddedThroughTimelock() public {
+        bytes4 selector = TargetMock.setValue.selector;
+        _whitelist(address(target), selector);
+
+        vm.prank(executor);
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+
+        _whitelist(address(target), selector);
+        assertTrue(timelock.whitelistedSelectors(address(target), selector), "re-added");
+    }
+
+    /**
+     * @notice Revoking mid flight must not strand a transaction: it falls back to the queued path
+     */
+    function test_removeSelectorFromWhitelist_fallsBackToQueuedPath() public {
+        bytes4 selector = TargetMock.setValue.selector;
+        bytes memory callData = abi.encodeCall(TargetMock.setValue, (3));
+
+        _whitelist(address(target), selector);
+
+        vm.startPrank(executor);
+        timelock.queueTransaction(address(target), callData, 1);
+        timelock.removeSelectorFromWhitelist(address(target), selector);
+        vm.stopPrank();
+
+        (PufferBridgeTimelock.ExecutionStatus status,,) = _status(address(target), callData, 1);
+        _assertStatus(status, PufferBridgeTimelock.ExecutionStatus.Locked);
+
+        vm.warp(block.timestamp + INITIAL_DELAY);
+        vm.prank(executor);
+        timelock.executeTransaction(address(target), callData, 1);
+
+        assertEq(target.value(), 3, "still executable through the queue");
     }
 
     /**
@@ -475,7 +582,7 @@ contract PufferBridgeTimelockTest is Test {
         vm.prank(executor);
         timelock.queueTransaction(address(target), callData, 1);
 
-        _whitelist(address(target), TargetMock.setValue.selector, true);
+        _whitelist(address(target), TargetMock.setValue.selector);
 
         vm.prank(executor);
         timelock.executeTransaction(address(target), callData, 1);
@@ -617,7 +724,7 @@ contract PufferBridgeTimelockTest is Test {
     }
 
     function test_getExecutionStatus_whitelisted() public {
-        _whitelist(address(target), TargetMock.setValue.selector, true);
+        _whitelist(address(target), TargetMock.setValue.selector);
         bytes memory callData = abi.encodeCall(TargetMock.setValue, (42));
 
         (PufferBridgeTimelock.ExecutionStatus status, uint256 secondsRemaining,) = _status(address(target), callData, 1);
@@ -635,7 +742,7 @@ contract PufferBridgeTimelockTest is Test {
 
         vm.prank(executor);
         timelock.queueTransaction(address(target), callData, 1);
-        _whitelist(address(target), TargetMock.setValue.selector, true);
+        _whitelist(address(target), TargetMock.setValue.selector);
 
         (PufferBridgeTimelock.ExecutionStatus status, uint256 secondsRemaining,) = _status(address(target), callData, 1);
 
@@ -661,7 +768,7 @@ contract PufferBridgeTimelockTest is Test {
             timelock.queueTransaction(address(target), callData, 1);
         }
         if (whitelistIt) {
-            _whitelist(address(target), TargetMock.setValue.selector, true);
+            _whitelist(address(target), TargetMock.setValue.selector);
         }
 
         vm.warp(block.timestamp + warpBy);

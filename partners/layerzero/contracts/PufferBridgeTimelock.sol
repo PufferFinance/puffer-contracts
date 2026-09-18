@@ -9,6 +9,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @author Puffer Finance
  * @notice Timelock contract that requires a delay for every transaction except for whitelisted selectors
  *         that can be executed without a delay
+ * @dev Whitelisting a selector grants a privilege, so it must itself go through the timelock.
+ *      Removing one only revokes a privilege, so the `EXECUTOR` can do it immediately
  * @custom:security-contact security@puffer.fi
  */
 contract PufferBridgeTimelock is ReentrancyGuard {
@@ -58,6 +60,13 @@ contract PufferBridgeTimelock is ReentrancyGuard {
     error Locked(bytes32 txHash, uint256 lockedUntil);
 
     /**
+     * @notice Error to be thrown when removing a selector that is not currently whitelisted
+     * @param target The address of the contract that exposes the function selector
+     * @param selector The 4 byte function selector that is not whitelisted
+     */
+    error SelectorNotWhitelisted(address target, bytes4 selector);
+
+    /**
      * @notice Emitted when the delay changes from `oldDelay` to `newDelay`
      * @param oldDelay The previous timelock delay in seconds
      * @param newDelay The new timelock delay in seconds
@@ -97,12 +106,19 @@ contract PufferBridgeTimelock is ReentrancyGuard {
         bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId, bool whitelisted
     );
     /**
-     * @notice Emitted when the whitelisted status of a function selector is updated for a target
+     * @notice Emitted when a function selector is added to the whitelist for a target, meaning it
+     *         can from then on be executed with no delay
      * @param target The address of the contract that exposes the function selector
-     * @param selector The 4 byte function selector whose status changed
-     * @param whitelisted `true` if the selector can now be executed with no delay, `false` otherwise
+     * @param selector The 4 byte function selector that got whitelisted
      */
-    event WhitelistedSelectorUpdated(address indexed target, bytes4 indexed selector, bool whitelisted);
+    event SelectorWhitelisted(address indexed target, bytes4 indexed selector);
+    /**
+     * @notice Emitted when a function selector is removed from the whitelist for a target, meaning
+     *         it must from then on go through the queue and the delay again
+     * @param target The address of the contract that exposes the function selector
+     * @param selector The 4 byte function selector that got removed from the whitelist
+     */
+    event SelectorRemovedFromWhitelist(address indexed target, bytes4 indexed selector);
 
     /**
      * @notice Minimum delay enforced by the contract
@@ -262,17 +278,30 @@ contract PufferBridgeTimelock is ReentrancyGuard {
     }
 
     /**
-     * @notice Updates the whitelisted status of a function selector on `target`
+     * @notice Adds a function selector on `target` to the whitelist
      * @dev Only callable by the Timelock itself, so it must go through the delay. Whitelisted
      *      selectors bypass the timelock entirely, so they must be granted with care
      * @param target The address of the contract that exposes the function selector
-     * @param selector The 4 byte function selector to whitelist or un-whitelist
-     * @param whitelisted `true` to allow execution with no delay, `false` to require the delay
+     * @param selector The 4 byte function selector to whitelist
      */
-    function updateSelectorWhitelist(address target, bytes4 selector, bool whitelisted) external onlyTimelock {
+    function addSelectorToWhitelist(address target, bytes4 selector) external onlyTimelock {
         require(target != address(0) && target != address(this) && target.code.length > 0, InvalidAddress());
-        whitelistedSelectors[target][selector] = whitelisted;
-        emit WhitelistedSelectorUpdated(target, selector, whitelisted);
+        whitelistedSelectors[target][selector] = true;
+        emit SelectorWhitelisted(target, selector);
+    }
+
+    /**
+     * @notice Removes a function selector on `target` from the whitelist
+     * @dev Callable directly by the `EXECUTOR` with no delay, so that a selector can be revoked
+     *      quickly for security reasons. Revoking only ever removes a privilege, which is why it
+     *      does not need to go through the timelock the way `addSelectorToWhitelist` does
+     * @param target The address of the contract that exposes the function selector
+     * @param selector The 4 byte function selector to remove from the whitelist
+     */
+    function removeSelectorFromWhitelist(address target, bytes4 selector) external onlyExecutor {
+        require(whitelistedSelectors[target][selector], SelectorNotWhitelisted(target, selector));
+        whitelistedSelectors[target][selector] = false;
+        emit SelectorRemovedFromWhitelist(target, selector);
     }
 
     /**
