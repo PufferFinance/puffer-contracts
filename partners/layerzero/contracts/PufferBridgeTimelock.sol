@@ -32,30 +32,36 @@ contract PufferBridgeTimelock is ReentrancyGuard {
 
     /**
      * @notice Error to be thrown when an invalid address is encountered
+     * @dev Signature "0xe6c4247b"
      */
     error InvalidAddress();
     /**
      * @notice Error to be thrown when an invalid delay is encountered
+     * @dev Signature "0x4c89d598"
      */
     error InvalidDelay(uint256 delay);
     /**
      * @notice Error to be thrown when an unauthorized action is attempted
+     * @dev Signature "0x82b42900"
      */
     error Unauthorized();
     /**
      * @notice Error to be thrown when an invalid transaction is attempted
      * @param txHash The keccak256 hash of the invalid transaction
+     * @dev Signature "0xa0b244a8"
      */
     error InvalidTransaction(bytes32 txHash);
 
     /**
      * @notice Error to be thrown when a calldata is shorter than 4 bytes
+     * @dev Signature "0x8129bbcd"
      */
     error InvalidCalldata();
     /**
      * @notice Error to be thrown when a transaction is attempted before the lock period expires
      * @param txHash The keccak256 hash of the locked transaction
      * @param lockedUntil The timestamp when the transaction can be executed
+     * @dev Signature "0x83ead0c5"
      */
     error Locked(bytes32 txHash, uint256 lockedUntil);
 
@@ -63,6 +69,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @notice Error to be thrown when removing a selector that is not currently whitelisted
      * @param target The address of the contract that exposes the function selector
      * @param selector The 4 byte function selector that is not whitelisted
+     * @dev Signature "0xd241bce0"
      */
     error SelectorNotWhitelisted(address target, bytes4 selector);
 
@@ -70,6 +77,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @notice Emitted when the delay changes from `oldDelay` to `newDelay`
      * @param oldDelay The previous timelock delay in seconds
      * @param newDelay The new timelock delay in seconds
+     * @dev Signature "0xe238f342cc2d86b842f1511bd768de5dbea53639f6b5335c5d877543bc355c71"
      */
     event DelayChanged(uint256 oldDelay, uint256 newDelay);
     /**
@@ -79,6 +87,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @param callData The data to be sent along with the transaction
      * @param operationId The id of the operation used to identify the transaction
      * @param lockedUntil The timestamp when the transaction can be executed
+     * @dev Signature "0x5548e4b06f16c2bb2224a884464ab659f6284c75e5bd7ffc9d73c32ca7d5d7be"
      */
     event TransactionQueued(
         bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId, uint256 lockedUntil
@@ -89,6 +98,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @param target The address to which the transaction was to be sent
      * @param operationId The id of the operation used to identify the transaction
      * @param callData The data that was to be sent along with the transaction
+     * @dev Signature "0x4b02192b257234d0b6923d1cf041a4b39c504132836d60650632cd161c29ba7f"
      */
     event TransactionCanceled(
         bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId
@@ -101,6 +111,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @param callData The data that was sent along with the transaction
      * @param whitelisted `true` if the selector was whitelisted and the transaction executed with no
      *        delay, `false` if it went through the queue and the delay
+     * @dev Signature "0xf639fd0ad988a7b8fb61306db7e038d82096a91128c6f96155d4ed574afac719"
      */
     event TransactionExecuted(
         bytes32 indexed txHash, address indexed target, bytes callData, uint256 indexed operationId, bool whitelisted
@@ -110,6 +121,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      *         can from then on be executed with no delay
      * @param target The address of the contract that exposes the function selector
      * @param selector The 4 byte function selector that got whitelisted
+     * @dev Signature "0x055dd53947762795b4408aa69283438966871479910db742fcd7049a888bc544"
      */
     event SelectorWhitelisted(address indexed target, bytes4 indexed selector);
     /**
@@ -117,6 +129,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      *         it must from then on go through the queue and the delay again
      * @param target The address of the contract that exposes the function selector
      * @param selector The 4 byte function selector that got removed from the whitelist
+     * @dev Signature "0xed30656d16ba88dcc5e6e6af3442a5490f8077962c3d9602dfd72b378e238372"
      */
     event SelectorRemovedFromWhitelist(address indexed target, bytes4 indexed selector);
 
