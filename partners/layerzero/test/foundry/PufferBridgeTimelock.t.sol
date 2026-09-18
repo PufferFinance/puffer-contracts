@@ -222,6 +222,18 @@ contract PufferBridgeTimelockTest is Test {
         assertEq(timelock.queue(txHash), expectedLockedUntil, "locked until");
     }
 
+    /**
+     * @notice Calldata too short to carry a selector must be rejected at the entry point, so that a
+     *         permanently unexecutable entry can never enter the queue
+     */
+    function test_queueTransaction_revertsOnShortCalldata() public {
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidCalldata.selector);
+        timelock.queueTransaction(address(target), hex"aabb", 1);
+
+        assertEq(timelock.queue(timelock.hashTransaction(address(target), hex"aabb", 1)), 0, "nothing queued");
+    }
+
     function test_queueTransaction_revertsOnDuplicate() public {
         bytes memory callData = abi.encodeCall(TargetMock.setValue, (42));
 
@@ -493,6 +505,29 @@ contract PufferBridgeTimelockTest is Test {
         vm.prank(executor);
         vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidTransaction.selector, txHash));
         timelock.executeTransaction(address(target), callData, 0);
+    }
+
+    /**
+     * @notice Whitelisting is strict in both directions: a redundant add must fail at execution
+     *         rather than quietly re-emitting after a full delay cycle
+     */
+    function test_addSelectorToWhitelist_revertsWhenAlreadyWhitelisted() public {
+        bytes4 selector = TargetMock.setValue.selector;
+        _whitelist(address(target), selector);
+
+        bytes memory callData = abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (address(target), selector));
+
+        vm.prank(executor);
+        timelock.queueTransaction(address(timelock), callData, 1);
+        vm.warp(block.timestamp + INITIAL_DELAY);
+
+        vm.prank(executor);
+        vm.expectRevert(
+            abi.encodeWithSelector(PufferBridgeTimelock.SelectorAlreadyWhitelisted.selector, address(target), selector)
+        );
+        timelock.executeTransaction(address(timelock), callData, 1);
+
+        assertTrue(timelock.whitelistedSelectors(address(target), selector), "still whitelisted");
     }
 
     function test_removeSelectorFromWhitelist_revertsWhenNotWhitelisted() public {

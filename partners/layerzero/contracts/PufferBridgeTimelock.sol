@@ -51,7 +51,6 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @dev Signature "0xa0b244a8"
      */
     error InvalidTransaction(bytes32 txHash);
-
     /**
      * @notice Error to be thrown when a calldata is shorter than 4 bytes
      * @dev Signature "0x8129bbcd"
@@ -64,7 +63,13 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @dev Signature "0x83ead0c5"
      */
     error Locked(bytes32 txHash, uint256 lockedUntil);
-
+    /**
+     * @notice Error to be thrown when whitelisting a selector that is already whitelisted
+     * @param target The address of the contract that exposes the function selector
+     * @param selector The 4 byte function selector that is already whitelisted
+     * @dev Signature "0x4528063d"
+     */
+    error SelectorAlreadyWhitelisted(address target, bytes4 selector);
     /**
      * @notice Error to be thrown when removing a selector that is not currently whitelisted
      * @param target The address of the contract that exposes the function selector
@@ -198,22 +203,22 @@ contract PufferBridgeTimelock is ReentrancyGuard {
 
     /**
      * @notice Executor queues a transaction that can be executed by the Executor after the delay period
+     * @dev Reverts if an identical `(target, callData, operationId)` triple is already queued, so
+     *      that a pending entry can never be silently overwritten with a fresh deadline
      * @param target The address to which the transaction will be sent
-     * @param callData The data to be sent along with the transaction
+     * @param callData The data to be sent along with the transaction, must be at least 4 bytes long
      * @param operationId The id of the operation used to identify the transaction
      * @return The keccak256 hash of the queued transaction
-     * @dev Reverts if an identical `(target, callData, operationId)` triple is already queued
      */
     function queueTransaction(address target, bytes calldata callData, uint256 operationId)
         external
         onlyExecutor
         returns (bytes32)
     {
+        require(callData.length >= 4, InvalidCalldata());
         bytes32 txHash = hashTransaction(target, callData, operationId);
+        require(queue[txHash] == 0, InvalidTransaction(txHash));
         uint256 lockedUntil = block.timestamp + delay;
-        if (queue[txHash] != 0) {
-            revert InvalidTransaction(txHash);
-        }
         queue[txHash] = lockedUntil;
         // solhint-disable-next-line func-named-parameters
         emit TransactionQueued(txHash, target, callData, operationId, lockedUntil);
@@ -229,11 +234,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      */
     function cancelTransaction(address target, bytes calldata callData, uint256 operationId) external onlyExecutor {
         bytes32 txHash = hashTransaction(target, callData, operationId);
-
-        // slither-disable-next-line incorrect-equality
-        if (queue[txHash] == 0) {
-            revert InvalidTransaction(txHash);
-        }
+        require(queue[txHash] != 0, InvalidTransaction(txHash));
 
         queue[txHash] = 0;
 
@@ -260,13 +261,8 @@ contract PufferBridgeTimelock is ReentrancyGuard {
         (ExecutionStatus status, uint256 lockedUntil, bytes32 txHash) = _executionStatus(target, callData, operationId);
 
         // Non-whitelisted selectors must follow the queue and delay rules
-        // slither-disable-next-line incorrect-equality
-        if (status == ExecutionStatus.NotExecutable) {
-            revert InvalidTransaction(txHash);
-        }
-        if (status == ExecutionStatus.Locked) {
-            revert Locked(txHash, lockedUntil);
-        }
+        require(status != ExecutionStatus.NotExecutable, InvalidTransaction(txHash));
+        require(status != ExecutionStatus.Locked, Locked(txHash, lockedUntil));
 
         bool whitelisted = status == ExecutionStatus.Whitelisted;
 
@@ -274,8 +270,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
         // transaction queued before its selector was whitelisted does not leave a stale entry
         queue[txHash] = 0;
 
-        // Execute the transaction
-        // slither-disable-next-line arbitrary-send-eth
+        // Execute the transaction. No value is ever forwarded, this contract cannot hold ETH
         returnData = target.functionCall(callData);
 
         emit TransactionExecuted(txHash, target, callData, operationId, whitelisted);
@@ -293,12 +288,15 @@ contract PufferBridgeTimelock is ReentrancyGuard {
     /**
      * @notice Adds a function selector on `target` to the whitelist
      * @dev Only callable by the Timelock itself, so it must go through the delay. Whitelisted
-     *      selectors bypass the timelock entirely, so they must be granted with care
+     *      selectors bypass the timelock entirely, so they must be granted with care. Reverts if
+     *      the selector is already whitelisted, so a redundant proposal fails loudly instead of
+     *      spending a full delay cycle to change nothing
      * @param target The address of the contract that exposes the function selector
      * @param selector The 4 byte function selector to whitelist
      */
     function addSelectorToWhitelist(address target, bytes4 selector) external onlyTimelock {
         require(target != address(0) && target != address(this) && target.code.length > 0, InvalidAddress());
+        require(!whitelistedSelectors[target][selector], SelectorAlreadyWhitelisted(target, selector));
         whitelistedSelectors[target][selector] = true;
         emit SelectorWhitelisted(target, selector);
     }
