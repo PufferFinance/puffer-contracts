@@ -5,7 +5,6 @@ import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
-import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_BRIDGE,
@@ -112,13 +111,15 @@ contract GenerateRewardManagerCalldata is Script {
         bytes[] memory calldatas = new bytes[](2);
 
         bytes4[] memory closedSelectors = new bytes4[](11);
-        closedSelectors[0] = L2RewardManager.lzCompose.selector;
-        closedSelectors[1] = L2RewardManager.freezeAndRevertInterval.selector;
-        closedSelectors[2] = L2RewardManager.freezeClaimingForInterval.selector;
-        closedSelectors[3] = L2RewardManager.revertInterval.selector;
-        closedSelectors[4] = L2RewardManager.setDelayPeriod.selector;
-        closedSelectors[5] = L2RewardManager.setPufETHOFT.selector;
-        closedSelectors[6] = L2RewardManager.setDestinationEID.selector;
+        // LayerZero version, the implementation that is deployed on Base. The selectors are written out, so that
+        // mainnet-contracts does not need to import the L2RewardManager
+        closedSelectors[0] = bytes4(keccak256("lzCompose(address,bytes32,bytes,address,bytes)"));
+        closedSelectors[1] = bytes4(keccak256("freezeAndRevertInterval(uint256,uint256)"));
+        closedSelectors[2] = bytes4(keccak256("freezeClaimingForInterval(uint256,uint256)"));
+        closedSelectors[3] = bytes4(keccak256("revertInterval(uint256,uint256)"));
+        closedSelectors[4] = bytes4(keccak256("setDelayPeriod(uint256)"));
+        closedSelectors[5] = bytes4(keccak256("setPufETHOFT(address)"));
+        closedSelectors[6] = bytes4(keccak256("setDestinationEID(uint32)"));
         // Connext version. These functions do not exist anymore, but the selectors are still mapped to roles on Base
         closedSelectors[7] = bytes4(keccak256("xReceive(bytes32,uint256,address,address,uint32,bytes)"));
         closedSelectors[8] = bytes4(keccak256("freezeAndRevertInterval(address,uint256,uint256)"));

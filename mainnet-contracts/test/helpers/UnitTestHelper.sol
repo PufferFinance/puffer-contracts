@@ -29,7 +29,6 @@ import { OperationsCoordinator } from "../../src/OperationsCoordinator.sol";
 // import { XERC20Lockbox } from "src/XERC20Lockbox.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
 import { PufferRevenueDepositor } from "src/PufferRevenueDepositor.sol";
-import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 // import { ConnextMock } from "../mocks/ConnextMock.sol";
 import { pufETHAdapter } from "partners-layerzero/contracts/pufETHAdapter.sol";
 import { pufETH } from "partners-layerzero/contracts/pufETH.sol";
@@ -109,7 +108,6 @@ contract UnitTestHelper is Test, BaseScript {
     // xPufETH public xpufETH;
     // XERC20Lockbox public lockBox;
     L1RewardManager public l1RewardManager;
-    L2RewardManager public l2RewardManager;
     PufferRevenueDepositor public revenueDepositor;
     // pufETH public pufETHOFT;
     // pufETHAdapter public pufETHOFTAdapter;
@@ -223,7 +221,6 @@ contract UnitTestHelper is Test, BaseScript {
         // xpufETH = xPufETH(payable(bridgingDeployment.xPufETH));
         // lockBox = XERC20Lockbox(payable(bridgingDeployment.xPufETHLockBox));
         l1RewardManager = L1RewardManager(payable(bridgingDeployment.l1RewardManager));
-        l2RewardManager = L2RewardManager(payable(bridgingDeployment.l2RewardManager));
         // connext = ConnextMock(payable(bridgingDeployment.connext));
         revenueDepositor = PufferRevenueDepositor(payable(pufferDeployment.revenueDepositor));
         // pufETHOFT = pufETH(payable(bridgingDeployment.pufETHOFT));
