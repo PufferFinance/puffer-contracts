@@ -14,6 +14,7 @@ This implementation is designed to foster decentralization by incorporating seve
 - [`PufferModule`](./PufferModule.md): Acts as a container for an EigenPod which hosts multiple validators, responsible for validator rewards and restaking delegations.
 - [`RestakingOperator`](./RestakingOperator.md): A DAO-controllable EigenLayer operator that receives delegations from PufferModules.
 - [`ValidatorTicket`](./ValidatorTicket.md): An ERC20 contract that mints tokens that are needed to run validators on Puffer. When they are minted the revenue pays pufETH holders a proxy for Ethereum PoS rewards.
+- [`L1RewardManager`](./L1RewardManager.md): Mints the pufETH rewards of the node operators and lets them claim the rewards with a merkle proof on Ethereum Mainnet.
 
 # Protocol flows
 ## ETH Flow

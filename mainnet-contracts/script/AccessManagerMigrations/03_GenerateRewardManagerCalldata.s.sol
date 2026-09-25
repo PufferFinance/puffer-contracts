@@ -4,24 +4,21 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
-import { console } from "forge-std/console.sol";
-import { PufferModuleManager } from "../../src/PufferModuleManager.sol";
-import { PufferVaultV5 } from "../../src/PufferVaultV5.sol";
 import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_BRIDGE,
-    ROLE_ID_OPERATIONS_PAYMASTER,
-    ROLE_ID_L1_REWARD_MANAGER,
-    ROLE_ID_VAULT_WITHDRAWER,
-    PUBLIC_ROLE
+    ROLE_ID_REWARDS_MINTER,
+    ROLE_ID_REWARD_WATCHER,
+    PUBLIC_ROLE,
+    ADMIN_ROLE
 } from "../../script/Roles.sol";
 
 /**
  * @title GenerateRewardManagerCalldata
  * @author Puffer Finance
- * @notice Generates the AccessManager call data to setup the public access
+ * @notice Generates the AccessManager call data for the reward managers
  * The returned calldata is queued and executed by the Operations Multisig
  * 1. timelock.queueTransaction(address(accessManager), encodedMulticall, 1)
  * 2. ... 7 days later ...
@@ -29,95 +26,126 @@ import {
  */
 contract GenerateRewardManagerCalldata is Script {
     /**
-     * @param l1Bridge The LayerZero V2 endpoint address on L1/source chain.
-     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     * @notice Generates the AccessManager calldata for the L1RewardManager, where the rewards are claimed on L1
+     * @dev It also closes the functions of the bridging versions and revokes the bridge role.
+     * On a new deployment `bridgeRoleHolders` can be empty.
+     * @param l1RewardManagerProxy The L1RewardManager proxy
+     * @param rewardWatcher The account that can freeze a wrong interval during the claiming delay.
+     * Use address(0) to skip the grant
+     * @param bridgeRoleHolders The accounts that hold `ROLE_ID_BRIDGE`. The role is revoked from them
      */
-    function generateL1Calldata(address l1RewardManagerProxy, address l1Bridge) public pure returns (bytes memory) {
-        bytes[] memory calldatas = new bytes[](4);
+    function generateL1Calldata(address l1RewardManagerProxy, address rewardWatcher, address[] memory bridgeRoleHolders)
+        public
+        pure
+        returns (bytes memory)
+    {
+        uint256 watcherGrants = rewardWatcher == address(0) ? 0 : 1;
+        bytes[] memory calldatas = new bytes[](5 + watcherGrants + bridgeRoleHolders.length);
 
-        bytes4[] memory paymasterSelectors = new bytes4[](1);
-        paymasterSelectors[0] = L1RewardManager.mintAndBridgeRewards.selector;
+        bytes4[] memory minterSelectors = new bytes4[](1);
+        minterSelectors[0] = L1RewardManager.mintRewards.selector;
 
         calldatas[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            l1RewardManagerProxy,
-            paymasterSelectors,
-            ROLE_ID_OPERATIONS_PAYMASTER
+            AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, minterSelectors, ROLE_ID_REWARDS_MINTER
         );
 
-        bytes4[] memory bridgeSelectors = new bytes4[](1);
-        bridgeSelectors[0] = L1RewardManager.lzCompose.selector;
+        bytes4[] memory publicSelectors = new bytes4[](1);
+        publicSelectors[0] = L1RewardManager.claimRewards.selector;
 
         calldatas[1] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, bridgeSelectors, ROLE_ID_BRIDGE
+            AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, publicSelectors, PUBLIC_ROLE
         );
 
-        calldatas[2] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l1Bridge, 0);
+        bytes4[] memory watcherSelectors = new bytes4[](1);
+        watcherSelectors[0] = L1RewardManager.freezeInterval.selector;
 
-        bytes4[] memory daoSelectors = new bytes4[](3);
-        daoSelectors[0] = L1RewardManager.setDestinationEID.selector;
-        daoSelectors[1] = L1RewardManager.setAllowedRewardMintAmount.selector;
-        daoSelectors[2] = L1RewardManager.setAllowedRewardMintFrequency.selector;
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, watcherSelectors, ROLE_ID_REWARD_WATCHER
+        );
+
+        bytes4[] memory daoSelectors = new bytes4[](5);
+        daoSelectors[0] = L1RewardManager.revertInterval.selector;
+        daoSelectors[1] = L1RewardManager.freezeAndRevertInterval.selector;
+        daoSelectors[2] = L1RewardManager.setAllowedRewardMintAmount.selector;
+        daoSelectors[3] = L1RewardManager.setAllowedRewardMintFrequency.selector;
+        daoSelectors[4] = L1RewardManager.setClaimingDelay.selector;
 
         calldatas[3] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, daoSelectors, ROLE_ID_DAO
         );
 
-        bytes memory encodedMulticall = abi.encodeCall(Multicall.multicall, (calldatas));
+        // The functions of the bridging versions do not exist anymore. Their selectors go back to the admin role,
+        // so a later implementation can not accidentally expose a function with the same selector to the bridge role
+        calldatas[4] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, l1RewardManagerProxy, _deprecatedL1Selectors(), ADMIN_ROLE
+        );
 
-        // console.log("GenerateAccessManagerCallData:");
-        // console.logBytes(encodedMulticall);
+        uint256 index = 5;
 
-        return encodedMulticall;
+        if (rewardWatcher != address(0)) {
+            calldatas[index++] =
+                abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_REWARD_WATCHER, rewardWatcher, 0);
+        }
+
+        for (uint256 i = 0; i < bridgeRoleHolders.length; ++i) {
+            calldatas[index++] =
+                abi.encodeWithSelector(AccessManager.revokeRole.selector, ROLE_ID_BRIDGE, bridgeRoleHolders[i]);
+        }
+
+        return abi.encodeCall(Multicall.multicall, (calldatas));
     }
 
     /**
-     * @dev
-     * @param l2Bridge The LayerZero V2 endpoint address on L2/destination chain.
-     * @dev As the endpoint contract is responsible to call lzCompose, we need to grant the bridge role to the endpoint contract.
+     * @notice Generates the AccessManager calldata that puts the L2RewardManager on Base in claim-only mode
+     * @dev The rewards are no longer bridged to Base. The intervals that were bridged before stay claimable, except
+     * leaves with `isL1Contract = true` whose account has no claimer: the claimer could only be set with a message
+     * from L1. `lzCompose`, freeze, revert and the setters go to the admin role, and the bridge role is revoked from
+     * the LayerZero endpoint. A revert from Base after the L1 upgrade would send pufETH to L1 where nothing handles it.
+     * @param l2RewardManagerProxy The L2RewardManager proxy on Base
+     * @param l2LayerZeroEndpoint The LayerZero V2 endpoint on Base
      */
-    function generateL2Calldata(address l2RewardManagerProxy, address l2Bridge) public pure returns (bytes memory) {
-        bytes[] memory calldatasL2 = new bytes[](5);
+    function generateL2ClaimOnlyCalldata(address l2RewardManagerProxy, address l2LayerZeroEndpoint)
+        public
+        pure
+        returns (bytes memory)
+    {
+        bytes[] memory calldatas = new bytes[](2);
 
-        bytes4[] memory bridgeSelectorsL2 = new bytes4[](1);
-        bridgeSelectorsL2[0] = L2RewardManager.lzCompose.selector;
+        bytes4[] memory closedSelectors = new bytes4[](11);
+        closedSelectors[0] = L2RewardManager.lzCompose.selector;
+        closedSelectors[1] = L2RewardManager.freezeAndRevertInterval.selector;
+        closedSelectors[2] = L2RewardManager.freezeClaimingForInterval.selector;
+        closedSelectors[3] = L2RewardManager.revertInterval.selector;
+        closedSelectors[4] = L2RewardManager.setDelayPeriod.selector;
+        closedSelectors[5] = L2RewardManager.setPufETHOFT.selector;
+        closedSelectors[6] = L2RewardManager.setDestinationEID.selector;
+        // Connext version. These functions do not exist anymore, but the selectors are still mapped to roles on Base
+        closedSelectors[7] = bytes4(keccak256("xReceive(bytes32,uint256,address,address,uint32,bytes)"));
+        closedSelectors[8] = bytes4(keccak256("freezeAndRevertInterval(address,uint256,uint256)"));
+        closedSelectors[9] = bytes4(keccak256("revertInterval(address,uint256,uint256)"));
+        closedSelectors[10] = bytes4(keccak256("updateBridgeData(address,(uint32))"));
 
-        calldatasL2[0] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector,
-            address(l2RewardManagerProxy),
-            bridgeSelectorsL2,
-            ROLE_ID_BRIDGE
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, l2RewardManagerProxy, closedSelectors, ADMIN_ROLE
         );
 
-        calldatasL2[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_BRIDGE, l2Bridge, 0);
+        calldatas[1] = abi.encodeWithSelector(AccessManager.revokeRole.selector, ROLE_ID_BRIDGE, l2LayerZeroEndpoint);
 
-        bytes4[] memory publicSelectors = new bytes4[](1);
-        publicSelectors[0] = L2RewardManager.claimRewards.selector;
+        return abi.encodeCall(Multicall.multicall, (calldatas));
+    }
 
-        calldatasL2[2] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), publicSelectors, PUBLIC_ROLE
-        );
-
-        bytes4[] memory paymasterSelectors = new bytes4[](3);
-        paymasterSelectors[0] = L2RewardManager.freezeAndRevertInterval.selector;
-        paymasterSelectors[1] = L2RewardManager.freezeClaimingForInterval.selector;
-        paymasterSelectors[2] = L2RewardManager.revertInterval.selector;
-
-        calldatasL2[3] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), paymasterSelectors, ROLE_ID_DAO
-        );
-
-        bytes4[] memory daoSelectors = new bytes4[](3);
-        daoSelectors[0] = L2RewardManager.setDelayPeriod.selector;
-        daoSelectors[1] = L2RewardManager.setPufETHOFT.selector;
-        daoSelectors[2] = L2RewardManager.setDestinationEID.selector;
-
-        calldatasL2[4] = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(l2RewardManagerProxy), daoSelectors, ROLE_ID_DAO
-        );
-
-        // DAO role is assigned to OPS Multisig on Base
-
-        return abi.encodeCall(Multicall.multicall, (calldatasL2));
+    /**
+     * @dev Selectors of the L1RewardManager bridging versions
+     */
+    function _deprecatedL1Selectors() internal pure returns (bytes4[] memory selectors) {
+        selectors = new bytes4[](6);
+        // LayerZero version
+        selectors[0] = bytes4(keccak256("mintAndBridgeRewards((uint256,uint256,uint256,bytes32,string))"));
+        selectors[1] = bytes4(keccak256("lzCompose(address,bytes32,bytes,address,bytes)"));
+        selectors[2] = bytes4(keccak256("setDestinationEID(uint32)"));
+        // Connext version
+        selectors[3] = bytes4(keccak256("xReceive(bytes32,uint256,address,address,uint32,bytes)"));
+        selectors[4] = bytes4(keccak256("updateBridgeData(address,(uint32))"));
+        selectors[5] = bytes4(keccak256("mintAndBridgeRewards((address,uint256,uint256,uint256,bytes32,string))"));
     }
 }
