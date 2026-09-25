@@ -5,9 +5,22 @@ on:
     branches: [master]
     paths:
       - "l2-contracts/**"
+      - ".github/workflows/l2-contracts.yml"
   pull_request:
     paths:
       - "l2-contracts/**"
+      - ".github/workflows/l2-contracts.yml"
+
+# The L2RewardManager is deployed on Base, and only claims are left there. It was written against the LayerZero
+# version of mainnet-contracts, which is not on master anymore. So these jobs build it against the last master
+# commit that still has that version.
+# To build it locally, run this inside l2-contracts:
+#   mkdir -p node_modules/legacy-mainnet/mainnet-contracts
+#   git -C .. archive 380600060cd231fd8616ba167e674d4140486dbb:mainnet-contracts | tar -x -C node_modules/legacy-mainnet/mainnet-contracts
+#   forge build --remappings "mainnet-contracts/=node_modules/legacy-mainnet/mainnet-contracts/"
+env:
+  LEGACY_MAINNET_REF: 380600060cd231fd8616ba167e674d4140486dbb
+  LEGACY_MAINNET_REMAPPING: "mainnet-contracts/=node_modules/legacy-mainnet/mainnet-contracts/"
 
 jobs:
   codespell:
@@ -67,10 +80,18 @@ jobs:
           commit_message: "forge fmt"
           file_pattern: '*.sol'
 
+      # After the fmt commit, so the old files are never formatted or committed
+      - name: Check out the legacy mainnet-contracts
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LEGACY_MAINNET_REF }}
+          path: l2-contracts/node_modules/legacy-mainnet
+          sparse-checkout: mainnet-contracts
+
       - name: List selectors
         working-directory: l2-contracts
         run: |
-          forge selectors list >> "$GITHUB_STEP_SUMMARY"
+          forge selectors list -R "$LEGACY_MAINNET_REMAPPING" >> "$GITHUB_STEP_SUMMARY"
 
   coverage:
     runs-on: "ubuntu-latest"
@@ -96,9 +117,17 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Check out the legacy mainnet-contracts
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.LEGACY_MAINNET_REF }}
+          path: l2-contracts/node_modules/legacy-mainnet
+          sparse-checkout: mainnet-contracts
+
+      # The old files are under node_modules, so the filter below keeps them out of the report
       - name: "Generate the coverage report"
         working-directory: l2-contracts
-        run: 'export FOUNDRY_PROFILE=ci && forge coverage --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv --ir-minimum'
+        run: 'export FOUNDRY_PROFILE=ci && forge coverage --remappings "$LEGACY_MAINNET_REMAPPING" --no-match-coverage "(script|test|mock|node_modules|integrations|echidna)"  --no-match-contract "PufferModuleManagerHoleskyTestnetFFI" --report lcov -vvv --ir-minimum'
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v4"
