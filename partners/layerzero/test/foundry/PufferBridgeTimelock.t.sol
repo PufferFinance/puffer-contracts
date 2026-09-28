@@ -508,8 +508,8 @@ contract PufferBridgeTimelockTest is Test {
     }
 
     /**
-     * @notice Whitelisting is strict in both directions: a redundant add must fail at execution
-     *         rather than quietly re-emitting after a full delay cycle
+     * @notice Whitelisting is strict in both directions: a redundant add must be rejected when it
+     *         is proposed rather than after a full delay cycle
      */
     function test_addSelectorToWhitelist_revertsWhenAlreadyWhitelisted() public {
         bytes4 selector = TargetMock.setValue.selector;
@@ -518,16 +518,62 @@ contract PufferBridgeTimelockTest is Test {
         bytes memory callData = abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (address(target), selector));
 
         vm.prank(executor);
-        timelock.queueTransaction(address(timelock), callData, 1);
-        vm.warp(block.timestamp + INITIAL_DELAY);
-
-        vm.prank(executor);
         vm.expectRevert(
             abi.encodeWithSelector(PufferBridgeTimelock.SelectorAlreadyWhitelisted.selector, address(target), selector)
         );
+        timelock.queueTransaction(address(timelock), callData, 1);
+
+        assertEq(timelock.queue(timelock.hashTransaction(address(timelock), callData, 1)), 0, "nothing queued");
+    }
+
+    /**
+     * @notice Queue time validation cannot see other pending entries, so the check inside
+     *         `addSelectorToWhitelist` must still reject a grant that became redundant during the delay
+     */
+    function test_addSelectorToWhitelist_revertsWhenWhitelistedDuringDelay() public {
+        bytes4 selector = TargetMock.setValue.selector;
+        bytes memory callData = abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (address(target), selector));
+
+        vm.startPrank(executor);
+        timelock.queueTransaction(address(timelock), callData, 1);
+        timelock.queueTransaction(address(timelock), callData, 2);
+        vm.warp(block.timestamp + INITIAL_DELAY);
+
         timelock.executeTransaction(address(timelock), callData, 1);
 
-        assertTrue(timelock.whitelistedSelectors(address(target), selector), "still whitelisted");
+        vm.expectRevert(
+            abi.encodeWithSelector(PufferBridgeTimelock.SelectorAlreadyWhitelisted.selector, address(target), selector)
+        );
+        timelock.executeTransaction(address(timelock), callData, 2);
+        vm.stopPrank();
+    }
+
+    function test_queueTransaction_revertsOnWhitelistGrantForZeroAddress() public {
+        bytes memory callData =
+            abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (address(0), TargetMock.ping.selector));
+
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
+        timelock.queueTransaction(address(timelock), callData, 1);
+    }
+
+    function test_queueTransaction_revertsOnWhitelistGrantForTimelockItself() public {
+        bytes memory callData = abi.encodeCall(
+            PufferBridgeTimelock.addSelectorToWhitelist, (address(timelock), PufferBridgeTimelock.setDelay.selector)
+        );
+
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
+        timelock.queueTransaction(address(timelock), callData, 1);
+    }
+
+    function test_queueTransaction_revertsOnWhitelistGrantForCodelessTarget() public {
+        bytes memory callData =
+            abi.encodeCall(PufferBridgeTimelock.addSelectorToWhitelist, (makeAddr("eoa"), TargetMock.ping.selector));
+
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidAddress.selector);
+        timelock.queueTransaction(address(timelock), callData, 1);
     }
 
     function test_removeSelectorFromWhitelist_revertsWhenNotWhitelisted() public {
@@ -670,24 +716,61 @@ contract PufferBridgeTimelockTest is Test {
         bytes memory callData = abi.encodeCall(PufferBridgeTimelock.setDelay, (1 days - 1));
 
         vm.prank(executor);
-        timelock.queueTransaction(address(timelock), callData, 1);
-        vm.warp(block.timestamp + INITIAL_DELAY);
-
-        vm.prank(executor);
         vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidDelay.selector, 1 days - 1));
-        timelock.executeTransaction(address(timelock), callData, 1);
+        timelock.queueTransaction(address(timelock), callData, 1);
     }
 
     function test_setDelay_revertsAboveMaximum() public {
         bytes memory callData = abi.encodeCall(PufferBridgeTimelock.setDelay, (30 days + 1));
 
         vm.prank(executor);
+        vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidDelay.selector, 30 days + 1));
         timelock.queueTransaction(address(timelock), callData, 1);
-        vm.warp(block.timestamp + INITIAL_DELAY);
+    }
+
+    /**
+     * @notice The delay bounds are also enforced inside `setDelay`, not only at queue time
+     */
+    function test_setDelay_revertsOutOfRangeWhenCalledByTimelock() public {
+        vm.prank(address(timelock));
+        vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidDelay.selector, 1 days - 1));
+        timelock.setDelay(1 days - 1);
+    }
+
+    function test_queueTransaction_revertsOnMalformedSetDelayCalldata() public {
+        vm.prank(executor);
+        vm.expectRevert();
+        timelock.queueTransaction(address(timelock), abi.encodePacked(PufferBridgeTimelock.setDelay.selector), 1);
+    }
+
+    /**
+     * @notice Self-calls to any function other than `setDelay` and `addSelectorToWhitelist` can
+     *         never succeed, so they must not be queueable
+     */
+    function test_queueTransaction_revertsOnSelfCallToRemoveSelectorFromWhitelist() public {
+        bytes memory callData = abi.encodeCall(
+            PufferBridgeTimelock.removeSelectorFromWhitelist, (address(target), TargetMock.setValue.selector)
+        );
 
         vm.prank(executor);
-        vm.expectRevert(abi.encodeWithSelector(PufferBridgeTimelock.InvalidDelay.selector, 30 days + 1));
-        timelock.executeTransaction(address(timelock), callData, 1);
+        vm.expectRevert(PufferBridgeTimelock.InvalidCalldata.selector);
+        timelock.queueTransaction(address(timelock), callData, 1);
+    }
+
+    function test_queueTransaction_revertsOnSelfCallToExecuteTransaction() public {
+        bytes memory callData = abi.encodeCall(
+            PufferBridgeTimelock.executeTransaction, (address(target), abi.encodeCall(TargetMock.ping, ()), 0)
+        );
+
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidCalldata.selector);
+        timelock.queueTransaction(address(timelock), callData, 1);
+    }
+
+    function test_queueTransaction_revertsOnSelfCallToView() public {
+        vm.prank(executor);
+        vm.expectRevert(PufferBridgeTimelock.InvalidCalldata.selector);
+        timelock.queueTransaction(address(timelock), abi.encodeWithSelector(timelock.delay.selector), 1);
     }
 
     /**

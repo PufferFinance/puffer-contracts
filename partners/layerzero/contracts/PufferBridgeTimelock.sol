@@ -52,7 +52,9 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      */
     error InvalidTransaction(bytes32 txHash);
     /**
-     * @notice Error to be thrown when a calldata is shorter than 4 bytes
+     * @notice Error to be thrown when a calldata is shorter than 4 bytes, or when a transaction
+     *         targeting the timelock itself calls a function other than `setDelay` or
+     *         `addSelectorToWhitelist`
      * @dev Signature "0x8129bbcd"
      */
     error InvalidCalldata();
@@ -204,7 +206,10 @@ contract PufferBridgeTimelock is ReentrancyGuard {
     /**
      * @notice Executor queues a transaction that can be executed by the Executor after the delay period
      * @dev Reverts if an identical `(target, callData, operationId)` triple is already queued, so
-     *      that a pending entry can never be silently overwritten with a fresh deadline
+     *      that a pending entry can never be silently overwritten with a fresh deadline. Transactions
+     *      targeting the timelock itself are validated here with the same rules the called function
+     *      enforces, so that an invalid configuration change fails immediately instead of after a
+     *      full delay cycle
      * @param target The address to which the transaction will be sent
      * @param callData The data to be sent along with the transaction, must be at least 4 bytes long
      * @param operationId The id of the operation used to identify the transaction
@@ -216,6 +221,7 @@ contract PufferBridgeTimelock is ReentrancyGuard {
         returns (bytes32)
     {
         require(callData.length >= 4, InvalidCalldata());
+        if (target == address(this)) _validateSelfCall(callData);
         bytes32 txHash = hashTransaction(target, callData, operationId);
         require(queue[txHash] == 0, InvalidTransaction(txHash));
         uint256 lockedUntil = block.timestamp + delay;
@@ -289,14 +295,14 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @notice Adds a function selector on `target` to the whitelist
      * @dev Only callable by the Timelock itself, so it must go through the delay. Whitelisted
      *      selectors bypass the timelock entirely, so they must be granted with care. Reverts if
-     *      the selector is already whitelisted, so a redundant proposal fails loudly instead of
-     *      spending a full delay cycle to change nothing
+     *      the selector is already whitelisted. The same checks run in `queueTransaction`, so a
+     *      redundant or invalid proposal is rejected before it spends a delay cycle. They are
+     *      repeated here because state can change during the delay
      * @param target The address of the contract that exposes the function selector
      * @param selector The 4 byte function selector to whitelist
      */
     function addSelectorToWhitelist(address target, bytes4 selector) external onlyTimelock {
-        require(target != address(0) && target != address(this) && target.code.length > 0, InvalidAddress());
-        require(!whitelistedSelectors[target][selector], SelectorAlreadyWhitelisted(target, selector));
+        _validateWhitelistGrant(target, selector);
         whitelistedSelectors[target][selector] = true;
         emit SelectorWhitelisted(target, selector);
     }
@@ -399,8 +405,48 @@ contract PufferBridgeTimelock is ReentrancyGuard {
      * @param newDelay The new delay in seconds
      */
     function _setDelay(uint256 newDelay) internal {
-        require(newDelay >= MINIMUM_DELAY && newDelay <= MAXIMUM_DELAY, InvalidDelay(newDelay));
+        _validateDelay(newDelay);
         emit DelayChanged(delay, newDelay);
         delay = newDelay;
+    }
+
+    /**
+     * @notice Validates a transaction targeting the timelock itself before it is queued
+     * @dev Only `setDelay` and `addSelectorToWhitelist` can succeed as self-calls. Every other
+     *      function is either `onlyExecutor`, which the timelock is not, or a view, so it is
+     *      rejected outright
+     * @param callData The data to be sent along with the transaction, at least 4 bytes long
+     */
+    function _validateSelfCall(bytes calldata callData) internal view {
+        bytes4 selector = bytes4(callData[:4]);
+        if (selector == this.setDelay.selector) {
+            _validateDelay(abi.decode(callData[4:], (uint256)));
+        } else if (selector == this.addSelectorToWhitelist.selector) {
+            (address grantTarget, bytes4 grantSelector) = abi.decode(callData[4:], (address, bytes4));
+            _validateWhitelistGrant(grantTarget, grantSelector);
+        } else {
+            revert InvalidCalldata();
+        }
+    }
+
+    /**
+     * @notice Validates a timelock delay
+     * @dev Reverts unless `MINIMUM_DELAY <= newDelay <= MAXIMUM_DELAY`
+     * @param newDelay The delay in seconds
+     */
+    function _validateDelay(uint256 newDelay) internal pure {
+        require(newDelay >= MINIMUM_DELAY && newDelay <= MAXIMUM_DELAY, InvalidDelay(newDelay));
+    }
+
+    /**
+     * @notice Validates that a selector on `target` may be added to the whitelist
+     * @dev Reverts if `target` is the zero address, the timelock itself or has no code, or if the
+     *      selector is already whitelisted
+     * @param target The address of the contract that exposes the function selector
+     * @param selector The 4 byte function selector to whitelist
+     */
+    function _validateWhitelistGrant(address target, bytes4 selector) internal view {
+        require(target != address(0) && target != address(this) && target.code.length > 0, InvalidAddress());
+        require(!whitelistedSelectors[target][selector], SelectorAlreadyWhitelisted(target, selector));
     }
 }
