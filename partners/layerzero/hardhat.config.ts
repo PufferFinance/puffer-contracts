@@ -58,7 +58,11 @@ function buildNetworksFromConfig(): Record<string, any> {
 }
 
 // Build custom chains for etherscan verification
-function buildCustomChains(): Array<{ network: string; chainId: number; urls: { apiURL: string; browserURL: string } }> {
+function buildCustomChains(): Array<{
+    network: string
+    chainId: number
+    urls: { apiURL: string; browserURL: string }
+}> {
     const customChains: Array<{ network: string; chainId: number; urls: { apiURL: string; browserURL: string } }> = []
     for (const [name, config] of Object.entries(chainConfigs)) {
         // Skip aliases and chains without explorer config
@@ -97,7 +101,7 @@ const config: HardhatUserConfig = {
     solidity: {
         compilers: [
             {
-                version: '0.8.22',
+                version: '0.8.30',
                 settings: {
                     optimizer: {
                         enabled: true,
