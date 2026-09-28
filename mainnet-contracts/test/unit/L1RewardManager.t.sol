@@ -56,6 +56,9 @@ contract L1RewardManagerTest is UnitTestHelper {
 
         vm.startPrank(_broadcaster);
 
+        // Same order as on mainnet: the proxy is at version 1, then the upgrade runs initializeV2
+        l1RewardManager.initializeV2(CLAIMING_DELAY, uint104(MINT_FREQUENCY), address(0));
+
         bytes4[] memory vaultSelectors = new bytes4[](2);
         vaultSelectors[0] = PufferVaultV5.mintRewards.selector;
         vaultSelectors[1] = PufferVaultV5.revertMintRewards.selector;
@@ -88,12 +91,13 @@ contract L1RewardManagerTest is UnitTestHelper {
         new L1RewardManager(address(0));
     }
 
-    function test_initialize() public view {
-        assertEq(l1RewardManager.getClaimingDelay(), CLAIMING_DELAY, "claiming delay");
-        assertEq(_getAllowedRewardMintFrequency(), MINT_FREQUENCY, "mint frequency");
-        assertEq(l1RewardManager.getNewestIntervalId(), bytes32(0), "newest interval");
-        assertEq(l1RewardManager.getLastIntervalEndEpoch(), 0, "last end epoch");
-        assertEq(l1RewardManager.getCurrentIntervalEndEpoch(), 0, "current end epoch");
+    function test_initialize() public {
+        L1RewardManager proxy = _deployVersion1Proxy();
+
+        assertEq(proxy.authority(), address(accessManager), "access manager");
+        // The settings come from initializeV2
+        assertEq(proxy.getClaimingDelay(), 0, "claiming delay");
+        assertEq(_getAllowedRewardMintFrequency(proxy), 0, "mint frequency");
     }
 
     function testRevert_initializeTwice() public {
@@ -102,26 +106,27 @@ contract L1RewardManagerTest is UnitTestHelper {
     }
 
     function test_initializeV2() public {
+        L1RewardManager proxy = _deployVersion1Proxy();
         address oftAdapter = makeAddr("oftAdapter");
 
         // The bridging version left a small allowance to the OFT adapter
-        vm.prank(address(l1RewardManager));
+        vm.prank(address(proxy));
         pufferVault.approve(oftAdapter, 481127112341);
 
         vm.expectEmit(true, true, true, true);
-        emit IL1RewardManager.ClaimingDelayUpdated(CLAIMING_DELAY, 12 hours);
+        emit IL1RewardManager.ClaimingDelayUpdated(0, 12 hours);
         vm.expectEmit(true, true, true, true);
-        emit IL1RewardManager.AllowedRewardMintFrequencyUpdated(MINT_FREQUENCY, 96 hours);
+        emit IL1RewardManager.AllowedRewardMintFrequencyUpdated(0, 96 hours);
         vm.prank(_broadcaster);
-        l1RewardManager.initializeV2(12 hours, 96 hours, oftAdapter);
+        proxy.initializeV2(12 hours, 96 hours, oftAdapter);
 
-        assertEq(l1RewardManager.getClaimingDelay(), 12 hours, "claiming delay");
-        assertEq(_getAllowedRewardMintFrequency(), 96 hours, "mint frequency");
-        assertEq(pufferVault.allowance(address(l1RewardManager), oftAdapter), 0, "allowance");
+        assertEq(proxy.getClaimingDelay(), 12 hours, "claiming delay");
+        assertEq(_getAllowedRewardMintFrequency(proxy), 96 hours, "mint frequency");
+        assertEq(pufferVault.allowance(address(proxy), oftAdapter), 0, "allowance");
 
         vm.prank(_broadcaster);
         vm.expectRevert(Initializable.InvalidInitialization.selector);
-        l1RewardManager.initializeV2(12 hours, 96 hours, oftAdapter);
+        proxy.initializeV2(12 hours, 96 hours, oftAdapter);
     }
 
     function test_upgradeOnlyByAdmin() public {
@@ -136,18 +141,22 @@ contract L1RewardManagerTest is UnitTestHelper {
     }
 
     function testRevert_initializeV2Unauthorized() public {
+        L1RewardManager proxy = _deployVersion1Proxy();
+
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, alice));
-        l1RewardManager.initializeV2(12 hours, 96 hours, address(0));
+        proxy.initializeV2(12 hours, 96 hours, address(0));
     }
 
     function testRevert_initializeV2InvalidValues() public {
+        L1RewardManager proxy = _deployVersion1Proxy();
+
         vm.startPrank(_broadcaster);
         vm.expectRevert(IL1RewardManager.InvalidClaimingDelay.selector);
-        l1RewardManager.initializeV2(1 hours, 96 hours, address(0));
+        proxy.initializeV2(1 hours, 96 hours, address(0));
 
         vm.expectRevert(IL1RewardManager.InvalidMintFrequency.selector);
-        l1RewardManager.initializeV2(12 hours, 20 hours, address(0));
+        proxy.initializeV2(12 hours, 20 hours, address(0));
         vm.stopPrank();
     }
 
@@ -931,7 +940,23 @@ contract L1RewardManagerTest is UnitTestHelper {
     }
 
     function _getAllowedRewardMintFrequency() internal view returns (uint256) {
-        bytes32 slot0 = vm.load(address(l1RewardManager), REWARD_MANAGER_STORAGE_LOCATION);
+        return _getAllowedRewardMintFrequency(l1RewardManager);
+    }
+
+    function _getAllowedRewardMintFrequency(L1RewardManager target) internal view returns (uint256) {
+        bytes32 slot0 = vm.load(address(target), REWARD_MANAGER_STORAGE_LOCATION);
         return (uint256(slot0) >> 104) & type(uint104).max;
+    }
+
+    /**
+     * @dev A proxy that only ran `initialize`, like the mainnet proxy before this upgrade
+     */
+    function _deployVersion1Proxy() internal returns (L1RewardManager) {
+        L1RewardManager impl = new L1RewardManager(address(pufferVault));
+        return L1RewardManager(
+            address(
+                new ERC1967Proxy(address(impl), abi.encodeCall(L1RewardManager.initialize, (address(accessManager))))
+            )
+        );
     }
 }

@@ -54,8 +54,6 @@ contract L1RewardManager is IL1RewardManager, L1RewardManagerStorage, AccessMana
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _setAllowedRewardMintFrequency(uint104(_MIN_MINT_FREQUENCY));
-        _setClaimingDelay(24 hours);
     }
 
     /**
