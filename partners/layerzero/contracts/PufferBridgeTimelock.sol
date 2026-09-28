@@ -384,12 +384,11 @@ contract PufferBridgeTimelock is ReentrancyGuard {
         require(callData.length >= 4, InvalidCalldata());
 
         txHash = hashTransaction(target, callData, operationId);
+        lockedUntil = queue[txHash];
 
         if (whitelistedSelectors[target][bytes4(callData[:4])]) {
-            return (ExecutionStatus.Whitelisted, 0, txHash);
+            return (ExecutionStatus.Whitelisted, lockedUntil, txHash);
         }
-
-        lockedUntil = queue[txHash];
 
         // slither-disable-next-line incorrect-equality
         if (lockedUntil == 0) {
