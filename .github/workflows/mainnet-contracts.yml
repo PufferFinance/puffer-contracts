@@ -99,10 +99,13 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.6
 
+      # Holesky is deprecated, so the Holesky fork tests are skipped
       - name: "Generate the coverage report"
         working-directory: mainnet-contracts
-        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|interface|integrations|echidna|L1RewardManagerUnsafe)"  --no-match-contract "CarrotVestingTest" --report lcov -vvv --ir-minimum'
+        run: 'forge coverage --no-match-coverage "(script|test|mock|node_modules|interface|integrations|echidna|L1RewardManagerUnsafe)"  --no-match-contract "CarrotVestingTest|PufferModuleManagerIntegrationTest|PufferModuleManagerSlasherIntegrationTest" --report lcov -vvv --ir-minimum'
         env:
           ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
           HOLESKY_RPC_URL: ${{ secrets.HOLESKY_RPC_URL }}
