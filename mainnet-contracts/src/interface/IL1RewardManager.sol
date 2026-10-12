@@ -57,7 +57,8 @@ interface IL1RewardManager {
     /**
      * @notice Freezes the claiming of the newest interval. It is possible only during the claiming delay.
      * A frozen interval can only be reverted.
-     * @dev Restricted to `ROLE_ID_DAO`
+     * @dev Restricted to `ROLE_ID_REWARD_WATCHER`
+     * The DAO can freeze and revert in one call with `freezeAndRevertInterval`
      */
     function freezeInterval(uint256 startEpoch, uint256 endEpoch) external;
 
@@ -91,6 +92,8 @@ interface IL1RewardManager {
     /**
      * @notice Returns `true` if the rewards of the interval can not be claimed at the moment
      * @dev An interval that does not exist, is frozen, is reverted or is still in its claiming delay is locked
+     * `false` does not mean that a claim will succeed. `claimRewards` can still revert, for example when the
+     * contract is paused, the account already claimed, or the merkle proof is not valid
      */
     function isClaimingLocked(bytes32 intervalId) external view returns (bool);
 
