@@ -8,7 +8,6 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { PufferDeployment } from "../src/structs/PufferDeployment.sol";
 import { BridgingDeployment } from "./DeploymentStructs.sol";
 import { L1RewardManager } from "src/L1RewardManager.sol";
-import { L2RewardManager } from "l2-contracts/src/L2RewardManager.sol";
 import { NoImplementation } from "../src/NoImplementation.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";

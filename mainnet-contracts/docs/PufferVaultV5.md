@@ -77,7 +77,7 @@ Redeems pufETH shares for WETH assets. Standard ERC4626 redeem function.
 function mintRewards(uint256 rewardsAmount) external returns (uint256 ethToPufETHRate, uint256 pufETHAmount)
 ```
 
-Mints pufETH rewards for the L1RewardManager contract. The rewards are then bridged to Base. On Base the Node operators can claim the rewards.
+Mints pufETH rewards for the [L1RewardManager](./L1RewardManager.md) contract. The node operators claim the rewards from the L1RewardManager on Ethereum Mainnet.
 
 #### `depositRewards`
 

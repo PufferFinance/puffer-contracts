@@ -3,115 +3,121 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
-import { PufferVaultV5 } from "./PufferVaultV5.sol";
 import { UUPSUpgradeable } from "@openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { Unauthorized } from "mainnet-contracts/src/Errors.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IL1RewardManager } from "./interface/IL1RewardManager.sol";
 import { L1RewardManagerStorage } from "./L1RewardManagerStorage.sol";
-import { L2RewardManagerStorage } from "l2-contracts/src/L2RewardManagerStorage.sol";
-import { IOFT } from "./interface/LayerZero/IOFT.sol";
-import { IOAppComposer } from "@layerzerolabs/oapp-evm/contracts/oapp/interfaces/IOAppComposer.sol";
-import { OFTComposeMsgCodec } from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
-import { OptionsBuilder } from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
+import { PufferVaultV5 } from "./PufferVaultV5.sol";
 
 /**
  * @title L1RewardManager
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
+ * @notice Mints the pufETH rewards of the node operators and lets them claim the rewards on Ethereum Mainnet.
  */
-contract L1RewardManager is
-    IL1RewardManager,
-    L1RewardManagerStorage,
-    AccessManagedUpgradeable,
-    UUPSUpgradeable,
-    IOAppComposer
-{
-    using OptionsBuilder for bytes;
+contract L1RewardManager is IL1RewardManager, L1RewardManagerStorage, AccessManagedUpgradeable, UUPSUpgradeable {
+    using SafeERC20 for IERC20;
+    using SafeCast for uint256;
+    using Math for uint256;
+
+    /**
+     * @notice The minimum claiming delay
+     */
+    uint256 internal constant _MIN_CLAIMING_DELAY = 6 hours;
+
+    /**
+     * @notice The maximum claiming delay
+     */
+    uint256 internal constant _MAX_CLAIMING_DELAY = 72 hours;
+
+    /**
+     * @notice The minimum time between two mints
+     */
+    uint256 internal constant _MIN_MINT_FREQUENCY = 72 hours;
 
     /**
      * @notice The PufferVault contract on Ethereum Mainnet
      */
     PufferVaultV5 public immutable PUFFER_VAULT;
 
-    /**
-     * @notice The pufETH OFT address for singleton design
-     * @dev Immutable since it is known at deployment time on L1 and cannot be changed afterwards
-     */
-    IOFT public immutable PUFETH_OFT;
-
-    /**
-     * @notice The Rewards Manager contract on L2
-     */
-    address public immutable L2_REWARDS_MANAGER;
-
-    constructor(address pufETH, address l2RewardsManager, address pufETH_OFT) {
-        if (pufETH == address(0) || l2RewardsManager == address(0) || pufETH_OFT == address(0)) {
+    constructor(address pufETH) {
+        if (pufETH == address(0)) {
             revert InvalidAddress();
         }
         PUFFER_VAULT = PufferVaultV5(payable(pufETH));
-        PUFETH_OFT = IOFT(payable(pufETH_OFT));
-        L2_REWARDS_MANAGER = l2RewardsManager;
         _disableInitializers();
     }
 
     function initialize(address accessManager) external initializer {
         __AccessManaged_init(accessManager);
-        _setAllowedRewardMintFrequency(20 hours);
+    }
+
+    /**
+     * @notice Initializes the upgrade from the bridging version to the L1 claiming version
+     * @dev Must be called in the same transaction as the upgrade (`upgradeToAndCall`).
+     * Restricted to the AccessManager admin (Timelock)
+     * @param claimingDelay The claiming delay for new intervals
+     * @param allowedRewardMintFrequency The minimum time between two mints
+     * @param deprecatedPufETHOFTAdapter The LayerZero pufETH adapter that was used for the bridging.
+     * The leftover pufETH allowance of this contract to it is set to 0. Use address(0) to skip this step.
+     */
+    function initializeV2(uint256 claimingDelay, uint104 allowedRewardMintFrequency, address deprecatedPufETHOFTAdapter)
+        external
+        reinitializer(2)
+        restricted
+    {
+        _setClaimingDelay(claimingDelay);
+        _setAllowedRewardMintFrequency(allowedRewardMintFrequency);
+
+        if (deprecatedPufETHOFTAdapter != address(0)) {
+            IERC20(address(PUFFER_VAULT)).forceApprove(deprecatedPufETHOFTAdapter, 0);
+        }
     }
 
     /**
      * @inheritdoc IL1RewardManager
-     */
-    function setL2RewardClaimer(address claimer) external payable {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-
-        bytes memory options =
-            OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0).addExecutorLzComposeOption(0, 50000, 0);
-
-        PUFETH_OFT.send{ value: msg.value }(
-            IOFT.SendParam({
-                dstEid: $.destinationEID,
-                to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
-                amountLD: 0,
-                minAmountLD: 0,
-                extraOptions: options,
-                composeMsg: abi.encode(
-                    BridgingParams({
-                        bridgingType: BridgingType.SetClaimer,
-                        data: abi.encode(SetClaimerParams({ account: msg.sender, claimer: claimer }))
-                    })
-                ),
-                oftCmd: bytes("")
-            }),
-            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
-            msg.sender // refundAddress
-        );
-        emit L2RewardClaimerUpdated(msg.sender, claimer);
-    }
-
-    /**
-     * @notice Mints pufETH, locks into the pufETHAdapter and bridges it to the L2RewardManager contract on L2 according to the provided parameters.
-     * @dev Restricted access to `ROLE_ID_OPERATIONS_PAYMASTER`
-     *
-     * The oft must be allowlisted in the contract and the amount must be less than the allowed mint amount.
+     * @dev The mint amount must be lower than or equal to the allowed mint amount.
      * The minting can be done at most once per allowed frequency.
-     *
-     * This action can be reverted by the L2RewardManager contract on L2.
-     * The L2RewardManager can revert this action by bridging back the assets to this contract (see lzCompose).
+     * The newest interval must be out of its claiming delay and not frozen.
      */
-    function mintAndBridgeRewards(MintAndBridgeParams calldata params) external payable restricted {
+    function mintRewards(MintRewardsParams calldata params) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
         if (params.rewardsRoot == bytes32(0)) {
             revert InvalidRewardsRoot();
         }
 
-        if (params.rewardsAmount > $.allowedRewardMintAmount) {
+        if (params.rewardsAmount == 0 || params.rewardsAmount > $.allowedRewardMintAmount) {
             revert InvalidMintAmount();
+        }
+
+        if (params.endEpoch < params.startEpoch) {
+            revert InvalidEndEpoch();
         }
 
         if (($.lastRewardMintTimestamp + $.allowedRewardMintFrequency) > block.timestamp) {
             revert NotAllowedMintFrequency();
+        }
+
+        uint256 claimingDelay = $.claimingDelay;
+        // It is 0 only if the upgrade was done without `initializeV2`. Without a delay there is no time to freeze.
+        if (claimingDelay == 0) {
+            revert InvalidClaimingDelay();
+        }
+
+        // A new interval can only be minted after the claiming delay of the newest interval has passed.
+        // Because of this, only the newest interval can ever be frozen and reverted, so a revert
+        // can always move the epoch pointer back by exactly one interval.
+        {
+            bytes32 newestIntervalId = $.newestIntervalId;
+            Interval storage newestInterval = $.intervals[newestIntervalId];
+            if (_isFreezable(newestInterval) || newestInterval.status == IntervalStatus.FROZEN) {
+                revert PreviousIntervalLocked(newestIntervalId);
+            }
         }
 
         // Update lastIntervalEndEpoch to the previous currentIntervalEndEpoch
@@ -128,106 +134,122 @@ contract L1RewardManager is
         // Update the last mint timestamp
         $.lastRewardMintTimestamp = uint48(block.timestamp);
 
-        // Mint the rewards and lock them into the pufETHAdapter to be bridged to L2
-        (uint256 ethToPufETHRate, uint256 shares) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
+        bytes32 intervalId = getIntervalId(params.startEpoch, params.endEpoch);
 
-        PUFFER_VAULT.approve(address(PUFETH_OFT), shares);
+        // The epoch checks above already make this impossible. Only a reverted interval can be minted again.
+        // Nothing was claimed from a reverted interval, because it was frozen before its claiming started.
+        {
+            IntervalStatus status = $.intervals[intervalId].status;
+            if (status == IntervalStatus.ACTIVE || status == IntervalStatus.FROZEN) {
+                revert IntervalAlreadyExists(intervalId);
+            }
+        }
 
-        MintAndBridgeData memory bridgingCalldata = MintAndBridgeData({
-            rewardsAmount: params.rewardsAmount,
+        // Mint the rewards into this contract. The pufETH stays here until it is claimed
+        (uint256 ethToPufETHRate, uint256 pufETHAmount) = PUFFER_VAULT.mintRewards(params.rewardsAmount);
+
+        _storeInterval({
+            intervalId: intervalId,
+            params: params,
             ethToPufETHRate: ethToPufETHRate,
-            startEpoch: params.startEpoch,
-            endEpoch: params.endEpoch,
-            rewardsRoot: params.rewardsRoot,
-            rewardsURI: params.rewardsURI
+            pufETHAmount: pufETHAmount,
+            claimableAt: block.timestamp + claimingDelay
         });
 
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(50000, 0) // Gas for lzReceive
-            .addExecutorLzComposeOption(0, 50000, 0); // Gas for lzCompose
-
-        PUFETH_OFT.send{ value: msg.value }(
-            IOFT.SendParam({
-                dstEid: $.destinationEID,
-                to: bytes32(uint256(uint160(L2_REWARDS_MANAGER))),
-                amountLD: shares,
-                minAmountLD: 0,
-                extraOptions: options,
-                composeMsg: abi.encode(
-                    BridgingParams({ bridgingType: BridgingType.MintAndBridge, data: abi.encode(bridgingCalldata) })
-                ),
-                oftCmd: bytes("")
-            }),
-            IOFT.MessagingFee({ nativeFee: msg.value, lzTokenFee: 0 }),
-            msg.sender // refundAddress
-        );
-
-        emit MintedAndBridgedRewards({
-            rewardsAmount: params.rewardsAmount,
-            startEpoch: params.startEpoch,
-            endEpoch: params.endEpoch,
-            rewardsRoot: params.rewardsRoot,
-            ethToPufETHRate: ethToPufETHRate,
-            rewardsURI: params.rewardsURI
-        });
+        _emitRewardsMinted(intervalId, params.rewardsURI);
     }
 
     /**
-     * @notice Handles incoming composed messages from LayerZero Endpoint on L1
-     * @notice Revert the original mintAndBridge call
-     * @dev Ensures the message comes from the correct OApp and is sent through the authorized endpoint.
-     * @dev Restricted to the LayerZero Endpoint contract on L1
-     *
-     * @param oft The address of the pufETH OFTAdapter that is sending the composed message.
-     * @param message The calldata received from L2RewardManager.
+     * @inheritdoc IL1RewardManager
      */
-    function lzCompose(
-        address oft,
-        bytes32, /* _guid */
-        bytes calldata message,
-        address, /* _executor */
-        bytes calldata /* _extraData */
-    ) external payable override restricted {
-        // Ensure that only the whitelisted pufETH OFT can call this function
-        if (oft != address(PUFETH_OFT)) {
-            revert Unauthorized();
-        }
-
-        // Decode the OFT compose message to extract the original sender and validate authenticity
-        bytes32 composeFrom = OFTComposeMsgCodec.composeFrom(message);
-        bytes memory actualMessage = OFTComposeMsgCodec.composeMsg(message);
-
-        // Validate that the original sender is our legitimate L2RewardManager
-        address originalSender = address(uint160(uint256(composeFrom)));
-        if (originalSender != L2_REWARDS_MANAGER) {
-            revert Unauthorized();
-        }
-
-        // We decode the actual message to get the amount of shares(pufETH) and the ETH amount.
-        L2RewardManagerStorage.EpochRecord memory epochRecord =
-            abi.decode(actualMessage, (L2RewardManagerStorage.EpochRecord));
-
-        // This contract has already received the pufETH from pufETHAdapter after bridging back to L1
-        // The PufferVault will burn the pufETH from this contract and subtract the ETH amount from the ethRewardsAmount
-        PUFFER_VAULT.revertMintRewards({ pufETHAmount: epochRecord.pufETHAmount, ethAmount: epochRecord.ethAmount });
-
-        // When reverted, set current end epoch back to last end epoch
+    function claimRewards(ClaimOrder[] calldata claimOrders) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        $.currentIntervalEndEpoch = $.lastIntervalEndEpoch;
 
-        // We emit the event to the L1RewardManager contract
-        emit RevertedRewards({
-            rewardsAmount: epochRecord.ethAmount,
-            startEpoch: epochRecord.startEpoch,
-            endEpoch: epochRecord.endEpoch,
-            rewardsRoot: epochRecord.rewardRoot
-        });
+        for (uint256 i = 0; i < claimOrders.length; ++i) {
+            ClaimOrder calldata claimOrder = claimOrders[i];
+            Interval storage interval = $.intervals[claimOrder.intervalId];
+
+            if (interval.status == IntervalStatus.FROZEN) {
+                revert IntervalIsFrozen(claimOrder.intervalId);
+            }
+
+            if (interval.status != IntervalStatus.ACTIVE) {
+                revert InvalidClaimingInterval(claimOrder.intervalId);
+            }
+
+            if (block.timestamp < interval.claimableAt) {
+                revert ClaimingLocked({
+                    intervalId: claimOrder.intervalId,
+                    account: claimOrder.account,
+                    lockedUntil: interval.claimableAt
+                });
+            }
+
+            if ($.claimedRewards[claimOrder.intervalId][claimOrder.account]) {
+                revert AlreadyClaimed(claimOrder.intervalId, claimOrder.account);
+            }
+
+            // Alice may run many Puffer validators in the same interval `totalETHEarned = sum(aliceValidators)`
+            // The leaf is: keccak256(abi.encode(AliceAddress, isL1Contract, totalETHEarned))
+            // It is hashed twice to prevent second preimage attacks. This is the same leaf as on L2.
+            bytes32 leaf = keccak256(
+                bytes.concat(keccak256(abi.encode(claimOrder.account, claimOrder.isL1Contract, claimOrder.amount)))
+            );
+            if (!MerkleProof.verifyCalldata(claimOrder.merkleProof, interval.rewardsRoot, leaf)) {
+                revert InvalidProof();
+            }
+
+            // Mark it claimed and transfer the tokens
+            $.claimedRewards[claimOrder.intervalId][claimOrder.account] = true;
+
+            uint256 pufETHAmount = claimOrder.amount.mulDiv(interval.ethToPufETHRate, 1 ether, Math.Rounding.Floor);
+
+            // An interval can never pay out more than was minted for it.
+            // This limits the damage of a wrong merkle root to its own interval.
+            uint256 claimedPufETHAmount = interval.claimedPufETHAmount + pufETHAmount;
+            if (claimedPufETHAmount > interval.pufETHAmount) {
+                revert ClaimExceedsIntervalRewards(claimOrder.intervalId);
+            }
+            interval.claimedPufETHAmount = claimedPufETHAmount.toUint128();
+
+            IERC20(address(PUFFER_VAULT)).safeTransfer(claimOrder.account, pufETHAmount);
+
+            emit RewardsClaimed({
+                account: claimOrder.account,
+                intervalId: claimOrder.intervalId,
+                amount: claimOrder.amount,
+                pufETHAmount: pufETHAmount
+            });
+        }
     }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function freezeInterval(uint256 startEpoch, uint256 endEpoch) external restricted {
+        _freezeInterval(startEpoch, endEpoch);
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function revertInterval(uint256 startEpoch, uint256 endEpoch) external restricted {
+        _revertInterval(startEpoch, endEpoch);
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function freezeAndRevertInterval(uint256 startEpoch, uint256 endEpoch) external restricted {
+        _freezeInterval(startEpoch, endEpoch);
+        _revertInterval(startEpoch, endEpoch);
+    }
+
     /**
      * @notice Sets the allowed reward mint amount.
      * @param newAmount The new allowed reward mint amount.
      * @dev Restricted access to `ROLE_ID_DAO`
      */
-
     function setAllowedRewardMintAmount(uint104 newAmount) external restricted {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
 
@@ -246,21 +268,61 @@ contract L1RewardManager is
     }
 
     /**
-     * @notice Sets the destination endpoint ID
-     * @param newDestinationEID The new destination endpoint ID
+     * @notice Sets the claiming delay
+     * @dev Restricted access to `ROLE_ID_DAO`
+     * The new delay only applies to intervals minted after this call. Minted intervals keep their `claimableAt`.
+     * @param newDelay The new claiming delay in seconds
      */
-    function setDestinationEID(uint32 newDestinationEID) external restricted {
-        RewardManagerStorage storage $ = _getRewardManagerStorage();
-        emit DestinationEIDUpdated({ oldDestinationEID: $.destinationEID, newDestinationEID: newDestinationEID });
-        $.destinationEID = newDestinationEID;
+    function setClaimingDelay(uint256 newDelay) external restricted {
+        _setClaimingDelay(newDelay);
     }
 
     /**
-     * @notice Returns the destination endpoint ID
+     * @inheritdoc IL1RewardManager
      */
-    function getDestinationEID() external view returns (uint32) {
+    function getIntervalId(uint256 startEpoch, uint256 endEpoch) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(startEpoch, endEpoch));
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function getInterval(bytes32 intervalId) external view returns (Interval memory) {
         RewardManagerStorage storage $ = _getRewardManagerStorage();
-        return $.destinationEID;
+        return $.intervals[intervalId];
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function isClaimed(bytes32 intervalId, address account) external view returns (bool) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.claimedRewards[intervalId][account];
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function isClaimingLocked(bytes32 intervalId) external view returns (bool) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        Interval storage interval = $.intervals[intervalId];
+        return interval.status != IntervalStatus.ACTIVE || block.timestamp < interval.claimableAt;
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function getClaimingDelay() external view returns (uint256) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.claimingDelay;
+    }
+
+    /**
+     * @inheritdoc IL1RewardManager
+     */
+    function getNewestIntervalId() external view returns (bytes32) {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+        return $.newestIntervalId;
     }
 
     /**
@@ -279,8 +341,92 @@ contract L1RewardManager is
         return $.currentIntervalEndEpoch;
     }
 
+    function _storeInterval(
+        bytes32 intervalId,
+        MintRewardsParams calldata params,
+        uint256 ethToPufETHRate,
+        uint256 pufETHAmount,
+        uint256 claimableAt
+    ) internal {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        Interval storage interval = $.intervals[intervalId];
+        interval.startEpoch = params.startEpoch.toUint104();
+        interval.endEpoch = params.endEpoch.toUint104();
+        interval.claimableAt = claimableAt.toUint48();
+        interval.pufETHAmount = pufETHAmount.toUint128();
+        interval.ethAmount = params.rewardsAmount.toUint128();
+        // Always 0 here, also when a reverted interval is minted again (nothing was claimed from it)
+        interval.claimedPufETHAmount = 0;
+        interval.status = IntervalStatus.ACTIVE;
+        interval.ethToPufETHRate = ethToPufETHRate;
+        interval.rewardsRoot = params.rewardsRoot;
+
+        $.newestIntervalId = intervalId;
+    }
+
+    function _emitRewardsMinted(bytes32 intervalId, string calldata rewardsURI) internal {
+        Interval storage interval = _getRewardManagerStorage().intervals[intervalId];
+
+        emit RewardsMinted({
+            intervalId: intervalId,
+            rewardsRoot: interval.rewardsRoot,
+            rewardsAmount: interval.ethAmount,
+            pufETHAmount: interval.pufETHAmount,
+            ethToPufETHRate: interval.ethToPufETHRate,
+            startEpoch: interval.startEpoch,
+            endEpoch: interval.endEpoch,
+            claimableAt: interval.claimableAt,
+            rewardsURI: rewardsURI
+        });
+    }
+
+    function _freezeInterval(uint256 startEpoch, uint256 endEpoch) internal {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
+
+        // Only the newest interval can be frozen, and only before its claiming starts.
+        // Because of this nothing was claimed from a frozen interval.
+        if (intervalId != $.newestIntervalId || !_isFreezable($.intervals[intervalId])) {
+            revert UnableToFreezeInterval();
+        }
+
+        $.intervals[intervalId].status = IntervalStatus.FROZEN;
+
+        emit IntervalFrozen({ intervalId: intervalId, startEpoch: startEpoch, endEpoch: endEpoch });
+    }
+
+    function _revertInterval(uint256 startEpoch, uint256 endEpoch) internal {
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        bytes32 intervalId = getIntervalId(startEpoch, endEpoch);
+        Interval storage interval = $.intervals[intervalId];
+
+        if (interval.status != IntervalStatus.FROZEN) {
+            revert UnableToRevertInterval();
+        }
+
+        interval.status = IntervalStatus.REVERTED;
+
+        // Only the newest interval can be frozen, and no interval can be minted while it is frozen.
+        // So the reverted interval is the newest one and the epoch pointer goes back to the interval before it.
+        // This allows to mint the reverted epoch range again.
+        $.currentIntervalEndEpoch = $.lastIntervalEndEpoch;
+
+        // Burns the pufETH from this contract and subtracts the ETH amount from the vault's reward mint amount
+        PUFFER_VAULT.revertMintRewards({ pufETHAmount: interval.pufETHAmount, ethAmount: interval.ethAmount });
+
+        emit RevertedRewards({
+            rewardsAmount: interval.ethAmount,
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            rewardsRoot: interval.rewardsRoot
+        });
+    }
+
     function _setAllowedRewardMintFrequency(uint104 newFrequency) internal {
-        if (newFrequency < 20 hours) {
+        if (newFrequency < _MIN_MINT_FREQUENCY) {
             revert InvalidMintFrequency();
         }
         RewardManagerStorage storage $ = _getRewardManagerStorage();
@@ -288,6 +434,24 @@ contract L1RewardManager is
         emit AllowedRewardMintFrequencyUpdated($.allowedRewardMintFrequency, newFrequency);
 
         $.allowedRewardMintFrequency = newFrequency;
+    }
+
+    function _setClaimingDelay(uint256 newDelay) internal {
+        if (newDelay < _MIN_CLAIMING_DELAY || newDelay > _MAX_CLAIMING_DELAY) {
+            revert InvalidClaimingDelay();
+        }
+        RewardManagerStorage storage $ = _getRewardManagerStorage();
+
+        emit ClaimingDelayUpdated($.claimingDelay, newDelay);
+
+        $.claimingDelay = newDelay;
+    }
+
+    /**
+     * @dev An interval can be frozen while it is active and its claiming has not started yet
+     */
+    function _isFreezable(Interval storage interval) internal view returns (bool) {
+        return interval.status == IntervalStatus.ACTIVE && block.timestamp < interval.claimableAt;
     }
 
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
