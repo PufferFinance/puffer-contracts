@@ -11,17 +11,21 @@ import { GenerateRewardManagerCalldata } from "./AccessManagerMigrations/03_Gene
  * @notice Upgrades the L1RewardManager from the LayerZero bridging version to the version where the rewards are claimed on L1
  * @dev
  * To run the simulation do the following:
- *         REWARD_WATCHER=<watcher address> forge script script/UpgradeL1RewardManager.s.sol:UpgradeL1RewardManager -vvvv --rpc-url=...
+ *         forge script script/UpgradeL1RewardManager.s.sol:UpgradeL1RewardManager -vvvv --rpc-url=...
  *
  * If everything looks good, run the same command with `--broadcast --verify`
+ * The reward watcher is the Operations Multisig. To use another account, set `REWARD_WATCHER=<watcher address>`
  *
  * The script deploys the implementation and prints two Timelock transactions:
- * 1. AccessManager multicall: maps the new functions, closes the bridging functions and revokes `ROLE_ID_BRIDGE`
+ * 1. AccessManager multicall: maps the new functions, closes the bridging functions, revokes `ROLE_ID_BRIDGE`,
+ *    grants `ROLE_ID_REWARD_WATCHER` and revokes `ROLE_ID_L1_REWARD_MANAGER` from the Operations Multisig
  * 2. upgradeToAndCall on the L1RewardManager proxy, with `initializeV2`
  * Execute them in this order, one right after the other.
  *
  * Before the execution:
- * - Put the L2RewardManager on Base in claim-only mode (script/SetL2RewardManagerClaimOnly.s.sol)
+ * - Put the L2RewardManager on Base in claim-only mode. Queue this calldata on the Base Timelock, target the Base AccessManager:
+ *         forge script script/AccessManagerMigrations/03_GenerateRewardManagerCalldata.s.sol:GenerateRewardManagerCalldata \
+ *           --sig "generateL2ClaimOnlyCalldata(address,address)" <L2RewardManager proxy> <LayerZero endpoint on Base>
  * - Check that no interval is frozen on Base
  * - Check that the last interval that was bridged to Base is past its claiming delay
  */
@@ -40,7 +44,8 @@ contract UpgradeL1RewardManager is DeployerHelper {
     bytes public accessManagerCallData;
 
     function run() public {
-        run(vm.envOr("REWARD_WATCHER", address(0)));
+        // The Operations Multisig is the reward watcher until a dedicated watcher is set up
+        run(vm.envOr("REWARD_WATCHER", _getOPSMultisig()));
     }
 
     /**
@@ -59,8 +64,9 @@ contract UpgradeL1RewardManager is DeployerHelper {
 
         vm.stopBroadcast();
 
-        accessManagerCallData =
-            calldataGenerator.generateL1Calldata(l1RewardManagerProxy, rewardWatcher, _getL1BridgeRoleHolders());
+        accessManagerCallData = calldataGenerator.generateL1Calldata(
+            l1RewardManagerProxy, rewardWatcher, _getL1BridgeRoleHolders(), _getVaultMinterRoleHolders()
+        );
 
         upgradeCallData = abi.encodeCall(
             UUPSUpgradeable.upgradeToAndCall,
@@ -93,5 +99,15 @@ contract UpgradeL1RewardManager is DeployerHelper {
         holders[1] = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
         // LayerZero V2 endpoint
         holders[2] = 0x1a44076050125825900e736c501f859c50fE728c;
+    }
+
+    /**
+     * @dev The accounts other than the L1RewardManager that hold `ROLE_ID_L1_REWARD_MANAGER` on Mainnet
+     * (checked on 2026-10-13). The role allows to call `PufferVault.mintRewards` and `PufferVault.revertMintRewards`.
+     */
+    function _getVaultMinterRoleHolders() internal pure returns (address[] memory holders) {
+        holders = new address[](1);
+        // Operations Multisig, granted at block 24698468 to process a revert by hand in 2025
+        holders[0] = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
     }
 }

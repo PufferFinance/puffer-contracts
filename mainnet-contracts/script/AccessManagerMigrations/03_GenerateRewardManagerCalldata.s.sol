@@ -8,6 +8,7 @@ import { L1RewardManager } from "../../src/L1RewardManager.sol";
 import {
     ROLE_ID_DAO,
     ROLE_ID_BRIDGE,
+    ROLE_ID_L1_REWARD_MANAGER,
     ROLE_ID_REWARDS_MINTER,
     ROLE_ID_REWARD_WATCHER,
     PUBLIC_ROLE,
@@ -32,14 +33,19 @@ contract GenerateRewardManagerCalldata is Script {
      * @param rewardWatcher The account that can freeze a wrong interval during the claiming delay.
      * Use address(0) to skip the grant
      * @param bridgeRoleHolders The accounts that hold `ROLE_ID_BRIDGE`. The role is revoked from them
+     * @param vaultMinterRoleHolders The accounts other than the L1RewardManager that hold `ROLE_ID_L1_REWARD_MANAGER`.
+     * The role is revoked from them. Freeze and revert are handled by the L1RewardManager, so nobody else needs to
+     * call `PufferVault.mintRewards` or `PufferVault.revertMintRewards`
      */
-    function generateL1Calldata(address l1RewardManagerProxy, address rewardWatcher, address[] memory bridgeRoleHolders)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function generateL1Calldata(
+        address l1RewardManagerProxy,
+        address rewardWatcher,
+        address[] memory bridgeRoleHolders,
+        address[] memory vaultMinterRoleHolders
+    ) public pure returns (bytes memory) {
         uint256 watcherGrants = rewardWatcher == address(0) ? 0 : 1;
-        bytes[] memory calldatas = new bytes[](5 + watcherGrants + bridgeRoleHolders.length);
+        bytes[] memory calldatas =
+            new bytes[](5 + watcherGrants + bridgeRoleHolders.length + vaultMinterRoleHolders.length);
 
         bytes4[] memory minterSelectors = new bytes4[](1);
         minterSelectors[0] = L1RewardManager.mintRewards.selector;
@@ -89,6 +95,14 @@ contract GenerateRewardManagerCalldata is Script {
         for (uint256 i = 0; i < bridgeRoleHolders.length; ++i) {
             calldatas[index++] =
                 abi.encodeWithSelector(AccessManager.revokeRole.selector, ROLE_ID_BRIDGE, bridgeRoleHolders[i]);
+        }
+
+        for (uint256 i = 0; i < vaultMinterRoleHolders.length; ++i) {
+            // The L1RewardManager needs the role to mint and revert the rewards
+            require(vaultMinterRoleHolders[i] != l1RewardManagerProxy, "Can not revoke the L1RewardManager");
+            calldatas[index++] = abi.encodeWithSelector(
+                AccessManager.revokeRole.selector, ROLE_ID_L1_REWARD_MANAGER, vaultMinterRoleHolders[i]
+            );
         }
 
         return abi.encodeCall(Multicall.multicall, (calldatas));

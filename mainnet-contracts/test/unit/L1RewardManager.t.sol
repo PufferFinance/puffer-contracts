@@ -66,7 +66,7 @@ contract L1RewardManagerTest is UnitTestHelper {
         accessManager.grantRole(ROLE_ID_L1_REWARD_MANAGER, address(l1RewardManager), 0);
 
         bytes memory cd = new GenerateRewardManagerCalldata().generateL1Calldata(
-            address(l1RewardManager), rewardWatcher, new address[](0)
+            address(l1RewardManager), rewardWatcher, new address[](0), new address[](0)
         );
         (bool success,) = address(accessManager).call(cd);
         require(success, "failed setupAccess GenerateRewardManagerCalldata");
