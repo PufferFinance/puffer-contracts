@@ -91,7 +91,7 @@ contract DeployPuffer is BaseScript {
             eigenSlasher = address(new EigenAllocationManagerMock());
             treasury = address(1);
             operationsMultisig = address(2);
-        } else {
+        } else if (isHolesky()) {
             // Holesky https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-testnet-deployment
             eigenPodManager = 0x30770d7E3e71112d7A6b7259542D1f680a70e315;
             delegationManager = 0xA44151489861Fe9e3055d95adC98FbD462B948e7;
@@ -99,6 +99,16 @@ contract DeployPuffer is BaseScript {
             treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
             rewardsCoordinator = 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
             operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else if (isHoodi()) {
+            // Hoodi https://github.com/Layr-Labs/eigenlayer-contracts?tab=readme-ov-file#current-deployment-contracts
+            eigenPodManager = 0xcd1442415Fc5C29Aa848A49d2e232720BE07976c;
+            delegationManager = 0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
+            eigenSlasher = 0xcAe751b75833ef09627549868A04E32679386e7C; // @todo Confirm EigenSlasher address
+            treasury = 0x61A44645326846F9b5d9c6f91AD27C3aD28EA390;
+            rewardsCoordinator = 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
+            operationsMultisig = 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else {
+            revert("Deployment not configured for this chain");
         }
 
         operationsCoordinator = new OperationsCoordinator(PufferOracleV2(oracle), address(accessManager), 500); // 500 BPS = 5%
@@ -230,8 +240,13 @@ contract DeployPuffer is BaseScript {
         }
 
         // Holesky
-        if (block.chainid == 17000) {
+        if (isHolesky()) {
             return 0x4242424242424242424242424242424242424242;
+        }
+
+        // Hoodi
+        if (isHoodi()) {
+            return 0x00000000219ab540356cBB839Cbe05303d7705Fa;
         }
 
         // Tests / local chain

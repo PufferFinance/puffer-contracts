@@ -24,7 +24,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: _getRestakingOperatorController()
@@ -49,7 +49,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: _getRestakingOperatorController()
@@ -69,7 +69,7 @@ contract DeployRestakingOperator is DeployerHelper {
 
         RestakingOperator restakingOperatorImplementation = new RestakingOperator({
             delegationManager: IDelegationManager(_getEigenDelegationManager()),
-            allocationManager: IAllocationManager(_getEigenSlasher()),
+            allocationManager: IAllocationManager(_getAllocationManager()),
             moduleManager: PufferModuleManager(payable(_getPufferModuleManager())),
             rewardsCoordinator: IRewardsCoordinator(_getRewardsCoordinator()),
             restakingOperatorController: restakingOperatorController
